@@ -13,10 +13,14 @@ const s = {
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
   label: { display: 'block', fontSize: 12, color: '#555', marginBottom: 4 },
   input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none' },
+  inputError: { width: '100%', padding: '9px 10px', fontSize: 13, border: '1.5px solid #A32D2D', borderRadius: 8, color: '#111', background: '#fff', outline: 'none' },
   select: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none' },
   btnSave: { width: '100%', marginTop: '1.25rem', padding: '11px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
-  error: { marginTop: 10, padding: '8px 12px', background: '#FCEBEB', borderRadius: 8, fontSize: 13, color: '#A32D2D' },
+  btnDisabled: { width: '100%', marginTop: '1.25rem', padding: '11px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
+  error: { marginTop: 10, padding: '10px 12px', background: '#FCEBEB', borderRadius: 8, fontSize: 13, color: '#A32D2D', display: 'flex', alignItems: 'center', gap: 6 },
+  warning: { marginTop: 6, fontSize: 11, color: '#A32D2D' },
   sectionTitle: { fontSize: 12, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '1rem 0 8px' },
+  vendedorBox: { background: '#E6F1FB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#185FA5', fontWeight: 500, marginBottom: 12 },
 }
 
 const INITIAL = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone: '', email: '', estado_civil: 'Solteiro(a)', nacionalidade: 'Brasileira', endereco: '' }
@@ -24,14 +28,16 @@ const INITIAL = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone
 export default function NovoAdvogado({ onClose, onSaved }) {
   const { profile } = useAuth()
   const [form, setForm] = useState(INITIAL)
-  const [vendedorId, setVendedorId] = useState(profile?.id || '')
+  const [vendedorId, setVendedorId] = useState('')
   const [vendedores, setVendedores] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [oabDuplicado, setOabDuplicado] = useState(false)
+  const [verificandoOab, setVerificandoOab] = useState(false)
 
   useEffect(() => {
     if (profile?.role === 'admin') {
-      supabase.from('profiles').select('id, nome').eq('role', 'vendedor').then(({ data }) => {
+      supabase.from('profiles').select('id, nome').eq('role', 'vendedor').order('nome').then(({ data }) => {
         setVendedores(data || [])
       })
     }
@@ -39,17 +45,39 @@ export default function NovoAdvogado({ onClose, onSaved }) {
 
   function set(field, value) { setForm(f => ({ ...f, [field]: value })) }
 
+  async function verificarOab(oab) {
+    if (!oab || oab.length < 3) { setOabDuplicado(false); return }
+    setVerificandoOab(true)
+    const { data } = await supabase.from('advogados').select('id, nome_completo, vendedor_id').eq('oab', oab.trim()).maybeSingle()
+    setOabDuplicado(!!data)
+    setVerificandoOab(false)
+  }
+
   async function handleSave(e) {
     e.preventDefault()
+    if (oabDuplicado) { setError('OAB já cadastrado no sistema.'); return }
+    if (profile?.role === 'admin' && !vendedorId) { setError('Selecione o vendedor responsável.'); return }
+
     setLoading(true)
     setError('')
+
     const { error } = await supabase.from('advogados').insert({
       ...form,
+      oab: form.oab.trim(),
       vendedor_id: profile?.role === 'admin' ? vendedorId : profile.id,
       total_compras: 0,
       status: 'vermelho',
     })
-    if (error) { setError('Erro ao salvar: ' + error.message); setLoading(false); return }
+
+    if (error) {
+      if (error.code === '23505') {
+        setError('Este OAB já está cadastrado no sistema. Cada advogado só pode ser cadastrado uma vez.')
+      } else {
+        setError('Erro ao salvar: ' + error.message)
+      }
+      setLoading(false)
+      return
+    }
     onSaved()
   }
 
@@ -62,13 +90,17 @@ export default function NovoAdvogado({ onClose, onSaved }) {
         </div>
         <form onSubmit={handleSave}>
 
-          {profile?.role === 'admin' && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={s.sectionTitle}>Vincular ao vendedor</div>
+          {profile?.role === 'admin' ? (
+            <div>
+              <div style={s.sectionTitle}>Vendedor responsável</div>
               <select style={s.select} value={vendedorId} onChange={e => setVendedorId(e.target.value)} required>
                 <option value="">Selecione o vendedor</option>
                 {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
               </select>
+            </div>
+          ) : (
+            <div style={s.vendedorBox}>
+              Cadastrando como: {profile?.nome}
             </div>
           )}
 
@@ -79,8 +111,16 @@ export default function NovoAdvogado({ onClose, onSaved }) {
               <input style={s.input} value={form.nome_completo} onChange={e => set('nome_completo', e.target.value)} required />
             </div>
             <div>
-              <label style={s.label}>OAB *</label>
-              <input style={s.input} value={form.oab} onChange={e => set('oab', e.target.value)} placeholder="SP-123456" required />
+              <label style={s.label}>OAB * {verificandoOab && <span style={{ color: '#888' }}>verificando...</span>}</label>
+              <input
+                style={oabDuplicado ? s.inputError : s.input}
+                value={form.oab}
+                onChange={e => { set('oab', e.target.value); setOabDuplicado(false) }}
+                onBlur={e => verificarOab(e.target.value)}
+                placeholder="SP-123456"
+                required
+              />
+              {oabDuplicado && <div style={s.warning}>⚠️ Este OAB já está cadastrado no sistema</div>}
             </div>
             <div>
               <label style={s.label}>Estado *</label>
@@ -120,8 +160,10 @@ export default function NovoAdvogado({ onClose, onSaved }) {
             </div>
           </div>
 
-          {error && <div style={s.error}>{error}</div>}
-          <button style={s.btnSave} type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Cadastrar advogado'}</button>
+          {error && <div style={s.error}>⚠️ {error}</div>}
+          <button style={oabDuplicado || loading ? s.btnDisabled : s.btnSave} type="submit" disabled={oabDuplicado || loading}>
+            {loading ? 'Salvando...' : 'Cadastrar advogado'}
+          </button>
         </form>
       </div>
     </div>
