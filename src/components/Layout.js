@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
 
-const NAV = [
+const NAV_VENDEDOR = [
+  { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
 ]
 const NAV_ADMIN = [
+  { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
@@ -27,20 +29,18 @@ export default function Layout({ children, page, setPage }) {
   const { profile, signOut } = useAuth()
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
-  const nav = profile?.role === 'admin' ? NAV_ADMIN : NAV
+  const nav = profile?.role === 'admin' ? NAV_ADMIN : NAV_VENDEDOR
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f8f6' }}>
 
-      {/* Overlay escuro ao abrir menu mobile */}
       {isMobile && menuOpen && (
         <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 299 }} />
       )}
 
-      {/* Sidebar — desktop sempre visível, mobile só quando aberto */}
       {(!isMobile || menuOpen) && (
         <div style={{
-          width: 200, background: '#fff',
+          width: 210, background: '#fff',
           borderRight: '0.5px solid rgba(0,0,0,0.1)',
           display: 'flex', flexDirection: 'column',
           padding: '1.25rem 0', flexShrink: 0,
@@ -51,11 +51,10 @@ export default function Layout({ children, page, setPage }) {
           </div>
           {nav.map(n => (
             <button key={n.key} onClick={() => { setPage(n.key); setMenuOpen(false) }} style={{
-              display: 'block', padding: '10px 1.25rem', fontSize: 14,
+              display: 'block', padding: '10px 1.25rem', fontSize: 13,
               color: page === n.key ? '#185FA5' : '#555',
               fontWeight: page === n.key ? 500 : 400,
               background: page === n.key ? '#E6F1FB' : 'transparent',
-              borderLeft: `2px solid ${page === n.key ? '#185FA5' : 'transparent'}`,
               cursor: 'pointer', textAlign: 'left',
               border: 'none', borderLeftWidth: 2, borderLeftStyle: 'solid',
               borderLeftColor: page === n.key ? '#185FA5' : 'transparent',
@@ -72,10 +71,7 @@ export default function Layout({ children, page, setPage }) {
         </div>
       )}
 
-      {/* Conteúdo principal */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-
-        {/* Topbar mobile */}
         {isMobile && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
             <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111', padding: '4px 8px', lineHeight: 1 }}>☰</button>
@@ -83,7 +79,6 @@ export default function Layout({ children, page, setPage }) {
             <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
           </div>
         )}
-
         <div style={{ padding: isMobile ? '1rem' : '1.5rem', paddingTop: isMobile ? '72px' : '1.5rem', overflowY: 'auto', flex: 1 }}>
           {children}
         </div>
