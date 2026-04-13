@@ -6,10 +6,11 @@ import Advogados from './pages/Advogados'
 import Funil from './pages/Funil'
 import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
+import Dashboard from './pages/Dashboard'
 
 function AppInner() {
   const { user, loading } = useAuth()
-  const [page, setPage] = useState('advogados')
+  const [page, setPage] = useState('dashboard')
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
@@ -19,11 +20,17 @@ function AppInner() {
 
   if (!user) return <Login />
 
-  const pages = { advogados: <Advogados />, funil: <Funil />, compras: <Compras />, equipe: <Equipe /> }
+  const pages = {
+    dashboard: <Dashboard />,
+    advogados: <Advogados />,
+    funil: <Funil />,
+    compras: <Compras />,
+    equipe: <Equipe />,
+  }
 
   return (
     <Layout page={page} setPage={setPage}>
-      {pages[page] || <Advogados />}
+      {pages[page] || <Dashboard />}
     </Layout>
   )
 }
