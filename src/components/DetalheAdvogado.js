@@ -23,6 +23,7 @@ const PROD_STYLE = {
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
+const TITULOS = ['', 'Parceiro Bronze', 'Parceiro Prata', 'Cliente Gold', 'Cliente Gold II', 'Cliente Platinum', 'Cliente Platinum II', 'Cliente Diamond', 'Cliente Diamond II', 'Cliente Black']
 
 const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' },
@@ -49,8 +50,6 @@ const s = {
   prodTag: (p) => ({ padding: '2px 7px', borderRadius: 4, fontSize: 12, marginRight: 4, display: 'inline-block', background: PROD_STYLE[p]?.bg || '#eee', color: PROD_STYLE[p]?.color || '#555' }),
 }
 
-const TITULOS = ['', 'Parceiro Bronze', 'Parceiro Prata', 'Cliente Gold', 'Cliente Gold II', 'Cliente Platinum', 'Cliente Platinum II', 'Cliente Diamond', 'Cliente Diamond II', 'Cliente Black']
-
 export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const { profile } = useAuth()
   const [compras, setCompras] = useState([])
@@ -69,10 +68,12 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     const { data } = await supabase.from('compras').select('*').eq('advogado_id', advogado.id).order('data_compra', { ascending: false })
     setCompras(data || [])
   }
+
   async function fetchProdutos() {
     const { data } = await supabase.from('advogado_produtos').select('produto').eq('advogado_id', advogado.id)
     setProdutos(data?.map(d => d.produto) || [])
   }
+
   async function fetchAdv() {
     const { data } = await supabase.from('advogados').select('*').eq('id', advogado.id).single()
     if (data) setAdv(data)
@@ -86,6 +87,12 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     await fetchAdv()
     setSaving(false)
   }
+
+  // Contagem por produto
+  const contagemProduto = compras.reduce((acc, c) => {
+    acc[c.produto] = (acc[c.produto] || 0) + 1
+    return acc
+  }, {})
 
   const st = STATUS_STYLE[adv.status] || STATUS_STYLE.vermelho
   const t = Math.min(adv.total_compras, 9)
@@ -109,7 +116,19 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           <div style={s.row}><span style={s.rowLabel}>Total de compras</span><span style={s.rowValue}>{adv.total_compras}</span></div>
           <div style={s.row}><span style={s.rowLabel}>Última compra</span><span style={s.rowValue}>{diasUltimaCompra !== null ? `${diasUltimaCompra} dias atrás` : 'Nenhuma'}</span></div>
           {proximoTitulo && <div style={s.row}><span style={s.rowLabel}>Próximo título</span><span style={{ ...s.rowValue, color: '#185FA5' }}>{proximoTitulo}</span></div>}
-          <div style={{ marginTop: 8 }}>{produtos.map(p => <span key={p} style={s.prodTag(p)}>{p}</span>)}</div>
+
+          {/* Contagem por produto */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {['Maternidade', 'BPC', 'Auxilio Acidente'].map(p => {
+              const qtd = contagemProduto[p] || 0
+              return (
+                <div key={p} style={{ background: PROD_STYLE[p]?.bg, borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 80, opacity: qtd === 0 ? 0.35 : 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: 500, color: PROD_STYLE[p]?.color }}>{qtd}</div>
+                  <div style={{ fontSize: 10, color: PROD_STYLE[p]?.color, marginTop: 2 }}>{p === 'Auxilio Acidente' ? 'Aux. Acidente' : p}</div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         <div style={s.section}>
