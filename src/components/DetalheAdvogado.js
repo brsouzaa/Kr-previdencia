@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import NovoAdvogado from '../components/NovoAdvogado'
+import DetalheAdvogado from '../components/DetalheAdvogado'
 
-const STATUS_STYLE = {
-  verde: { bg: '#EAF3DE', color: '#3B6D11', label: 'Ativo' },
-  amarelo: { bg: '#FAEEDA', color: '#854F0B', label: 'Atenção' },
-  vermelho: { bg: '#FCEBEB', color: '#A32D2D', label: 'Crítico' },
-}
-const TITULO_STYLE = {
+const TITULOS_CLASS = {
   'Parceiro Bronze': { bg: '#FAECE7', color: '#993C1D' },
   'Parceiro Prata': { bg: '#D3D1C7', color: '#444441' },
   'Cliente Gold': { bg: '#FAEEDA', color: '#854F0B' },
@@ -18,157 +15,186 @@ const TITULO_STYLE = {
   'Cliente Diamond II': { bg: '#EEEDFE', color: '#3C3489' },
   'Cliente Black': { bg: '#2C2C2A', color: '#D3D1C7' },
 }
-const PROD_STYLE = {
+const PROD_CLASS = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
-const TITULOS = ['', 'Parceiro Bronze', 'Parceiro Prata', 'Cliente Gold', 'Cliente Gold II', 'Cliente Platinum', 'Cliente Platinum II', 'Cliente Diamond', 'Cliente Diamond II', 'Cliente Black']
-
-const s = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' },
-  panel: { width: 380, background: '#fff', height: '100vh', overflowY: 'auto', padding: '1.5rem', borderLeft: '0.5px solid rgba(0,0,0,0.1)' },
-  closeBtn: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', float: 'right' },
-  name: { fontSize: 18, fontWeight: 500, color: '#111', marginBottom: 3, marginTop: '1.5rem', letterSpacing: '-0.3px' },
-  sub: { fontSize: 13, color: '#888', marginBottom: 14 },
-  badges: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-  badge: (style) => ({ padding: '3px 9px', borderRadius: 20, fontSize: 12, fontWeight: 500, ...style }),
-  section: { marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' },
-  sectionTitle: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10, fontWeight: 500 },
-  row: { display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 },
-  rowLabel: { color: '#888' },
-  rowValue: { fontWeight: 500, color: '#111' },
-  compraBox: { background: '#f8f8f6', borderRadius: 10, padding: '1rem', marginTop: '1rem' },
-  label: { fontSize: 12, color: '#555', marginBottom: 4, display: 'block', marginTop: 10 },
-  select: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' },
-  input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' },
-  btnSave: { width: '100%', marginTop: 12, padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  tlItem: { display: 'flex', gap: 10, marginBottom: 12 },
-  tlDot: { width: 8, height: 8, borderRadius: '50%', background: '#185FA5', marginTop: 4, flexShrink: 0 },
-  tlText: { fontSize: 13, color: '#111' },
-  tlDate: { fontSize: 11, color: '#888' },
-  prodTag: (p) => ({ padding: '2px 7px', borderRadius: 4, fontSize: 12, marginRight: 4, display: 'inline-block', background: PROD_STYLE[p]?.bg || '#eee', color: PROD_STYLE[p]?.color || '#555' }),
+const STATUS = {
+  verde: { bg: '#EAF3DE', color: '#3B6D11', label: 'Ativo' },
+  amarelo: { bg: '#FAEEDA', color: '#854F0B', label: 'Atenção' },
+  vermelho: { bg: '#FCEBEB', color: '#A32D2D', label: 'Crítico' },
 }
 
-export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
+export default function Advogados() {
   const { profile } = useAuth()
-  const [compras, setCompras] = useState([])
-  const [produtos, setProdutos] = useState([])
-  const [produto, setProduto] = useState('Maternidade')
-  const [dataCompra, setDataCompra] = useState(new Date().toISOString().slice(0, 10))
-  const [saving, setSaving] = useState(false)
-  const [adv, setAdv] = useState(advogado)
+  const [advogados, setAdvogados] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroProduto, setFiltroProduto] = useState('')
+  const [showNovo, setShowNovo] = useState(false)
+  const [detalhe, setDetalhe] = useState(null)
 
-  useEffect(() => {
-    fetchCompras()
-    fetchProdutos()
-  }, [advogado.id])
+  const fetch = useCallback(async () => {
+    if (!profile) return
+    setLoading(true)
+    let q = supabase.from('advogados').select(`
+      id, nome_completo, oab, estado, cidade, telefone, email,
+      estado_civil, endereco, nacionalidade,
+      vendedor_id, total_compras, ultima_compra, status, titulo,
+      created_at, updated_at,
+      profiles!advogados_vendedor_id_fkey(nome),
+      advogado_produtos(produto)
+    `).order('updated_at', { ascending: false })
+    if (profile.role !== 'admin') q = q.eq('vendedor_id', profile.id)
+    if (filtroStatus) q = q.eq('status', filtroStatus)
+    const { data } = await q
+    setAdvogados(data || [])
+    setLoading(false)
+  }, [profile, filtroStatus])
 
-  async function fetchCompras() {
-    const { data } = await supabase.from('compras').select('*').eq('advogado_id', advogado.id).order('data_compra', { ascending: false })
-    setCompras(data || [])
+  useEffect(() => { fetch() }, [fetch])
+
+  const filtered = advogados.filter(a => {
+    const q = busca.toLowerCase()
+    const matchQ = !q || a.nome_completo?.toLowerCase().includes(q) || a.oab?.toLowerCase().includes(q) || a.cidade?.toLowerCase().includes(q)
+    const matchP = !filtroProduto || (a.advogado_produtos || []).some(p => p.produto === filtroProduto)
+    return matchQ && matchP
+  })
+
+  const counts = {
+    total: advogados.length,
+    verde: advogados.filter(a => a.status === 'verde').length,
+    amarelo: advogados.filter(a => a.status === 'amarelo').length,
+    vermelho: advogados.filter(a => a.status === 'vermelho').length,
   }
 
-  async function fetchProdutos() {
-    const { data } = await supabase.from('advogado_produtos').select('produto').eq('advogado_id', advogado.id)
-    setProdutos(data?.map(d => d.produto) || [])
-  }
-
-  async function fetchAdv() {
-    const { data } = await supabase.from('advogados').select('*').eq('id', advogado.id).single()
-    if (data) setAdv(data)
-  }
-
-  async function registrarCompra() {
-    setSaving(true)
-    await supabase.from('compras').insert({ advogado_id: adv.id, produto, vendedor_id: profile.id, data_compra: dataCompra })
-    await fetchCompras()
-    await fetchProdutos()
-    await fetchAdv()
-    setSaving(false)
-  }
-
-  // Contagem por produto
-  const contagemProduto = compras.reduce((acc, c) => {
-    acc[c.produto] = (acc[c.produto] || 0) + 1
-    return acc
-  }, {})
-
-  const st = STATUS_STYLE[adv.status] || STATUS_STYLE.vermelho
-  const t = Math.min(adv.total_compras, 9)
-  const ts = TITULO_STYLE[adv.titulo]
-  const proximoTitulo = t < 9 ? TITULOS[t + 1] : null
-  const diasUltimaCompra = adv.ultima_compra ? Math.floor((Date.now() - new Date(adv.ultima_compra)) / 86400000) : null
+  const dotColor = { verde: '#3B6D11', amarelo: '#BA7517', vermelho: '#A32D2D' }
 
   return (
-    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={s.panel}>
-        <button style={s.closeBtn} onClick={onClose}>×</button>
-        <div style={s.name}>{adv.nome_completo}</div>
-        <div style={s.sub}>{adv.oab} · {adv.cidade}, {adv.estado}</div>
-        <div style={s.badges}>
-          <span style={s.badge({ background: st.bg, color: st.color })}>{st.label}</span>
-          {adv.titulo && ts && <span style={s.badge({ background: ts.bg, color: ts.color })}>{adv.titulo}</span>}
-        </div>
+    <div>
+      <style>{`
+        .adv-table { display: table; }
+        .adv-cards { display: none; }
+        @media (max-width: 768px) {
+          .adv-table { display: none !important; }
+          .adv-cards { display: block !important; }
+          .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .filters-row { flex-direction: column !important; }
+          .filters-row input, .filters-row select { width: 100% !important; }
+          .header-row { flex-wrap: wrap; gap: 8px; }
+        }
+      `}</style>
 
-        <div style={s.section}>
-          <div style={s.sectionTitle}>Desempenho</div>
-          <div style={s.row}><span style={s.rowLabel}>Total de compras</span><span style={s.rowValue}>{adv.total_compras}</span></div>
-          <div style={s.row}><span style={s.rowLabel}>Última compra</span><span style={s.rowValue}>{diasUltimaCompra !== null ? `${diasUltimaCompra} dias atrás` : 'Nenhuma'}</span></div>
-          {proximoTitulo && <div style={s.row}><span style={s.rowLabel}>Próximo título</span><span style={{ ...s.rowValue, color: '#185FA5' }}>{proximoTitulo}</span></div>}
+      <div className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#111', letterSpacing: '-0.3px' }}>Advogados</div>
+        <button onClick={() => setShowNovo(true)} style={{ padding: '8px 16px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>+ Novo</button>
+      </div>
 
-          {/* Contagem por produto */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            {['Maternidade', 'BPC', 'Auxilio Acidente'].map(p => {
-              const qtd = contagemProduto[p] || 0
-              return (
-                <div key={p} style={{ background: PROD_STYLE[p]?.bg, borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 80, opacity: qtd === 0 ? 0.35 : 1 }}>
-                  <div style={{ fontSize: 20, fontWeight: 500, color: PROD_STYLE[p]?.color }}>{qtd}</div>
-                  <div style={{ fontSize: 10, color: PROD_STYLE[p]?.color, marginTop: 2 }}>{p === 'Auxilio Acidente' ? 'Aux. Acidente' : p}</div>
-                </div>
-              )
-            })}
+      <div className="metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' }}>
+        {[['Total', counts.total, '#111'], ['Ativos', counts.verde, '#3B6D11'], ['Atenção', counts.amarelo, '#BA7517'], ['Críticos', counts.vermelho, '#A32D2D']].map(([l, v, c]) => (
+          <div key={l} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
+            <div style={{ fontSize: 24, fontWeight: 500, color: c }}>{v}</div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div style={s.section}>
-          <div style={s.sectionTitle}>Contato</div>
-          <div style={s.row}><span style={s.rowLabel}>Telefone</span><span style={s.rowValue}>{adv.telefone}</span></div>
-          <div style={s.row}><span style={s.rowLabel}>E-mail</span><span style={{ ...s.rowValue, color: '#185FA5', fontSize: 12 }}>{adv.email}</span></div>
-          <div style={s.row}><span style={s.rowLabel}>Estado civil</span><span style={s.rowValue}>{adv.estado_civil || '—'}</span></div>
-          <div style={s.row}><span style={s.rowLabel}>Endereço</span><span style={{ ...s.rowValue, fontSize: 12 }}>{adv.endereco || '—'}</span></div>
-        </div>
+      <div className="filters-row" style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <input style={{ flex: 1, minWidth: 140, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} placeholder="Buscar nome, OAB..." value={busca} onChange={e => setBusca(e.target.value)} />
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          <option value="verde">Ativos</option>
+          <option value="amarelo">Atenção</option>
+          <option value="vermelho">Críticos</option>
+        </select>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+          <option value="">Todos produtos</option>
+          <option value="Maternidade">Maternidade</option>
+          <option value="BPC">BPC</option>
+          <option value="Auxilio Acidente">Aux. Acidente</option>
+        </select>
+      </div>
 
-        <div style={s.section}>
-          <div style={s.sectionTitle}>Registrar compra</div>
-          <div style={s.compraBox}>
-            <label style={{ ...s.label, marginTop: 0 }}>Produto</label>
-            <select style={s.select} value={produto} onChange={e => setProduto(e.target.value)}>
-              <option value="Maternidade">Maternidade</option>
-              <option value="BPC">BPC</option>
-              <option value="Auxilio Acidente">Auxílio Acidente</option>
-            </select>
-            <label style={s.label}>Data da compra</label>
-            <input style={s.input} type="date" value={dataCompra} onChange={e => setDataCompra(e.target.value)} />
-            <button style={s.btnSave} onClick={registrarCompra} disabled={saving}>{saving ? 'Salvando...' : 'Registrar compra'}</button>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 }}>Carregando...</div>
+      ) : (
+        <>
+          {/* TABELA DESKTOP */}
+          <div className="adv-table" style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <thead>
+                <tr>
+                  {['Advogado', 'OAB', 'Estado', ...(profile?.role === 'admin' ? ['Vendedor'] : []), 'Status', 'Título', 'Produtos', 'Compras', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#f8f8f6', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(a => (
+                  <tr key={a.id} onClick={() => setDetalhe(a)} style={{ cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8f8f6'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 13 }}>
+                      <div style={{ fontWeight: 500 }}>{a.nome_completo}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{a.cidade}</div>
+                    </td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 12, color: '#888' }}>{a.oab}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 12 }}>{a.estado}</td>
+                    {profile?.role === 'admin' && <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 12 }}>{a.profiles?.nome || '—'}</td>}
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[a.status]?.bg, color: STATUS[a.status]?.color }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor[a.status], display: 'inline-block' }}></span>
+                        {STATUS[a.status]?.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                      {a.titulo ? <span style={{ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[a.titulo]?.bg, color: TITULOS_CLASS[a.titulo]?.color, whiteSpace: 'nowrap' }}>{a.titulo}</span> : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                      {(a.advogado_produtos || []).map(p => <span key={p.produto} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p.produto]?.bg, color: PROD_CLASS[p.produto]?.color, display: 'inline-block' }}>{p.produto === 'Auxilio Acidente' ? 'Aux.' : p.produto}</span>)}
+                    </td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontWeight: 500, textAlign: 'center', fontSize: 13 }}>{a.total_compras}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', color: '#aaa', fontSize: 16 }}>›</td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: 13 }}>Nenhum advogado encontrado</td></tr>}
+              </tbody>
+            </table>
           </div>
-        </div>
 
-        {compras.length > 0 && (
-          <div style={s.section}>
-            <div style={s.sectionTitle}>Histórico de compras</div>
-            {compras.map(c => (
-              <div key={c.id} style={s.tlItem}>
-                <div style={s.tlDot}></div>
-                <div>
-                  <div style={s.tlText}>{c.produto}</div>
-                  <div style={s.tlDate}>{c.data_compra}</div>
+          {/* CARDS MOBILE */}
+          <div className="adv-cards">
+            {filtered.length === 0 && <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '2rem' }}>Nenhum advogado encontrado</div>}
+            {filtered.map(a => (
+              <div key={a.id} onClick={() => setDetalhe(a)} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px', marginBottom: 10, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 14, color: '#111' }}>{a.nome_completo}</div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{a.oab} · {a.cidade}, {a.estado}</div>
+                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: STATUS[a.status]?.bg, color: STATUS[a.status]?.color, flexShrink: 0 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor[a.status] }}></span>
+                    {STATUS[a.status]?.label}
+                  </span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {(a.advogado_produtos || []).map(p => <span key={p.produto} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 11, background: PROD_CLASS[p.produto]?.bg, color: PROD_CLASS[p.produto]?.color }}>{p.produto === 'Auxilio Acidente' ? 'Aux.' : p.produto}</span>)}
+                    {a.titulo && <span style={{ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[a.titulo]?.bg, color: TITULOS_CLASS[a.titulo]?.color }}>{a.titulo}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{a.total_compras} compra{a.total_compras !== 1 ? 's' : ''}</div>
+                </div>
+                {profile?.role === 'admin' && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>Vendedor: {a.profiles?.nome || '—'}</div>}
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {showNovo && <NovoAdvogado onClose={() => setShowNovo(false)} onSaved={() => { setShowNovo(false); fetch() }} />}
+      {detalhe && <DetalheAdvogado advogado={detalhe} onClose={() => setDetalhe(null)} onUpdated={() => { setDetalhe(null); fetch() }} />}
     </div>
   )
 }
