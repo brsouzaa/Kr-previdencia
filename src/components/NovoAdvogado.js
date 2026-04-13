@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -24,8 +24,18 @@ const INITIAL = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone
 export default function NovoAdvogado({ onClose, onSaved }) {
   const { profile } = useAuth()
   const [form, setForm] = useState(INITIAL)
+  const [vendedorId, setVendedorId] = useState(profile?.id || '')
+  const [vendedores, setVendedores] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (profile?.role === 'admin') {
+      supabase.from('profiles').select('id, nome').eq('role', 'vendedor').then(({ data }) => {
+        setVendedores(data || [])
+      })
+    }
+  }, [profile])
 
   function set(field, value) { setForm(f => ({ ...f, [field]: value })) }
 
@@ -35,7 +45,7 @@ export default function NovoAdvogado({ onClose, onSaved }) {
     setError('')
     const { error } = await supabase.from('advogados').insert({
       ...form,
-      vendedor_id: profile.id,
+      vendedor_id: profile?.role === 'admin' ? vendedorId : profile.id,
       total_compras: 0,
       status: 'vermelho',
     })
@@ -51,6 +61,17 @@ export default function NovoAdvogado({ onClose, onSaved }) {
           <button style={s.closeBtn} onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSave}>
+
+          {profile?.role === 'admin' && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={s.sectionTitle}>Vincular ao vendedor</div>
+              <select style={s.select} value={vendedorId} onChange={e => setVendedorId(e.target.value)} required>
+                <option value="">Selecione o vendedor</option>
+                {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+            </div>
+          )}
+
           <div style={s.sectionTitle}>Dados pessoais</div>
           <div style={s.grid}>
             <div style={{ gridColumn: '1/-1' }}>
