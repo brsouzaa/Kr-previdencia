@@ -84,6 +84,18 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
 
   const totalLote = Object.values(qtds).reduce((a, b) => a + b, 0)
 
+  async function excluirCompras(ids, prod, data) {
+    if (!window.confirm(`Excluir todas as compras de "${prod === 'Auxilio Acidente' ? 'Aux. Acidente' : prod}" do dia ${data}?`)) return
+    await supabase.from('compras').delete().in('id', ids)
+    // Recalcular total_compras e ultima_compra
+    const { data: restantes } = await supabase.from('compras').select('data_compra').eq('advogado_id', adv.id).order('data_compra', { ascending: false })
+    const novoTotal = restantes?.length || 0
+    const novaUltima = restantes?.[0]?.data_compra || null
+    await supabase.from('advogados').update({ total_compras: novoTotal, ultima_compra: novaUltima }).eq('id', adv.id)
+    await fetchCompras()
+    await fetchAdv()
+  }
+
   async function registrarLote() {
     if (totalLote === 0) return
     setSaving(true)
@@ -197,23 +209,38 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           </div>
         </div>
 
-        {/* Histórico agrupado por data */}
+        {/* Histórico agrupado por data com exclusão */}
         {Object.keys(comprasPorData).length > 0 && (
           <div style={s.section}>
             <div style={s.sectionTitle}>Histórico de compras</div>
-            {Object.entries(comprasPorData).map(([data, prods]) => (
-              <div key={data} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>{data}</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {Object.entries(prods).map(([prod, qtd]) => (
-                    <div key={prod} style={{ background: PROD_STYLE[prod]?.bg, borderRadius: 6, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: PROD_STYLE[prod]?.color }}>{qtd}x</span>
-                      <span style={{ fontSize: 12, color: PROD_STYLE[prod]?.color }}>{prod === 'Auxilio Acidente' ? 'Aux. Acidente' : prod}</span>
-                    </div>
-                  ))}
+            {Object.entries(comprasPorData).sort((a,b) => b[0].localeCompare(a[0])).map(([data, prods]) => {
+              // IDs das compras dessa data agrupados por produto
+              const comprasDoDia = compras.filter(c => c.data_compra === data)
+              return (
+                <div key={data} style={{ marginBottom: 14, padding: 12, background: '#f8f8f6', borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8, fontWeight: 500 }}>{data}</div>
+                  {Object.entries(prods).map(([prod, qtd]) => {
+                    const idsDoProd = comprasDoDia.filter(c => c.produto === prod).map(c => c.id)
+                    return (
+                      <div key={prod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ background: PROD_STYLE[prod]?.bg, borderRadius: 6, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: PROD_STYLE[prod]?.color }}>{qtd}x</span>
+                            <span style={{ fontSize: 12, color: PROD_STYLE[prod]?.color }}>{prod === 'Auxilio Acidente' ? 'Aux. Acidente' : prod}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => excluirCompras(idsDoProd, prod, data)}
+                          style={{ background: 'none', border: '0.5px solid rgba(163,45,45,0.3)', borderRadius: 6, padding: '4px 8px', fontSize: 11, color: '#A32D2D', cursor: 'pointer' }}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
