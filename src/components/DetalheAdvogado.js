@@ -25,6 +25,7 @@ const PROD_STYLE = {
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
 const PAG_STYLE = {
+  assinar_contrato: { bg: '#EEEDFE', color: '#534AB7', label: 'Assinar contrato' },
   a_entregar: { bg: '#E6F1FB', color: '#185FA5', label: 'A entregar' },
   entregue: { bg: '#FAEEDA', color: '#854F0B', label: 'Entregue' },
   pago: { bg: '#EAF3DE', color: '#3B6D11', label: 'Pago' },
@@ -114,7 +115,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     } else {
       await supabase.from('lotes').insert({
         advogado_id: adv.id, vendedor_id: profile.id, data_compra: dataCompra,
-        total_contratos: totalLote, valor_total: valorLote, status_pagamento: 'a_entregar',
+        total_contratos: totalLote, valor_total: valorLote, status_pagamento: 'assinar_contrato',
       })
     }
     setQtds({ 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 })
@@ -359,7 +360,8 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                       <div style={{ fontSize: 10, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Admin — alterar status</div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
                         {[
-                          { key: 'a_entregar', label: 'A entregar', bg: '#E6F1FB', color: '#185FA5' },
+                          { key: 'assinar_contrato', label: 'Assinar ctrt.', bg: '#EEEDFE', color: '#534AB7' },
+                        { key: 'a_entregar', label: 'A entregar', bg: '#E6F1FB', color: '#185FA5' },
                           { key: 'entregue', label: 'Entregue', bg: '#FAEEDA', color: '#854F0B' },
                           { key: 'pago', label: 'Pago', bg: '#EAF3DE', color: '#3B6D11' },
                           { key: 'inadimplente', label: 'Inadimp.', bg: '#FCEBEB', color: '#A32D2D' },
