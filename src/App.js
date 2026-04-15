@@ -9,6 +9,7 @@ import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
 import MeuLink from './pages/MeuLink'
+import ModalEmailNotificacao from './components/ModalEmailNotificacao'
 import Portal from './pages/Portal'
 
 function PortalRoute() {
@@ -37,6 +38,13 @@ function PortalRoute() {
 function AppInner() {
   const { user, loading } = useAuth()
   const [page, setPage] = useState('dashboard')
+  const [showEmailModal, setShowEmailModal] = useState(false)
+
+  useEffect(() => {
+    if (profile && profile.notificacao_pendente && !window.location.pathname.startsWith('/cadastro/')) {
+      setShowEmailModal(true)
+    }
+  }, [profile])
 
   // Roteamento do portal (sem login)
   const isPortal = window.location.pathname.startsWith('/cadastro/')
@@ -60,9 +68,12 @@ function AppInner() {
   }
 
   return (
-    <Layout page={page} setPage={setPage}>
-      {pages[page] || <Dashboard />}
-    </Layout>
+    <>
+      <Layout page={page} setPage={setPage}>
+        {pages[page] || <Dashboard />}
+      </Layout>
+      {showEmailModal && <ModalEmailNotificacao onClose={() => setShowEmailModal(false)} />}
+    </>
   )
 }
 
