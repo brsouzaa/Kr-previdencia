@@ -36,7 +36,7 @@ function PortalRoute() {
 }
 
 function AppInner() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const [page, setPage] = useState('dashboard')
   const [showEmailModal, setShowEmailModal] = useState(false)
 
