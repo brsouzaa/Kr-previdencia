@@ -84,6 +84,7 @@ function SeletorContratos({ qtds, setQtds }) {
 function Sucesso({ dados }) {
   const total = Object.values(dados.qtds).reduce((a, b) => a + b, 0)
   const valor = total * VALOR
+  const NUMERO_EMPRESA = '5511919384449'
   const msg = encodeURIComponent(
     `Olá! ${dados.jaExistia ? 'Acabei de fazer um novo pedido' : 'Acabei de preencher meu cadastro'} como advogado parceiro da KR Previdência.\n\n` +
     `*Dados:*\nNome: ${dados.nome_completo}\nOAB: ${dados.oab}\nTelefone: ${dados.telefone}\n` +
@@ -125,7 +126,7 @@ function Sucesso({ dados }) {
           <div style={{ fontSize: 14, color: '#555', marginBottom: '1rem', fontWeight: 500 }}>
             Avise sua consultora pelo WhatsApp:
           </div>
-          <a href={`https://wa.me/?text=${msg}`} target="_blank" rel="noreferrer"
+          <a href={`https://wa.me/${NUMERO_EMPRESA}?text=${msg}`} target="_blank" rel="noreferrer"
             style={{ display: 'block', padding: '13px', background: '#3B6D11', color: '#fff', borderRadius: 10, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
             💬 Enviar pelo WhatsApp
           </a>
@@ -255,7 +256,18 @@ export default function Portal({ vendedorId, vendedorNome }) {
     <div style={s.page}>
       <div style={s.card}>
         <div style={s.logo}>KR <span style={s.logoBlue}>Previdência</span></div>
-        <div style={s.sub}>Advogado parceiro{vendedorNome ? ` · ${vendedorNome}` : ''}</div>
+        <div style={s.sub}>Advogado parceiro</div>
+        {vendedorNome && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#E6F1FB', borderRadius: 10, padding: '10px 16px', marginBottom: '1.5rem' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#185FA5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 500, color: '#fff', flexShrink: 0 }}>
+              {vendedorNome.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#185FA5', opacity: 0.8 }}>Sua consultora responsável</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#185FA5' }}>{vendedorNome}</div>
+            </div>
+          </div>
+        )}
 
         {/* ETAPA 1 — Escolha */}
         {etapa === 'escolha' && (
