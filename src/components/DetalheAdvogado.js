@@ -132,23 +132,23 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     onClose()
   }
 
-  async function editarQtdLote(lote) {
-    const input = window.prompt('Alterar quantidade de contratos do lote ' + lote.data_compra + '\nAtual: ' + lote.total_contratos + '\n\nNova quantidade:', lote.total_contratos)
+  async function editarQtdLote(loteId, qtdAtual, totalAtual) {
+    const input = window.prompt('Nova quantidade de contratos (atual: ' + qtdAtual + '):', qtdAtual)
     if (!input) return
     const novaQtd = parseInt(input)
-    if (isNaN(novaQtd) || novaQtd < 1) return
-    const diff = novaQtd - lote.total_contratos
-    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novaQtd * VALOR_CONTRATO, updated_at: new Date().toISOString() }).eq('id', lote.id)
-    await supabase.from('advogados').update({ total_compras: Math.max(0, adv.total_compras + diff) }).eq('id', adv.id)
+    if (isNaN(novaQtd) || novaQtd < 1) { alert('Quantidade inválida.'); return }
+    const diff = novaQtd - qtdAtual
+    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novaQtd * VALOR_CONTRATO, updated_at: new Date().toISOString() }).eq('id', loteId)
+    await supabase.from('advogados').update({ total_compras: Math.max(0, totalAtual + diff) }).eq('id', adv.id)
     await fetchTudo()
   }
 
-  async function editarStatusLote(lote) {
-    const opcoes = 'a_entregar, entregue, pago, inadimplente'
-    const input = window.prompt('Status do lote ' + lote.data_compra + '\nAtual: ' + lote.status_pagamento + '\nOpções: ' + opcoes + '\n\nNovo status:', lote.status_pagamento)
-    if (!input || input === lote.status_pagamento) return
-    if (!['a_entregar','entregue','pago','inadimplente'].includes(input)) { alert('Status inválido.'); return }
-    await supabase.from('lotes').update({ status_pagamento: input, updated_at: new Date().toISOString() }).eq('id', lote.id)
+  async function mudarStatusAdmin(lote, novoStatus) {
+    const update = { status_pagamento: novoStatus, updated_at: new Date().toISOString() }
+    if (novoStatus === 'entregue') update.data_entrega = new Date().toISOString().slice(0,10)
+    if (novoStatus !== 'pago') { update.data_pagamento = null; update.comprovante_url = null; update.comprovante_nome = null }
+    if (novoStatus === 'a_entregar') { update.data_entrega = null }
+    await supabase.from('lotes').update(update).eq('id', lote.id)
     await fetchTudo()
   }
 
@@ -343,12 +343,34 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                     </button>
                   </div>
                   {profile?.role === 'admin' && (
-                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                      <button onClick={() => editarQtdLote(lote)} style={{ flex: 1, padding: '6px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
-                        ✏️ Editar quantidade
-                      </button>
-                      <button onClick={() => editarStatusLote(lote)} style={{ flex: 1, padding: '6px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
-                        ✏️ Editar status
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px dashed rgba(0,0,0,0.1)' }}>
+                      <div style={{ fontSize: 10, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Admin — alterar status</div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {[
+                          { key: 'a_entregar', label: 'A entregar', bg: '#E6F1FB', color: '#185FA5' },
+                          { key: 'entregue', label: 'Entregue', bg: '#FAEEDA', color: '#854F0B' },
+                          { key: 'pago', label: 'Pago', bg: '#EAF3DE', color: '#3B6D11' },
+                          { key: 'inadimplente', label: 'Inadimp.', bg: '#FCEBEB', color: '#A32D2D' },
+                        ].map(op => (
+                          <button
+                            key={op.key}
+                            disabled={lote.status_pagamento === op.key}
+                            onClick={() => op.key === 'pago' ? setModalLote(lote) : mudarStatusAdmin(lote, op.key)}
+                            style={{
+                              padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: lote.status_pagamento === op.key ? 'default' : 'pointer',
+                              fontWeight: lote.status_pagamento === op.key ? 500 : 400,
+                              background: lote.status_pagamento === op.key ? op.bg : '#f0f0ee',
+                              color: lote.status_pagamento === op.key ? op.color : '#888',
+                              border: lote.status_pagamento === op.key ? '1.5px solid ' + op.color : '0.5px solid #ddd',
+                              opacity: lote.status_pagamento === op.key ? 1 : 0.8,
+                            }}
+                          >
+                            {lote.status_pagamento === op.key ? '✓ ' : ''}{op.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={() => editarQtdLote(lote.id, lote.total_contratos, adv.total_compras)} style={{ fontSize: 11, padding: '5px 10px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, cursor: 'pointer' }}>
+                        ✏️ Editar quantidade ({lote.total_contratos} contrato{lote.total_contratos!==1?'s':''})
                       </button>
                     </div>
                   )}
