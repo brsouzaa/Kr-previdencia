@@ -71,6 +71,11 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
 
   useEffect(() => { fetchTudo() }, [advogado.id])
 
+  async function notificarEmail(tipo, dados) {
+    try { await supabase.functions.invoke('enviar-email', { body: { tipo, dados } }) }
+    catch(e) { console.log('Email nao enviado:', e) }
+  }
+
   async function fetchTudo() {
     const [{ data: c }, { data: l }] = await Promise.all([
       supabase.from('compras').select('*').eq('advogado_id', advogado.id).order('data_compra', { ascending: false }),
@@ -160,6 +165,13 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
       comprovante_nome: nome,
       updated_at: new Date().toISOString(),
     }).eq('id', loteId)
+    const lote = lotes.find(l => l.id === loteId)
+    if (lote) await notificarEmail('lote_pago', {
+      advogado_nome: adv.nome_completo,
+      data_compra: lote.data_compra,
+      total_contratos: lote.total_contratos,
+      valor_total: lote.valor_total,
+    })
     await fetchTudo()
   }
 
