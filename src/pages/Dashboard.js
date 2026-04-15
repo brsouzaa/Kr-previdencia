@@ -214,7 +214,7 @@ export default function Dashboard() {
 
           {lotesModal.map(lote => {
             const dias = diasDesde(lote.data_compra)
-            const alerta = modalStatus === 'a_entregar' && dias >= 2
+            const alerta = modalStatus === 'a_entregar' && dias >= 3
             return (
               <div key={lote.id} style={{ border: `0.5px solid ${alerta ? '#A32D2D' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: alerta ? '#FCEBEB40' : '#f8f8f6' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -284,6 +284,75 @@ export default function Dashboard() {
           })}
         </div>
       )}
+
+
+      {/* Painel de avisos automáticos */}
+      {(() => {
+        const lotesAEntregar = lotes.filter(l => l.status_pagamento === 'a_entregar')
+        const atrasadosEntrega = lotesAEntregar.filter(l => diasDesde(l.data_compra) >= 3)
+        const atrasadosPagamento = lotes.filter(l => l.status_pagamento === 'entregue' && diasDesde(l.data_entrega || l.data_compra) >= 1)
+
+        if (atrasadosEntrega.length === 0 && atrasadosPagamento.length === 0) return null
+
+        return (
+          <div style={{ background: '#fff', border: '1.5px solid #E24B4A', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#A32D2D', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 16 }}>🚨</span> Requer atenção agora
+            </div>
+
+            {atrasadosEntrega.length > 0 && (
+              <div style={{ marginBottom: atrasadosPagamento.length > 0 ? 14 : 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+                  A entregar — passaram de 3 dias ({atrasadosEntrega.length})
+                </div>
+                {atrasadosEntrega.map(lote => {
+                  const dias = diasDesde(lote.data_compra)
+                  return (
+                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#E6F1FB', borderRadius: 8, marginBottom: 6, border: '0.5px solid #185FA540' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
+                        <div style={{ fontSize: 11, color: '#185FA5' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dias</div>
+                        <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ fontSize: 11, padding: '3px 8px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                          Marcar entregue
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {atrasadosPagamento.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+                  Entregue — aguardando pagamento ({atrasadosPagamento.length}) — vira inadimplente em breve
+                </div>
+                {atrasadosPagamento.map(lote => {
+                  const dias = diasDesde(lote.data_entrega || lote.data_compra)
+                  const restam = Math.max(0, 2 - dias)
+                  return (
+                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#FAEEDA', borderRadius: 8, marginBottom: 6, border: '0.5px solid #85400B40' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
+                        <div style={{ fontSize: 11, color: '#854F0B' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                        <div style={{ fontSize: 11, color: '#A32D2D', fontWeight: 500 }}>{restam === 0 ? 'Vira inadimp. hoje' : `${restam}d restante${restam!==1?'s':''}`}</div>
+                        <button onClick={() => setModalComprovante(lote)} style={{ fontSize: 11, padding: '3px 8px', background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                          Marcar pago
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
