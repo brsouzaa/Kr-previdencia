@@ -6,6 +6,7 @@ const NAV_VENDEDOR = [
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
+  { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
@@ -13,6 +14,7 @@ const NAV_ADMIN = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'equipe', label: 'Equipe' },
+  { key: 'meulink', label: '🔗 Meu link' },
 ]
 
 function useIsMobile() {
