@@ -171,6 +171,14 @@ export default function Portal({ vendedorId, vendedorNome }) {
     setBuscando(false)
   }
 
+  async function notificarEmail(tipo, dados) {
+    try {
+      await supabase.functions.invoke('enviar-email', { body: { tipo, dados } })
+    } catch(e) {
+      console.log('Email nao enviado:', e)
+    }
+  }
+
   async function registrarLote(advId, advDados) {
     const total = Object.values(qtds).reduce((a, b) => a + b, 0)
     if (total === 0) return
@@ -218,6 +226,16 @@ export default function Portal({ vendedorId, vendedorNome }) {
     }
 
     if (total > 0) await registrarLote(adv.id, { total_compras: 0 })
+    await notificarEmail('novo_advogado_portal', {
+      vendedor_id: vendedorId,
+      nome_completo: form.nome_completo,
+      oab: form.oab.trim(),
+      cidade: form.cidade,
+      estado: form.estado,
+      telefone: form.telefone,
+      email: form.email,
+      total_contratos: Object.values(qtds).reduce((a,b)=>a+b,0),
+    })
     setSucesso({ ...form, qtds, jaExistia: false })
     setLoading(false)
   }
