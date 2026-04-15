@@ -117,6 +117,41 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     setSaving(false)
   }
 
+
+  // FUNÇÕES ADMIN
+  async function excluirAdvogado() {
+    if (!window.confirm('Excluir permanentemente "' + adv.nome_completo + '"? Todos os lotes e compras serão removidos. Esta ação não pode ser desfeita.')) return
+    for (const lote of lotes) {
+      if (lote.comprovante_url) await supabase.storage.from('comprovantes').remove([lote.comprovante_url])
+    }
+    await supabase.from('compras').delete().eq('advogado_id', adv.id)
+    await supabase.from('advogado_produtos').delete().eq('advogado_id', adv.id)
+    await supabase.from('lotes').delete().eq('advogado_id', adv.id)
+    await supabase.from('advogados').delete().eq('id', adv.id)
+    if (onUpdated) onUpdated()
+    onClose()
+  }
+
+  async function editarQtdLote(lote) {
+    const input = window.prompt('Alterar quantidade de contratos do lote ' + lote.data_compra + '\nAtual: ' + lote.total_contratos + '\n\nNova quantidade:', lote.total_contratos)
+    if (!input) return
+    const novaQtd = parseInt(input)
+    if (isNaN(novaQtd) || novaQtd < 1) return
+    const diff = novaQtd - lote.total_contratos
+    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novaQtd * VALOR_CONTRATO, updated_at: new Date().toISOString() }).eq('id', lote.id)
+    await supabase.from('advogados').update({ total_compras: Math.max(0, adv.total_compras + diff) }).eq('id', adv.id)
+    await fetchTudo()
+  }
+
+  async function editarStatusLote(lote) {
+    const opcoes = 'a_entregar, entregue, pago, inadimplente'
+    const input = window.prompt('Status do lote ' + lote.data_compra + '\nAtual: ' + lote.status_pagamento + '\nOpções: ' + opcoes + '\n\nNovo status:', lote.status_pagamento)
+    if (!input || input === lote.status_pagamento) return
+    if (!['a_entregar','entregue','pago','inadimplente'].includes(input)) { alert('Status inválido.'); return }
+    await supabase.from('lotes').update({ status_pagamento: input, updated_at: new Date().toISOString() }).eq('id', lote.id)
+    await fetchTudo()
+  }
+
   async function confirmarPagamento(loteId, path, nome, url) {
     await supabase.from('lotes').update({
       status_pagamento: 'pago',
@@ -176,6 +211,11 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         <div style={s.badges}>
           <span style={s.badge({ background: st.bg, color: st.color })}>{st.label}</span>
           {adv.titulo && ts && <span style={s.badge({ background: ts.bg, color: ts.color })}>{adv.titulo}</span>}
+          {profile?.role === 'admin' && (
+            <button onClick={excluirAdvogado} style={{ marginLeft: 'auto', padding: '3px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>
+              Excluir advogado
+            </button>
+          )}
         </div>
 
         {/* Desempenho */}
@@ -301,6 +341,18 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                     <button onClick={() => excluirLote(lote)} style={{ padding: '7px 10px', background: 'none', color: '#ccc', border: '0.5px solid #ddd', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
                       Excluir
                     </button>
+                  </div>
+                  {profile?.role === 'admin' && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      <button onClick={() => editarQtdLote(lote)} style={{ flex: 1, padding: '6px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
+                        ✏️ Editar quantidade
+                      </button>
+                      <button onClick={() => editarStatusLote(lote)} style={{ flex: 1, padding: '6px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
+                        ✏️ Editar status
+                      </button>
+                    </div>
+                  )}
+                  <div style={{ display: 'none' }}>
                   </div>
                 </div>
               )
