@@ -43,6 +43,8 @@ export default function Dashboard() {
   const [filtroVendedor, setFiltroVendedor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
   const [periodo, setPeriodo] = useState('mes')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
   const [compras, setCompras] = useState([])
   const [lotes, setLotes] = useState([])
   const [advCriticos, setAdvCriticos] = useState([])
@@ -76,13 +78,18 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  function getPeriodo() {
+    if (periodo === 'hoje') return { inicio: hoje(), fim: hoje() }
+    if (periodo === 'semana') return { inicio: semanaAtras(), fim: hoje() }
+    if (periodo === 'mes') return { inicio: mesAtras(), fim: hoje() }
+    if (periodo === 'custom') return { inicio: dataInicio, fim: dataFim }
+    return { inicio: '', fim: '' }
+  }
+
   function filtrarCompras(lista) {
-    let inicio = ''
-    if (periodo === 'hoje') inicio = hoje()
-    else if (periodo === 'semana') inicio = semanaAtras()
-    else if (periodo === 'mes') inicio = mesAtras()
+    const { inicio, fim } = getPeriodo()
     return lista.filter(c => {
-      const dentroDoP = !inicio || c.data_compra >= inicio
+      const dentroDoP = (!inicio || c.data_compra >= inicio) && (!fim || c.data_compra <= fim)
       const vendedorOk = !filtroVendedor || c.profiles?.nome === filtroVendedor
       const produtoOk = !filtroProduto || c.produto === filtroProduto
       return dentroDoP && vendedorOk && produtoOk
@@ -90,12 +97,9 @@ export default function Dashboard() {
   }
 
   function filtrarLotes(lista) {
-    let inicio = ''
-    if (periodo === 'hoje') inicio = hoje()
-    else if (periodo === 'semana') inicio = semanaAtras()
-    else if (periodo === 'mes') inicio = mesAtras()
+    const { inicio, fim } = getPeriodo()
     return lista.filter(l => {
-      const dentroDoP = !inicio || l.data_compra >= inicio
+      const dentroDoP = (!inicio || l.data_compra >= inicio) && (!fim || l.data_compra <= fim)
       const vendedorOk = !filtroVendedor || l.profiles?.nome === filtroVendedor
       return dentroDoP && vendedorOk
     })
@@ -355,12 +359,13 @@ export default function Dashboard() {
       })()}
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: periodo === 'custom' ? '0.5rem' : '1.25rem', flexWrap: 'wrap' }}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={periodo} onChange={e => { setPeriodo(e.target.value); if(e.target.value !== 'custom') { setDataInicio(''); setDataFim('') } }}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
           <option value="total">Todo período</option>
+          <option value="custom">Período personalizado</option>
         </select>
         {profile?.role === 'admin' && (
           <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}>
@@ -378,6 +383,21 @@ export default function Dashboard() {
           {comprasFiltradas.length} contrato{comprasFiltradas.length!==1?'s':''}
         </div>
       </div>
+      {periodo === 'custom' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 13, color: '#888' }}>De</div>
+          <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} />
+          <div style={{ fontSize: 13, color: '#888' }}>até</div>
+          <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)}
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} />
+          {dataInicio && dataFim && (
+            <div style={{ padding: '8px 12px', background: '#E6F1FB', borderRadius: 8, fontSize: 12, color: '#185FA5', fontWeight: 500 }}>
+              {dataInicio} → {dataFim}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
         {/* Por produto */}
@@ -401,8 +421,7 @@ export default function Dashboard() {
         </div>
 
         {/* Ranking */}
-        {profile?.role === 'admin' && (
-          <div style={card}>
+        <div style={card}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de vendedoras</div>
             {ranking.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhuma venda no período</div>}
             {ranking.map(([nome, qtd], i) => (
@@ -415,8 +434,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 20, fontWeight: 500, color: i===0?'#854F0B':'#185FA5' }}>{qtd}</div>
               </div>
             ))}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Alertas críticos */}
