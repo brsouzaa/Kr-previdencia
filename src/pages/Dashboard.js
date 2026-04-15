@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import ModalComprovante from '../components/ModalComprovante'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
@@ -18,11 +19,22 @@ const PROD_STYLE = {
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
 
-function hoje() { return new Date().toISOString().slice(0, 10) }
-function semanaAtras() { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) }
-function mesAtras() { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) }
+const STATUS_LOTE = {
+  a_entregar: { bg: '#E6F1FB', color: '#185FA5', label: 'A entregar' },
+  entregue: { bg: '#FAEEDA', color: '#854F0B', label: 'Entregue' },
+  pago: { bg: '#EAF3DE', color: '#3B6D11', label: 'Pago' },
+  inadimplente: { bg: '#FCEBEB', color: '#A32D2D', label: 'Inadimplente' },
+}
 
-const MEDAL = ['🥇', '🥈', '🥉']
+function hoje() { return new Date().toISOString().slice(0,10) }
+function semanaAtras() { const d=new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10) }
+function mesAtras() { const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().slice(0,10) }
+const MEDAL = ['🥇','🥈','🥉']
+const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR')}`
+
+function diasDesde(data) {
+  return Math.floor((Date.now() - new Date(data)) / 86400000)
+}
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -35,6 +47,8 @@ export default function Dashboard() {
   const [lotes, setLotes] = useState([])
   const [advCriticos, setAdvCriticos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [modalStatus, setModalStatus] = useState(null) // 'a_entregar' | 'entregue' | 'pago' | 'inadimplente'
+  const [modalComprovante, setModalComprovante] = useState(null)
 
   useEffect(() => {
     if (profile?.role === 'admin') {
@@ -46,7 +60,7 @@ export default function Dashboard() {
   async function fetchDados() {
     setLoading(true)
     let qC = supabase.from('compras').select('id, produto, data_compra, vendedor_id, profiles(nome)').order('data_compra', { ascending: false })
-    let qL = supabase.from('lotes').select('id, data_compra, total_contratos, valor_total, status_pagamento, vendedor_id, profiles(nome)').order('data_compra', { ascending: false })
+    let qL = supabase.from('lotes').select('*, advogados(nome_completo, oab, cidade), profiles(nome)').order('data_compra', { ascending: false })
     let qA = supabase.from('advogados').select('id, nome_completo, oab, ultima_compra, status, profiles!advogados_vendedor_id_fkey(nome)').eq('status', 'vermelho').not('ultima_compra', 'is', null).order('ultima_compra', { ascending: true }).limit(10)
 
     if (profile?.role !== 'admin') {
@@ -98,9 +112,17 @@ export default function Dashboard() {
   }
 
   const financeiro = {
-    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').reduce((s, l) => s + Number(l.valor_total), 0),
-    pendente: lotesFiltrados.filter(l => l.status_pagamento === 'pendente').reduce((s, l) => s + Number(l.valor_total), 0),
-    inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').reduce((s, l) => s + Number(l.valor_total), 0),
+    a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').reduce((s,l) => s + Number(l.valor_total), 0),
+    entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').reduce((s,l) => s + Number(l.valor_total), 0),
+    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').reduce((s,l) => s + Number(l.valor_total), 0),
+    inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').reduce((s,l) => s + Number(l.valor_total), 0),
+  }
+
+  const contagem = {
+    a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').length,
+    entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').length,
+    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').length,
+    inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').length,
   }
 
   const porProduto = comprasFiltradas.reduce((acc, c) => { acc[c.produto] = (acc[c.produto] || 0) + 1; return acc }, {})
@@ -109,10 +131,39 @@ export default function Dashboard() {
   const porDia = comprasFiltradas.reduce((acc, c) => { const d = c.data_compra; if (!acc[d]) acc[d] = { total: 0, produtos: {} }; acc[d].total++; acc[d].produtos[c.produto] = (acc[d].produtos[c.produto] || 0) + 1; return acc }, {})
   const diasOrdenados = Object.entries(porDia).sort((a, b) => b[0].localeCompare(a[0]))
 
-  const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR')}`
+  async function mudarStatusLote(loteId, novoStatus) {
+    const update = { status_pagamento: novoStatus, updated_at: new Date().toISOString() }
+    if (novoStatus === 'entregue') update.data_entrega = hoje()
+    if (novoStatus !== 'pago') { update.data_pagamento = null; update.comprovante_url = null; update.comprovante_nome = null }
+    await supabase.from('lotes').update(update).eq('id', loteId)
+    await fetchDados()
+  }
+
+  async function confirmarPagamento(loteId, path, nome) {
+    await supabase.from('lotes').update({
+      status_pagamento: 'pago',
+      data_pagamento: hoje(),
+      comprovante_url: path,
+      comprovante_nome: nome,
+      updated_at: new Date().toISOString(),
+    }).eq('id', loteId)
+    setModalComprovante(null)
+    await fetchDados()
+  }
+
+  async function verComprovante(lote) {
+    if (!lote.comprovante_url) return
+    const { data } = await supabase.storage.from('comprovantes').createSignedUrl(lote.comprovante_url, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
   const card = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
+
+  // Lotes do modal selecionado
+  const lotesModal = modalStatus ? lotesFiltrados.filter(l => l.status_pagamento === modalStatus) : []
+  const valorModal = lotesModal.reduce((s, l) => s + Number(l.valor_total), 0)
 
   return (
     <div>
@@ -120,28 +171,119 @@ export default function Dashboard() {
 
       {/* Métricas contratos */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1rem' }}>
-        {[['Hoje', vendas.hoje, '#185FA5'], ['Esta semana', vendas.semana, '#0F6E56'], ['Este mês', vendas.mes, '#854F0B'], ['Total geral', vendas.total, '#111']].map(([l, v, c]) => (
+        {[['Hoje', vendas.hoje, '#185FA5'], ['Esta semana', vendas.semana, '#0F6E56'], ['Este mês', vendas.mes, '#854F0B'], ['Total geral', vendas.total, '#111']].map(([l,v,c]) => (
           <div key={l} style={card}>
             <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
             <div style={{ fontSize: 28, fontWeight: 500, color: c }}>{v}</div>
-            <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>contrato{v !== 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>contrato{v!==1?'s':''}</div>
           </div>
         ))}
       </div>
 
-      {/* Métricas financeiras */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: '1.25rem' }}>
+      {/* Cards de status clicáveis */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
-          ['Recebido', financeiro.pago, '#3B6D11', '#EAF3DE'],
-          ['Pendente', financeiro.pendente, '#854F0B', '#FAEEDA'],
-          ['Inadimplente', financeiro.inadimplente, '#A32D2D', '#FCEBEB'],
-        ].map(([l, v, c, bg]) => (
-          <div key={l} style={{ ...card, background: bg, border: `0.5px solid ${c}30` }}>
-            <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
-            <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 500, color: c }}>{fmt(v)}</div>
+          ['a_entregar', 'A entregar', financeiro.a_entregar, '#185FA5', '#E6F1FB'],
+          ['entregue', 'Entregue', financeiro.entregue, '#854F0B', '#FAEEDA'],
+          ['pago', 'Pago', financeiro.pago, '#3B6D11', '#EAF3DE'],
+          ['inadimplente', 'Inadimplente', financeiro.inadimplente, '#A32D2D', '#FCEBEB'],
+        ].map(([st, label, valor, cor, bg]) => (
+          <div key={st} onClick={() => setModalStatus(st === modalStatus ? null : st)}
+            style={{ background: modalStatus === st ? bg : '#fff', border: `${modalStatus === st ? 2 : 0.5}px solid ${cor}${modalStatus === st ? '' : '40'}`, borderRadius: 12, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: cor, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.9 }}>{label}</div>
+              <span style={{ background: bg, color: cor, fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 20 }}>{contagem[st]}</span>
+            </div>
+            <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 500, color: cor }}>{fmt(valor)}</div>
           </div>
         ))}
       </div>
+
+      {/* Modal inline de lotes por status */}
+      {modalStatus && (
+        <div style={{ background: '#fff', border: `1.5px solid ${STATUS_LOTE[modalStatus]?.color}40`, borderRadius: 14, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <span style={{ fontSize: 14, fontWeight: 500, color: STATUS_LOTE[modalStatus]?.color }}>{STATUS_LOTE[modalStatus]?.label}</span>
+              <span style={{ fontSize: 13, color: '#888', marginLeft: 8 }}>{lotesModal.length} lote{lotesModal.length!==1?'s':''} · {fmt(valorModal)}</span>
+            </div>
+            <button onClick={() => setModalStatus(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888' }}>×</button>
+          </div>
+
+          {lotesModal.length === 0 && <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: '1.5rem' }}>Nenhum lote neste status</div>}
+
+          {lotesModal.map(lote => {
+            const dias = diasDesde(lote.data_compra)
+            const alerta = modalStatus === 'a_entregar' && dias >= 2
+            return (
+              <div key={lote.id} style={{ border: `0.5px solid ${alerta ? '#A32D2D' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: alerta ? '#FCEBEB40' : '#f8f8f6' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{lote.advogados?.oab} · {lote.advogados?.cidade}</div>
+                    {profile?.role === 'admin' && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Vendedor: {lote.profiles?.nome}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{fmt(lote.valor_total)}</div>
+                    <div style={{ fontSize: 11, color: alerta ? '#A32D2D' : '#888' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {dias}d atrás</div>
+                  </div>
+                </div>
+
+                {/* Data de entrega se entregue/pago */}
+                {lote.data_entrega && <div style={{ fontSize: 11, color: '#854F0B', marginBottom: 8 }}>Entregue em {lote.data_entrega}</div>}
+                {lote.status_pagamento === 'pago' && lote.data_pagamento && (
+                  <div style={{ fontSize: 11, color: '#3B6D11', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ✓ Pago em {lote.data_pagamento}
+                    {lote.comprovante_url && <button onClick={() => verComprovante(lote)} style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Ver comprovante</button>}
+                  </div>
+                )}
+
+                {/* Ações por status */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {modalStatus === 'a_entregar' && (
+                    <>
+                      <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ flex: 1, padding: '7px', background: '#FAEEDA', color: '#854F0B', border: '0.5px solid #854F0B', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        ✓ Marcar entregue
+                      </button>
+                      <button onClick={() => mudarStatusLote(lote.id, 'inadimplente')} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                        Inadimp.
+                      </button>
+                    </>
+                  )}
+                  {modalStatus === 'entregue' && (
+                    <>
+                      <button onClick={() => setModalComprovante(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        📎 Pago + comprovante
+                      </button>
+                      <button onClick={() => mudarStatusLote(lote.id, 'inadimplente')} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                        Inadimp.
+                      </button>
+                      <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ padding: '7px 10px', background: '#f0f0ee', color: '#888', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                        Voltar
+                      </button>
+                    </>
+                  )}
+                  {modalStatus === 'inadimplente' && (
+                    <>
+                      <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ flex: 1, padding: '7px', background: '#FAEEDA', color: '#854F0B', border: '0.5px solid #854F0B', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                        Reativar
+                      </button>
+                      <button onClick={() => setModalComprovante(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        📎 Pago + comprovante
+                      </button>
+                    </>
+                  )}
+                  {modalStatus === 'pago' && (
+                    <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ padding: '7px 10px', background: '#f0f0ee', color: '#888', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                      Desfazer pagamento
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -164,7 +306,7 @@ export default function Dashboard() {
           <option value="Auxilio Acidente">Aux. Acidente</option>
         </select>
         <div style={{ padding: '8px 12px', background: '#f0f0ee', borderRadius: 8, fontSize: 13, color: '#555', display: 'flex', alignItems: 'center' }}>
-          {comprasFiltradas.length} contrato{comprasFiltradas.length !== 1 ? 's' : ''}
+          {comprasFiltradas.length} contrato{comprasFiltradas.length!==1?'s':''}
         </div>
       </div>
 
@@ -172,13 +314,13 @@ export default function Dashboard() {
         {/* Por produto */}
         <div style={card}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Por produto</div>
-          {['Maternidade', 'BPC', 'Auxilio Acidente'].map(p => {
+          {['Maternidade','BPC','Auxilio Acidente'].map(p => {
             const qtd = porProduto[p] || 0
-            const pct = comprasFiltradas.length > 0 ? Math.round((qtd / comprasFiltradas.length) * 100) : 0
+            const pct = comprasFiltradas.length > 0 ? Math.round((qtd/comprasFiltradas.length)*100) : 0
             return (
               <div key={p} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
-                  <span style={{ color: PROD_STYLE[p]?.color, fontWeight: 500 }}>{p === 'Auxilio Acidente' ? 'Aux. Acidente' : p}</span>
+                  <span style={{ color: PROD_STYLE[p]?.color, fontWeight: 500 }}>{p==='Auxilio Acidente'?'Aux. Acidente':p}</span>
                   <span style={{ fontWeight: 500 }}>{qtd} <span style={{ color: '#aaa', fontWeight: 400 }}>({pct}%)</span></span>
                 </div>
                 <div style={{ background: '#f0f0ee', borderRadius: 4, height: 8, overflow: 'hidden' }}>
@@ -195,13 +337,13 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de vendedoras</div>
             {ranking.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhuma venda no período</div>}
             {ranking.map(([nome, qtd], i) => (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i === 0 ? '#FAEEDA' : '#f8f8f6', borderRadius: 8 }}>
-                <div style={{ fontSize: 18, width: 28 }}>{MEDAL[i] || `${i + 1}º`}</div>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i===0?'#FAEEDA':'#f8f8f6', borderRadius: 8 }}>
+                <div style={{ fontSize: 18, width: 28 }}>{MEDAL[i]||`${i+1}º`}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{nome}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{qtd} contrato{qtd !== 1 ? 's' : ''} · {fmt(qtd * 299)}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>{qtd} contrato{qtd!==1?'s':''} · {fmt(qtd*299)}</div>
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 500, color: i === 0 ? '#854F0B' : '#185FA5' }}>{qtd}</div>
+                <div style={{ fontSize: 20, fontWeight: 500, color: i===0?'#854F0B':'#185FA5' }}>{qtd}</div>
               </div>
             ))}
           </div>
@@ -213,15 +355,15 @@ export default function Dashboard() {
         <div style={{ ...card, marginBottom: '1.25rem', borderColor: '#F09595' }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#A32D2D', marginBottom: 12 }}>⚠️ Advogados críticos — +30 dias sem comprar</div>
           {advCriticos.map(a => {
-            const dias = Math.floor((Date.now() - new Date(a.ultima_compra)) / 86400000)
+            const dias = diasDesde(a.ultima_compra)
             return (
               <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{a.nome_completo}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{a.oab}{profile?.role === 'admin' ? ` · ${a.profiles?.nome || '—'}` : ''}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>{a.oab}{profile?.role==='admin'?` · ${a.profiles?.nome||'—'}`:''}</div>
                 </div>
                 <div style={{ fontSize: 12, color: '#A32D2D', fontWeight: 500, textAlign: 'right' }}>
-                  {dias} dias<br /><span style={{ fontWeight: 400, color: '#aaa', fontSize: 11 }}>sem comprar</span>
+                  {dias} dias<br/><span style={{ fontWeight: 400, color: '#aaa', fontSize: 11 }}>sem comprar</span>
                 </div>
               </div>
             )
@@ -237,18 +379,26 @@ export default function Dashboard() {
           <div key={data} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{data}</div>
-              <div style={{ fontSize: 13, color: '#185FA5', fontWeight: 500 }}>{info.total} contrato{info.total !== 1 ? 's' : ''} · {fmt(info.total * 299)}</div>
+              <div style={{ fontSize: 13, color: '#185FA5', fontWeight: 500 }}>{info.total} contrato{info.total!==1?'s':''} · {fmt(info.total*299)}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {Object.entries(info.produtos).map(([prod, qtd]) => (
                 <span key={prod} style={{ padding: '3px 8px', borderRadius: 6, fontSize: 12, background: PROD_STYLE[prod]?.bg, color: PROD_STYLE[prod]?.color, fontWeight: 500 }}>
-                  {qtd}x {prod === 'Auxilio Acidente' ? 'Aux. Acidente' : prod}
+                  {qtd}x {prod==='Auxilio Acidente'?'Aux. Acidente':prod}
                 </span>
               ))}
             </div>
           </div>
         ))}
       </div>
+
+      {modalComprovante && (
+        <ModalComprovante
+          lote={modalComprovante}
+          onClose={() => setModalComprovante(null)}
+          onConfirm={confirmarPagamento}
+        />
+      )}
     </div>
   )
 }
