@@ -19,14 +19,8 @@ const PROD_STYLE = {
 }
 
 function hoje() { return new Date().toISOString().slice(0, 10) }
-function semanaAtras() {
-  const d = new Date(); d.setDate(d.getDate() - 7)
-  return d.toISOString().slice(0, 10)
-}
-function mesAtras() {
-  const d = new Date(); d.setDate(d.getDate() - 30)
-  return d.toISOString().slice(0, 10)
-}
+function semanaAtras() { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) }
+function mesAtras() { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) }
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
@@ -38,6 +32,7 @@ export default function Dashboard() {
   const [filtroProduto, setFiltroProduto] = useState('')
   const [periodo, setPeriodo] = useState('mes')
   const [compras, setCompras] = useState([])
+  const [lotes, setLotes] = useState([])
   const [advCriticos, setAdvCriticos] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -50,38 +45,28 @@ export default function Dashboard() {
 
   async function fetchDados() {
     setLoading(true)
-    // Buscar todas as compras com dados de vendedor e advogado
-    let q = supabase.from('compras').select(`
-      id, produto, data_compra, created_at,
-      advogados(nome_completo, oab),
-      profiles(nome)
-    `).order('data_compra', { ascending: false })
+    let qC = supabase.from('compras').select('id, produto, data_compra, vendedor_id, profiles(nome)').order('data_compra', { ascending: false })
+    let qL = supabase.from('lotes').select('id, data_compra, total_contratos, valor_total, status_pagamento, vendedor_id, profiles(nome)').order('data_compra', { ascending: false })
+    let qA = supabase.from('advogados').select('id, nome_completo, oab, ultima_compra, status, profiles!advogados_vendedor_id_fkey(nome)').eq('status', 'vermelho').not('ultima_compra', 'is', null).order('ultima_compra', { ascending: true }).limit(10)
 
-    if (profile?.role !== 'admin') q = q.eq('vendedor_id', profile?.id)
+    if (profile?.role !== 'admin') {
+      qC = qC.eq('vendedor_id', profile?.id)
+      qL = qL.eq('vendedor_id', profile?.id)
+      qA = qA.eq('vendedor_id', profile?.id)
+    }
 
-    const { data: comprasData } = await q
-    setCompras(comprasData || [])
-
-    // Buscar advogados críticos (>30 dias sem comprar)
-    let qAdv = supabase.from('advogados').select(`
-      id, nome_completo, oab, ultima_compra, status,
-      profiles!advogados_vendedor_id_fkey(nome)
-    `).eq('status', 'vermelho').not('ultima_compra', 'is', null).order('ultima_compra', { ascending: true }).limit(10)
-
-    if (profile?.role !== 'admin') qAdv = qAdv.eq('vendedor_id', profile?.id)
-
-    const { data: advData } = await qAdv
-    setAdvCriticos(advData || [])
+    const [{ data: c }, { data: l }, { data: a }] = await Promise.all([qC, qL, qA])
+    setCompras(c || [])
+    setLotes(l || [])
+    setAdvCriticos(a || [])
     setLoading(false)
   }
 
-  // Filtrar compras por período e vendedor/produto
   function filtrarCompras(lista) {
     let inicio = ''
     if (periodo === 'hoje') inicio = hoje()
     else if (periodo === 'semana') inicio = semanaAtras()
     else if (periodo === 'mes') inicio = mesAtras()
-
     return lista.filter(c => {
       const dentroDoP = !inicio || c.data_compra >= inicio
       const vendedorOk = !filtroVendedor || c.profiles?.nome === filtroVendedor
@@ -90,9 +75,21 @@ export default function Dashboard() {
     })
   }
 
-  const comprasFiltradas = filtrarCompras(compras)
+  function filtrarLotes(lista) {
+    let inicio = ''
+    if (periodo === 'hoje') inicio = hoje()
+    else if (periodo === 'semana') inicio = semanaAtras()
+    else if (periodo === 'mes') inicio = mesAtras()
+    return lista.filter(l => {
+      const dentroDoP = !inicio || l.data_compra >= inicio
+      const vendedorOk = !filtroVendedor || l.profiles?.nome === filtroVendedor
+      return dentroDoP && vendedorOk
+    })
+  }
 
-  // Métricas por período fixo
+  const comprasFiltradas = filtrarCompras(compras)
+  const lotesFiltrados = filtrarLotes(lotes)
+
   const vendas = {
     hoje: compras.filter(c => c.data_compra === hoje()).length,
     semana: compras.filter(c => c.data_compra >= semanaAtras()).length,
@@ -100,52 +97,48 @@ export default function Dashboard() {
     total: compras.length,
   }
 
-  // Contagem por produto no período filtrado
-  const porProduto = comprasFiltradas.reduce((acc, c) => {
-    acc[c.produto] = (acc[c.produto] || 0) + 1
-    return acc
-  }, {})
+  const financeiro = {
+    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').reduce((s, l) => s + Number(l.valor_total), 0),
+    pendente: lotesFiltrados.filter(l => l.status_pagamento === 'pendente').reduce((s, l) => s + Number(l.valor_total), 0),
+    inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').reduce((s, l) => s + Number(l.valor_total), 0),
+  }
 
-  // Ranking de vendedores no período filtrado
-  const rankingMap = comprasFiltradas.reduce((acc, c) => {
-    const nome = c.profiles?.nome || 'Sem nome'
-    acc[nome] = (acc[nome] || 0) + 1
-    return acc
-  }, {})
+  const porProduto = comprasFiltradas.reduce((acc, c) => { acc[c.produto] = (acc[c.produto] || 0) + 1; return acc }, {})
+  const rankingMap = comprasFiltradas.reduce((acc, c) => { const n = c.profiles?.nome || 'Sem nome'; acc[n] = (acc[n] || 0) + 1; return acc }, {})
   const ranking = Object.entries(rankingMap).sort((a, b) => b[1] - a[1])
-
-  // Agrupar compras filtradas por data para o histórico
-  const porDia = comprasFiltradas.reduce((acc, c) => {
-    const d = c.data_compra
-    if (!acc[d]) acc[d] = { total: 0, produtos: {} }
-    acc[d].total++
-    acc[d].produtos[c.produto] = (acc[d].produtos[c.produto] || 0) + 1
-    return acc
-  }, {})
+  const porDia = comprasFiltradas.reduce((acc, c) => { const d = c.data_compra; if (!acc[d]) acc[d] = { total: 0, produtos: {} }; acc[d].total++; acc[d].produtos[c.produto] = (acc[d].produtos[c.produto] || 0) + 1; return acc }, {})
   const diasOrdenados = Object.entries(porDia).sort((a, b) => b[0].localeCompare(a[0]))
 
+  const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR')}`
   const card = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }
-  const metricGrid = { display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1.25rem' }
-  const sectionTitle = { fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12, letterSpacing: '-0.2px' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   return (
     <div>
-      <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 500, color: '#111', marginBottom: '1.25rem', letterSpacing: '-0.3px' }}>Dashboard de vendas</div>
+      <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 500, color: '#111', marginBottom: '1.25rem' }}>Dashboard de vendas</div>
 
-      {/* Métricas fixas */}
-      <div style={metricGrid}>
-        {[
-          ['Hoje', vendas.hoje, '#185FA5'],
-          ['Esta semana', vendas.semana, '#0F6E56'],
-          ['Este mês', vendas.mes, '#854F0B'],
-          ['Total geral', vendas.total, '#111'],
-        ].map(([l, v, c]) => (
-          <div key={l} style={{ ...card, cursor: 'pointer', borderColor: periodo === l.toLowerCase().replace(' ', '') ? c : 'rgba(0,0,0,0.1)' }}>
+      {/* Métricas contratos */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1rem' }}>
+        {[['Hoje', vendas.hoje, '#185FA5'], ['Esta semana', vendas.semana, '#0F6E56'], ['Este mês', vendas.mes, '#854F0B'], ['Total geral', vendas.total, '#111']].map(([l, v, c]) => (
+          <div key={l} style={card}>
             <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
             <div style={{ fontSize: 28, fontWeight: 500, color: c }}>{v}</div>
             <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>contrato{v !== 1 ? 's' : ''}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Métricas financeiras */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: '1.25rem' }}>
+        {[
+          ['Recebido', financeiro.pago, '#3B6D11', '#EAF3DE'],
+          ['Pendente', financeiro.pendente, '#854F0B', '#FAEEDA'],
+          ['Inadimplente', financeiro.inadimplente, '#A32D2D', '#FCEBEB'],
+        ].map(([l, v, c, bg]) => (
+          <div key={l} style={{ ...card, background: bg, border: `0.5px solid ${c}30` }}>
+            <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
+            <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 500, color: c }}>{fmt(v)}</div>
           </div>
         ))}
       </div>
@@ -171,15 +164,14 @@ export default function Dashboard() {
           <option value="Auxilio Acidente">Aux. Acidente</option>
         </select>
         <div style={{ padding: '8px 12px', background: '#f0f0ee', borderRadius: 8, fontSize: 13, color: '#555', display: 'flex', alignItems: 'center' }}>
-          {comprasFiltradas.length} contrato{comprasFiltradas.length !== 1 ? 's' : ''} encontrado{comprasFiltradas.length !== 1 ? 's' : ''}
+          {comprasFiltradas.length} contrato{comprasFiltradas.length !== 1 ? 's' : ''}
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
-
         {/* Por produto */}
         <div style={card}>
-          <div style={sectionTitle}>Por produto</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Por produto</div>
           {['Maternidade', 'BPC', 'Auxilio Acidente'].map(p => {
             const qtd = porProduto[p] || 0
             const pct = comprasFiltradas.length > 0 ? Math.round((qtd / comprasFiltradas.length) * 100) : 0
@@ -197,17 +189,17 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Ranking vendedores — só admin */}
+        {/* Ranking */}
         {profile?.role === 'admin' && (
           <div style={card}>
-            <div style={sectionTitle}>Ranking de vendedoras</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de vendedoras</div>
             {ranking.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhuma venda no período</div>}
             {ranking.map(([nome, qtd], i) => (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 10px', background: i === 0 ? '#FAEEDA' : '#f8f8f6', borderRadius: 8 }}>
-                <div style={{ fontSize: 20, width: 28 }}>{MEDAL[i] || `${i + 1}º`}</div>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i === 0 ? '#FAEEDA' : '#f8f8f6', borderRadius: 8 }}>
+                <div style={{ fontSize: 18, width: 28 }}>{MEDAL[i] || `${i + 1}º`}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{nome}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{qtd} contrato{qtd !== 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>{qtd} contrato{qtd !== 1 ? 's' : ''} · {fmt(qtd * 299)}</div>
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 500, color: i === 0 ? '#854F0B' : '#185FA5' }}>{qtd}</div>
               </div>
@@ -216,10 +208,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Alertas — advogados críticos */}
+      {/* Alertas críticos */}
       {advCriticos.length > 0 && (
         <div style={{ ...card, marginBottom: '1.25rem', borderColor: '#F09595' }}>
-          <div style={{ ...sectionTitle, color: '#A32D2D' }}>⚠️ Advogados críticos — +30 dias sem comprar</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#A32D2D', marginBottom: 12 }}>⚠️ Advogados críticos — +30 dias sem comprar</div>
           {advCriticos.map(a => {
             const dias = Math.floor((Date.now() - new Date(a.ultima_compra)) / 86400000)
             return (
@@ -239,13 +231,13 @@ export default function Dashboard() {
 
       {/* Histórico por dia */}
       <div style={card}>
-        <div style={sectionTitle}>Histórico de vendas por dia</div>
-        {diasOrdenados.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhuma venda no período selecionado</div>}
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Histórico de vendas por dia</div>
+        {diasOrdenados.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhuma venda no período</div>}
         {diasOrdenados.map(([data, info]) => (
           <div key={data} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{data}</div>
-              <div style={{ fontSize: 13, color: '#185FA5', fontWeight: 500 }}>{info.total} contrato{info.total !== 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 13, color: '#185FA5', fontWeight: 500 }}>{info.total} contrato{info.total !== 1 ? 's' : ''} · {fmt(info.total * 299)}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {Object.entries(info.produtos).map(([prod, qtd]) => (
