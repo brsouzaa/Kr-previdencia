@@ -20,6 +20,7 @@ const PROD_STYLE = {
 }
 
 const STATUS_LOTE = {
+  emitir_contrato: { bg: '#F1EFE8', color: '#5F5E5A', label: 'Emitir contrato' },
   assinar_contrato: { bg: '#EEEDFE', color: '#534AB7', label: 'Assinar contrato' },
   a_entregar: { bg: '#E6F1FB', color: '#185FA5', label: 'A entregar' },
   entregue: { bg: '#FAEEDA', color: '#854F0B', label: 'Entregue' },
@@ -117,6 +118,7 @@ export default function Dashboard() {
   }
 
   const financeiro = {
+    emitir_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'emitir_contrato').reduce((s,l) => s + Number(l.valor_total), 0),
     assinar_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'assinar_contrato').reduce((s,l) => s + Number(l.valor_total), 0),
     a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').reduce((s,l) => s + Number(l.valor_total), 0),
     entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').reduce((s,l) => s + Number(l.valor_total), 0),
@@ -125,6 +127,7 @@ export default function Dashboard() {
   }
 
   const contagem = {
+    emitir_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'emitir_contrato').length,
     assinar_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'assinar_contrato').length,
     a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').length,
     entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').length,
@@ -177,7 +180,7 @@ export default function Dashboard() {
       <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 500, color: '#111', marginBottom: '1.25rem' }}>Dashboard de vendas</div>
 
       {/* Métricas contratos */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: 10, marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: '1rem' }}>
         {[['Hoje', vendas.hoje, '#185FA5'], ['Esta semana', vendas.semana, '#0F6E56'], ['Este mês', vendas.mes, '#854F0B'], ['Total geral', vendas.total, '#111']].map(([l,v,c]) => (
           <div key={l} style={card}>
             <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
@@ -188,8 +191,9 @@ export default function Dashboard() {
       </div>
 
       {/* Cards de status clicáveis */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: 10, marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
+          ['emitir_contrato', 'Emitir contrato', financeiro.emitir_contrato, '#5F5E5A', '#F1EFE8'],
           ['assinar_contrato', 'Assinar contrato', financeiro.assinar_contrato, '#534AB7', '#EEEDFE'],
           ['a_entregar', 'A entregar', financeiro.a_entregar, '#185FA5', '#E6F1FB'],
           ['entregue', 'Entregue', financeiro.entregue, '#854F0B', '#FAEEDA'],
@@ -248,6 +252,16 @@ export default function Dashboard() {
 
                 {/* Ações por status */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {modalStatus === 'emitir_contrato' && (
+                    <>
+                      <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ flex: 1, padding: '7px', background: '#EEEDFE', color: '#534AB7', border: '0.5px solid #534AB7', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        ✓ Contrato emitido
+                      </button>
+                      <button onClick={() => mudarStatusLote(lote.id, 'inadimplente')} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                        Inadimp.
+                      </button>
+                    </>
+                  )}
                   {modalStatus === 'assinar_contrato' && (
                     <>
                       <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ flex: 1, padding: '7px', background: '#E6F1FB', color: '#185FA5', border: '0.5px solid #185FA5', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
@@ -306,17 +320,43 @@ export default function Dashboard() {
 
       {/* Painel de avisos automáticos */}
       {(() => {
+        const atrasadosEmissao = lotes.filter(l => l.status_pagamento === 'emitir_contrato' && diasDesde(l.data_compra) >= 1)
         const atrasadosAssinatura = lotes.filter(l => l.status_pagamento === 'assinar_contrato' && diasDesde(l.data_compra) >= 1)
         const atrasadosEntrega = lotes.filter(l => l.status_pagamento === 'a_entregar' && diasDesde(l.data_compra) >= 3)
         const atrasadosPagamento = lotes.filter(l => l.status_pagamento === 'entregue' && diasDesde(l.data_entrega || l.data_compra) >= 1)
 
-        if (atrasadosAssinatura.length === 0 && atrasadosEntrega.length === 0 && atrasadosPagamento.length === 0) return null
+        if (atrasadosEmissao.length === 0 && atrasadosAssinatura.length === 0 && atrasadosEntrega.length === 0 && atrasadosPagamento.length === 0) return null
 
         return (
           <div style={{ background: '#fff', border: '1.5px solid #E24B4A', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#A32D2D', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 16 }}>🚨</span> Requer atenção agora
             </div>
+
+            {atrasadosEmissao.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#5F5E5A', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+                  Contrato pendente de emissão — +1 dia ({atrasadosEmissao.length})
+                </div>
+                {atrasadosEmissao.map(lote => {
+                  const dias = diasDesde(lote.data_compra)
+                  return (
+                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#F1EFE8', borderRadius: 8, marginBottom: 6, border: '0.5px solid #5F5E5A40' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
+                        <div style={{ fontSize: 11, color: '#5F5E5A' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dia{dias!==1?'s':''} sem emitir</div>
+                        <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ fontSize: 11, padding: '3px 8px', background: '#534AB7', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                          Marcar emitido
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {atrasadosAssinatura.length > 0 && (
               <div style={{ marginBottom: 14 }}>
