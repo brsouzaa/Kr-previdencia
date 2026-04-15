@@ -194,7 +194,7 @@ export default function Portal({ vendedorId, vendedorNome }) {
     await supabase.from('lotes').insert({
       advogado_id: advId, vendedor_id: vendedorId,
       data_compra: hoje, total_contratos: total,
-      valor_total: total * VALOR, status_pagamento: 'a_entregar',
+      valor_total: total * VALOR, status_pagamento: 'assinar_contrato',
     })
     // Atualizar produtos
     const prods = Object.entries(qtds).filter(([,q]) => q > 0).map(([p]) => p)
