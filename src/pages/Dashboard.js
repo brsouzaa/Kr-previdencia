@@ -320,7 +320,7 @@ export default function Dashboard() {
 
       {/* Painel de avisos automáticos */}
       {(() => {
-        const atrasadosEmissao = lotes.filter(l => l.status_pagamento === 'emitir_contrato' && diasDesde(l.data_compra) >= 1)
+        const atrasadosEmissao = lotes.filter(l => l.status_pagamento === 'emitir_contrato')
         const atrasadosAssinatura = lotes.filter(l => l.status_pagamento === 'assinar_contrato' && diasDesde(l.data_compra) >= 1)
         const atrasadosEntrega = lotes.filter(l => l.status_pagamento === 'a_entregar' && diasDesde(l.data_compra) >= 3)
         const atrasadosPagamento = lotes.filter(l => l.status_pagamento === 'entregue' && diasDesde(l.data_entrega || l.data_compra) >= 1)
@@ -336,7 +336,7 @@ export default function Dashboard() {
             {atrasadosEmissao.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#5F5E5A', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
-                  Contrato pendente de emissão — +1 dia ({atrasadosEmissao.length})
+                  Aguardando emissão de contrato ({atrasadosEmissao.length})
                 </div>
                 {atrasadosEmissao.map(lote => {
                   const dias = diasDesde(lote.data_compra)
@@ -347,7 +347,7 @@ export default function Dashboard() {
                         <div style={{ fontSize: 11, color: '#5F5E5A' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dia{dias!==1?'s':''} sem emitir</div>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: dias === 0 ? '#5F5E5A' : '#A32D2D' }}>{dias === 0 ? 'Hoje' : `${dias} dia${dias!==1?'s':''} sem emitir`}</div>
                         <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ fontSize: 11, padding: '3px 8px', background: '#534AB7', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
                           Marcar emitido
                         </button>
