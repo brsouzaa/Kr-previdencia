@@ -1,5 +1,5 @@
 import ModalComprovante from './ModalComprovante'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -60,7 +60,6 @@ const s = {
   qtyValue: { fontSize: 16, fontWeight: 500, minWidth: 28, textAlign: 'center', color: '#111' },
 }
 
-
 export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const { profile } = useAuth()
   const [compras, setCompras] = useState([])
@@ -70,6 +69,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [saving, setSaving] = useState(false)
   const [adv, setAdv] = useState(advogado)
   const [modalLote, setModalLote] = useState(null)
+  const [aba, setAba] = useState('lotes')
 
   useEffect(() => { fetchTudo() }, [advogado.id])
 
@@ -124,10 +124,9 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     setSaving(false)
   }
 
-
   // FUNÇÕES ADMIN
   async function excluirAdvogado() {
-    if (!window.confirm('Excluir permanentemente "' + adv.nome_completo + '"? Todos os lotes e compras serão removidos. Esta ação não pode ser desfeita.')) return
+    if (!window.confirm('Excluir permanentemente "' + adv.nome_completo + '"? Todos os lotes e compras serão removidos.')) return
     for (const lote of lotes) {
       if (lote.comprovante_url) await supabase.storage.from('comprovantes').remove([lote.comprovante_url])
     }
@@ -140,7 +139,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   }
 
   async function editarQtdLote(loteId, qtdAtual, totalAtual) {
-    const input = window.prompt('Nova quantidade de contratos (atual: ' + qtdAtual + '):', qtdAtual)
+    const input = window.prompt('Nova quantidade (atual: ' + qtdAtual + '):', qtdAtual)
     if (!input) return
     const novaQtd = parseInt(input)
     if (isNaN(novaQtd) || novaQtd < 1) { alert('Quantidade inválida.'); return }
@@ -154,12 +153,12 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     const update = { status_pagamento: novoStatus, updated_at: new Date().toISOString() }
     if (novoStatus === 'entregue') update.data_entrega = new Date().toISOString().slice(0,10)
     if (novoStatus !== 'pago') { update.data_pagamento = null; update.comprovante_url = null; update.comprovante_nome = null }
-    if (novoStatus === 'a_entregar') { update.data_entrega = null }
+    if (novoStatus === 'a_entregar' || novoStatus === 'assinar_contrato' || novoStatus === 'emitir_contrato') update.data_entrega = null
     await supabase.from('lotes').update(update).eq('id', lote.id)
     await fetchTudo()
   }
 
-  async function confirmarPagamento(loteId, path, nome, url) {
+  async function confirmarPagamento(loteId, path, nome) {
     await supabase.from('lotes').update({
       status_pagamento: 'pago',
       data_pagamento: new Date().toISOString().slice(0, 10),
@@ -168,12 +167,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
       updated_at: new Date().toISOString(),
     }).eq('id', loteId)
     const lote = lotes.find(l => l.id === loteId)
-    if (lote) await notificarEmail('lote_pago', {
-      advogado_nome: adv.nome_completo,
-      data_compra: lote.data_compra,
-      total_contratos: lote.total_contratos,
-      valor_total: lote.valor_total,
-    })
+    if (lote) await notificarEmail('lote_pago', { advogado_nome: adv.nome_completo, data_compra: lote.data_compra, total_contratos: lote.total_contratos, valor_total: lote.valor_total })
     await fetchTudo()
   }
 
@@ -189,12 +183,12 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   }
 
   async function desfazerPagamento(loteId) {
-    await supabase.from('lotes').update({ status_pagamento: 'a_entregar', data_pagamento: null, comprovante_url: null, comprovante_nome: null, updated_at: new Date().toISOString() }).eq('id', loteId)
+    await supabase.from('lotes').update({ status_pagamento: 'entregue', data_pagamento: null, comprovante_url: null, comprovante_nome: null, updated_at: new Date().toISOString() }).eq('id', loteId)
     await fetchTudo()
   }
 
   async function excluirLote(lote) {
-    if (!window.confirm(`Excluir lote de ${lote.total_contratos} contratos do dia ${lote.data_compra}?`)) return
+    if (!window.confirm('Excluir lote de ' + lote.total_contratos + ' contratos do dia ' + lote.data_compra + '?')) return
     const ids = compras.filter(c => c.data_compra === lote.data_compra).map(c => c.id)
     if (ids.length > 0) await supabase.from('compras').delete().in('id', ids)
     if (lote.comprovante_url) await supabase.storage.from('comprovantes').remove([lote.comprovante_url])
@@ -212,13 +206,13 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const proximoTitulo = t < 9 ? TITULOS[t + 1] : null
   const diasUltimaCompra = adv.ultima_compra ? Math.floor((Date.now() - new Date(adv.ultima_compra)) / 86400000) : null
   const totalPago = lotes.filter(l => l.status_pagamento === 'pago').reduce((s, l) => s + Number(l.valor_total), 0)
-  const totalPendente = lotes.filter(l => l.status_pagamento === 'pendente').reduce((s, l) => s + Number(l.valor_total), 0)
+  const totalPendente = lotes.filter(l => !['pago','inadimplente'].includes(l.status_pagamento)).reduce((s, l) => s + Number(l.valor_total), 0)
   const totalInadimplente = lotes.filter(l => l.status_pagamento === 'inadimplente').reduce((s, l) => s + Number(l.valor_total), 0)
   const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR')}`
 
   return (
     <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ ...s.panel, width: 'min(420px, 100vw)' }}>
+      <div style={{ ...s.panel, width: 'min(460px, 100vw)' }}>
         <button style={s.closeBtn} onClick={onClose}>×</button>
         <div style={s.name}>{adv.nome_completo}</div>
         <div style={s.sub}>{adv.oab} · {adv.cidade}, {adv.estado}</div>
@@ -227,7 +221,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           {adv.titulo && ts && <span style={s.badge({ background: ts.bg, color: ts.color })}>{adv.titulo}</span>}
           {profile?.role === 'admin' && (
             <button onClick={excluirAdvogado} style={{ marginLeft: 'auto', padding: '3px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>
-              Excluir advogado
+              Excluir
             </button>
           )}
         </div>
@@ -255,7 +249,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         <div style={s.section}>
           <div style={s.sectionTitle}>Financeiro</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            {[['Pago', totalPago, '#3B6D11', '#EAF3DE'], ['Pendente', totalPendente, '#854F0B', '#FAEEDA'], ['Inadimp.', totalInadimplente, '#A32D2D', '#FCEBEB']].map(([l, v, c, bg]) => (
+            {[['Pago', totalPago, '#3B6D11', '#EAF3DE'], ['Em aberto', totalPendente, '#854F0B', '#FAEEDA'], ['Inadimp.', totalInadimplente, '#A32D2D', '#FCEBEB']].map(([l, v, c, bg]) => (
               <div key={l} style={{ background: bg, borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
                 <div style={{ fontSize: 11, color: c, opacity: 0.8, marginBottom: 3 }}>{l}</div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: c }}>{fmt(v)}</div>
@@ -264,137 +258,174 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           </div>
         </div>
 
-        {/* Contato */}
-        <div style={s.section}>
-          <div style={s.sectionTitle}>Contato</div>
-          <div style={s.row}><span style={s.rowLabel}>Telefone</span><span style={s.rowValue}>{adv.telefone}</span></div>
-          <div style={s.row}><span style={s.rowLabel}>E-mail</span><span style={{ ...s.rowValue, color: '#185FA5', fontSize: 12 }}>{adv.email}</span></div>
-        </div>
-
-        {/* Registrar lote */}
-        <div style={s.section}>
-          <div style={s.sectionTitle}>Registrar lote</div>
-          <div style={s.compraBox}>
-            {PRODUTOS.map(p => (
-              <div key={p} style={s.qtyRow}>
-                <div style={s.qtyLabel}>
-                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: PROD_STYLE[p]?.color, marginRight: 6 }}></span>
-                  {p === 'Auxilio Acidente' ? 'Aux. Acidente' : p}
-                </div>
-                <button style={s.qtyBtn} onClick={() => ajustarQtd(p, -1)} type="button">−</button>
-                <div style={s.qtyValue}>{qtds[p]}</div>
-                <button style={s.qtyBtn} onClick={() => ajustarQtd(p, 1)} type="button">+</button>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid rgba(0,0,0,0.1)' }}>
-              <span style={{ color: '#888' }}>Total · Valor</span>
-              <span style={{ fontWeight: 500 }}>{totalLote} contrato{totalLote !== 1 ? 's' : ''} · {fmt(valorLote)}</span>
-            </div>
-            <label style={{ ...s.label, marginTop: 14 }}>Data da venda</label>
-            <input style={s.input} type="date" value={dataCompra} onChange={e => setDataCompra(e.target.value)} />
-            <button style={totalLote === 0 || saving ? s.btnDisabled : s.btnSave} onClick={registrarLote} disabled={totalLote === 0 || saving}>
-              {saving ? 'Salvando...' : `Registrar ${totalLote > 0 ? `${totalLote} contrato${totalLote !== 1 ? 's' : ''} · ${fmt(valorLote)}` : 'lote'}`}
+        {/* Abas */}
+        <div style={{ display: 'flex', marginTop: '1.25rem', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+          {[['lotes','Lotes'],['dados','Dados cadastrais']].map(([key, label]) => (
+            <button key={key} onClick={() => setAba(key)} style={{ flex: 1, padding: '9px 0', fontSize: 13, fontWeight: aba === key ? 500 : 400, color: aba === key ? '#185FA5' : '#888', background: 'none', border: 'none', borderBottom: aba === key ? '2px solid #185FA5' : '2px solid transparent', cursor: 'pointer' }}>
+              {label}
             </button>
-          </div>
+          ))}
         </div>
 
-        {/* Lotes */}
-        {lotes.length > 0 && (
-          <div style={s.section}>
-            <div style={s.sectionTitle}>Lotes de compra</div>
-            {lotes.map(lote => {
-              const ps = PAG_STYLE[lote.status_pagamento] || PAG_STYLE.pendente
-              const prodsDoLote = comprasPorData[lote.data_compra] || {}
-              return (
-                <div key={lote.id} style={{ border: `0.5px solid ${ps.color}30`, borderRadius: 10, padding: 12, marginBottom: 12, background: ps.bg + '40' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.data_compra}</div>
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{lote.total_contratos} contrato{lote.total_contratos !== 1 ? 's' : ''} · {fmt(lote.valor_total)}</div>
+        {/* Aba: Dados cadastrais */}
+        {aba === 'dados' && (
+          <div>
+            <div style={s.section}>
+              <div style={s.sectionTitle}>Dados pessoais</div>
+              <div style={s.row}><span style={s.rowLabel}>Nome completo</span><span style={{ ...s.rowValue, fontSize: 12 }}>{adv.nome_completo}</span></div>
+              <div style={s.row}><span style={s.rowLabel}>OAB</span><span style={s.rowValue}>{adv.oab}</span></div>
+              <div style={s.row}><span style={s.rowLabel}>Estado</span><span style={s.rowValue}>{adv.estado}</span></div>
+              <div style={s.row}><span style={s.rowLabel}>Cidade</span><span style={s.rowValue}>{adv.cidade}</span></div>
+              {adv.endereco && <div style={s.row}><span style={s.rowLabel}>Endereço</span><span style={{ ...s.rowValue, fontSize: 12, textAlign: 'right', maxWidth: '55%' }}>{adv.endereco}</span></div>}
+              {adv.estado_civil && <div style={s.row}><span style={s.rowLabel}>Estado civil</span><span style={s.rowValue}>{adv.estado_civil}</span></div>}
+              {adv.nacionalidade && <div style={s.row}><span style={s.rowLabel}>Nacionalidade</span><span style={s.rowValue}>{adv.nacionalidade}</span></div>}
+            </div>
+            <div style={s.section}>
+              <div style={s.sectionTitle}>Contato</div>
+              <div style={s.row}>
+                <span style={s.rowLabel}>Telefone</span>
+                <a href={`https://wa.me/55${(adv.telefone||'').replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ ...s.rowValue, color: '#3B6D11', textDecoration: 'none' }}>
+                  {adv.telefone} 💬
+                </a>
+              </div>
+              <div style={s.row}><span style={s.rowLabel}>E-mail</span><span style={{ ...s.rowValue, color: '#185FA5', fontSize: 12 }}>{adv.email}</span></div>
+            </div>
+            <div style={s.section}>
+              <div style={s.sectionTitle}>Vínculo</div>
+              <div style={s.row}><span style={s.rowLabel}>Cadastrado em</span><span style={s.rowValue}>{adv.created_at ? new Date(adv.created_at).toLocaleDateString('pt-BR') : '—'}</span></div>
+              <div style={s.row}><span style={s.rowLabel}>Última compra</span><span style={s.rowValue}>{adv.ultima_compra ? new Date(adv.ultima_compra + 'T00:00:00').toLocaleDateString('pt-BR') : 'Nenhuma'}</span></div>
+              <div style={s.row}><span style={s.rowLabel}>Total de contratos</span><span style={s.rowValue}>{adv.total_compras}</span></div>
+            </div>
+          </div>
+        )}
+
+        {/* Aba: Lotes */}
+        {aba === 'lotes' && (
+          <div>
+            {/* Registrar lote */}
+            <div style={s.section}>
+              <div style={s.sectionTitle}>Registrar lote</div>
+              <div style={s.compraBox}>
+                {PRODUTOS.map(p => (
+                  <div key={p} style={s.qtyRow}>
+                    <div style={s.qtyLabel}>
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: PROD_STYLE[p]?.color, marginRight: 6 }}></span>
+                      {p === 'Auxilio Acidente' ? 'Aux. Acidente' : p}
                     </div>
-                    <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: ps.bg, color: ps.color, flexShrink: 0 }}>{ps.label}</span>
+                    <button style={s.qtyBtn} onClick={() => ajustarQtd(p, -1)} type="button">−</button>
+                    <div style={s.qtyValue}>{qtds[p]}</div>
+                    <button style={s.qtyBtn} onClick={() => ajustarQtd(p, 1)} type="button">+</button>
                   </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid rgba(0,0,0,0.1)' }}>
+                  <span style={{ color: '#888' }}>Total · Valor</span>
+                  <span style={{ fontWeight: 500 }}>{totalLote} contrato{totalLote !== 1 ? 's' : ''} · {fmt(valorLote)}</span>
+                </div>
+                <label style={{ ...s.label, marginTop: 14 }}>Data da venda</label>
+                <input style={s.input} type="date" value={dataCompra} onChange={e => setDataCompra(e.target.value)} />
+                <button style={totalLote === 0 || saving ? s.btnDisabled : s.btnSave} onClick={registrarLote} disabled={totalLote === 0 || saving}>
+                  {saving ? 'Salvando...' : `Registrar ${totalLote > 0 ? `${totalLote} contrato${totalLote !== 1 ? 's' : ''} · ${fmt(valorLote)}` : 'lote'}`}
+                </button>
+              </div>
+            </div>
 
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {Object.entries(prodsDoLote).map(([prod, qtd]) => (
-                      <span key={prod} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, background: PROD_STYLE[prod]?.bg, color: PROD_STYLE[prod]?.color }}>
-                        {qtd}x {prod === 'Auxilio Acidente' ? 'Aux.' : prod}
-                      </span>
-                    ))}
-                  </div>
+            {/* Lotes existentes */}
+            {lotes.length > 0 && (
+              <div style={s.section}>
+                <div style={s.sectionTitle}>Histórico de lotes</div>
+                {lotes.map(lote => {
+                  const ps = PAG_STYLE[lote.status_pagamento] || PAG_STYLE.emitir_contrato
+                  const prodsDoLote = comprasPorData[lote.data_compra] || {}
+                  return (
+                    <div key={lote.id} style={{ border: `0.5px solid ${ps.color}30`, borderRadius: 10, padding: 12, marginBottom: 12, background: ps.bg + '40' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.data_compra}</div>
+                          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{lote.total_contratos} contrato{lote.total_contratos !== 1 ? 's' : ''} · {fmt(lote.valor_total)}</div>
+                        </div>
+                        <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: ps.bg, color: ps.color, flexShrink: 0 }}>{ps.label}</span>
+                      </div>
 
-                  {/* Comprovante se pago */}
-                  {lote.status_pagamento === 'pago' && (
-                    <div style={{ fontSize: 11, color: '#3B6D11', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>✓ Pago em {lote.data_pagamento}</span>
-                      {lote.comprovante_url && (
-                        <button onClick={() => verComprovante(lote)} style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                          Ver comprovante
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Ações */}
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {lote.status_pagamento !== 'pago' && (
-                      <button onClick={() => setModalLote(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                        📎 Pago + comprovante
-                      </button>
-                    )}
-                    {lote.status_pagamento === 'pago' && (
-                      <button onClick={() => desfazerPagamento(lote.id)} style={{ flex: 1, padding: '7px', background: '#f0f0ee', color: '#888', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                        Desfazer
-                      </button>
-                    )}
-                    {lote.status_pagamento === 'pendente' && (
-                      <button onClick={() => marcarInadimplente(lote.id)} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                        Inadimp.
-                      </button>
-                    )}
-                    <button onClick={() => excluirLote(lote)} style={{ padding: '7px 10px', background: 'none', color: '#ccc', border: '0.5px solid #ddd', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                      Excluir
-                    </button>
-                  </div>
-                  {profile?.role === 'admin' && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px dashed rgba(0,0,0,0.1)' }}>
-                      <div style={{ fontSize: 10, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Admin — alterar status</div>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {[
-                          { key: 'emitir_contrato', label: 'Emitir ctrt.', bg: '#F1EFE8', color: '#5F5E5A' },
-                        { key: 'assinar_contrato', label: 'Assinar ctrt.', bg: '#EEEDFE', color: '#534AB7' },
-                        { key: 'a_entregar', label: 'A entregar', bg: '#E6F1FB', color: '#185FA5' },
-                          { key: 'entregue', label: 'Entregue', bg: '#FAEEDA', color: '#854F0B' },
-                          { key: 'pago', label: 'Pago', bg: '#EAF3DE', color: '#3B6D11' },
-                          { key: 'inadimplente', label: 'Inadimp.', bg: '#FCEBEB', color: '#A32D2D' },
-                        ].map(op => (
-                          <button
-                            key={op.key}
-                            disabled={lote.status_pagamento === op.key}
-                            onClick={() => op.key === 'pago' ? setModalLote(lote) : mudarStatusAdmin(lote, op.key)}
-                            style={{
-                              padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: lote.status_pagamento === op.key ? 'default' : 'pointer',
-                              fontWeight: lote.status_pagamento === op.key ? 500 : 400,
-                              background: lote.status_pagamento === op.key ? op.bg : '#f0f0ee',
-                              color: lote.status_pagamento === op.key ? op.color : '#888',
-                              border: lote.status_pagamento === op.key ? '1.5px solid ' + op.color : '0.5px solid #ddd',
-                              opacity: lote.status_pagamento === op.key ? 1 : 0.8,
-                            }}
-                          >
-                            {lote.status_pagamento === op.key ? '✓ ' : ''}{op.label}
-                          </button>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
+                        {Object.entries(prodsDoLote).map(([prod, qtd]) => (
+                          <span key={prod} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, background: PROD_STYLE[prod]?.bg, color: PROD_STYLE[prod]?.color }}>
+                            {qtd}x {prod === 'Auxilio Acidente' ? 'Aux.' : prod}
+                          </span>
                         ))}
                       </div>
-                      <button onClick={() => editarQtdLote(lote.id, lote.total_contratos, adv.total_compras)} style={{ fontSize: 11, padding: '5px 10px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, cursor: 'pointer' }}>
-                        ✏️ Editar quantidade ({lote.total_contratos} contrato{lote.total_contratos!==1?'s':''})
-                      </button>
+
+                      {lote.status_pagamento === 'pago' && lote.data_pagamento && (
+                        <div style={{ fontSize: 11, color: '#3B6D11', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          ✓ Pago em {lote.data_pagamento}
+                          {lote.comprovante_url && <button onClick={() => verComprovante(lote)} style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Ver comprovante</button>}
+                        </div>
+                      )}
+
+                      {/* Ações por status */}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {lote.status_pagamento === 'emitir_contrato' && (
+                          <>
+                            <button onClick={() => mudarStatusAdmin(lote, 'assinar_contrato')} style={{ flex: 1, padding: '7px', background: '#EEEDFE', color: '#534AB7', border: '0.5px solid #534AB7', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✓ Contrato emitido</button>
+                            <button onClick={() => marcarInadimplente(lote.id)} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Inadimp.</button>
+                          </>
+                        )}
+                        {lote.status_pagamento === 'assinar_contrato' && (
+                          <>
+                            <button onClick={() => mudarStatusAdmin(lote, 'a_entregar')} style={{ flex: 1, padding: '7px', background: '#E6F1FB', color: '#185FA5', border: '0.5px solid #185FA5', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✓ Contrato assinado</button>
+                            <button onClick={() => marcarInadimplente(lote.id)} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Inadimp.</button>
+                          </>
+                        )}
+                        {lote.status_pagamento === 'a_entregar' && (
+                          <>
+                            <button onClick={() => mudarStatusAdmin(lote, 'entregue')} style={{ flex: 1, padding: '7px', background: '#FAEEDA', color: '#854F0B', border: '0.5px solid #854F0B', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✓ Marcar entregue</button>
+                            <button onClick={() => marcarInadimplente(lote.id)} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Inadimp.</button>
+                          </>
+                        )}
+                        {lote.status_pagamento === 'entregue' && (
+                          <button onClick={() => setModalLote(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>📎 Pago + comprovante</button>
+                        )}
+                        {lote.status_pagamento === 'pago' && (
+                          <button onClick={() => desfazerPagamento(lote.id)} style={{ flex: 1, padding: '7px', background: '#f0f0ee', color: '#888', border: '0.5px solid #ccc', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Desfazer</button>
+                        )}
+                        {lote.status_pagamento === 'inadimplente' && (
+                          <>
+                            <button onClick={() => mudarStatusAdmin(lote, 'entregue')} style={{ flex: 1, padding: '7px', background: '#FAEEDA', color: '#854F0B', border: '0.5px solid #854F0B', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Reativar</button>
+                            <button onClick={() => setModalLote(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>📎 Pago</button>
+                          </>
+                        )}
+                        <button onClick={() => excluirLote(lote)} style={{ padding: '7px 10px', background: 'none', color: '#ccc', border: '0.5px solid #ddd', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Excluir</button>
+                      </div>
+
+                      {/* Admin: editar */}
+                      {profile?.role === 'admin' && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px dashed rgba(0,0,0,0.1)' }}>
+                          <div style={{ fontSize: 10, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Admin — alterar status</div>
+                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                            {[
+                              { key: 'emitir_contrato', label: 'Emitir', bg: '#F1EFE8', color: '#5F5E5A' },
+                              { key: 'assinar_contrato', label: 'Assinar', bg: '#EEEDFE', color: '#534AB7' },
+                              { key: 'a_entregar', label: 'A entregar', bg: '#E6F1FB', color: '#185FA5' },
+                              { key: 'entregue', label: 'Entregue', bg: '#FAEEDA', color: '#854F0B' },
+                              { key: 'pago', label: 'Pago', bg: '#EAF3DE', color: '#3B6D11' },
+                              { key: 'inadimplente', label: 'Inadimp.', bg: '#FCEBEB', color: '#A32D2D' },
+                            ].map(op => (
+                              <button key={op.key} disabled={lote.status_pagamento === op.key}
+                                onClick={() => op.key === 'pago' ? setModalLote(lote) : mudarStatusAdmin(lote, op.key)}
+                                style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: lote.status_pagamento === op.key ? 'default' : 'pointer', fontWeight: lote.status_pagamento === op.key ? 500 : 400, background: lote.status_pagamento === op.key ? op.bg : '#f0f0ee', color: lote.status_pagamento === op.key ? op.color : '#888', border: lote.status_pagamento === op.key ? '1.5px solid ' + op.color : '0.5px solid #ddd' }}>
+                                {lote.status_pagamento === op.key ? '✓ ' : ''}{op.label}
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => editarQtdLote(lote.id, lote.total_contratos, adv.total_compras)} style={{ fontSize: 11, padding: '5px 10px', background: '#f0f0ee', color: '#555', border: '0.5px solid #ccc', borderRadius: 7, cursor: 'pointer' }}>
+                            ✏️ Editar quantidade ({lote.total_contratos} contrato{lote.total_contratos!==1?'s':''})
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div style={{ display: 'none' }}>
-                  </div>
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
