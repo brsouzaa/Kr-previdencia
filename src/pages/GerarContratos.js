@@ -210,7 +210,7 @@ export default function GerarContratos() {
       const ok = lista.some(c => normalizar(c) === normalizar(cliente.cidade))
       setCidadeStatus(ok ? 'ok' : 'erro')
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [cliente.cidade, cliente.uf, endLockado])
 
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function GerarContratos() {
     if (!cidadesUF.length || !cliente.cidade) return
     const ok = cidadesUF.some(c => normalizar(c) === normalizar(cliente.cidade))
     setCidadeStatus(ok ? 'ok' : 'erro')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [cidadesUF])
 
   function destravarEndereco() {
