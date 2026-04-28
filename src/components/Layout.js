@@ -5,6 +5,7 @@ const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
 const NAV_SUPERVISOR_PRODUCAO = [
+  { key: 'dashboard_producao', label: '📈 Dashboard' },
   { key: 'supervisor_producao', label: '📊 Supervisão' },
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
@@ -25,6 +26,8 @@ const NAV_ADMIN = [
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'contratos', label: '📄 Gerar contratos' },
+  { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
+  { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 
@@ -42,7 +45,7 @@ export default function Layout({ children, page, setPage }) {
   const { profile, signOut } = useAuth()
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
-  const nav = profile?.role === 'admin' ? NAV_ADMIN 
+  const nav = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
     : NAV_VENDEDOR
@@ -81,7 +84,12 @@ export default function Layout({ children, page, setPage }) {
           ))}
           <div style={{ marginTop: 'auto', padding: '1rem 1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>{profile?.role === 'admin' ? 'Administrador' : 'Vendedor'}</div>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+              {profile?.role === 'admin' ? 'Administrador'
+                : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
+                : profile?.role === 'produtor' ? 'Produtor'
+                : 'Vendedor'}
+            </div>
             <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Sair</button>
           </div>
         </div>
