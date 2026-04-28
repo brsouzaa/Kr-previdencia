@@ -9,6 +9,8 @@ const s = {
   inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, color: '#444', background: '#F5F5F2', outline: 'none', boxSizing: 'border-box' },
   inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #A32D2D', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
+  grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
+  grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   btn: { width: '100%', padding: '13px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', padding: '13px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
   sectionTitle: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(0,0,0,0.06)' },
@@ -16,6 +18,7 @@ const s = {
   hint: { fontSize: 11, color: '#888', marginTop: 4 },
   hintErr: { fontSize: 11, color: '#A32D2D', marginTop: 4 },
   hintOk: { fontSize: 11, color: '#3B6D11', marginTop: 4 },
+  warnBox: { background: '#FAEEDA', border: '1px solid #F5C97B', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#854F0B' },
 }
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -90,13 +93,16 @@ export default function GerarContratos() {
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [copiado, setCopiado] = useState(false)
-  const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
+  const [cliente, setCliente] = useState({
+    nome:'', cpf:'', rg:'', telefone:'', email:'',
+    cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:''
+  })
 
   // Estado de busca CEP / cidade
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [cepStatus, setCepStatus] = useState(null) // 'ok' | 'erro' | null
-  const [endLockado, setEndLockado] = useState(false) // se endereço/cidade/uf vieram do ViaCEP
-  const [cidadesUF, setCidadesUF] = useState([])     // lista IBGE pra UF atual
+  const [endLockado, setEndLockado] = useState(false)
+  const [cidadesUF, setCidadesUF] = useState([])
   const [cidadeStatus, setCidadeStatus] = useState(null) // 'ok' | 'erro' | null
   const ufCarregadaRef = useRef(null)
 
@@ -143,11 +149,14 @@ export default function GerarContratos() {
       if (j.erro) {
         setCepStatus('erro')
         setEndLockado(false)
+        // limpa rua/bairro/cidade/uf pra forçar preenchimento manual
+        setCliente(c => ({ ...c, rua:'', bairro:'', cidade:'', uf:'' }))
+        setCidadeStatus(null)
       } else {
-        const enderecoFmt = [j.logradouro, j.bairro].filter(Boolean).join(', ').toUpperCase()
         setCliente(c => ({
           ...c,
-          endereco: enderecoFmt || c.endereco,
+          rua: (j.logradouro || '').toUpperCase(),
+          bairro: (j.bairro || '').toUpperCase(),
           cidade: (j.localidade || '').toUpperCase(),
           uf: (j.uf || '').toUpperCase(),
         }))
@@ -170,7 +179,7 @@ export default function GerarContratos() {
     else { setCepStatus(null); setEndLockado(false); setCidadeStatus(null) }
   }
 
-  // === Carrega cidades do IBGE para a UF atual (só quando o usuário edita manualmente) ===
+  // === Carrega cidades do IBGE para a UF atual ===
   async function carregarCidadesUF(uf) {
     if (!uf || uf.length !== 2) { setCidadesUF([]); return }
     if (ufCarregadaRef.current === uf && cidadesUF.length) return
@@ -186,7 +195,7 @@ export default function GerarContratos() {
 
   // Revalida cidade quando cidade ou UF muda manualmente
   useEffect(() => {
-    if (endLockado) return // veio do ViaCEP, já validado
+    if (endLockado) return
     if (!cliente.cidade || !cliente.uf || cliente.uf.length !== 2) {
       setCidadeStatus(null)
       return
@@ -196,7 +205,6 @@ export default function GerarContratos() {
       return
     }
     carregarCidadesUF(cliente.uf).then(() => {
-      // após carregar, valida
       const lista = ufCarregadaRef.current === cliente.uf ? cidadesUF : []
       if (!lista.length) { setCidadeStatus(null); return }
       const ok = lista.some(c => normalizar(c) === normalizar(cliente.cidade))
@@ -205,7 +213,6 @@ export default function GerarContratos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cliente.cidade, cliente.uf, endLockado])
 
-  // Quando cidadesUF carrega, valida (caso a UF tenha mudado sem cidade)
   useEffect(() => {
     if (endLockado) return
     if (!cidadesUF.length || !cliente.cidade) return
@@ -220,8 +227,9 @@ export default function GerarContratos() {
 
   // === Validações para habilitar botão ===
   const camposPreenchidos = cliente.nome.trim() && cliente.cpf && cliente.rg && cliente.telefone &&
-                            cliente.email.trim() && cliente.endereco.trim() && cliente.cidade.trim() &&
-                            cliente.uf && cliente.cep
+                            cliente.email.trim() && cliente.cep &&
+                            cliente.rua.trim() && cliente.numero.trim() && cliente.bairro.trim() &&
+                            cliente.cidade.trim() && cliente.uf
   const cpfOk = cpfValido(cliente.cpf)
   const emailOk = emailValido(cliente.email)
   const telOk = telValido(cliente.telefone)
@@ -236,11 +244,15 @@ export default function GerarContratos() {
     setEnviando(true)
     try {
       const dataHoje = hoje()
-      const enderecoClienteCompleto = [cliente.endereco].filter(Boolean).join(', ')
+      // Monta endereço completo: RUA, NÚMERO - BAIRRO
+      const enderecoClienteCompleto = `${cliente.rua}, ${cliente.numero} - ${cliente.bairro}`
 
       const resp = await supabase.functions.invoke('gerar-contratos-zapsign', {
         body: {
-          cliente: { ...cliente, endereco: enderecoClienteCompleto },
+          cliente: {
+            ...cliente,
+            endereco: enderecoClienteCompleto,
+          },
           advogado,
           lote_id: proximoLote?.id,
           produtor_id: profile?.id,
@@ -269,7 +281,7 @@ export default function GerarContratos() {
   }
 
   function proximoCliente() {
-    setCliente({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
+    setCliente({ nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'' })
     setCepStatus(null)
     setEndLockado(false)
     setCidadeStatus(null)
@@ -281,12 +293,16 @@ export default function GerarContratos() {
 
   const restantes = proximoLote ? (proximoLote.total_contratos || 0) - (proximoLote.qtd_emitidos || 0) : 0
 
-  // Helper pra estilo do input de cidade/UF
+  // Estilos dinâmicos
   const inputCidade = endLockado ? s.inputReadOnly
     : (cidadeStatus === 'erro' ? s.inputErr : s.input)
   const inputUF = endLockado ? s.inputReadOnly
     : (cliente.uf && !ufOk ? s.inputErr : s.input)
-  const inputEndereco = endLockado ? s.inputReadOnly : s.input
+  const inputRua = endLockado ? s.inputReadOnly : s.input
+  const inputBairro = endLockado ? s.inputReadOnly : s.input
+
+  // Mostra os campos de endereço quando: ViaCEP achou OU CEP digitado mas não achou OU usuário destravou
+  const mostrarEndereco = cepStatus === 'ok' || cepStatus === 'erro'
 
   return (
     <div>
@@ -406,51 +422,76 @@ export default function GerarContratos() {
               onChange={e => onCepChange(e.target.value)}
               placeholder="00000-000" inputMode="numeric" />
             {buscandoCep && <div style={s.hint}>🔍 Buscando endereço...</div>}
-            {cepStatus === 'ok' && <div style={s.hintOk}>✓ Endereço preenchido automaticamente</div>}
-            {cepStatus === 'erro' && <div style={s.hintErr}>CEP não encontrado — preencha endereço, cidade e UF manualmente</div>}
+            {cepStatus === 'ok' && <div style={s.hintOk}>✓ Endereço encontrado — confira e preencha o número</div>}
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={s.label}>
-              Endereço completo *
-              {endLockado && (
-                <button type="button" onClick={destravarEndereco}
-                  style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>
-                  editar
-                </button>
-              )}
-            </label>
-            <input style={inputEndereco} value={cliente.endereco}
-              readOnly={endLockado}
-              onChange={e => setC('endereco', e.target.value.toUpperCase())}
-              placeholder="RUA, NÚMERO, BAIRRO" />
-          </div>
-
-          <div style={s.grid2}>
-            <div>
-              <label style={s.label}>Cidade *</label>
-              <input style={inputCidade} value={cliente.cidade}
-                readOnly={endLockado}
-                onChange={e => setC('cidade', e.target.value.toUpperCase())}
-                placeholder="CIDADE" />
-              {!endLockado && cliente.cidade && cliente.uf && cidadeStatus === 'erro' && (
-                <div style={s.hintErr}>Cidade não encontrada em {cliente.uf}</div>
-              )}
-              {!endLockado && cidadeStatus === 'ok' && (
-                <div style={s.hintOk}>✓ Cidade válida</div>
-              )}
+          {cepStatus === 'erro' && (
+            <div style={s.warnBox}>
+              ⚠️ <strong>CEP não encontrado.</strong> Preencha o endereço manualmente abaixo — a cidade será validada automaticamente contra a lista do IBGE.
             </div>
-            <div>
-              <label style={s.label}>UF *</label>
-              <input style={inputUF} value={cliente.uf}
-                readOnly={endLockado}
-                onChange={e => setC('uf', e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
-                placeholder="SP" maxLength={2} />
-              {cliente.uf && !ufOk && <div style={s.hintErr}>UF inválida</div>}
-            </div>
-          </div>
+          )}
 
-          <div style={{ height: 12 }} />
+          {mostrarEndereco && (
+            <>
+              <div style={s.grid_rua_num}>
+                <div>
+                  <label style={s.label}>
+                    Rua *
+                    {endLockado && (
+                      <button type="button" onClick={destravarEndereco}
+                        style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>
+                        editar
+                      </button>
+                    )}
+                  </label>
+                  <input style={inputRua} value={cliente.rua}
+                    readOnly={endLockado}
+                    onChange={e => setC('rua', e.target.value.toUpperCase())}
+                    placeholder="RUA / AVENIDA" />
+                </div>
+                <div>
+                  <label style={s.label}>Número *</label>
+                  <input style={s.input} value={cliente.numero}
+                    onChange={e => setC('numero', e.target.value.toUpperCase().slice(0, 10))}
+                    placeholder="123" />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={s.label}>Bairro *</label>
+                <input style={inputBairro} value={cliente.bairro}
+                  readOnly={endLockado}
+                  onChange={e => setC('bairro', e.target.value.toUpperCase())}
+                  placeholder="BAIRRO" />
+              </div>
+
+              <div style={s.grid_cidade_uf}>
+                <div>
+                  <label style={s.label}>Cidade *</label>
+                  <input style={inputCidade} value={cliente.cidade}
+                    readOnly={endLockado}
+                    onChange={e => setC('cidade', e.target.value.toUpperCase())}
+                    placeholder="CIDADE" />
+                  {!endLockado && cliente.cidade && cliente.uf && cidadeStatus === 'erro' && (
+                    <div style={s.hintErr}>Cidade não encontrada em {cliente.uf}</div>
+                  )}
+                  {!endLockado && cidadeStatus === 'ok' && (
+                    <div style={s.hintOk}>✓ Cidade válida</div>
+                  )}
+                </div>
+                <div>
+                  <label style={s.label}>UF *</label>
+                  <input style={inputUF} value={cliente.uf}
+                    readOnly={endLockado}
+                    onChange={e => setC('uf', e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
+                    placeholder="SP" maxLength={2} />
+                  {cliente.uf && !ufOk && <div style={s.hintErr}>UF inválida</div>}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div style={{ height: 8 }} />
 
           <button style={tudoOk && !enviando ? s.btn : s.btnDisabled}
             onClick={enviarZapSign} disabled={!tudoOk || enviando}>
