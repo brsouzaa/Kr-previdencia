@@ -28,7 +28,7 @@ export default function FilaEntregas() {
     setLoading(true)
     const { data } = await supabase
       .from('lotes')
-      .select('*, advogados(nome_completo, oab, cidade, estado, telefone, email), profiles(nome)')
+      .select('*, advogados(nome_completo, oab, cidade, estado, telefone, email), profiles(nome), contratos_producao(id, status, cliente_nome, data_expiracao)')
       .eq('status_pagamento', 'a_entregar')
       .order('data_compra', { ascending: true })
     setLotes(data || [])
@@ -95,8 +95,13 @@ export default function FilaEntregas() {
         const chegouHa = diasDesde(lote.data_compra)
         const u = urgencia(restam)
         const entregues = lote.qtd_entregues || 0
-        const faltamEntregar = lote.total_contratos - entregues
-        const progresso = lote.total_contratos > 0 ? Math.round((entregues / lote.total_contratos) * 100) : 0
+        // Contar assinados reais do ZapSign
+        const contratos = lote.contratos_producao || []
+        const assinadosReais = contratos.filter(c => c.status === 'assinado').length
+        const enviadosTotal = contratos.length
+        const expiradosOuPendentes = contratos.filter(c => c.status === 'expirado').length
+        const faltamEntregar = Math.max(0, assinadosReais - entregues)
+        const progresso = assinadosReais > 0 ? Math.round((entregues / assinadosReais) * 100) : 0
 
         return (
           <div key={lote.id} style={{ background: u.bg, border: `1.5px solid ${u.border}`, borderRadius: 14, padding: '1.25rem', marginBottom: 14 }}>
@@ -134,8 +139,8 @@ export default function FilaEntregas() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
               {[
                 ['Total pedido', lote.total_contratos, '#111', '#f8f8f6'],
-                ['Já entregues', entregues, entregues > 0 ? '#3B6D11' : '#888', entregues > 0 ? '#EAF3DE' : '#f8f8f6'],
-                ['Faltam entregar', faltamEntregar, faltamEntregar > 0 ? '#185FA5' : '#3B6D11', faltamEntregar > 0 ? '#E6F1FB' : '#EAF3DE'],
+                ['Assinados ✓', assinadosReais, assinadosReais > 0 ? '#3B6D11' : '#888', assinadosReais > 0 ? '#EAF3DE' : '#f8f8f6'],
+                ['Entregues', entregues, entregues >= assinadosReais && assinadosReais > 0 ? '#3B6D11' : '#185FA5', entregues >= assinadosReais && assinadosReais > 0 ? '#EAF3DE' : '#E6F1FB'],
               ].map(([l, v, c, bg]) => (
                 <div key={l} style={{ background: bg, borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: c, opacity: 0.75, marginBottom: 2 }}>{l}</div>
@@ -143,6 +148,26 @@ export default function FilaEntregas() {
                 </div>
               ))}
             </div>
+
+            {/* Clientes que assinaram */}
+            {contratos.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>Clientes — status de assinatura</div>
+                {contratos.map(c => (
+                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: c.status === 'assinado' ? '#EAF3DE' : c.status === 'expirado' ? '#FCEBEB' : '#f8f8f6', borderRadius: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: '#111' }}>{c.cliente_nome}</span>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: c.status === 'assinado' ? '#3B6D11' : c.status === 'expirado' ? '#A32D2D' : '#854F0B' }}>
+                      {c.status === 'assinado' ? '✓ Assinou' : c.status === 'expirado' ? 'Expirou' : '⏳ Aguardando'}
+                    </span>
+                  </div>
+                ))}
+                {expiradosOuPendentes > 0 && (
+                  <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>
+                    {expiradosOuPendentes} contrato{expiradosOuPendentes !== 1 ? 's' : ''} expirado{expiradosOuPendentes !== 1 ? 's' : ''} ou não assinado{expiradosOuPendentes !== 1 ? 's' : ''} — reemita se necessário
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Campo aprovados */}
             <div style={{ marginBottom: 10 }}>
