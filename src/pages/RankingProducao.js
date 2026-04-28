@@ -22,8 +22,8 @@ const s = {
 
 function bonusPorFaixa(qtd) {
   if (qtd <= 0) return 0
-  if (qtd >= 10) return qtd * 20
-  if (qtd >= 5) return qtd * 17
+  if (qtd >= 41) return qtd * 20
+  if (qtd >= 16) return qtd * 17
   return qtd * 15
 }
 
@@ -183,7 +183,7 @@ export default function RankingProducao() {
         })}
 
         <div style={{ marginTop: 14, padding: '10px 12px', background: '#f8f8f6', borderRadius: 8, fontSize: 11, color: '#888', lineHeight: 1.5 }}>
-          <strong>Faixas:</strong> 1-4 contratos R$15 · 5-9 contratos R$17 · 10+ R$20 (lote do mês inteiro pelo mesmo valor) ·
+          <strong>Faixas:</strong> 1-15 contratos R$15 · 16-40 contratos R$17 · 41+ R$20 (lote do mês inteiro pelo mesmo valor) ·
           <strong>Desempate:</strong> menor tempo médio entre cadastro e assinatura
         </div>
       </div>
