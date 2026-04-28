@@ -14,7 +14,6 @@ const NAV_VENDEDOR = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_ADMIN = [
