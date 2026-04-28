@@ -5,8 +5,9 @@ const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
 const NAV_SUPERVISOR_PRODUCAO = [
+  { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'supervisor_producao', label: '📊 Supervisão' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
+  { key: 'contratos', label: '📄 Gerar contratos (manual)' },
 ]
 const NAV_VENDEDOR = [
   { key: 'dashboard', label: '📊 Dashboard' },
@@ -16,6 +17,11 @@ const NAV_VENDEDOR = [
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
+const NAV_VENDEDOR_OPERADOR = [
+  { key: 'meus_clientes', label: '📋 Meus clientes' },
+  { key: 'novo_cliente', label: '➕ Novo cliente' },
+  { key: 'meu_desempenho', label: '📊 Meu desempenho' },
+]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
@@ -23,7 +29,8 @@ const NAV_ADMIN = [
   { key: 'compras', label: 'Histórico' },
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
+  { key: 'fila_digitacao', label: '📥 Fila de digitação' },
+  { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
   { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
   { key: 'meulink', label: '🔗 Meu link' },
@@ -46,6 +53,7 @@ export default function Layout({ children, page, setPage }) {
   const nav = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
+    : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : NAV_VENDEDOR
 
   return (
@@ -86,6 +94,7 @@ export default function Layout({ children, page, setPage }) {
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
                 : profile?.role === 'produtor' ? 'Produtor'
+                : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
                 : 'Vendedor'}
             </div>
             <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Sair</button>
