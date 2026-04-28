@@ -1,111 +1,128 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../lib/AuthContext'
+import { AuthProvider, useAuth } from './lib/AuthContext'
+import { supabase } from './lib/supabase'
+import Login from './pages/Login'
+import Layout from './components/Layout'
+import Advogados from './pages/Advogados'
+import Funil from './pages/Funil'
+import Compras from './pages/Compras'
+import Equipe from './pages/Equipe'
+import Dashboard from './pages/Dashboard'
+import MeuLink from './pages/MeuLink'
+import FilaEntregas from './pages/FilaEntregas'
+import GerarContratos from './pages/GerarContratos'
+import SupervisorProducao from './pages/SupervisorProducao'
+import NovoCliente from './pages/NovoCliente'
+import MeusClientes from './pages/MeusClientes'
+import MeuDesempenho from './pages/MeuDesempenho'
+import FilaDigitacao from './pages/FilaDigitacao'
+import Portal from './pages/Portal'
 
-const NAV_PRODUTOR = [
-  { key: 'contratos', label: '📄 Gerar contratos' },
-]
-const NAV_SUPERVISOR_PRODUCAO = [
-  { key: 'supervisor_producao', label: '📊 Supervisão' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
-]
-const NAV_VENDEDOR = [
-  { key: 'dashboard', label: '📊 Dashboard' },
-  { key: 'advogados', label: 'Advogados' },
-  { key: 'funil', label: 'Funil' },
-  { key: 'compras', label: 'Histórico' },
-  { key: 'fila', label: '📦 Fila de entregas' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
-  { key: 'meulink', label: '🔗 Meu link' },
-]
-const NAV_ADMIN = [
-  { key: 'dashboard', label: '📊 Dashboard' },
-  { key: 'advogados', label: 'Advogados' },
-  { key: 'funil', label: 'Funil' },
-  { key: 'compras', label: 'Histórico' },
-  { key: 'equipe', label: 'Equipe' },
-  { key: 'fila', label: '📦 Fila de entregas' },
-  { key: 'contratos', label: '📄 Gerar contratos' },
-  { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
-  { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
-  { key: 'meulink', label: '🔗 Meu link' },
-]
+function PortalRoute() {
+  const [vendedor, setVendedor] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
+    const path = window.location.pathname
+    const match = path.match(/\/cadastro\/([^/]+)/)
+    if (match) {
+      const id = match[1]
+      supabase.from('profiles').select('id, nome').eq('id', id).single().then(({ data }) => {
+        setVendedor(data)
+        setLoading(false)
+      })
+    } else {
+      setLoading(false)
+    }
   }, [])
-  return isMobile
+
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6', fontSize: 14, color: '#888' }}>Carregando...</div>
+  if (!vendedor) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6', fontSize: 14, color: '#888' }}>Link inválido</div>
+  return <Portal vendedorId={vendedor.id} vendedorNome={vendedor.nome} />
 }
 
-export default function Layout({ children, page, setPage }) {
-  const { profile, signOut } = useAuth()
-  const isMobile = useIsMobile()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const nav = profile?.role === 'admin' ? NAV_ADMIN
-    : profile?.role === 'produtor' ? NAV_PRODUTOR
-    : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
-    : NAV_VENDEDOR
+// Página inicial por role
+function paginaInicial(role) {
+  if (role === 'produtor') return 'contratos'
+  if (role === 'supervisor_producao') return 'fila_digitacao'
+  if (role === 'vendedor_operador') return 'meus_clientes'
+  return 'dashboard'
+}
+
+// Páginas permitidas por role
+function paginaPermitida(role, page) {
+  if (role === 'admin') return true
+  if (role === 'vendedor') {
+    return ['dashboard','advogados','funil','compras','meulink','fila'].includes(page)
+  }
+  if (role === 'produtor') {
+    return ['contratos'].includes(page)
+  }
+  if (role === 'supervisor_producao') {
+    return ['fila_digitacao','supervisor_producao','contratos'].includes(page)
+  }
+  if (role === 'vendedor_operador') {
+    return ['meus_clientes','novo_cliente','meu_desempenho'].includes(page)
+  }
+  return false
+}
+
+function AppInner() {
+  const { user, profile, loading } = useAuth()
+  const [page, setPage] = useState(null)
+
+  useEffect(() => {
+    if (profile?.role && page === null) {
+      setPage(paginaInicial(profile.role))
+    }
+  }, [profile, page])
+
+  const isPortal = window.location.pathname.startsWith('/cadastro/')
+  if (isPortal) return <PortalRoute />
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
+      <div style={{ fontSize: 14, color: '#888' }}>Carregando...</div>
+    </div>
+  )
+
+  if (!user) return <Login />
+
+  if (!profile || page === null) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
+      <div style={{ fontSize: 14, color: '#888' }}>Carregando...</div>
+    </div>
+  )
+
+  const pages = {
+    dashboard: <Dashboard />,
+    advogados: <Advogados />,
+    funil: <Funil />,
+    compras: <Compras />,
+    equipe: <Equipe />,
+    meulink: <MeuLink />,
+    fila: <FilaEntregas />,
+    contratos: <GerarContratos />,
+    supervisor_producao: <SupervisorProducao />,
+    fila_digitacao: <FilaDigitacao />,
+    meus_clientes: <MeusClientes />,
+    novo_cliente: <NovoCliente onSucesso={() => setPage('meus_clientes')} />,
+    meu_desempenho: <MeuDesempenho />,
+  }
+
+  const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f8f6' }}>
+    <Layout page={paginaSegura} setPage={setPage}>
+      {pages[paginaSegura]}
+    </Layout>
+  )
+}
 
-      {isMobile && menuOpen && (
-        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 299 }} />
-      )}
-
-      {(!isMobile || menuOpen) && (
-        <div style={{
-          width: 210, background: '#fff',
-          borderRight: '0.5px solid rgba(0,0,0,0.1)',
-          display: 'flex', flexDirection: 'column',
-          padding: '1.25rem 0', flexShrink: 0,
-          ...(isMobile ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 300, boxShadow: '4px 0 20px rgba(0,0,0,0.15)' } : {})
-        }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#111', padding: '0 1.25rem 1.25rem', borderBottom: '0.5px solid rgba(0,0,0,0.08)', marginBottom: '0.75rem' }}>
-            KR <span style={{ color: '#185FA5' }}>Previdência</span>
-          </div>
-          {nav.map(n => (
-            <button key={n.key} onClick={() => { setPage(n.key); setMenuOpen(false) }} style={{
-              display: 'block', padding: '10px 1.25rem', fontSize: 13,
-              color: page === n.key ? '#185FA5' : '#555',
-              fontWeight: page === n.key ? 500 : 400,
-              background: page === n.key ? '#E6F1FB' : 'transparent',
-              cursor: 'pointer', textAlign: 'left',
-              border: 'none', borderLeftWidth: 2, borderLeftStyle: 'solid',
-              borderLeftColor: page === n.key ? '#185FA5' : 'transparent',
-              width: '100%'
-            }}>
-              {n.label}
-            </button>
-          ))}
-          <div style={{ marginTop: 'auto', padding: '1rem 1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
-              {profile?.role === 'admin' ? 'Administrador'
-                : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
-                : profile?.role === 'produtor' ? 'Produtor'
-                : 'Vendedor'}
-            </div>
-            <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Sair</button>
-          </div>
-        </div>
-      )}
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {isMobile && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
-            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111', padding: '4px 8px', lineHeight: 1 }}>☰</button>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>KR <span style={{ color: '#185FA5' }}>Previdência</span></div>
-            <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
-          </div>
-        )}
-        <div style={{ padding: isMobile ? '1rem' : '1.5rem', paddingTop: isMobile ? '72px' : '1.5rem', overflowY: 'auto', flex: 1 }}>
-          {children}
-        </div>
-      </div>
-    </div>
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   )
 }
