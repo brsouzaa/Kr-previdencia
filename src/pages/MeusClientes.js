@@ -43,6 +43,7 @@ export default function MeusClientes() {
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [busca, setBusca] = useState('')
   const [copiadoId, setCopiadoId] = useState(null)
+  const [reemitindoId, setReemitindoId] = useState(null)
 
   const fetchClientes = useCallback(async () => {
     setLoading(true)
@@ -56,6 +57,12 @@ export default function MeusClientes() {
   }, [profile])
 
   useEffect(() => { fetchClientes() }, [fetchClientes])
+
+  // Auto-refresh a cada 30s pra pegar novos links emitidos pelo supervisor
+  useEffect(() => {
+    const id = setInterval(fetchClientes, 30000)
+    return () => clearInterval(id)
+  }, [fetchClientes])
 
   const filtrados = clientes.filter(c => {
     if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
@@ -89,6 +96,43 @@ export default function MeusClientes() {
     return `https://wa.me/55${tel}?text=${msg}`
   }
 
+  // === Solicitar reemissão de cliente expirado ===
+  async function solicitarReemissao(c) {
+    if (!window.confirm(`Solicitar nova emissão de contrato para ${c.nome}?\n\nO cliente voltará para a fila de digitação da supervisão.`)) return
+    setReemitindoId(c.id)
+    try {
+      // Volta o status do cliente pra aguardando_emissao
+      // Limpa os campos da emissão anterior (advogado, lote, link, contrato)
+      const { error } = await supabase.from('clientes').update({
+        status: 'aguardando_emissao',
+        contrato_producao_id: null,
+        lote_id: null,
+        advogado_id: null,
+        zapsign_token: null,
+        link_assinatura: null,
+        emitido_por: null,
+        emitido_em: null,
+        bloqueado_por: null,
+        bloqueado_em: null,
+      }).eq('id', c.id)
+
+      if (error) {
+        // Se a constraint disparar (existe outro pendente do mesmo CPF), avisa
+        if (error.code === '23505') {
+          alert('Já existe um cadastro ativo (aguardando ou emitido) com este CPF. Verifique antes de tentar de novo.')
+        } else {
+          throw error
+        }
+        setReemitindoId(null); return
+      }
+      await fetchClientes()
+      alert('✅ Solicitação enviada! O cliente está de volta na fila da supervisão.')
+    } catch (err) {
+      alert('Erro: ' + (err.message || err.toString()))
+    }
+    setReemitindoId(null)
+  }
+
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   return (
@@ -96,7 +140,7 @@ export default function MeusClientes() {
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📋 Meus clientes</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''} · atualiza automaticamente a cada 30s</div>
         </div>
         <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
           ↻ Atualizar
@@ -165,14 +209,31 @@ export default function MeusClientes() {
             )}
 
             {c.status === 'expirado' && (
-              <div style={{ marginTop: 10, padding: 10, background: '#FCEBEB', borderRadius: 8, fontSize: 12, color: '#A32D2D' }}>
-                ⌛ Cliente não assinou em 15 horas. Entre em contato e cadastre novamente se ele ainda quiser fechar.
+              <div style={{ marginTop: 10, padding: 10, background: '#FCEBEB', borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>
+                  ⌛ Cliente não assinou em 15 horas. Se ele ainda quiser fechar, peça reemissão de um novo contrato.
+                </div>
+                <button onClick={() => solicitarReemissao(c)}
+                  disabled={reemitindoId === c.id}
+                  style={{
+                    width: '100%', padding: '8px', background: reemitindoId === c.id ? '#aaa' : '#A32D2D',
+                    color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                    cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer'
+                  }}>
+                  {reemitindoId === c.id ? '⏳ Solicitando...' : '🔄 Solicitar nova emissão'}
+                </button>
               </div>
             )}
 
             {c.status === 'aguardando_emissao' && (
               <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>
                 Aguardando supervisão emitir o contrato...
+              </div>
+            )}
+
+            {c.status === 'assinado' && (
+              <div style={{ marginTop: 8, padding: 8, background: '#EAF3DE', borderRadius: 6, fontSize: 11, color: '#3B6D11', textAlign: 'center', fontWeight: 500 }}>
+                ✅ Contrato assinado pelo cliente
               </div>
             )}
           </div>
