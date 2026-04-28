@@ -64,7 +64,7 @@ export default function GerarContratos() {
     const { data } = await supabase
       .from('lotes')
       .select('*, advogados(*), profiles(nome)')
-      .in('status_pagamento', ['emitir_contrato', 'assinar_contrato'])
+      .eq('status_pagamento', 'a_entregar')
       .order('data_compra', { ascending: true })
       .limit(1)
     if (data && data.length > 0) {
@@ -152,7 +152,7 @@ export default function GerarContratos() {
 
       if (resp.error || !resp.data?.ok) throw new Error(resp.error?.message || resp.data?.error || 'Erro desconhecido')
 
-      setResultado({ link: resp.data.link_assinatura, token: resp.data.zapsign_token })
+      setResultado({ link: resp.data.link_assinatura, token: resp.data.zapsign_token, expira: resp.data.expira_em })
 
       // Atualizar status do lote para assinar_contrato
       if (proximoLote?.id) {
@@ -210,9 +210,14 @@ export default function GerarContratos() {
       {resultado && (
         <div style={{ ...s.card, background: '#EAF3DE', border: '1.5px solid #3B6D1150' }}>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#3B6D11', marginBottom: 8 }}>✅ Contratos enviados ao ZapSign!</div>
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 14 }}>
-            Os 3 documentos foram criados e o cliente já pode assinar. Copie o link e envie para o cliente:
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+            Os 3 documentos foram criados. Copie o link e envie para o cliente assinar:
           </div>
+          {resultado.expira && (
+            <div style={{ fontSize: 12, color: '#854F0B', background: '#FAEEDA', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
+              ⏰ Link expira em 48h ({resultado.expira}) — após isso o cliente não consegue mais assinar
+            </div>
+          )}
           <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#185FA5', wordBreak: 'break-all', border: '0.5px solid rgba(0,0,0,0.1)' }}>
             {resultado.link}
           </div>
