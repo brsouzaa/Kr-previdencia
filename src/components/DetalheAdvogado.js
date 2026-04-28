@@ -277,6 +277,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
               <div style={s.row}><span style={s.rowLabel}>Estado</span><span style={s.rowValue}>{adv.estado}</span></div>
               <div style={s.row}><span style={s.rowLabel}>Cidade</span><span style={s.rowValue}>{adv.cidade}</span></div>
               {adv.endereco && <div style={s.row}><span style={s.rowLabel}>Endereço</span><span style={{ ...s.rowValue, fontSize: 12, textAlign: 'right', maxWidth: '55%' }}>{adv.endereco}</span></div>}
+            {adv.cep && <div style={s.row}><span style={s.rowLabel}>CEP</span><span style={s.rowValue}>{adv.cep}</span></div>}
               {adv.estado_civil && <div style={s.row}><span style={s.rowLabel}>Estado civil</span><span style={s.rowValue}>{adv.estado_civil}</span></div>}
               {adv.nacionalidade && <div style={s.row}><span style={s.rowLabel}>Nacionalidade</span><span style={s.rowValue}>{adv.nacionalidade}</span></div>}
             </div>
