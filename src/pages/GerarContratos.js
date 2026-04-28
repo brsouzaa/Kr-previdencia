@@ -20,42 +20,7 @@ function hoje() {
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`
 }
 
-// Processar docx (ZIP) no browser com PizZip
-async function carregarPizZip() {
-  if (window.PizZip) return
-  return new Promise((resolve, reject) => {
-    // Tentar CDN alternativo se o principal falhar
-    const urls = [
-      'https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js',
-      'https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js',
-    ]
-    let idx = 0
-    function tryNext() {
-      if (idx >= urls.length) { reject(new Error('PizZip nao carregou')); return }
-      const s = document.createElement('script')
-      s.src = urls[idx++]
-      s.onload = resolve
-      s.onerror = tryNext
-      document.head.appendChild(s)
-    }
-    tryNext()
-  })
-}
-
-async function processarDocx(templateUrl, substituicoes) {
-  await carregarPizZip()
-  const resp = await fetch(templateUrl)
-  const buffer = await resp.arrayBuffer()
-  const zip = new window.PizZip(buffer)
-  let xml = zip.file('word/document.xml').asText()
-  for (const [antigo, novo] of Object.entries(substituicoes)) {
-    const novoXml = novo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    xml = xml.split(antigo).join(novoXml)
-  }
-  zip.file('word/document.xml', xml)
-  // Gerar como base64
-  return zip.generate({ type: 'base64' })
-}
+// Processamento feito na Edge Function
 
 export default function GerarContratos() {
   const { profile } = useAuth()
