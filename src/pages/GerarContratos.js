@@ -91,6 +91,8 @@ export default function GerarContratos() {
       const oabNum = (advogado.oab || '').replace(/\D/g, '')
       const ufOab = advogado.estado || 'SP'
 
+      // Endereço completo do advogado para o contrato
+      const enderecoAdvCompleto = [advogado.endereco, advogado.cep ? `Cep ${advogado.cep}` : ''].filter(Boolean).join(', ') || ''
       const subsContrato = {
         'ENECLESIA TAINARA ZANLUCA DA SILVA': cliente.nome.toUpperCase(),
         '125.482.729-31': cliente.cpf,
@@ -101,7 +103,7 @@ export default function GerarContratos() {
         'INÊS BERTOLO': nomeAdv,
         '342202': oabNum,
         'OAB/SP': `OAB/${ufOab}`,
-        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': advogado.endereco || '',
+        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': enderecoAdvCompleto,
         '11 94753 0536': advogado.telefone || '',
         'Inesdax123@gmail.com': advogado.email || '',
       }
@@ -116,7 +118,7 @@ export default function GerarContratos() {
         'INÊS BERTOLO': nomeAdv,
         '342202': oabNum,
         'OAB/SP': `OAB/${ufOab}`,
-        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': advogado.endereco || '',
+        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': enderecoAdvCompleto,
         '11 94753 0536': advogado.telefone || '',
         'Inesdax123@gmail.com': advogado.email || '',
         'São Paulo, 27 de abril 2026': `${cliente.cidade}, ${dataHoje}`,
