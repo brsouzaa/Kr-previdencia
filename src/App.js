@@ -9,6 +9,7 @@ import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
 import MeuLink from './pages/MeuLink'
+import FilaEntregas from './pages/FilaEntregas'
 import ModalEmailNotificacao from './components/ModalEmailNotificacao'
 import Portal from './pages/Portal'
 
@@ -65,6 +66,7 @@ function AppInner() {
     compras: <Compras />,
     equipe: <Equipe />,
     meulink: <MeuLink />,
+    fila: <FilaEntregas />,
   }
 
   return (
