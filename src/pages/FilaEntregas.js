@@ -95,10 +95,7 @@ export default function FilaEntregas() {
         const chegouHa = diasDesde(lote.data_compra)
         const u = urgencia(restam)
         const entregues = lote.qtd_entregues || 0
-        const assinados = lote.qtd_assinados || 0
-        const emitidos = lote.qtd_emitidos || 0
         const faltamEntregar = lote.total_contratos - entregues
-        const faltamAssinar = emitidos > 0 ? Math.max(0, emitidos - assinados) : 0
         const progresso = lote.total_contratos > 0 ? Math.round((entregues / lote.total_contratos) * 100) : 0
 
         return (
@@ -137,7 +134,7 @@ export default function FilaEntregas() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
               {[
                 ['Total pedido', lote.total_contratos, '#111', '#f8f8f6'],
-                ['Assinados', assinados, '#3B6D11', '#EAF3DE'],
+                ['Já entregues', entregues, entregues > 0 ? '#3B6D11' : '#888', entregues > 0 ? '#EAF3DE' : '#f8f8f6'],
                 ['Faltam entregar', faltamEntregar, faltamEntregar > 0 ? '#185FA5' : '#3B6D11', faltamEntregar > 0 ? '#E6F1FB' : '#EAF3DE'],
               ].map(([l, v, c, bg]) => (
                 <div key={l} style={{ background: bg, borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
@@ -147,28 +144,13 @@ export default function FilaEntregas() {
               ))}
             </div>
 
-            {faltamAssinar > 0 && (
-              <div style={{ background: '#FAEEDA', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#854F0B', fontWeight: 500 }}>
-                ⚠️ {faltamAssinar} contrato{faltamAssinar !== 1 ? 's' : ''} emitido{faltamAssinar !== 1 ? 's' : ''} ainda não {faltamAssinar !== 1 ? 'foram assinados' : 'foi assinado'} — pode precisar reemitir
-              </div>
-            )}
-
-            {/* Campos */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Aprovados / entregues</label>
-                <input type="number" min="0" max={lote.total_contratos} value={entregues}
-                  onChange={e => atualizar(lote.id, { qtd_entregues: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
-                  onBlur={e => salvar(lote.id, { qtd_entregues: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
-                  style={{ width: '100%', padding: '9px 10px', fontSize: 15, fontWeight: 500, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Assinados pelo advogado</label>
-                <input type="number" min="0" max={lote.total_contratos} value={assinados}
-                  onChange={e => atualizar(lote.id, { qtd_assinados: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
-                  onBlur={e => salvar(lote.id, { qtd_assinados: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
-                  style={{ width: '100%', padding: '9px 10px', fontSize: 15, fontWeight: 500, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
+            {/* Campo aprovados */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Aprovados / entregues</label>
+              <input type="number" min="0" max={lote.total_contratos} value={entregues}
+                onChange={e => atualizar(lote.id, { qtd_entregues: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
+                onBlur={e => salvar(lote.id, { qtd_entregues: Math.min(parseInt(e.target.value)||0, lote.total_contratos) })}
+                style={{ width: '100%', padding: '9px 10px', fontSize: 15, fontWeight: 500, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: 10 }}>
