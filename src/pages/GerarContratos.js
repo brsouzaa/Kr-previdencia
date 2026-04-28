@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -6,17 +6,80 @@ const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
   label: { display: 'block', fontSize: 12, color: '#555', marginBottom: 4 },
   input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
+  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, color: '#444', background: '#F5F5F2', outline: 'none', boxSizing: 'border-box' },
+  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #A32D2D', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   btn: { width: '100%', padding: '13px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', padding: '13px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
   sectionTitle: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(0,0,0,0.06)' },
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, marginLeft: 6 },
+  hint: { fontSize: 11, color: '#888', marginTop: 4 },
+  hintErr: { fontSize: 11, color: '#A32D2D', marginTop: 4 },
+  hintOk: { fontSize: 11, color: '#3B6D11', marginTop: 4 },
 }
+
+const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
 function hoje() {
   const d = new Date()
   const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`
+}
+
+// === Máscaras ===
+function maskCPF(v) {
+  v = (v || '').replace(/\D/g, '').slice(0, 11)
+  if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2}).*/, '$1.$2.$3-$4')
+  if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{1,3}).*/, '$1.$2.$3')
+  if (v.length > 3) return v.replace(/(\d{3})(\d{1,3}).*/, '$1.$2')
+  return v
+}
+function maskRG(v) {
+  v = (v || '').replace(/[^\dXx]/g, '').slice(0, 9).toUpperCase()
+  if (v.length > 8) return v.replace(/(\d{2})(\d{3})(\d{3})(.{1}).*/, '$1.$2.$3-$4')
+  if (v.length > 5) return v.replace(/(\d{2})(\d{3})(\d{1,3}).*/, '$1.$2.$3')
+  if (v.length > 2) return v.replace(/(\d{2})(\d{1,3}).*/, '$1.$2')
+  return v
+}
+function maskTel(v) {
+  v = (v || '').replace(/\D/g, '').slice(0, 11)
+  if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3')
+  if (v.length > 6) return v.replace(/(\d{2})(\d{4})(\d{1,4}).*/, '($1) $2-$3')
+  if (v.length > 2) return v.replace(/(\d{2})(\d{1,5}).*/, '($1) $2')
+  if (v.length > 0) return v.replace(/(\d{1,2}).*/, '($1')
+  return v
+}
+function maskCEP(v) {
+  v = (v || '').replace(/\D/g, '').slice(0, 8)
+  if (v.length > 5) return v.replace(/(\d{5})(\d{1,3}).*/, '$1-$2')
+  return v
+}
+
+// === Validações ===
+function cpfValido(cpf) {
+  cpf = (cpf || '').replace(/\D/g, '')
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false
+  let sum = 0, rest
+  for (let i = 1; i <= 9; i++) sum += parseInt(cpf.substring(i - 1, i)) * (11 - i)
+  rest = (sum * 10) % 11
+  if (rest === 10 || rest === 11) rest = 0
+  if (rest !== parseInt(cpf.substring(9, 10))) return false
+  sum = 0
+  for (let i = 1; i <= 10; i++) sum += parseInt(cpf.substring(i - 1, i)) * (12 - i)
+  rest = (sum * 10) % 11
+  if (rest === 10 || rest === 11) rest = 0
+  return rest === parseInt(cpf.substring(10, 11))
+}
+function emailValido(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((e || '').trim())
+}
+function telValido(t) {
+  return (t || '').replace(/\D/g, '').length >= 10
+}
+
+// Normaliza string pra comparação (remove acento, lowercase)
+function normalizar(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 }
 
 export default function GerarContratos() {
@@ -29,12 +92,16 @@ export default function GerarContratos() {
   const [copiado, setCopiado] = useState(false)
   const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
 
+  // Estado de busca CEP / cidade
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [cepStatus, setCepStatus] = useState(null) // 'ok' | 'erro' | null
+  const [endLockado, setEndLockado] = useState(false) // se endereço/cidade/uf vieram do ViaCEP
+  const [cidadesUF, setCidadesUF] = useState([])     // lista IBGE pra UF atual
+  const [cidadeStatus, setCidadeStatus] = useState(null) // 'ok' | 'erro' | null
+  const ufCarregadaRef = useRef(null)
+
   useEffect(() => { fetchProximo() }, [])
 
-  // Busca o próximo lote da fila com a regra:
-  // 1. Lote precisa estar em a_entregar
-  // 2. qtd_emitidos < total_contratos (ainda tem contrato pra emitir)
-  // 3. Ordem: prioridade_fila DESC (prioridade primeiro), data_prioridade ASC, data_compra ASC
   async function fetchProximo() {
     setLoading(true)
     setResultado(null)
@@ -47,7 +114,6 @@ export default function GerarContratos() {
       .order('data_compra', { ascending: true })
       .limit(20)
 
-    // Filtrar lotes que ainda têm contrato pra emitir
     const disponivel = (data || []).find(l => (l.qtd_emitidos || 0) < (l.total_contratos || 0))
 
     if (disponivel) {
@@ -62,10 +128,111 @@ export default function GerarContratos() {
 
   function setC(f, v) { setCliente(c => ({ ...c, [f]: v })) }
 
-  const camposOk = cliente.nome && cliente.cpf && cliente.telefone && cliente.endereco && cliente.cidade && cliente.uf && cliente.cep
+  // === Busca CEP no ViaCEP ===
+  async function buscarCep(cepRaw) {
+    const cep = (cepRaw || '').replace(/\D/g, '')
+    if (cep.length !== 8) {
+      setCepStatus(null)
+      return
+    }
+    setBuscandoCep(true)
+    setCepStatus(null)
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const j = await r.json()
+      if (j.erro) {
+        setCepStatus('erro')
+        setEndLockado(false)
+      } else {
+        const enderecoFmt = [j.logradouro, j.bairro].filter(Boolean).join(', ').toUpperCase()
+        setCliente(c => ({
+          ...c,
+          endereco: enderecoFmt || c.endereco,
+          cidade: (j.localidade || '').toUpperCase(),
+          uf: (j.uf || '').toUpperCase(),
+        }))
+        setCepStatus('ok')
+        setEndLockado(true)
+        setCidadeStatus('ok')
+      }
+    } catch (e) {
+      setCepStatus('erro')
+      setEndLockado(false)
+    }
+    setBuscandoCep(false)
+  }
+
+  function onCepChange(v) {
+    const masked = maskCEP(v)
+    setC('cep', masked)
+    const limpo = masked.replace(/\D/g, '')
+    if (limpo.length === 8) buscarCep(limpo)
+    else { setCepStatus(null); setEndLockado(false); setCidadeStatus(null) }
+  }
+
+  // === Carrega cidades do IBGE para a UF atual (só quando o usuário edita manualmente) ===
+  async function carregarCidadesUF(uf) {
+    if (!uf || uf.length !== 2) { setCidadesUF([]); return }
+    if (ufCarregadaRef.current === uf && cidadesUF.length) return
+    try {
+      const r = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
+      const j = await r.json()
+      setCidadesUF((j || []).map(x => x.nome))
+      ufCarregadaRef.current = uf
+    } catch (e) {
+      setCidadesUF([])
+    }
+  }
+
+  // Revalida cidade quando cidade ou UF muda manualmente
+  useEffect(() => {
+    if (endLockado) return // veio do ViaCEP, já validado
+    if (!cliente.cidade || !cliente.uf || cliente.uf.length !== 2) {
+      setCidadeStatus(null)
+      return
+    }
+    if (!UFS.includes(cliente.uf)) {
+      setCidadeStatus('erro')
+      return
+    }
+    carregarCidadesUF(cliente.uf).then(() => {
+      // após carregar, valida
+      const lista = ufCarregadaRef.current === cliente.uf ? cidadesUF : []
+      if (!lista.length) { setCidadeStatus(null); return }
+      const ok = lista.some(c => normalizar(c) === normalizar(cliente.cidade))
+      setCidadeStatus(ok ? 'ok' : 'erro')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente.cidade, cliente.uf, endLockado])
+
+  // Quando cidadesUF carrega, valida (caso a UF tenha mudado sem cidade)
+  useEffect(() => {
+    if (endLockado) return
+    if (!cidadesUF.length || !cliente.cidade) return
+    const ok = cidadesUF.some(c => normalizar(c) === normalizar(cliente.cidade))
+    setCidadeStatus(ok ? 'ok' : 'erro')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cidadesUF])
+
+  function destravarEndereco() {
+    setEndLockado(false)
+  }
+
+  // === Validações para habilitar botão ===
+  const camposPreenchidos = cliente.nome.trim() && cliente.cpf && cliente.rg && cliente.telefone &&
+                            cliente.email.trim() && cliente.endereco.trim() && cliente.cidade.trim() &&
+                            cliente.uf && cliente.cep
+  const cpfOk = cpfValido(cliente.cpf)
+  const emailOk = emailValido(cliente.email)
+  const telOk = telValido(cliente.telefone)
+  const cepOk = cliente.cep.replace(/\D/g, '').length === 8
+  const ufOk = UFS.includes(cliente.uf)
+  const cidadeOk = cidadeStatus === 'ok'
+
+  const tudoOk = camposPreenchidos && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk
 
   async function enviarZapSign() {
-    if (!camposOk || !advogado) return
+    if (!tudoOk || !advogado) return
     setEnviando(true)
     try {
       const dataHoje = hoje()
@@ -103,6 +270,9 @@ export default function GerarContratos() {
 
   function proximoCliente() {
     setCliente({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
+    setCepStatus(null)
+    setEndLockado(false)
+    setCidadeStatus(null)
     setResultado(null)
     fetchProximo()
   }
@@ -110,6 +280,13 @@ export default function GerarContratos() {
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   const restantes = proximoLote ? (proximoLote.total_contratos || 0) - (proximoLote.qtd_emitidos || 0) : 0
+
+  // Helper pra estilo do input de cidade/UF
+  const inputCidade = endLockado ? s.inputReadOnly
+    : (cidadeStatus === 'erro' ? s.inputErr : s.input)
+  const inputUF = endLockado ? s.inputReadOnly
+    : (cliente.uf && !ufOk ? s.inputErr : s.input)
+  const inputEndereco = endLockado ? s.inputReadOnly : s.input
 
   return (
     <div>
@@ -178,51 +355,117 @@ export default function GerarContratos() {
       {advogado && !resultado && (
         <div style={s.card}>
           <div style={s.sectionTitle}>Dados do cliente (beneficiário)</div>
+
           <div style={{ marginBottom: 12 }}>
             <label style={s.label}>Nome completo *</label>
-            <input style={s.input} value={cliente.nome} onChange={e => setC('nome', e.target.value)} placeholder="Nome completo do cliente" />
+            <input style={s.input} value={cliente.nome}
+              onChange={e => setC('nome', e.target.value.toUpperCase())}
+              placeholder="NOME COMPLETO DO CLIENTE" />
           </div>
+
           <div style={s.grid2}>
             <div>
               <label style={s.label}>CPF *</label>
-              <input style={s.input} value={cliente.cpf} onChange={e => setC('cpf', e.target.value)} placeholder="000.000.000-00" />
+              <input style={cliente.cpf && !cpfOk ? s.inputErr : s.input}
+                value={cliente.cpf}
+                onChange={e => setC('cpf', maskCPF(e.target.value))}
+                placeholder="000.000.000-00" inputMode="numeric" />
+              {cliente.cpf && !cpfOk && <div style={s.hintErr}>CPF inválido</div>}
             </div>
             <div>
-              <label style={s.label}>RG</label>
-              <input style={s.input} value={cliente.rg} onChange={e => setC('rg', e.target.value)} placeholder="00.000.000-0" />
+              <label style={s.label}>RG *</label>
+              <input style={s.input} value={cliente.rg}
+                onChange={e => setC('rg', maskRG(e.target.value))}
+                placeholder="00.000.000-0" />
             </div>
           </div>
+
           <div style={s.grid2}>
             <div>
               <label style={s.label}>Telefone *</label>
-              <input style={s.input} value={cliente.telefone} onChange={e => setC('telefone', e.target.value)} placeholder="(11) 99999-0000" />
+              <input style={cliente.telefone && !telOk ? s.inputErr : s.input}
+                value={cliente.telefone}
+                onChange={e => setC('telefone', maskTel(e.target.value))}
+                placeholder="(11) 99999-0000" inputMode="numeric" />
+              {cliente.telefone && !telOk && <div style={s.hintErr}>Telefone incompleto</div>}
             </div>
             <div>
-              <label style={s.label}>E-mail</label>
-              <input style={s.input} type="email" value={cliente.email} onChange={e => setC('email', e.target.value)} placeholder="cliente@email.com" />
+              <label style={s.label}>E-mail *</label>
+              <input style={cliente.email && !emailOk ? s.inputErr : s.input}
+                type="email" value={cliente.email}
+                onChange={e => setC('email', e.target.value.toLowerCase().trim())}
+                placeholder="cliente@email.com" />
+              {cliente.email && !emailOk && <div style={s.hintErr}>E-mail inválido</div>}
             </div>
           </div>
+
           <div style={{ marginBottom: 12 }}>
-            <label style={s.label}>Endereço completo *</label>
-            <input style={s.input} value={cliente.endereco} onChange={e => setC('endereco', e.target.value)} placeholder="Rua, número, bairro" />
+            <label style={s.label}>CEP *</label>
+            <input style={cliente.cep && !cepOk ? s.inputErr : s.input}
+              value={cliente.cep}
+              onChange={e => onCepChange(e.target.value)}
+              placeholder="00000-000" inputMode="numeric" />
+            {buscandoCep && <div style={s.hint}>🔍 Buscando endereço...</div>}
+            {cepStatus === 'ok' && <div style={s.hintOk}>✓ Endereço preenchido automaticamente</div>}
+            {cepStatus === 'erro' && <div style={s.hintErr}>CEP não encontrado — preencha endereço, cidade e UF manualmente</div>}
           </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={s.label}>
+              Endereço completo *
+              {endLockado && (
+                <button type="button" onClick={destravarEndereco}
+                  style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>
+                  editar
+                </button>
+              )}
+            </label>
+            <input style={inputEndereco} value={cliente.endereco}
+              readOnly={endLockado}
+              onChange={e => setC('endereco', e.target.value.toUpperCase())}
+              placeholder="RUA, NÚMERO, BAIRRO" />
+          </div>
+
           <div style={s.grid2}>
             <div>
               <label style={s.label}>Cidade *</label>
-              <input style={s.input} value={cliente.cidade} onChange={e => setC('cidade', e.target.value)} placeholder="Cidade" />
+              <input style={inputCidade} value={cliente.cidade}
+                readOnly={endLockado}
+                onChange={e => setC('cidade', e.target.value.toUpperCase())}
+                placeholder="CIDADE" />
+              {!endLockado && cliente.cidade && cliente.uf && cidadeStatus === 'erro' && (
+                <div style={s.hintErr}>Cidade não encontrada em {cliente.uf}</div>
+              )}
+              {!endLockado && cidadeStatus === 'ok' && (
+                <div style={s.hintOk}>✓ Cidade válida</div>
+              )}
             </div>
             <div>
               <label style={s.label}>UF *</label>
-              <input style={s.input} value={cliente.uf} onChange={e => setC('uf', e.target.value.toUpperCase().slice(0,2))} placeholder="SP" maxLength={2} />
+              <input style={inputUF} value={cliente.uf}
+                readOnly={endLockado}
+                onChange={e => setC('uf', e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
+                placeholder="SP" maxLength={2} />
+              {cliente.uf && !ufOk && <div style={s.hintErr}>UF inválida</div>}
             </div>
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={s.label}>CEP *</label>
-            <input style={s.input} value={cliente.cep} onChange={e => setC('cep', e.target.value)} placeholder="00000-000" />
-          </div>
-          <button style={camposOk && !enviando ? s.btn : s.btnDisabled} onClick={enviarZapSign} disabled={!camposOk || enviando}>
+
+          <div style={{ height: 12 }} />
+
+          <button style={tudoOk && !enviando ? s.btn : s.btnDisabled}
+            onClick={enviarZapSign} disabled={!tudoOk || enviando}>
             {enviando ? '⏳ Gerando e enviando ao ZapSign...' : '🚀 Gerar e enviar para assinatura'}
           </button>
+          {!tudoOk && camposPreenchidos && (
+            <div style={{ ...s.hintErr, textAlign: 'center', marginTop: 8 }}>
+              Corrija os campos destacados em vermelho
+            </div>
+          )}
+          {!camposPreenchidos && (
+            <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>
+              Preencha todos os campos para gerar o contrato
+            </div>
+          )}
           {enviando && <div style={{ fontSize: 11, color: '#888', marginTop: 8, textAlign: 'center' }}>Aguarde — criando os 3 documentos e enviando ao ZapSign...</div>}
         </div>
       )}
