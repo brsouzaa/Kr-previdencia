@@ -8,11 +8,11 @@ import Funil from './pages/Funil'
 import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
+import DashboardProducao from './pages/DashboardProducao'
 import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
 import GerarContratos from './pages/GerarContratos'
 import SupervisorProducao from './pages/SupervisorProducao'
-import DashboardProducao from './pages/DashboardProducao'
 import ModalEmailNotificacao from './components/ModalEmailNotificacao'
 import Portal from './pages/Portal'
 
@@ -50,15 +50,6 @@ function AppInner() {
     }
   }, [profile])
 
-  // Define a página inicial conforme o role
-  useEffect(() => {
-    if (profile?.role === 'supervisor_producao') {
-      setPage('dashboard_producao')
-    } else if (profile?.role === 'produtor') {
-      setPage('contratos')
-    }
-  }, [profile])
-
   // Roteamento do portal (sem login)
   const isPortal = window.location.pathname.startsWith('/cadastro/')
   if (isPortal) return <PortalRoute />
@@ -71,8 +62,18 @@ function AppInner() {
 
   if (!user) return <Login />
 
+  // Default page por role: produtor cai direto em contratos, supervisor em dashboard_producao
+  const defaultPage = profile?.role === 'produtor' ? 'contratos'
+    : profile?.role === 'supervisor_producao' ? 'dashboard_producao'
+    : 'dashboard'
+
+  const currentPage = page === 'dashboard' && profile?.role && profile.role !== 'admin' && profile.role !== 'vendedor'
+    ? defaultPage
+    : page
+
   const pages = {
     dashboard: <Dashboard />,
+    dashboard_producao: <DashboardProducao />,
     advogados: <Advogados />,
     funil: <Funil />,
     compras: <Compras />,
@@ -81,13 +82,12 @@ function AppInner() {
     fila: <FilaEntregas />,
     contratos: <GerarContratos />,
     supervisor_producao: <SupervisorProducao />,
-    dashboard_producao: <DashboardProducao />,
   }
 
   return (
     <>
-      <Layout page={page} setPage={setPage}>
-        {pages[page] || <Dashboard />}
+      <Layout page={currentPage} setPage={setPage}>
+        {pages[currentPage] || <Dashboard />}
       </Layout>
       {showEmailModal && <ModalEmailNotificacao onClose={() => setShowEmailModal(false)} />}
     </>
