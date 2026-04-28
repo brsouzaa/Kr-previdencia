@@ -10,6 +10,8 @@ import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
 import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
+import GerarContratos from './pages/GerarContratos'
+import SupervisorProducao from './pages/SupervisorProducao'
 import ModalEmailNotificacao from './components/ModalEmailNotificacao'
 import Portal from './pages/Portal'
 
@@ -67,6 +69,8 @@ function AppInner() {
     equipe: <Equipe />,
     meulink: <MeuLink />,
     fila: <FilaEntregas />,
+    contratos: <GerarContratos />,
+    supervisor_producao: <SupervisorProducao />,
   }
 
   return (
