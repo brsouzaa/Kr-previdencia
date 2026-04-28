@@ -5,7 +5,6 @@ const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
 const NAV_SUPERVISOR_PRODUCAO = [
-  { key: 'dashboard_producao', label: '📈 Dashboard' },
   { key: 'supervisor_producao', label: '📊 Supervisão' },
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
