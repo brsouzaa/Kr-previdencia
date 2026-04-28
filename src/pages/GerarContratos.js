@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL
-
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
   label: { display: 'block', fontSize: 12, color: '#555', marginBottom: 4 },
@@ -20,17 +18,15 @@ function hoje() {
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`
 }
 
-// Processamento feito na Edge Function
-
 export default function GerarContratos() {
   const { profile } = useAuth()
   const [proximoLote, setProximoLote] = useState(null)
   const [advogado, setAdvogado] = useState(null)
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
-  const [resultado, setResultado] = useState(null) // { link, token }
+  const [resultado, setResultado] = useState(null)
   const [copiado, setCopiado] = useState(false)
-  const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', numero:'', bairro:'', cidade:'', uf:'', cep:'' })
+  const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
 
   useEffect(() => { fetchProximo() }, [])
 
@@ -62,89 +58,28 @@ export default function GerarContratos() {
     setEnviando(true)
     try {
       const dataHoje = hoje()
-      const baseUrl = `${window.location.origin}/templates`
-  const nomeContrato = encodeURIComponent('CONTRATO DE PRESTAÇÃO DE SERVIÇOS -DAIANE FERREIRA SILVEIRA.docx')
-  const nomeProcuracao = encodeURIComponent('Procuração   Daiane .docx')
-  const nomeTermo = encodeURIComponent('TERMO DE ANUÊNCIA -  INÊS BERTOLO.docx')
-      const nomeAdv = advogado.nome_completo.toUpperCase()
-      const oabNum = (advogado.oab || '').replace(/\D/g, '')
-      const ufOab = advogado.estado || 'SP'
+      const enderecoClienteCompleto = [cliente.endereco].filter(Boolean).join(', ')
 
-      // Endereço completo do advogado para o contrato
-      const enderecoAdvCompleto = [advogado.endereco, advogado.cep ? `Cep ${advogado.cep}` : ''].filter(Boolean).join(', ') || ''
-      // Montar endereço completo do cliente
-      const enderecoClienteCompleto = [cliente.endereco, cliente.numero, cliente.bairro].filter(Boolean).join(', ')
-      const subsContrato = {
-        'ENECLESIA TAINARA ZANLUCA DA SILVA': cliente.nome.toUpperCase(),
-        '125.482.729-31': cliente.cpf,
-        '(54) 99660-1519': cliente.telefone,
-        'Rua Benno Sommer / 84 Bairro Jardim': enderecoClienteCompleto,
-        'Nao me toque Rio Grande do Sul': `${cliente.cidade} ${cliente.uf}`,
-        '99470-000': cliente.cep,
-        'INÊS BERTOLO': nomeAdv,
-        '342202': oabNum,
-        'OAB/SP': `OAB/${ufOab}`,
-        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': enderecoAdvCompleto,
-        '11 94753 0536': advogado.telefone || '',
-        'Inesdax123@gmail.com': advogado.email || '',
-      }
-      const subsProcuracao = {
-        'DAIANE FERREIRA SILVEIRA': cliente.nome.toUpperCase(),
-        '051.402.660-08': cliente.cpf,
-        '10036856648': cliente.rg || '',
-        'Rua Benno Sommer / 84 Bairro Jardim': enderecoClienteCompleto,
-        'Nao me toque Rio Grande do Sul': `${cliente.cidade} ${cliente.uf}`,
-        '99470-000': cliente.cep,
-        '27 de abril 2026': dataHoje,
-        'INÊS BERTOLO': nomeAdv,
-        '342202': oabNum,
-        'OAB/SP': `OAB/${ufOab}`,
-        'Rua Carlos Mieli 46, centro, São Bernardo do Campo, SP. Cep 09720350': enderecoAdvCompleto,
-        '11 94753 0536': advogado.telefone || '',
-        'Inesdax123@gmail.com': advogado.email || '',
-        'São Paulo, 27 de abril 2026': `${cliente.cidade}, ${dataHoje}`,
-      }
-      const subsTermo = {
-        'INÊS BERTOLO': nomeAdv,
-        'São Paulo 27 de abril de 2026': `${cliente.cidade} ${dataHoje}`,
-      }
-
-      // Processar os 3 docs no browser
-      const [b64Contrato, b64Procuracao, b64Termo] = await Promise.all([
-        processarDocx(`${baseUrl}/${nomeContrato}`, subsContrato),
-        processarDocx(`${baseUrl}/${nomeProcuracao}`, subsProcuracao),
-        processarDocx(`${baseUrl}/${nomeTermo}`, subsTermo),
-      ])
-
-      // Enviar para Edge Function que chama o ZapSign
-      const { data: { session } } = await supabase.auth.getSession()
       const resp = await supabase.functions.invoke('gerar-contratos-zapsign', {
         body: {
-          cliente: { ...cliente },
+          cliente: { ...cliente, endereco: enderecoClienteCompleto },
           advogado,
           lote_id: proximoLote?.id,
           produtor_id: profile?.id,
           data_hoje: dataHoje,
-          b64_contrato: b64Contrato,
-          b64_procuracao: b64Procuracao,
-          b64_termo: b64Termo,
         }
       })
 
-      console.log('Resposta ZapSign:', resp)
+      console.log('Resposta:', resp)
+
       if (resp.error) throw new Error(typeof resp.error === 'string' ? resp.error : JSON.stringify(resp.error))
       if (!resp.data?.ok) throw new Error(resp.data?.error || JSON.stringify(resp.data) || 'Erro na Edge Function')
 
       setResultado({ link: resp.data.link_assinatura, token: resp.data.zapsign_token, expira: resp.data.expira_em })
 
-      // Atualizar status do lote para assinar_contrato
-      if (proximoLote?.id) {
-        await supabase.from('lotes').update({ status_pagamento: 'assinar_contrato', updated_at: new Date().toISOString() }).eq('id', proximoLote.id)
-      }
-
     } catch (err) {
       console.error('Erro completo:', err)
-      alert('Erro: ' + (err.message || err.toString() || 'Erro desconhecido ao processar'))
+      alert('Erro: ' + (err.message || err.toString()))
     }
     setEnviando(false)
   }
@@ -170,7 +105,6 @@ export default function GerarContratos() {
         <div style={{ fontSize: 13, color: '#888' }}>3 documentos gerados e enviados ao ZapSign automaticamente</div>
       </div>
 
-      {/* Advogado da vez */}
       {advogado ? (
         <div style={{ ...s.card, background: '#E6F1FB', border: '1.5px solid #185FA540' }}>
           <div style={s.sectionTitle}>Advogado da vez — próximo na fila</div>
@@ -189,29 +123,26 @@ export default function GerarContratos() {
         </div>
       )}
 
-      {/* Resultado: link de assinatura */}
       {resultado && (
         <div style={{ ...s.card, background: '#EAF3DE', border: '1.5px solid #3B6D1150' }}>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#3B6D11', marginBottom: 8 }}>✅ Contratos enviados ao ZapSign!</div>
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
-            Os 3 documentos foram criados. Copie o link e envie para o cliente assinar:
-          </div>
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>Copie o link e envie para o cliente assinar:</div>
           {resultado.expira && (
             <div style={{ fontSize: 12, color: '#854F0B', background: '#FAEEDA', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
-              ⏰ Link expira em 48h ({resultado.expira}) — após isso o cliente não consegue mais assinar
+              ⏰ Link expira em 48h ({resultado.expira})
             </div>
           )}
           <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#185FA5', wordBreak: 'break-all', border: '0.5px solid rgba(0,0,0,0.1)' }}>
             {resultado.link}
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button onClick={copiarLink} style={{ flex: 1, padding: '10px', background: copiado ? '#3B6D11' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>
-              {copiado ? '✓ Link copiado!' : '📋 Copiar link'}
+            <button onClick={copiarLink} style={{ flex: 1, padding: '10px', background: copiado ? '#3B6D11' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+              {copiado ? '✓ Copiado!' : '📋 Copiar link'}
             </button>
             <a href={`https://wa.me/?text=${encodeURIComponent('Olá! Segue o link para assinar seus documentos: ' + resultado.link)}`}
               target="_blank" rel="noreferrer"
               style={{ flex: 1, padding: '10px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none', textAlign: 'center' }}>
-              💬 Enviar WhatsApp
+              💬 WhatsApp
             </a>
           </div>
           <button onClick={proximoCliente} style={{ width: '100%', padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
@@ -220,7 +151,6 @@ export default function GerarContratos() {
         </div>
       )}
 
-      {/* Formulário do cliente */}
       {advogado && !resultado && (
         <div style={s.card}>
           <div style={s.sectionTitle}>Dados do cliente (beneficiário)</div>
