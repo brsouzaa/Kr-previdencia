@@ -155,7 +155,9 @@ export default function GerarContratos() {
         }
       })
 
-      if (resp.error || !resp.data?.ok) throw new Error(resp.error?.message || resp.data?.error || 'Erro desconhecido')
+      console.log('Resposta ZapSign:', resp)
+      if (resp.error) throw new Error(typeof resp.error === 'string' ? resp.error : JSON.stringify(resp.error))
+      if (!resp.data?.ok) throw new Error(resp.data?.error || JSON.stringify(resp.data) || 'Erro na Edge Function')
 
       setResultado({ link: resp.data.link_assinatura, token: resp.data.zapsign_token, expira: resp.data.expira_em })
 
