@@ -23,11 +23,22 @@ function hoje() {
 // Processar docx (ZIP) no browser com PizZip
 async function carregarPizZip() {
   if (window.PizZip) return
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.6/pizzip.min.js'
-    s.onload = resolve; s.onerror = reject
-    document.head.appendChild(s)
+  return new Promise((resolve, reject) => {
+    // Tentar CDN alternativo se o principal falhar
+    const urls = [
+      'https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js',
+      'https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js',
+    ]
+    let idx = 0
+    function tryNext() {
+      if (idx >= urls.length) { reject(new Error('PizZip nao carregou')); return }
+      const s = document.createElement('script')
+      s.src = urls[idx++]
+      s.onload = resolve
+      s.onerror = tryNext
+      document.head.appendChild(s)
+    }
+    tryNext()
   })
 }
 
@@ -167,8 +178,8 @@ export default function GerarContratos() {
       }
 
     } catch (err) {
-      alert('Erro: ' + err.message)
-      console.error(err)
+      console.error('Erro completo:', err)
+      alert('Erro: ' + (err.message || err.toString() || 'Erro desconhecido ao processar'))
     }
     setEnviando(false)
   }
