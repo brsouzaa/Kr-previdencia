@@ -6,6 +6,7 @@ const NAV_PRODUTOR = [
 ]
 const NAV_SUPERVISOR_PRODUCAO = [
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
+  { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'supervisor_producao', label: '📊 Supervisão' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
 ]
@@ -20,7 +21,7 @@ const NAV_VENDEDOR = [
 const NAV_VENDEDOR_OPERADOR = [
   { key: 'meus_clientes', label: '📋 Meus clientes' },
   { key: 'novo_cliente', label: '➕ Novo cliente' },
-  { key: 'meu_desempenho', label: '📊 Meu desempenho' },
+  { key: 'meu_desempenho', label: '🏆 Meu desempenho' },
 ]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
@@ -30,6 +31,7 @@ const NAV_ADMIN = [
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
+  { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
   { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
