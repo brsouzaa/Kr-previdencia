@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
 
+const NAV_PRODUTOR = [
+  { key: 'contratos', label: '📄 Gerar contratos' },
+]
+const NAV_SUPERVISOR_PRODUCAO = [
+  { key: 'supervisor_producao', label: '📊 Supervisão' },
+  { key: 'contratos', label: '📄 Gerar contratos' },
+]
 const NAV_VENDEDOR = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
+  { key: 'contratos', label: '📄 Gerar contratos' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_ADMIN = [
@@ -16,6 +24,7 @@ const NAV_ADMIN = [
   { key: 'compras', label: 'Histórico' },
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
+  { key: 'contratos', label: '📄 Gerar contratos' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 
@@ -33,7 +42,10 @@ export default function Layout({ children, page, setPage }) {
   const { profile, signOut } = useAuth()
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
-  const nav = profile?.role === 'admin' ? NAV_ADMIN : NAV_VENDEDOR
+  const nav = profile?.role === 'admin' ? NAV_ADMIN 
+    : profile?.role === 'produtor' ? NAV_PRODUTOR
+    : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
+    : NAV_VENDEDOR
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f8f6' }}>
