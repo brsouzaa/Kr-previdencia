@@ -6,6 +6,7 @@ const NAV_VENDEDOR = [
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
+  { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_ADMIN = [
@@ -14,6 +15,7 @@ const NAV_ADMIN = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'equipe', label: 'Equipe' },
+  { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 
