@@ -20,6 +20,7 @@ const s = {
   hintErr: { fontSize: 11, color: '#A32D2D', marginTop: 4 },
   hintOk: { fontSize: 11, color: '#3B6D11', marginTop: 4 },
   warnBox: { background: '#FAEEDA', border: '1px solid #F5C97B', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#854F0B' },
+  duplicadoBox: { background: '#FCEBEB', border: '1px solid #A32D2D40', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#A32D2D' },
   successBox: { background: '#EAF3DE', border: '1.5px solid #3B6D1150', borderRadius: 14, padding: '1.5rem', textAlign: 'center' },
 }
 
@@ -81,6 +82,9 @@ export default function NovoCliente({ onSucesso }) {
     produto: 'Maternidade', observacao: ''
   })
 
+  const [duplicado, setDuplicado] = useState(null) // { nome, status, vendedorMesmo }
+  const [verificandoCpf, setVerificandoCpf] = useState(false)
+
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [cepStatus, setCepStatus] = useState(null)
   const [endLockado, setEndLockado] = useState(false)
@@ -89,6 +93,31 @@ export default function NovoCliente({ onSucesso }) {
   const ufCarregadaRef = useRef(null)
 
   function set(f, v) { setC(c => ({ ...c, [f]: v })) }
+
+  // === Verificar CPF duplicado em tempo real ===
+  async function verificarCpfDuplicado(cpf) {
+    if (!cpf || !cpfValido(cpf)) { setDuplicado(null); return }
+    setVerificandoCpf(true)
+    try {
+      const { data } = await supabase.from('clientes')
+        .select('id, nome, status, vendedor_operador_id, profiles!clientes_vendedor_operador_id_fkey(nome)')
+        .eq('cpf', cpf)
+        .in('status', ['aguardando_emissao','emitido'])
+        .maybeSingle()
+
+      if (data) {
+        setDuplicado({
+          nome: data.nome,
+          status: data.status,
+          vendedorNome: data.profiles?.nome || 'outro vendedor',
+          vendedorMesmo: data.vendedor_operador_id === profile.id,
+        })
+      } else {
+        setDuplicado(null)
+      }
+    } catch (e) { setDuplicado(null) }
+    setVerificandoCpf(false)
+  }
 
   async function buscarCep(cepRaw) {
     const cep = (cepRaw || '').replace(/\D/g, '')
@@ -99,13 +128,11 @@ export default function NovoCliente({ onSucesso }) {
       const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
       const j = await r.json()
       if (j.erro) {
-        setCepStatus('erro')
-        setEndLockado(false)
+        setCepStatus('erro'); setEndLockado(false)
         setC(c => ({ ...c, rua:'', bairro:'', cidade:'', uf:'' }))
         setCidadeStatus(null)
       } else {
-        setC(c => ({
-          ...c,
+        setC(c => ({ ...c,
           rua: (j.logradouro || '').toUpperCase(),
           bairro: (j.bairro || '').toUpperCase(),
           cidade: (j.localidade || '').toUpperCase(),
@@ -166,24 +193,13 @@ export default function NovoCliente({ onSucesso }) {
   const cepOk = c.cep.replace(/\D/g, '').length === 8
   const ufOk = UFS.includes(c.uf)
   const cidadeOk = cidadeStatus === 'ok'
-  const tudoOk = camposPreenchidos && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk
+  const semDuplicado = !duplicado
+  const tudoOk = camposPreenchidos && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && semDuplicado
 
   async function salvar() {
     if (!tudoOk || enviando) return
     setEnviando(true)
     try {
-      // Verifica se CPF já existe
-      const { data: existente } = await supabase.from('clientes')
-        .select('id, status, nome')
-        .eq('cpf', c.cpf)
-        .in('status', ['aguardando_emissao','emitido'])
-        .maybeSingle()
-
-      if (existente) {
-        alert(`Já existe um cadastro com este CPF (${existente.nome}) com status: ${existente.status}.`)
-        setEnviando(false); return
-      }
-
       const { data, error } = await supabase.from('clientes').insert({
         vendedor_operador_id: profile.id,
         nome: c.nome, cpf: c.cpf, rg: c.rg,
@@ -193,7 +209,17 @@ export default function NovoCliente({ onSucesso }) {
         produto: c.produto, observacao: c.observacao || null,
         status: 'aguardando_emissao',
       }).select().single()
-      if (error) throw error
+
+      if (error) {
+        // Constraint do banco pegou mesmo com a verificação no front
+        if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
+          setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', vendedorNome: 'no sistema', vendedorMesmo: false })
+          alert('Este CPF já está cadastrado no sistema com status pendente. Verifique antes de tentar de novo.')
+        } else {
+          throw error
+        }
+        setEnviando(false); return
+      }
       setSalvo(data)
     } catch (err) {
       alert('Erro ao salvar: ' + (err.message || err.toString()))
@@ -203,7 +229,7 @@ export default function NovoCliente({ onSucesso }) {
 
   function novoCadastro() {
     setC({ nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', produto: 'Maternidade', observacao: '' })
-    setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null)
+    setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
   }
 
   if (salvo) return (
@@ -215,7 +241,7 @@ export default function NovoCliente({ onSucesso }) {
         <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
         <div style={{ fontSize: 16, fontWeight: 500, color: '#3B6D11', marginBottom: 6 }}>Cliente cadastrado!</div>
         <div style={{ fontSize: 14, color: '#555', marginBottom: 4 }}>{salvo.nome}</div>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Aguardando emissão pela supervisão. Você receberá o link assim que estiver pronto.</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Aguardando emissão pela supervisão. O link aparece em "Meus clientes" assim que estiver pronto.</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={novoCadastro} style={{ flex: 1, padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             ➕ Novo cliente
@@ -256,11 +282,13 @@ export default function NovoCliente({ onSucesso }) {
         <div style={s.grid2}>
           <div>
             <label style={s.label}>CPF *</label>
-            <input style={c.cpf && !cpfOk ? s.inputErr : s.input}
+            <input style={(c.cpf && !cpfOk) || duplicado ? s.inputErr : s.input}
               value={c.cpf}
-              onChange={e => set('cpf', maskCPF(e.target.value))}
+              onChange={e => { const v = maskCPF(e.target.value); set('cpf', v); setDuplicado(null) }}
+              onBlur={() => verificarCpfDuplicado(c.cpf)}
               placeholder="000.000.000-00" inputMode="numeric" />
             {c.cpf && !cpfOk && <div style={s.hintErr}>CPF inválido</div>}
+            {verificandoCpf && <div style={s.hint}>🔍 Verificando se já está cadastrado...</div>}
           </div>
           <div>
             <label style={s.label}>RG *</label>
@@ -269,6 +297,16 @@ export default function NovoCliente({ onSucesso }) {
               placeholder="00.000.000-0" />
           </div>
         </div>
+
+        {duplicado && (
+          <div style={s.duplicadoBox}>
+            <div style={{ fontWeight: 500, marginBottom: 4 }}>⚠️ CPF já cadastrado no sistema</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '(seu cliente)' : `(cadastrado por ${duplicado.vendedorNome})`} está com status <strong>{duplicado.status === 'aguardando_emissao' ? 'aguardando emissão' : 'emitido'}</strong>.
+              <br />Não é possível cadastrar o mesmo CPF duas vezes enquanto houver um pendente.
+            </div>
+          </div>
+        )}
 
         <div style={s.grid2}>
           <div>
@@ -385,7 +423,12 @@ export default function NovoCliente({ onSucesso }) {
         onClick={salvar} disabled={!tudoOk || enviando}>
         {enviando ? '⏳ Salvando...' : '✅ Cadastrar cliente'}
       </button>
-      {!tudoOk && camposPreenchidos && (
+      {duplicado && (
+        <div style={{ ...s.hintErr, textAlign: 'center', marginTop: 8 }}>
+          Este CPF já está cadastrado pendente
+        </div>
+      )}
+      {!tudoOk && !duplicado && camposPreenchidos && (
         <div style={{ ...s.hintErr, textAlign: 'center', marginTop: 8 }}>
           Corrija os campos destacados em vermelho
         </div>
