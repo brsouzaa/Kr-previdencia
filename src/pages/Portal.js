@@ -40,7 +40,7 @@ const s = {
   advCard: { background: '#f8f8f6', borderRadius: 10, padding: '14px', marginBottom: '1rem', border: '0.5px solid rgba(0,0,0,0.08)' },
 }
 
-const INITIAL_FORM = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone: '', email: '', estado_civil: 'Solteiro(a)', nacionalidade: 'Brasileira', endereco: '' }
+const INITIAL_FORM = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone: '', email: '', estado_civil: 'Solteiro(a)', nacionalidade: 'Brasileira', endereco: '', numero: '', bairro: '', cep: '' }
 const INITIAL_QTDS = { 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 }
 
 function SeletorContratos({ qtds, setQtds }) {
@@ -218,6 +218,7 @@ export default function Portal({ vendedorId, vendedorNome }) {
 
     const { data: adv, error } = await supabase.from('advogados').insert({
       ...form, oab: form.oab.trim(), vendedor_id: vendedorId,
+      endereco: [form.endereco, form.numero, form.bairro].filter(Boolean).join(', '),
       total_compras: total, ultima_compra: total > 0 ? hoje : null, status: 'vermelho',
     }).select().single()
 
