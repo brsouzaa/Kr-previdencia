@@ -30,6 +30,13 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }
 
+  // Recarrega o profile do banco (usado após trocar senha, atualizar dados etc)
+  async function refreshProfile() {
+    if (!user?.id) return
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    setProfile(data)
+  }
+
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
@@ -40,7 +47,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
