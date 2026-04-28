@@ -10,6 +10,7 @@ const s = {
   btn: { width: '100%', padding: '13px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', padding: '13px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
   sectionTitle: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(0,0,0,0.06)' },
+  badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, marginLeft: 6 },
 }
 
 function hoje() {
@@ -30,6 +31,10 @@ export default function GerarContratos() {
 
   useEffect(() => { fetchProximo() }, [])
 
+  // Busca o próximo lote da fila com a regra:
+  // 1. Lote precisa estar em a_entregar
+  // 2. qtd_emitidos < total_contratos (ainda tem contrato pra emitir)
+  // 3. Ordem: prioridade_fila DESC (prioridade primeiro), data_prioridade ASC, data_compra ASC
   async function fetchProximo() {
     setLoading(true)
     setResultado(null)
@@ -37,11 +42,17 @@ export default function GerarContratos() {
       .from('lotes')
       .select('*, advogados(*), profiles(nome)')
       .eq('status_pagamento', 'a_entregar')
+      .order('prioridade_fila', { ascending: false, nullsFirst: false })
+      .order('data_prioridade', { ascending: true, nullsFirst: false })
       .order('data_compra', { ascending: true })
-      .limit(1)
-    if (data && data.length > 0) {
-      setProximoLote(data[0])
-      setAdvogado(data[0].advogados)
+      .limit(20)
+
+    // Filtrar lotes que ainda têm contrato pra emitir
+    const disponivel = (data || []).find(l => (l.qtd_emitidos || 0) < (l.total_contratos || 0))
+
+    if (disponivel) {
+      setProximoLote(disponivel)
+      setAdvogado(disponivel.advogados)
     } else {
       setProximoLote(null)
       setAdvogado(null)
@@ -98,23 +109,36 @@ export default function GerarContratos() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
+  const restantes = proximoLote ? (proximoLote.total_contratos || 0) - (proximoLote.qtd_emitidos || 0) : 0
+
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📄 Gerar contratos</div>
-        <div style={{ fontSize: 13, color: '#888' }}>3 documentos gerados e enviados ao ZapSign automaticamente</div>
+        <div style={{ fontSize: 13, color: '#888' }}>3 documentos gerados e enviados ao ZapSign automaticamente — válido por 15 horas</div>
       </div>
 
       {advogado ? (
-        <div style={{ ...s.card, background: '#E6F1FB', border: '1.5px solid #185FA540' }}>
-          <div style={s.sectionTitle}>Advogado da vez — próximo na fila</div>
+        <div style={{ ...s.card, background: proximoLote?.prioridade_fila ? '#FEF3C7' : '#E6F1FB', border: proximoLote?.prioridade_fila ? '1.5px solid #F59E0B' : '1.5px solid #185FA540' }}>
+          <div style={s.sectionTitle}>
+            Advogado da vez — próximo na fila
+            {proximoLote?.prioridade_fila && (
+              <span style={{ ...s.badge, background: '#F59E0B', color: '#fff' }}>⚡ PRIORIDADE</span>
+            )}
+          </div>
           <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 6 }}>{advogado.nome_completo}</div>
           <div style={{ fontSize: 13, color: '#555', marginBottom: 2 }}>OAB/{advogado.estado} {advogado.oab}</div>
           {advogado.endereco && <div style={{ fontSize: 12, color: '#888', marginBottom: 2 }}>{advogado.endereco}</div>}
           <div style={{ fontSize: 12, color: '#888' }}>{advogado.telefone} · {advogado.email}</div>
           <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
-            Vendedor: {proximoLote?.profiles?.nome} · {proximoLote?.total_contratos} contrato{proximoLote?.total_contratos !== 1 ? 's' : ''} no lote · {proximoLote?.data_compra}
+            Vendedor: {proximoLote?.profiles?.nome} · Lote de {proximoLote?.total_contratos} contrato{proximoLote?.total_contratos !== 1 ? 's' : ''} ·{' '}
+            <strong style={{ color: '#185FA5' }}>{restantes} restante{restantes !== 1 ? 's' : ''} para emitir</strong> · {proximoLote?.data_compra}
           </div>
+          {proximoLote?.prioridade_fila && (
+            <div style={{ fontSize: 11, color: '#854F0B', marginTop: 6, fontStyle: 'italic' }}>
+              ⚡ Lote priorizado: alguns contratos expiraram sem assinatura e voltaram para a fila
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ ...s.card, textAlign: 'center', padding: '3rem' }}>
@@ -129,7 +153,7 @@ export default function GerarContratos() {
           <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>Copie o link e envie para o cliente assinar:</div>
           {resultado.expira && (
             <div style={{ fontSize: 12, color: '#854F0B', background: '#FAEEDA', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
-              ⏰ Link expira em 48h ({resultado.expira})
+              ⏰ Link expira em 15 horas ({resultado.expira})
             </div>
           )}
           <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#185FA5', wordBreak: 'break-all', border: '0.5px solid rgba(0,0,0,0.1)' }}>
