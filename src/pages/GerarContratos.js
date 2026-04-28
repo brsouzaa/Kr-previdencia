@@ -54,7 +54,7 @@ export default function GerarContratos() {
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState(null) // { link, token }
   const [copiado, setCopiado] = useState(false)
-  const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', cidade:'', uf:'', cep:'' })
+  const [cliente, setCliente] = useState({ nome:'', cpf:'', rg:'', telefone:'', email:'', endereco:'', numero:'', bairro:'', cidade:'', uf:'', cep:'' })
 
   useEffect(() => { fetchProximo() }, [])
 
@@ -87,17 +87,22 @@ export default function GerarContratos() {
     try {
       const dataHoje = hoje()
       const baseUrl = `${window.location.origin}/templates`
+  const nomeContrato = encodeURIComponent('CONTRATO DE PRESTAÇÃO DE SERVIÇOS -DAIANE FERREIRA SILVEIRA.docx')
+  const nomeProcuracao = encodeURIComponent('Procuração   Daiane .docx')
+  const nomeTermo = encodeURIComponent('TERMO DE ANUÊNCIA -  INÊS BERTOLO.docx')
       const nomeAdv = advogado.nome_completo.toUpperCase()
       const oabNum = (advogado.oab || '').replace(/\D/g, '')
       const ufOab = advogado.estado || 'SP'
 
       // Endereço completo do advogado para o contrato
       const enderecoAdvCompleto = [advogado.endereco, advogado.cep ? `Cep ${advogado.cep}` : ''].filter(Boolean).join(', ') || ''
+      // Montar endereço completo do cliente
+      const enderecoClienteCompleto = [cliente.endereco, cliente.numero, cliente.bairro].filter(Boolean).join(', ')
       const subsContrato = {
         'ENECLESIA TAINARA ZANLUCA DA SILVA': cliente.nome.toUpperCase(),
         '125.482.729-31': cliente.cpf,
         '(54) 99660-1519': cliente.telefone,
-        'Rua Benno Sommer / 84 Bairro Jardim': cliente.endereco,
+        'Rua Benno Sommer / 84 Bairro Jardim': enderecoClienteCompleto,
         'Nao me toque Rio Grande do Sul': `${cliente.cidade} ${cliente.uf}`,
         '99470-000': cliente.cep,
         'INÊS BERTOLO': nomeAdv,
@@ -111,7 +116,7 @@ export default function GerarContratos() {
         'DAIANE FERREIRA SILVEIRA': cliente.nome.toUpperCase(),
         '051.402.660-08': cliente.cpf,
         '10036856648': cliente.rg || '',
-        'Rua Benno Sommer / 84 Bairro Jardim': cliente.endereco,
+        'Rua Benno Sommer / 84 Bairro Jardim': enderecoClienteCompleto,
         'Nao me toque Rio Grande do Sul': `${cliente.cidade} ${cliente.uf}`,
         '99470-000': cliente.cep,
         '27 de abril 2026': dataHoje,
@@ -130,9 +135,9 @@ export default function GerarContratos() {
 
       // Processar os 3 docs no browser
       const [b64Contrato, b64Procuracao, b64Termo] = await Promise.all([
-        processarDocx(`${baseUrl}/contrato_template.docx`, subsContrato),
-        processarDocx(`${baseUrl}/procuracao_template.docx`, subsProcuracao),
-        processarDocx(`${baseUrl}/termo_template.docx`, subsTermo),
+        processarDocx(`${baseUrl}/${nomeContrato}`, subsContrato),
+        processarDocx(`${baseUrl}/${nomeProcuracao}`, subsProcuracao),
+        processarDocx(`${baseUrl}/${nomeTermo}`, subsTermo),
       ])
 
       // Enviar para Edge Function que chama o ZapSign
