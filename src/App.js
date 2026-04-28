@@ -12,7 +12,10 @@ import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
 import GerarContratos from './pages/GerarContratos'
 import SupervisorProducao from './pages/SupervisorProducao'
-import ModalEmailNotificacao from './components/ModalEmailNotificacao'
+import NovoCliente from './pages/NovoCliente'
+import MeusClientes from './pages/MeusClientes'
+import MeuDesempenho from './pages/MeuDesempenho'
+import FilaDigitacao from './pages/FilaDigitacao'
 import Portal from './pages/Portal'
 
 function PortalRoute() {
@@ -38,18 +41,42 @@ function PortalRoute() {
   return <Portal vendedorId={vendedor.id} vendedorNome={vendedor.nome} />
 }
 
+// Página inicial por role
+function paginaInicial(role) {
+  if (role === 'produtor') return 'contratos'
+  if (role === 'supervisor_producao') return 'fila_digitacao'
+  if (role === 'vendedor_operador') return 'meus_clientes'
+  return 'dashboard'
+}
+
+// Páginas permitidas por role
+function paginaPermitida(role, page) {
+  if (role === 'admin') return true
+  if (role === 'vendedor') {
+    return ['dashboard','advogados','funil','compras','meulink','fila'].includes(page)
+  }
+  if (role === 'produtor') {
+    return ['contratos'].includes(page)
+  }
+  if (role === 'supervisor_producao') {
+    return ['fila_digitacao','supervisor_producao','contratos'].includes(page)
+  }
+  if (role === 'vendedor_operador') {
+    return ['meus_clientes','novo_cliente','meu_desempenho'].includes(page)
+  }
+  return false
+}
+
 function AppInner() {
   const { user, profile, loading } = useAuth()
-  const [page, setPage] = useState('dashboard')
-  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [page, setPage] = useState(null)
 
   useEffect(() => {
-    if (profile && profile.notificacao_pendente && !window.location.pathname.startsWith('/cadastro/')) {
-      setShowEmailModal(true)
+    if (profile?.role && page === null) {
+      setPage(paginaInicial(profile.role))
     }
-  }, [profile])
+  }, [profile, page])
 
-  // Roteamento do portal (sem login)
   const isPortal = window.location.pathname.startsWith('/cadastro/')
   if (isPortal) return <PortalRoute />
 
@@ -61,6 +88,12 @@ function AppInner() {
 
   if (!user) return <Login />
 
+  if (!profile || page === null) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
+      <div style={{ fontSize: 14, color: '#888' }}>Carregando...</div>
+    </div>
+  )
+
   const pages = {
     dashboard: <Dashboard />,
     advogados: <Advogados />,
@@ -71,15 +104,18 @@ function AppInner() {
     fila: <FilaEntregas />,
     contratos: <GerarContratos />,
     supervisor_producao: <SupervisorProducao />,
+    fila_digitacao: <FilaDigitacao />,
+    meus_clientes: <MeusClientes />,
+    novo_cliente: <NovoCliente onSucesso={() => setPage('meus_clientes')} />,
+    meu_desempenho: <MeuDesempenho />,
   }
 
+  const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
+
   return (
-    <>
-      <Layout page={page} setPage={setPage}>
-        {pages[page] || <Dashboard />}
-      </Layout>
-      {showEmailModal && <ModalEmailNotificacao onClose={() => setShowEmailModal(false)} />}
-    </>
+    <Layout page={paginaSegura} setPage={setPage}>
+      {pages[paginaSegura]}
+    </Layout>
   )
 }
 
