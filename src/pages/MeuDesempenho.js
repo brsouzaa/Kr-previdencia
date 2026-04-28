@@ -5,19 +5,19 @@ import { useAuth } from '../lib/AuthContext'
 // === Faixas de bônus ===
 function bonusPorFaixa(qtd) {
   if (qtd <= 0) return 0
-  if (qtd >= 10) return qtd * 20
-  if (qtd >= 5) return qtd * 17
+  if (qtd >= 41) return qtd * 20
+  if (qtd >= 16) return qtd * 17
   return qtd * 15
 }
 function valorFaixaAtual(qtd) {
-  if (qtd >= 10) return 20
-  if (qtd >= 5) return 17
+  if (qtd >= 41) return 20
+  if (qtd >= 16) return 17
   return 15
 }
 function faltamProxFaixa(qtd) {
-  if (qtd >= 10) return null
-  if (qtd >= 5) return { faltam: 10 - qtd, novo: 20 }
-  return { faltam: 5 - qtd, novo: 17 }
+  if (qtd >= 41) return null
+  if (qtd >= 16) return { faltam: 41 - qtd, novo: 20 }
+  return { faltam: 16 - qtd, novo: 17 }
 }
 
 const s = {
@@ -163,14 +163,14 @@ export default function MeuDesempenho() {
 
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
           <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 6 }}>Faixas de bônus (lote do mês inteiro pelo mesmo valor)</div>
-          <div style={{ ...s.faixa, ...(assinadosMes < 5 ? s.faixaAtiva : {}) }}>
-            <span>1 a 4 contratos</span><span>R$ 15 cada</span>
+          <div style={{ ...s.faixa, ...(assinadosMes < 16 ? s.faixaAtiva : {}) }}>
+            <span>1 a 15 contratos</span><span>R$ 15 cada</span>
           </div>
-          <div style={{ ...s.faixa, ...(assinadosMes >= 5 && assinadosMes < 10 ? s.faixaAtiva : {}) }}>
-            <span>5 a 9 contratos</span><span>R$ 17 cada</span>
+          <div style={{ ...s.faixa, ...(assinadosMes >= 16 && assinadosMes < 41 ? s.faixaAtiva : {}) }}>
+            <span>16 a 40 contratos</span><span>R$ 17 cada</span>
           </div>
-          <div style={{ ...s.faixa, ...(assinadosMes >= 10 ? s.faixaAtiva : {}), marginBottom: 0 }}>
-            <span>10 ou mais</span><span>R$ 20 cada</span>
+          <div style={{ ...s.faixa, ...(assinadosMes >= 41 ? s.faixaAtiva : {}), marginBottom: 0 }}>
+            <span>41 ou mais</span><span>R$ 20 cada</span>
           </div>
         </div>
       </div>
