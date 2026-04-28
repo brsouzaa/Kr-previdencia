@@ -13,6 +13,7 @@ import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
 import GerarContratos from './pages/GerarContratos'
 import SupervisorProducao from './pages/SupervisorProducao'
+import TrocarSenha from './pages/TrocarSenha'
 import ModalEmailNotificacao from './components/ModalEmailNotificacao'
 import Portal from './pages/Portal'
 
@@ -45,7 +46,7 @@ function AppInner() {
   const [showEmailModal, setShowEmailModal] = useState(false)
 
   useEffect(() => {
-    if (profile && profile.notificacao_pendente && !window.location.pathname.startsWith('/cadastro/')) {
+    if (profile && profile.notificacao_pendente && !profile.senha_temporaria && !window.location.pathname.startsWith('/cadastro/')) {
       setShowEmailModal(true)
     }
   }, [profile])
@@ -62,7 +63,10 @@ function AppInner() {
 
   if (!user) return <Login />
 
-  // Default page por role: produtor cai direto em contratos, supervisor em dashboard_producao
+  // BLOQUEIO: força troca de senha se for temporária
+  if (profile?.senha_temporaria === true) return <TrocarSenha />
+
+  // Default page por role
   const defaultPage = profile?.role === 'produtor' ? 'contratos'
     : profile?.role === 'supervisor_producao' ? 'dashboard_producao'
     : 'dashboard'
