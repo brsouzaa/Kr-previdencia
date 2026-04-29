@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
+import NotificacoesBell from './NotificacoesBell'
 
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
@@ -137,7 +138,10 @@ export default function Layout({ children, page, setPage }) {
             )
           })}
           <div style={{ marginTop: 'auto', padding: '1rem 1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
+              <NotificacoesBell onNavigate={(p) => setPage(p)} />
+            </div>
             <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
@@ -163,7 +167,10 @@ export default function Layout({ children, page, setPage }) {
               )}
             </button>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>KR <span style={{ color: '#185FA5' }}>Previdência</span></div>
-            <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <NotificacoesBell onNavigate={(p) => { setPage(p); setMenuOpen(false) }} />
+              <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
+            </div>
           </div>
         )}
         <div style={{ padding: isMobile ? '1rem' : '1.5rem', paddingTop: isMobile ? '72px' : '1.5rem', overflowY: 'auto', flex: 1 }}>
