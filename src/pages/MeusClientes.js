@@ -7,6 +7,10 @@ const STATUS_INFO = {
   aguardando_emissao:      { label: 'Aguardando emissão', cor: '#854F0B', bg: '#FAEEDA', icon: '⏳' },
   emitido:                 { label: 'Emitido — link disponível', cor: '#185FA5', bg: '#E6F1FB', icon: '📨' },
   assinado:                { label: 'Assinado — bônus contabilizado!', cor: '#3B6D11', bg: '#EAF3DE', icon: '🏆' },
+  aguardando_pos_venda:    { label: 'Assinou — pós-venda vai ligar', cor: '#185FA5', bg: '#E6F1FB', icon: '📞' },
+  em_contato_pos_venda:    { label: 'Pós-venda em contato', cor: '#854F0B', bg: '#FAEEDA', icon: '📞' },
+  validado_pos_venda:      { label: 'Validado pelo pós-venda', cor: '#3B6D11', bg: '#EAF3DE', icon: '✓' },
+  barrado_pos_venda:       { label: 'Barrado pelo pós-venda — bônus descontado!', cor: '#A32D2D', bg: '#FCEBEB', icon: '❌' },
   em_validacao:            { label: 'Em validação pela analista', cor: '#3B6D11', bg: '#EAF3DE', icon: '🔍' },
   validado:                { label: 'Validado pela analista', cor: '#3B6D11', bg: '#EAF3DE', icon: '✅' },
   entregue:                { label: 'Entregue ao advogado', cor: '#185FA5', bg: '#E6F1FB', icon: '📦' },
@@ -250,7 +254,9 @@ export default function MeusClientes() {
         const editavel = c.status === 'aguardando_emissao' || c.status === 'devolvido_correcao_doc'
         const editando = editandoDocsId === c.id
         const ehDevolvido = c.status === 'devolvido_correcao_doc' || c.status === 'devolvido_reemissao'
-        const cardStyle = ehDevolvido ? s.cardAlerta : { ...s.card, borderLeft: `3px solid ${info.cor}` }
+        // Cliente que veio de reemissao automatica: tá em aguardando_emissao mas tem motivo_reemissao
+        const ehReemitidoAuto = c.status === 'aguardando_emissao' && c.motivo_reemissao
+        const cardStyle = (ehDevolvido || ehReemitidoAuto) ? s.cardAlerta : { ...s.card, borderLeft: `3px solid ${info.cor}` }
 
         return (
           <div key={c.id} style={cardStyle}>
@@ -267,6 +273,21 @@ export default function MeusClientes() {
               {' · '}
               <span style={{ color: docsAnexados >= 4 ? '#3B6D11' : '#A32D2D' }}>📎 {docsAnexados}/5 documentos</span>
             </div>
+
+            {/* REEMITIDO AUTOMATICAMENTE — informativo, vendedor não precisa fazer nada */}
+            {ehReemitidoAuto && (
+              <div style={{ marginTop: 10, padding: 12, background: '#FAEEDA', borderRadius: 8, border: '1px solid #F59E0B40' }}>
+                <div style={{ fontSize: 12, color: '#854F0B', fontWeight: 500, marginBottom: 4 }}>
+                  🔄 Cliente foi reemitido pela analista
+                </div>
+                <div style={{ fontSize: 13, color: '#854F0B', fontStyle: 'italic', marginBottom: 8 }}>
+                  Motivo: "{c.motivo_reemissao}"
+                </div>
+                <div style={{ fontSize: 11, color: '#666', lineHeight: 1.5 }}>
+                  ✅ <strong>Não precisa fazer nada.</strong> A supervisão vai gerar um novo contrato pra <strong>outro advogado</strong> automaticamente. Quando o link sair, ele aparece aqui pra você enviar pro cliente. Avise o cliente que vai chegar um novo link em breve.
+                </div>
+              </div>
+            )}
 
             {/* DEVOLVIDO - mensagem destacada */}
             {ehDevolvido && c.motivo_devolucao && (
