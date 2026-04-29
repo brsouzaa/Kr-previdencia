@@ -405,19 +405,37 @@ export default function Dashboard() {
                       <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ flex: 1, padding: '7px', background: '#EEEDFE', color: '#534AB7', border: '0.5px solid #534AB7', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                         Reenviar contrato
                       </button>
-                      <button onClick={() => mudarStatusLote(lote.id, 'inadimplente')} style={{ padding: '7px 10px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                        Inadimp.
-                      </button>
+                      <select
+                        onChange={(e) => { if (e.target.value) { mudarStatusLote(lote.id, e.target.value); e.target.value = '' } }}
+                        defaultValue=""
+                        style={{ padding: '7px 10px', background: '#fff', color: '#5F5E5A', border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        <option value="" disabled>Mover para...</option>
+                        <option value="emitir_contrato">📝 Emitir contrato</option>
+                        <option value="a_entregar">📦 A entregar</option>
+                        <option value="entregue">✅ Entregue</option>
+                        <option value="pago">💰 Pago</option>
+                        <option value="inadimplente">⚠️ Inadimplente</option>
+                      </select>
                     </>
                   )}
                   {modalStatus === 'inadimplente' && (
                     <>
-                      <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ flex: 1, padding: '7px', background: '#FAEEDA', color: '#854F0B', border: '0.5px solid #854F0B', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                        Reativar
-                      </button>
                       <button onClick={() => setModalComprovante(lote)} style={{ flex: 1, padding: '7px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                         📎 Pago + comprovante
                       </button>
+                      <select
+                        onChange={(e) => { if (e.target.value) { mudarStatusLote(lote.id, e.target.value); e.target.value = '' } }}
+                        defaultValue=""
+                        style={{ padding: '7px 10px', background: '#fff', color: '#5F5E5A', border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        <option value="" disabled>Mover para...</option>
+                        <option value="emitir_contrato">📝 Emitir contrato</option>
+                        <option value="assinar_contrato">✍️ Assinar contrato</option>
+                        <option value="a_entregar">📦 A entregar</option>
+                        <option value="entregue">✅ Entregue</option>
+                        <option value="nao_assinou">❌ Não assinou</option>
+                      </select>
                     </>
                   )}
                   {modalStatus === 'pago' && (
