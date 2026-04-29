@@ -48,6 +48,20 @@ function tempoRelativo(dt) {
   return new Date(dt).toLocaleDateString('pt-BR')
 }
 
+// Calcula quanto tempo falta até cancelamento automático (24h)
+// Retorna { texto, urgente }
+function tempoRestante24h(devolvidoEm) {
+  if (!devolvidoEm) return { texto: '', urgente: false, vencido: false }
+  const limite = new Date(devolvidoEm).getTime() + (24 * 60 * 60 * 1000)
+  const restante = limite - Date.now()
+  if (restante <= 0) return { texto: '⚠️ Vencido — será cancelado em breve', urgente: true, vencido: true }
+  const horas = Math.floor(restante / (60 * 60 * 1000))
+  const minutos = Math.floor((restante % (60 * 60 * 1000)) / (60 * 1000))
+  if (horas === 0) return { texto: `⏰ Restam ${minutos}min`, urgente: true, vencido: false }
+  if (horas < 6) return { texto: `⏰ Restam ${horas}h ${minutos}min`, urgente: true, vencido: false }
+  return { texto: `⏰ Restam ${horas}h pra resolver`, urgente: false, vencido: false }
+}
+
 export default function MeusClientes() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -263,6 +277,23 @@ export default function MeusClientes() {
                 <div style={{ fontSize: 13, color: '#A32D2D', fontStyle: 'italic', marginBottom: 10 }}>
                   "{c.motivo_devolucao}"
                 </div>
+                {/* Contador 24h só pra correção de documento */}
+                {c.status === 'devolvido_correcao_doc' && (() => {
+                  const t = tempoRestante24h(c.devolvido_em)
+                  return (
+                    <div style={{
+                      padding: '8px 10px', borderRadius: 6, marginBottom: 10,
+                      background: t.urgente ? '#A32D2D' : '#FAEEDA',
+                      color: t.urgente ? '#fff' : '#854F0B',
+                      fontSize: 12, fontWeight: 500, textAlign: 'center'
+                    }}>
+                      {t.texto}
+                      {!t.vencido && <div style={{ fontSize: 10, fontWeight: 400, marginTop: 2, opacity: 0.9 }}>
+                        Se passar de 24h sem corrigir, contrato é cancelado automaticamente
+                      </div>}
+                    </div>
+                  )
+                })()}
                 {c.status === 'devolvido_correcao_doc' ? (
                   <>
                     <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
@@ -280,7 +311,7 @@ export default function MeusClientes() {
                 ) : (
                   <>
                     <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
-                      O bônus desse cliente foi descontado. O contrato precisa ser refeito — clique abaixo pra mandar pra supervisão emitir novamente. Quando o cliente assinar de novo, o bônus volta.
+                      O bônus desse cliente foi descontado. O contrato precisa ser refeito — clique abaixo pra mandar pra supervisão emitir novamente. <strong>O novo contrato vai pra outro advogado da fila.</strong> Quando o cliente assinar de novo, o bônus volta.
                     </div>
                     <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
                       style={{ width: '100%', padding: '10px', background: reemitindoId === c.id ? '#aaa' : '#A32D2D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
