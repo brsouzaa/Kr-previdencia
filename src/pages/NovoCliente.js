@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import UploadDocumento from '../components/UploadDocumento'
 
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
@@ -8,9 +9,10 @@ const s = {
   input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
   inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, color: '#444', background: '#F5F5F2', outline: 'none', boxSizing: 'border-box' },
   inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #A32D2D', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
-  select: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' },
+  select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
   textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
+  grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 },
   grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   btn: { width: '100%', padding: '13px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
@@ -22,10 +24,23 @@ const s = {
   warnBox: { background: '#FAEEDA', border: '1px solid #F5C97B', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#854F0B' },
   duplicadoBox: { background: '#FCEBEB', border: '1px solid #A32D2D40', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#A32D2D' },
   successBox: { background: '#EAF3DE', border: '1.5px solid #3B6D1150', borderRadius: 14, padding: '1.5rem', textAlign: 'center' },
+  productCard: (ativo, cor) => ({
+    flex: 1, padding: '14px 12px', textAlign: 'center', borderRadius: 10,
+    cursor: 'pointer', fontWeight: 500, fontSize: 13,
+    background: ativo ? cor : '#fff',
+    color: ativo ? '#fff' : cor,
+    border: `1.5px solid ${cor}${ativo ? '' : '40'}`,
+    transition: 'all 0.15s',
+  }),
 }
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-const PRODUTOS = ['Maternidade', 'BPC', 'Auxilio Acidente']
+
+const PRODUTOS = [
+  { key: 'Maternidade', label: '🤰 Maternidade', cor: '#0F6E56' },
+  { key: 'BPC', label: '👴 BPC', cor: '#534AB7' },
+  { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#854F0B' },
+]
 
 function maskCPF(v) {
   v = (v || '').replace(/\D/g, '').slice(0, 11)
@@ -54,6 +69,12 @@ function maskCEP(v) {
   if (v.length > 5) return v.replace(/(\d{5})(\d{1,3}).*/, '$1-$2')
   return v
 }
+function maskNIS(v) {
+  // NIS é 11 dígitos (ou 10 + 1 verificador), aceita com ou sem hífen
+  v = (v || '').replace(/\D/g, '').slice(0, 11)
+  if (v.length > 10) return v.replace(/(\d{10})(\d{1}).*/, '$1-$2')
+  return v
+}
 function cpfValido(cpf) {
   cpf = (cpf || '').replace(/\D/g, '')
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false
@@ -76,15 +97,24 @@ export default function NovoCliente({ onSucesso }) {
   const { profile } = useAuth()
   const [enviando, setEnviando] = useState(false)
   const [salvo, setSalvo] = useState(null)
+
   const [c, setC] = useState({
+    produto: '', // vazio inicialmente — vendedor escolhe primeiro
     nome:'', cpf:'', rg:'', telefone:'', email:'',
     cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'',
-    produto: 'Maternidade', observacao: ''
+    observacao: '',
+    // Campos extras (Maternidade)
+    nis: '', data_prevista_parto: '', meses_gravidez: '',
   })
 
-  const [duplicado, setDuplicado] = useState(null) // { nome, status, vendedorMesmo }
-  const [verificandoCpf, setVerificandoCpf] = useState(false)
+  const [docs, setDocs] = useState({
+    rg_frente: null, rg_verso: null,
+    comprovante_1: null, comprovante_2: null,
+    comprovante_endereco: null,
+  })
 
+  const [duplicado, setDuplicado] = useState(null)
+  const [verificandoCpf, setVerificandoCpf] = useState(false)
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [cepStatus, setCepStatus] = useState(null)
   const [endLockado, setEndLockado] = useState(false)
@@ -92,7 +122,11 @@ export default function NovoCliente({ onSucesso }) {
   const [cidadeStatus, setCidadeStatus] = useState(null)
   const ufCarregadaRef = useRef(null)
 
+  // ID temporário usado pra agrupar uploads antes de salvar
+  const tempIdRef = useRef(`temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`)
+
   function set(f, v) { setC(c => ({ ...c, [f]: v })) }
+  function setDoc(chave, url) { setDocs(d => ({ ...d, [chave]: url })) }
 
   // === Verificar CPF duplicado em tempo real ===
   async function verificarCpfDuplicado(cpf) {
@@ -104,17 +138,13 @@ export default function NovoCliente({ onSucesso }) {
         .eq('cpf', cpf)
         .in('status', ['aguardando_emissao','emitido'])
         .maybeSingle()
-
       if (data) {
         setDuplicado({
-          nome: data.nome,
-          status: data.status,
+          nome: data.nome, status: data.status,
           vendedorNome: data.profiles?.nome || 'outro vendedor',
           vendedorMesmo: data.vendedor_operador_id === profile.id,
         })
-      } else {
-        setDuplicado(null)
-      }
+      } else { setDuplicado(null) }
     } catch (e) { setDuplicado(null) }
     setVerificandoCpf(false)
   }
@@ -122,8 +152,7 @@ export default function NovoCliente({ onSucesso }) {
   async function buscarCep(cepRaw) {
     const cep = (cepRaw || '').replace(/\D/g, '')
     if (cep.length !== 8) { setCepStatus(null); return }
-    setBuscandoCep(true)
-    setCepStatus(null)
+    setBuscandoCep(true); setCepStatus(null)
     try {
       const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
       const j = await r.json()
@@ -183,41 +212,54 @@ export default function NovoCliente({ onSucesso }) {
     // eslint-disable-next-line
   }, [cidadesUF])
 
-  const camposPreenchidos = c.nome.trim() && c.cpf && c.rg && c.telefone &&
-                            c.email.trim() && c.cep &&
-                            c.rua.trim() && c.numero.trim() && c.bairro.trim() &&
-                            c.cidade.trim() && c.uf && c.produto
+  const camposBasicosOk = c.nome.trim() && c.cpf && c.rg && c.telefone &&
+                          c.email.trim() && c.cep &&
+                          c.rua.trim() && c.numero.trim() && c.bairro.trim() &&
+                          c.cidade.trim() && c.uf
   const cpfOk = cpfValido(c.cpf)
   const emailOk = emailValido(c.email)
   const telOk = telValido(c.telefone)
   const cepOk = c.cep.replace(/\D/g, '').length === 8
   const ufOk = UFS.includes(c.uf)
   const cidadeOk = cidadeStatus === 'ok'
-  const semDuplicado = !duplicado
-  const tudoOk = camposPreenchidos && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && semDuplicado
+
+  // Campos extras Maternidade
+  const camposMatOk = c.produto !== 'Maternidade' || (
+    c.nis && c.data_prevista_parto && c.meses_gravidez.trim()
+  )
+
+  // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2
+  const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
+
+  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicado && camposMatOk && docsOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
     setEnviando(true)
     try {
-      const { data, error } = await supabase.from('clientes').insert({
+      const payload = {
         vendedor_operador_id: profile.id,
         nome: c.nome, cpf: c.cpf, rg: c.rg,
         telefone: c.telefone, email: c.email,
         cep: c.cep, rua: c.rua, numero: c.numero, bairro: c.bairro,
         cidade: c.cidade, uf: c.uf,
         produto: c.produto, observacao: c.observacao || null,
+        documentos: docs,
         status: 'aguardando_emissao',
-      }).select().single()
+      }
+      // Campos extras só pra Maternidade
+      if (c.produto === 'Maternidade') {
+        payload.nis = c.nis
+        payload.data_prevista_parto = c.data_prevista_parto
+        payload.meses_gravidez = c.meses_gravidez
+      }
 
+      const { data, error } = await supabase.from('clientes').insert(payload).select().single()
       if (error) {
-        // Constraint do banco pegou mesmo com a verificação no front
         if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
           setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', vendedorNome: 'no sistema', vendedorMesmo: false })
-          alert('Este CPF já está cadastrado no sistema com status pendente. Verifique antes de tentar de novo.')
-        } else {
-          throw error
-        }
+          alert('Este CPF já está cadastrado no sistema com status pendente.')
+        } else { throw error }
         setEnviando(false); return
       }
       setSalvo(data)
@@ -228,8 +270,10 @@ export default function NovoCliente({ onSucesso }) {
   }
 
   function novoCadastro() {
-    setC({ nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', produto: 'Maternidade', observacao: '' })
+    setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'' })
+    setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
+    tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
 
   if (salvo) return (
@@ -256,19 +300,73 @@ export default function NovoCliente({ onSucesso }) {
     </div>
   )
 
+  // === Tela 1: Selecionar produto ===
+  if (!c.produto) return (
+    <div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>➕ Novo cliente</div>
+        <div style={{ fontSize: 13, color: '#888' }}>Comece selecionando o produto que você está vendendo</div>
+      </div>
+
+      <div style={s.card}>
+        <div style={s.sectionTitle}>Qual produto você está vendendo?</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {PRODUTOS.map(p => (
+            <button key={p.key} onClick={() => set('produto', p.key)}
+              style={{
+                padding: '20px 16px', textAlign: 'left', borderRadius: 10,
+                cursor: 'pointer', background: '#fff',
+                border: `1.5px solid ${p.cor}30`, color: '#111',
+                fontSize: 15, fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 14,
+              }}>
+              <span style={{ fontSize: 24 }}>{p.label.split(' ')[0]}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: p.cor, fontWeight: 600 }}>{p.label.split(' ').slice(1).join(' ')}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                  {p.key === 'Maternidade' ? 'Salário-maternidade — pede NIS, data do parto e meses de gravidez' :
+                   p.key === 'BPC' ? 'BPC/LOAS — Benefício de Prestação Continuada' :
+                   'Auxílio acidente do INSS'}
+                </div>
+              </div>
+              <span style={{ color: p.cor, fontSize: 18 }}>→</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+
   const inputCidade = endLockado ? s.inputReadOnly : (cidadeStatus === 'erro' ? s.inputErr : s.input)
   const inputUF = endLockado ? s.inputReadOnly : (c.uf && !ufOk ? s.inputErr : s.input)
   const inputRua = endLockado ? s.inputReadOnly : s.input
   const inputBairro = endLockado ? s.inputReadOnly : s.input
   const mostrarEndereco = cepStatus === 'ok' || cepStatus === 'erro'
 
+  const produtoInfo = PRODUTOS.find(p => p.key === c.produto)
+
+  // === Tela 2: Formulário ===
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>➕ Novo cliente</div>
-        <div style={{ fontSize: 13, color: '#888' }}>Cadastre o cliente. A supervisão emite o contrato e devolve o link pra você enviar pelo WhatsApp.</div>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>➕ Novo cliente</div>
+          <div style={{ fontSize: 13, color: '#888' }}>Preencha os dados e anexe os documentos do cliente</div>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 14px', background: produtoInfo.cor + '15', borderRadius: 20,
+          border: `1px solid ${produtoInfo.cor}30`,
+        }}>
+          <span style={{ fontSize: 13, color: produtoInfo.cor, fontWeight: 500 }}>{produtoInfo.label}</span>
+          <button onClick={() => set('produto', '')}
+            style={{ fontSize: 11, background: 'none', border: 'none', color: produtoInfo.cor, cursor: 'pointer', textDecoration: 'underline' }}>
+            trocar
+          </button>
+        </div>
       </div>
 
+      {/* === DADOS DO CLIENTE === */}
       <div style={s.card}>
         <div style={s.sectionTitle}>Dados do cliente</div>
 
@@ -288,7 +386,7 @@ export default function NovoCliente({ onSucesso }) {
               onBlur={() => verificarCpfDuplicado(c.cpf)}
               placeholder="000.000.000-00" inputMode="numeric" />
             {c.cpf && !cpfOk && <div style={s.hintErr}>CPF inválido</div>}
-            {verificandoCpf && <div style={s.hint}>🔍 Verificando se já está cadastrado...</div>}
+            {verificandoCpf && <div style={s.hint}>🔍 Verificando...</div>}
           </div>
           <div>
             <label style={s.label}>RG *</label>
@@ -303,7 +401,6 @@ export default function NovoCliente({ onSucesso }) {
             <div style={{ fontWeight: 500, marginBottom: 4 }}>⚠️ CPF já cadastrado no sistema</div>
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
               <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '(seu cliente)' : `(cadastrado por ${duplicado.vendedorNome})`} está com status <strong>{duplicado.status === 'aguardando_emissao' ? 'aguardando emissão' : 'emitido'}</strong>.
-              <br />Não é possível cadastrar o mesmo CPF duas vezes enquanto houver um pendente.
             </div>
           </div>
         )}
@@ -401,41 +498,81 @@ export default function NovoCliente({ onSucesso }) {
         )}
       </div>
 
+      {/* === CAMPOS EXTRAS DO PRODUTO === */}
+      {c.produto === 'Maternidade' && (
+        <div style={s.card}>
+          <div style={s.sectionTitle}>Informações do salário-maternidade</div>
+          <div style={s.grid3}>
+            <div>
+              <label style={s.label}>NIS *</label>
+              <input style={s.input} value={c.nis}
+                onChange={e => set('nis', maskNIS(e.target.value))}
+                placeholder="000.0000.000-0" inputMode="numeric" />
+            </div>
+            <div>
+              <label style={s.label}>Data prevista do parto *</label>
+              <input style={s.input} type="date" value={c.data_prevista_parto}
+                onChange={e => set('data_prevista_parto', e.target.value)} />
+            </div>
+            <div>
+              <label style={s.label}>Meses de gravidez *</label>
+              <select style={s.input} value={c.meses_gravidez}
+                onChange={e => set('meses_gravidez', e.target.value)}>
+                <option value="">Selecione</option>
+                {[1,2,3,4,5,6,7,8,9].map(m =>
+                  <option key={m} value={`${m} ${m === 1 ? 'mês' : 'meses'}`}>{m} {m === 1 ? 'mês' : 'meses'}</option>
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === DOCUMENTOS === */}
       <div style={s.card}>
-        <div style={s.sectionTitle}>Produto vendido</div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={s.label}>Produto *</label>
-          <select style={s.select} value={c.produto} onChange={e => set('produto', e.target.value)}>
-            {PRODUTOS.map(p => <option key={p} value={p}>{p === 'Auxilio Acidente' ? 'Auxílio Acidente' : p}</option>)}
-          </select>
+        <div style={s.sectionTitle}>Documentos do cliente</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+          Anexe RG (frente e verso), comprovantes obrigatórios, e opcionalmente comprovante de endereço.
+          Formatos aceitos: JPG, PNG ou PDF (máx 10MB cada).
         </div>
 
-        <div>
-          <label style={s.label}>Observação (opcional)</label>
-          <textarea style={s.textarea} value={c.observacao}
-            onChange={e => set('observacao', e.target.value)}
-            placeholder="Ex.: cliente prefere ser contatado à tarde, já recebeu BPC antes, etc." />
+        <div style={s.grid2}>
+          <UploadDocumento label="RG Frente" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_frente"
+            valorInicial={docs.rg_frente} onChange={url => setDoc('rg_frente', url)} />
+          <UploadDocumento label="RG Verso" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_verso"
+            valorInicial={docs.rg_verso} onChange={url => setDoc('rg_verso', url)} />
         </div>
+
+        <div style={s.grid2}>
+          <UploadDocumento label="Comprovante 1" obrigatorio={true} clienteId={tempIdRef.current} chave="comprovante_1"
+            valorInicial={docs.comprovante_1} onChange={url => setDoc('comprovante_1', url)} />
+          <UploadDocumento label="Comprovante 2" obrigatorio={true} clienteId={tempIdRef.current} chave="comprovante_2"
+            valorInicial={docs.comprovante_2} onChange={url => setDoc('comprovante_2', url)} />
+        </div>
+
+        <UploadDocumento label="Comprovante de endereço (opcional)" obrigatorio={false} clienteId={tempIdRef.current} chave="comprovante_endereco"
+          valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
+      </div>
+
+      {/* === OBSERVAÇÃO === */}
+      <div style={s.card}>
+        <div style={s.sectionTitle}>Observação</div>
+        <textarea style={s.textarea} value={c.observacao}
+          onChange={e => set('observacao', e.target.value)}
+          placeholder="Ex.: cliente prefere ser contatado à tarde, observação sobre os documentos, etc." />
       </div>
 
       <button style={tudoOk && !enviando ? s.btn : s.btnDisabled}
         onClick={salvar} disabled={!tudoOk || enviando}>
         {enviando ? '⏳ Salvando...' : '✅ Cadastrar cliente'}
       </button>
-      {duplicado && (
-        <div style={{ ...s.hintErr, textAlign: 'center', marginTop: 8 }}>
-          Este CPF já está cadastrado pendente
-        </div>
-      )}
-      {!tudoOk && !duplicado && camposPreenchidos && (
-        <div style={{ ...s.hintErr, textAlign: 'center', marginTop: 8 }}>
-          Corrija os campos destacados em vermelho
-        </div>
-      )}
-      {!camposPreenchidos && (
+
+      {!tudoOk && (
         <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>
-          Preencha todos os campos para cadastrar
+          {!docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
+            !camposMatOk ? 'Preencha NIS, data do parto e meses de gravidez' :
+            duplicado ? 'CPF já cadastrado pendente' :
+            'Preencha todos os campos corretamente'}
         </div>
       )}
     </div>
