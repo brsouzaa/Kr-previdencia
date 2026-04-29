@@ -17,6 +17,9 @@ import MeusClientes from './pages/MeusClientes'
 import MeuDesempenho from './pages/MeuDesempenho'
 import FilaDigitacao from './pages/FilaDigitacao'
 import RankingProducao from './pages/RankingProducao'
+import Entregas from './pages/Entregas'
+import LotesEntregues from './pages/LotesEntregues'
+import Devolucoes from './pages/Devolucoes'
 import Portal from './pages/Portal'
 
 function PortalRoute() {
@@ -29,12 +32,9 @@ function PortalRoute() {
     if (match) {
       const id = match[1]
       supabase.from('profiles').select('id, nome').eq('id', id).single().then(({ data }) => {
-        setVendedor(data)
-        setLoading(false)
+        setVendedor(data); setLoading(false)
       })
-    } else {
-      setLoading(false)
-    }
+    } else { setLoading(false) }
   }, [])
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6', fontSize: 14, color: '#888' }}>Carregando...</div>
@@ -45,15 +45,17 @@ function PortalRoute() {
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
   if (role === 'supervisor_producao') return 'fila_digitacao'
+  if (role === 'analista') return 'entregas'
   if (role === 'vendedor_operador') return 'meus_clientes'
   return 'dashboard'
 }
 
 function paginaPermitida(role, page) {
   if (role === 'admin') return true
-  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila'].includes(page)
+  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
-  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos'].includes(page)
+  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
+  if (role === 'analista') return ['entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho'].includes(page)
   return false
 }
@@ -97,6 +99,9 @@ function AppInner() {
     supervisor_producao: <SupervisorProducao />,
     fila_digitacao: <FilaDigitacao />,
     ranking: <RankingProducao />,
+    entregas: <Entregas />,
+    lotes_entregues: <LotesEntregues />,
+    devolucoes: <Devolucoes />,
     meus_clientes: <MeusClientes />,
     novo_cliente: <NovoCliente onSucesso={() => setPage('meus_clientes')} />,
     meu_desempenho: <MeuDesempenho />,
