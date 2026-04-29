@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
@@ -10,12 +11,19 @@ const NAV_SUPERVISOR_PRODUCAO = [
   { key: 'supervisor_producao', label: '📊 Supervisão' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
 ]
+const NAV_ANALISTA = [
+  { key: 'entregas', label: '📥 Validação e Entregas' },
+  { key: 'fila', label: '📦 Fila de advogados' },
+  { key: 'ranking', label: '🏆 Ranking vendedoras' },
+  { key: 'supervisor_producao', label: '📊 Supervisão produção' },
+]
 const NAV_VENDEDOR = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
+  { key: 'lotes_entregues', label: '✅ Lotes liberados' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_VENDEDOR_OPERADOR = [
@@ -31,6 +39,8 @@ const NAV_ADMIN = [
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
+  { key: 'entregas', label: '📥 Validação e Entregas' },
+  { key: 'lotes_entregues', label: '✅ Lotes liberados' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
@@ -52,22 +62,38 @@ export default function Layout({ children, page, setPage }) {
   const { profile, signOut } = useAuth()
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [novosLotes, setNovosLotes] = useState(0)
+
   const nav = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
+    : profile?.role === 'analista' ? NAV_ANALISTA
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : NAV_VENDEDOR
 
+  // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
+  useEffect(() => {
+    if (profile?.role !== 'vendedor' && profile?.role !== 'admin') return
+    let q = supabase.from('lotes').select('id', { count: 'exact', head: true }).eq('notificacao_pendente', true)
+    if (profile?.role === 'vendedor') q = q.eq('vendedor_id', profile.id)
+    q.then(({ count }) => setNovosLotes(count || 0))
+    const i = setInterval(() => {
+      let qq = supabase.from('lotes').select('id', { count: 'exact', head: true }).eq('notificacao_pendente', true)
+      if (profile?.role === 'vendedor') qq = qq.eq('vendedor_id', profile.id)
+      qq.then(({ count }) => setNovosLotes(count || 0))
+    }, 60000)
+    return () => clearInterval(i)
+  }, [profile, page])
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f8f6' }}>
-
       {isMobile && menuOpen && (
         <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 299 }} />
       )}
 
       {(!isMobile || menuOpen) && (
         <div style={{
-          width: 210, background: '#fff',
+          width: 220, background: '#fff',
           borderRight: '0.5px solid rgba(0,0,0,0.1)',
           display: 'flex', flexDirection: 'column',
           padding: '1.25rem 0', flexShrink: 0,
@@ -76,25 +102,39 @@ export default function Layout({ children, page, setPage }) {
           <div style={{ fontSize: 15, fontWeight: 600, color: '#111', padding: '0 1.25rem 1.25rem', borderBottom: '0.5px solid rgba(0,0,0,0.08)', marginBottom: '0.75rem' }}>
             KR <span style={{ color: '#185FA5' }}>Previdência</span>
           </div>
-          {nav.map(n => (
-            <button key={n.key} onClick={() => { setPage(n.key); setMenuOpen(false) }} style={{
-              display: 'block', padding: '10px 1.25rem', fontSize: 13,
-              color: page === n.key ? '#185FA5' : '#555',
-              fontWeight: page === n.key ? 500 : 400,
-              background: page === n.key ? '#E6F1FB' : 'transparent',
-              cursor: 'pointer', textAlign: 'left',
-              border: 'none', borderLeftWidth: 2, borderLeftStyle: 'solid',
-              borderLeftColor: page === n.key ? '#185FA5' : 'transparent',
-              width: '100%'
-            }}>
-              {n.label}
-            </button>
-          ))}
+          {nav.map(n => {
+            const isLotesEntregues = n.key === 'lotes_entregues'
+            const showBadge = isLotesEntregues && novosLotes > 0 && page !== 'lotes_entregues'
+            return (
+              <button key={n.key} onClick={() => { setPage(n.key); setMenuOpen(false) }} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 1.25rem', fontSize: 13,
+                color: page === n.key ? '#185FA5' : '#555',
+                fontWeight: page === n.key ? 500 : 400,
+                background: page === n.key ? '#E6F1FB' : 'transparent',
+                cursor: 'pointer', textAlign: 'left',
+                border: 'none', borderLeftWidth: 2, borderLeftStyle: 'solid',
+                borderLeftColor: page === n.key ? '#185FA5' : 'transparent',
+                width: '100%'
+              }}>
+                <span>{n.label}</span>
+                {showBadge && (
+                  <span style={{
+                    background: '#3B6D11', color: '#fff',
+                    fontSize: 10, fontWeight: 600,
+                    padding: '2px 6px', borderRadius: 8,
+                    minWidth: 18, textAlign: 'center',
+                  }}>{novosLotes}</span>
+                )}
+              </button>
+            )
+          })}
           <div style={{ marginTop: 'auto', padding: '1rem 1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
             <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
+                : profile?.role === 'analista' ? 'Analista'
                 : profile?.role === 'produtor' ? 'Produtor'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
                 : 'Vendedor'}
@@ -107,7 +147,14 @@ export default function Layout({ children, page, setPage }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {isMobile && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
-            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111', padding: '4px 8px', lineHeight: 1 }}>☰</button>
+            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111', padding: '4px 8px', lineHeight: 1, position: 'relative' }}>
+              ☰
+              {novosLotes > 0 && (
+                <span style={{ position: 'absolute', top: 0, right: 0, background: '#3B6D11', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 6 }}>
+                  {novosLotes}
+                </span>
+              )}
+            </button>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>KR <span style={{ color: '#185FA5' }}>Previdência</span></div>
             <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
           </div>
