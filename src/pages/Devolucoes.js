@@ -51,17 +51,35 @@ export default function Devolucoes() {
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('clientes')
+    let q = supabase.from('clientes')
       .select(`
         *,
         vendedor:profiles!clientes_vendedor_operador_id_fkey(id, nome, email),
-        analista:profiles!clientes_devolvido_por_fkey(nome)
+        analista:profiles!clientes_devolvido_por_fkey(nome),
+        lote:lotes(id, vendedor_id, advogados(nome_completo))
       `)
       .in('status', ['devolvido_correcao_doc', 'devolvido_reemissao'])
       .order('devolvido_em', { ascending: false })
-    setClientes(data || [])
+
+    // Filtrar conforme role
+    if (profile?.role === 'vendedor_operador') {
+      // Vendedor-operador vê só clientes que ele cadastrou
+      q = q.eq('vendedor_operador_id', profile.id)
+    }
+    // vendedor de advogado é filtrado no client-side abaixo (precisa do JOIN lote.vendedor_id)
+
+    const { data } = await q
+
+    let resultado = data || []
+
+    // Filtra vendedor de advogado
+    if (profile?.role === 'vendedor') {
+      resultado = resultado.filter(c => c.lote?.vendedor_id === profile.id)
+    }
+
+    setClientes(resultado)
     setLoading(false)
-  }, [])
+  }, [profile])
 
   useEffect(() => { fetch() }, [fetch])
   useEffect(() => {
@@ -126,8 +144,18 @@ export default function Devolucoes() {
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>⚠️ Devoluções</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} aguardando correção pelo vendedor</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>
+            ⚠️ {profile?.role === 'vendedor_operador' ? 'Meus devolvidos' :
+                 profile?.role === 'vendedor' ? 'Devoluções dos meus lotes' :
+                 'Devoluções'}
+          </div>
+          <div style={{ fontSize: 13, color: '#888' }}>
+            {profile?.role === 'vendedor_operador'
+              ? `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} pra você corrigir`
+              : profile?.role === 'vendedor'
+                ? `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} de lotes seus em correção`
+                : `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} aguardando correção pelo vendedor`}
+          </div>
         </div>
         <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
           ↻ Atualizar
