@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import UploadDocumento from '../components/UploadDocumento'
 
 const STATUS_INFO = {
   aguardando_emissao: { label: 'Aguardando emissão', cor: '#854F0B', bg: '#FAEEDA', icon: '⏳' },
@@ -9,6 +10,14 @@ const STATUS_INFO = {
   expirado: { label: 'Expirou sem assinar', cor: '#A32D2D', bg: '#FCEBEB', icon: '⌛' },
   cancelado: { label: 'Cancelado', cor: '#666', bg: '#f0f0f0', icon: '❌' },
 }
+
+const TIPOS_DOC = [
+  { chave: 'rg_frente', label: 'RG Frente', obrigatorio: true },
+  { chave: 'rg_verso', label: 'RG Verso', obrigatorio: true },
+  { chave: 'comprovante_1', label: 'Comprovante 1', obrigatorio: true },
+  { chave: 'comprovante_2', label: 'Comprovante 2', obrigatorio: true },
+  { chave: 'comprovante_endereco', label: 'Comprovante de endereço (opcional)', obrigatorio: false },
+]
 
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
@@ -44,6 +53,7 @@ export default function MeusClientes() {
   const [busca, setBusca] = useState('')
   const [copiadoId, setCopiadoId] = useState(null)
   const [reemitindoId, setReemitindoId] = useState(null)
+  const [editandoDocsId, setEditandoDocsId] = useState(null)
 
   const fetchClientes = useCallback(async () => {
     setLoading(true)
@@ -58,7 +68,6 @@ export default function MeusClientes() {
 
   useEffect(() => { fetchClientes() }, [fetchClientes])
 
-  // Auto-refresh a cada 30s pra pegar novos links emitidos pelo supervisor
   useEffect(() => {
     const id = setInterval(fetchClientes, 30000)
     return () => clearInterval(id)
@@ -96,33 +105,22 @@ export default function MeusClientes() {
     return `https://wa.me/55${tel}?text=${msg}`
   }
 
-  // === Solicitar reemissão de cliente expirado ===
   async function solicitarReemissao(c) {
     if (!window.confirm(`Solicitar nova emissão de contrato para ${c.nome}?\n\nO cliente voltará para a fila de digitação da supervisão.`)) return
     setReemitindoId(c.id)
     try {
-      // Volta o status do cliente pra aguardando_emissao
-      // Limpa os campos da emissão anterior (advogado, lote, link, contrato)
       const { error } = await supabase.from('clientes').update({
         status: 'aguardando_emissao',
-        contrato_producao_id: null,
-        lote_id: null,
-        advogado_id: null,
-        zapsign_token: null,
-        link_assinatura: null,
-        emitido_por: null,
-        emitido_em: null,
-        bloqueado_por: null,
-        bloqueado_em: null,
+        contrato_producao_id: null, lote_id: null, advogado_id: null,
+        zapsign_token: null, link_assinatura: null,
+        emitido_por: null, emitido_em: null,
+        bloqueado_por: null, bloqueado_em: null,
       }).eq('id', c.id)
 
       if (error) {
-        // Se a constraint disparar (existe outro pendente do mesmo CPF), avisa
         if (error.code === '23505') {
-          alert('Já existe um cadastro ativo (aguardando ou emitido) com este CPF. Verifique antes de tentar de novo.')
-        } else {
-          throw error
-        }
+          alert('Já existe um cadastro ativo (aguardando ou emitido) com este CPF.')
+        } else { throw error }
         setReemitindoId(null); return
       }
       await fetchClientes()
@@ -133,6 +131,21 @@ export default function MeusClientes() {
     setReemitindoId(null)
   }
 
+  // Atualiza um doc no cliente (no banco)
+  async function atualizarDoc(clienteId, chave, url) {
+    const cli = clientes.find(c => c.id === clienteId)
+    if (!cli) return
+    const novosDocs = { ...(cli.documentos || {}), [chave]: url }
+    const { error } = await supabase.from('clientes')
+      .update({ documentos: novosDocs })
+      .eq('id', clienteId)
+    if (error) {
+      alert('Erro ao salvar documento: ' + error.message)
+      return
+    }
+    fetchClientes()
+  }
+
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   return (
@@ -140,7 +153,7 @@ export default function MeusClientes() {
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📋 Meus clientes</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''} · atualiza automaticamente a cada 30s</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''} · atualiza a cada 30s</div>
         </div>
         <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
           ↻ Atualizar
@@ -170,6 +183,11 @@ export default function MeusClientes() {
         </div>
       ) : filtrados.map(c => {
         const info = STATUS_INFO[c.status] || STATUS_INFO.aguardando_emissao
+        const docs = c.documentos || {}
+        const docsAnexados = TIPOS_DOC.filter(t => docs[t.chave]).length
+        const editavel = c.status === 'aguardando_emissao'
+        const editando = editandoDocsId === c.id
+
         return (
           <div key={c.id} style={{ ...s.card, borderLeft: `3px solid ${info.cor}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
@@ -182,6 +200,10 @@ export default function MeusClientes() {
 
             <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
               {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto} · {tempoRelativo(c.created_at)}
+              {' · '}
+              <span style={{ color: docsAnexados >= 4 ? '#3B6D11' : '#A32D2D' }}>
+                📎 {docsAnexados}/5 documentos
+              </span>
             </div>
 
             {c.observacao && (
@@ -190,9 +212,53 @@ export default function MeusClientes() {
               </div>
             )}
 
+            {/* DOCUMENTOS - editável até ser emitido */}
+            <div style={{ marginTop: 10 }}>
+              {!editando ? (
+                <button onClick={() => setEditandoDocsId(c.id)}
+                  style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                  📎 Ver/{editavel ? 'editar' : ''} documentos anexados
+                </button>
+              ) : (
+                <div style={{ marginTop: 8, padding: 12, background: '#f8f8f6', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#555' }}>
+                      Documentos {!editavel && '(somente leitura — contrato já emitido)'}
+                    </div>
+                    <button onClick={() => setEditandoDocsId(null)} style={{ fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      fechar
+                    </button>
+                  </div>
+                  {editavel ? (
+                    TIPOS_DOC.map(tipo => (
+                      <UploadDocumento key={tipo.chave}
+                        label={tipo.label} obrigatorio={tipo.obrigatorio}
+                        clienteId={c.id} chave={tipo.chave}
+                        valorInicial={docs[tipo.chave]}
+                        onChange={url => atualizarDoc(c.id, tipo.chave, url)} />
+                    ))
+                  ) : (
+                    TIPOS_DOC.map(tipo => (
+                      <div key={tipo.chave} style={{ marginBottom: 6, fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>{tipo.label}: </span>
+                        {docs[tipo.chave] ? (
+                          <a href={docs[tipo.chave]} target="_blank" rel="noreferrer"
+                            style={{ color: '#3B6D11', textDecoration: 'underline' }}>
+                            ✓ ver arquivo
+                          </a>
+                        ) : (
+                          <span style={{ color: '#aaa' }}>— não anexado</span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             {c.status === 'emitido' && c.link_assinatura && (
               <div style={{ marginTop: 12, padding: 10, background: '#E6F1FB', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#185FA5', marginBottom: 6, fontWeight: 500 }}>📨 Link de assinatura pronto — envie pro cliente:</div>
+                <div style={{ fontSize: 11, color: '#185FA5', marginBottom: 6, fontWeight: 500 }}>📨 Link de assinatura — envie pro cliente:</div>
                 <div style={{ background: '#fff', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#185FA5', wordBreak: 'break-all', marginBottom: 8, border: '0.5px solid rgba(0,0,0,0.06)' }}>
                   {c.link_assinatura}
                 </div>
@@ -211,7 +277,7 @@ export default function MeusClientes() {
             {c.status === 'expirado' && (
               <div style={{ marginTop: 10, padding: 10, background: '#FCEBEB', borderRadius: 8 }}>
                 <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>
-                  ⌛ Cliente não assinou em 15 horas. Se ele ainda quiser fechar, peça reemissão de um novo contrato.
+                  ⌛ Cliente não assinou em 15 horas. Se ele ainda quiser fechar, peça reemissão.
                 </div>
                 <button onClick={() => solicitarReemissao(c)}
                   disabled={reemitindoId === c.id}
