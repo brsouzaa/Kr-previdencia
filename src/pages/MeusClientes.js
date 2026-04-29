@@ -77,14 +77,36 @@ export default function MeusClientes() {
 
   const devolvidos = clientes.filter(c => c.status === 'devolvido_correcao_doc' || c.status === 'devolvido_reemissao')
 
-  const filtrados = clientes.filter(c => {
-    if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
-    if (busca) {
-      const b = busca.toLowerCase()
-      return c.nome.toLowerCase().includes(b) || c.cpf.includes(b) || c.telefone.includes(b)
-    }
-    return true
-  })
+  // Ordem de prioridade do status — devolvidos sempre no topo pra urgência ficar visível
+  const ORDEM_STATUS = {
+    devolvido_correcao_doc: 1,
+    devolvido_reemissao: 1,
+    expirado: 2,
+    emitido: 3,
+    aguardando_emissao: 4,
+    em_validacao: 5,
+    assinado: 6,
+    validado: 7,
+    entregue: 8,
+    cancelado: 9,
+  }
+
+  const filtrados = clientes
+    .filter(c => {
+      if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
+      if (busca) {
+        const b = busca.toLowerCase()
+        return c.nome.toLowerCase().includes(b) || c.cpf.includes(b) || c.telefone.includes(b)
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const oa = ORDEM_STATUS[a.status] || 99
+      const ob = ORDEM_STATUS[b.status] || 99
+      if (oa !== ob) return oa - ob
+      // Dentro do mesmo status, mais recente primeiro
+      return new Date(b.created_at) - new Date(a.created_at)
+    })
 
   const counts = { todos: clientes.length }
   Object.keys(STATUS_INFO).forEach(k => {
@@ -173,9 +195,16 @@ export default function MeusClientes() {
           <div style={{ fontSize: 14, fontWeight: 500, color: '#A32D2D', marginBottom: 4 }}>
             ⚠️ {devolvidos.length} cliente{devolvidos.length !== 1 ? 's' : ''} devolvido{devolvidos.length !== 1 ? 's' : ''} — bônus descontado!
           </div>
-          <div style={{ fontSize: 12, color: '#A32D2D' }}>
+          <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>
             A analista pediu correção. Resolva pra recuperar o bônus.
           </div>
+          <button onClick={() => setFiltroStatus(devolvidos[0].status)}
+            style={{
+              padding: '8px 14px', background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 8,
+              fontSize: 12, fontWeight: 500, cursor: 'pointer'
+            }}>
+            👉 Ver clientes devolvidos
+          </button>
         </div>
       )}
 
