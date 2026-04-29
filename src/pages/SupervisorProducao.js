@@ -16,8 +16,20 @@ export default function SupervisorProducao() {
   async function fetchDados() {
     setLoading(true)
     const [{ data: c }, { data: p }, { data: lp }] = await Promise.all([
-      supabase.from('contratos_producao').select('*, profiles(nome), advogados(nome_completo, oab)').order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, nome').eq('role', 'produtor').order('nome'),
+      // Joinamos contratos com cliente pra pegar o vendedor_operador (B2C real)
+      supabase.from('contratos_producao').select(`
+        *,
+        profiles(nome),
+        advogados(nome_completo, oab),
+        clientes!clientes_contrato_producao_id_fkey(
+          id,
+          nome,
+          vendedor_operador_id,
+          vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome)
+        )
+      `).order('created_at', { ascending: false }),
+      // B2C reais sao vendedor_operador, nao produtor
+      supabase.from('profiles').select('id, nome').in('role', ['vendedor_operador', 'supervisor_producao']).order('nome'),
       supabase.from('lotes').select('*, advogados(nome_completo)').eq('prioridade_fila', true).order('data_prioridade', { ascending: true }),
     ])
     setContratos(c || [])
@@ -47,6 +59,14 @@ export default function SupervisorProducao() {
     setSincronizando(false)
   }
 
+  function getVendedorB2C(c) {
+    // Pega o vendedor_operador (B2C real) do cliente vinculado
+    return c.clientes?.[0]?.vendedor_operador?.nome || c.profiles?.nome || 'Desconhecido'
+  }
+  function getVendedorB2CId(c) {
+    return c.clientes?.[0]?.vendedor_operador_id || c.produtor_id || null
+  }
+
   function filtrar(lista) {
     let inicio = null
     if (periodo === 'hoje') { inicio = new Date(); inicio.setHours(0,0,0,0) }
@@ -55,7 +75,7 @@ export default function SupervisorProducao() {
 
     return lista.filter(c => {
       const dentroP = !inicio || new Date(c.created_at) >= inicio
-      const prodOk = !filtroProd || c.produtor_id === filtroProd
+      const prodOk = !filtroProd || getVendedorB2CId(c) === filtroProd
       return dentroP && prodOk
     })
   }
@@ -68,7 +88,7 @@ export default function SupervisorProducao() {
   const conversao = enviados > 0 ? Math.round((assinados / enviados) * 100) : 0
 
   const rankingMap = filtrados.reduce((acc, c) => {
-    const nome = c.profiles?.nome || 'Desconhecido'
+    const nome = getVendedorB2C(c)
     if (!acc[nome]) acc[nome] = { enviados: 0, assinados: 0 }
     acc[nome].enviados++
     if (c.status === 'assinado') acc[nome].assinados++
@@ -166,14 +186,14 @@ export default function SupervisorProducao() {
           <option value="total">Todo período</option>
         </select>
         <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
-          <option value="">Todos os produtores</option>
+          <option value="">Todos os vendedores B2C</option>
           {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
         </select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
         <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de produtores</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de vendedores B2C</div>
           {ranking.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhum dado no período</div>}
           {ranking.map(([nome, dados], i) => {
             const conv = dados.enviados > 0 ? Math.round((dados.assinados / dados.enviados) * 100) : 0
@@ -227,7 +247,10 @@ export default function SupervisorProducao() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{c.cliente_nome}</div>
                 <div style={{ fontSize: 11, color: '#888' }}>
-                  Advogado: {c.advogados?.nome_completo} · Produtor: {c.profiles?.nome}
+                  Advogado: {c.advogados?.nome_completo} · Vendedor B2C: <strong>{getVendedorB2C(c)}</strong>
+                  {c.profiles?.nome && getVendedorB2C(c) !== c.profiles?.nome && (
+                    <span style={{ color: '#aaa' }}> · Digitado por: {c.profiles?.nome}</span>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: '#aaa' }}>{new Date(c.created_at).toLocaleDateString('pt-BR')} às {new Date(c.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
