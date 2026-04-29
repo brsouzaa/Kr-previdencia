@@ -15,6 +15,7 @@ const NAV_SUPERVISOR_PRODUCAO = [
 const NAV_ANALISTA = [
   { key: 'entregas', label: '📥 Validação e Entregas' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
+  { key: 'advogados', label: '⚖️ Advogados' },
   { key: 'fila', label: '📦 Fila de advogados' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
