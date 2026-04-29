@@ -19,6 +19,7 @@ import FilaDigitacao from './pages/FilaDigitacao'
 import RankingProducao from './pages/RankingProducao'
 import Entregas from './pages/Entregas'
 import LotesEntregues from './pages/LotesEntregues'
+import Devolucoes from './pages/Devolucoes'
 import Portal from './pages/Portal'
 
 function PortalRoute() {
@@ -51,11 +52,11 @@ function paginaInicial(role) {
 
 function paginaPermitida(role, page) {
   if (role === 'admin') return true
-  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues'].includes(page)
+  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
-  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos'].includes(page)
-  if (role === 'analista') return ['entregas','fila','ranking','supervisor_producao'].includes(page)
-  if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho'].includes(page)
+  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
+  if (role === 'analista') return ['entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   return false
 }
 
@@ -100,6 +101,7 @@ function AppInner() {
     ranking: <RankingProducao />,
     entregas: <Entregas />,
     lotes_entregues: <LotesEntregues />,
+    devolucoes: <Devolucoes />,
     meus_clientes: <MeusClientes />,
     novo_cliente: <NovoCliente onSucesso={() => setPage('meus_clientes')} />,
     meu_desempenho: <MeuDesempenho />,
