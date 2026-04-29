@@ -26,11 +26,13 @@ const NAV_VENDEDOR = [
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'lotes_entregues', label: '✅ Lotes liberados' },
+  { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_VENDEDOR_OPERADOR = [
   { key: 'meus_clientes', label: '📋 Meus clientes' },
   { key: 'novo_cliente', label: '➕ Novo cliente' },
+  { key: 'devolucoes', label: '⚠️ Meus devolvidos' },
   { key: 'meu_desempenho', label: '🏆 Meu desempenho' },
 ]
 const NAV_ADMIN = [
