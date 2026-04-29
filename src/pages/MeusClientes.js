@@ -4,11 +4,16 @@ import { useAuth } from '../lib/AuthContext'
 import UploadDocumento from '../components/UploadDocumento'
 
 const STATUS_INFO = {
-  aguardando_emissao: { label: 'Aguardando emissão', cor: '#854F0B', bg: '#FAEEDA', icon: '⏳' },
-  emitido: { label: 'Emitido — link disponível', cor: '#185FA5', bg: '#E6F1FB', icon: '📨' },
-  assinado: { label: 'Assinado', cor: '#3B6D11', bg: '#EAF3DE', icon: '✅' },
-  expirado: { label: 'Expirou sem assinar', cor: '#A32D2D', bg: '#FCEBEB', icon: '⌛' },
-  cancelado: { label: 'Cancelado', cor: '#666', bg: '#f0f0f0', icon: '❌' },
+  aguardando_emissao:      { label: 'Aguardando emissão', cor: '#854F0B', bg: '#FAEEDA', icon: '⏳' },
+  emitido:                 { label: 'Emitido — link disponível', cor: '#185FA5', bg: '#E6F1FB', icon: '📨' },
+  assinado:                { label: 'Assinado', cor: '#3B6D11', bg: '#EAF3DE', icon: '✅' },
+  em_validacao:            { label: 'Em validação pela analista', cor: '#854F0B', bg: '#FAEEDA', icon: '🔍' },
+  validado:                { label: 'Validado — bônus confirmado!', cor: '#3B6D11', bg: '#EAF3DE', icon: '🏆' },
+  entregue:                { label: 'Entregue ao advogado', cor: '#185FA5', bg: '#E6F1FB', icon: '📦' },
+  devolvido_correcao_doc:  { label: 'Devolvido — corrigir documento', cor: '#A32D2D', bg: '#FCEBEB', icon: '🔁' },
+  devolvido_reemissao:     { label: 'Devolvido — reemitir contrato', cor: '#A32D2D', bg: '#FCEBEB', icon: '🔄' },
+  expirado:                { label: 'Expirou sem assinar', cor: '#A32D2D', bg: '#FCEBEB', icon: '⌛' },
+  cancelado:               { label: 'Cancelado', cor: '#666', bg: '#f0f0f0', icon: '❌' },
 }
 
 const TIPOS_DOC = [
@@ -21,16 +26,14 @@ const TIPOS_DOC = [
 
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardAlerta: { background: '#fff', border: '1.5px solid #A32D2D', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(163,45,45,0.08)' },
   search: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
   filtroChip: (ativo, cor, bg) => ({
     padding: '6px 12px', fontSize: 12, borderRadius: 16,
     background: ativo ? cor : bg, color: ativo ? '#fff' : cor,
     border: `1px solid ${cor}40`, cursor: 'pointer', fontWeight: 500,
   }),
-  badgeStatus: (cor, bg) => ({
-    display: 'inline-block', padding: '3px 8px', borderRadius: 10,
-    fontSize: 11, fontWeight: 500, color: cor, background: bg,
-  }),
+  badgeStatus: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
 }
 
 function tempoRelativo(dt) {
@@ -67,11 +70,12 @@ export default function MeusClientes() {
   }, [profile])
 
   useEffect(() => { fetchClientes() }, [fetchClientes])
-
   useEffect(() => {
     const id = setInterval(fetchClientes, 30000)
     return () => clearInterval(id)
   }, [fetchClientes])
+
+  const devolvidos = clientes.filter(c => c.status === 'devolvido_correcao_doc' || c.status === 'devolvido_reemissao')
 
   const filtrados = clientes.filter(c => {
     if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
@@ -82,19 +86,15 @@ export default function MeusClientes() {
     return true
   })
 
-  const counts = {
-    todos: clientes.length,
-    aguardando_emissao: clientes.filter(c => c.status === 'aguardando_emissao').length,
-    emitido: clientes.filter(c => c.status === 'emitido').length,
-    assinado: clientes.filter(c => c.status === 'assinado').length,
-    expirado: clientes.filter(c => c.status === 'expirado').length,
-  }
+  const counts = { todos: clientes.length }
+  Object.keys(STATUS_INFO).forEach(k => {
+    counts[k] = clientes.filter(c => c.status === k).length
+  })
 
   function copiarLink(c) {
     if (!c.link_assinatura) return
     navigator.clipboard.writeText(c.link_assinatura)
-    setCopiadoId(c.id)
-    setTimeout(() => setCopiadoId(null), 2500)
+    setCopiadoId(c.id); setTimeout(() => setCopiadoId(null), 2500)
   }
 
   function whatsappLink(c) {
@@ -105,8 +105,21 @@ export default function MeusClientes() {
     return `https://wa.me/55${tel}?text=${msg}`
   }
 
-  async function solicitarReemissao(c) {
-    if (!window.confirm(`Solicitar nova emissão de contrato para ${c.nome}?\n\nO cliente voltará para a fila de digitação da supervisão.`)) return
+  // Cliente devolvido com correção de documento → vendedor re-uploada e marca como resolvido
+  // (volta pra em_validacao)
+  async function marcarCorrigido(c) {
+    if (!window.confirm(`Confirmar que você corrigiu os documentos de ${c.nome}?\nVai voltar pra fila da analista validar.`)) return
+    const { error } = await supabase.from('clientes').update({
+      status: 'em_validacao',
+      motivo_devolucao: null, devolvido_por: null, devolvido_em: null,
+    }).eq('id', c.id)
+    if (error) alert('Erro: ' + error.message)
+    else fetchClientes()
+  }
+
+  // Devolvido pra reemissão → volta pra aguardando_emissao (igual fluxo de expirado)
+  async function refazer(c) {
+    if (!window.confirm(`Reiniciar fluxo de ${c.nome}?\nVai voltar pra fila da supervisão emitir um novo contrato.`)) return
     setReemitindoId(c.id)
     try {
       const { error } = await supabase.from('clientes').update({
@@ -115,8 +128,8 @@ export default function MeusClientes() {
         zapsign_token: null, link_assinatura: null,
         emitido_por: null, emitido_em: null,
         bloqueado_por: null, bloqueado_em: null,
+        motivo_devolucao: null, devolvido_por: null, devolvido_em: null,
       }).eq('id', c.id)
-
       if (error) {
         if (error.code === '23505') {
           alert('Já existe um cadastro ativo (aguardando ou emitido) com este CPF.')
@@ -124,26 +137,20 @@ export default function MeusClientes() {
         setReemitindoId(null); return
       }
       await fetchClientes()
-      alert('✅ Solicitação enviada! O cliente está de volta na fila da supervisão.')
+      alert('✅ Cliente de volta na fila da supervisão.')
     } catch (err) {
       alert('Erro: ' + (err.message || err.toString()))
     }
     setReemitindoId(null)
   }
 
-  // Atualiza um doc no cliente (no banco)
   async function atualizarDoc(clienteId, chave, url) {
     const cli = clientes.find(c => c.id === clienteId)
     if (!cli) return
     const novosDocs = { ...(cli.documentos || {}), [chave]: url }
-    const { error } = await supabase.from('clientes')
-      .update({ documentos: novosDocs })
-      .eq('id', clienteId)
-    if (error) {
-      alert('Erro ao salvar documento: ' + error.message)
-      return
-    }
-    fetchClientes()
+    const { error } = await supabase.from('clientes').update({ documentos: novosDocs }).eq('id', clienteId)
+    if (error) alert('Erro ao salvar documento: ' + error.message)
+    else fetchClientes()
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
@@ -153,12 +160,24 @@ export default function MeusClientes() {
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📋 Meus clientes</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''} · atualiza a cada 30s</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
         </div>
         <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
           ↻ Atualizar
         </button>
       </div>
+
+      {/* Alerta de devoluções */}
+      {devolvidos.length > 0 && (
+        <div style={{ background: '#FCEBEB', border: '1.5px solid #A32D2D', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: '#A32D2D', marginBottom: 4 }}>
+            ⚠️ {devolvidos.length} cliente{devolvidos.length !== 1 ? 's' : ''} devolvido{devolvidos.length !== 1 ? 's' : ''} pra correção
+          </div>
+          <div style={{ fontSize: 12, color: '#A32D2D' }}>
+            A analista pediu correção. Sem corrigir, o bônus desses clientes não será contabilizado.
+          </div>
+        </div>
+      )}
 
       <input style={s.search} placeholder="🔍 Buscar por nome, CPF ou telefone..."
         value={busca} onChange={e => setBusca(e.target.value)} />
@@ -179,17 +198,19 @@ export default function MeusClientes() {
 
       {filtrados.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#888', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.06)' }}>
-          {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado com esses filtros.'}
+          {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado.'}
         </div>
       ) : filtrados.map(c => {
         const info = STATUS_INFO[c.status] || STATUS_INFO.aguardando_emissao
         const docs = c.documentos || {}
         const docsAnexados = TIPOS_DOC.filter(t => docs[t.chave]).length
-        const editavel = c.status === 'aguardando_emissao'
+        const editavel = c.status === 'aguardando_emissao' || c.status === 'devolvido_correcao_doc'
         const editando = editandoDocsId === c.id
+        const ehDevolvido = c.status === 'devolvido_correcao_doc' || c.status === 'devolvido_reemissao'
+        const cardStyle = ehDevolvido ? s.cardAlerta : { ...s.card, borderLeft: `3px solid ${info.cor}` }
 
         return (
-          <div key={c.id} style={{ ...s.card, borderLeft: `3px solid ${info.cor}` }}>
+          <div key={c.id} style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 2 }}>{c.nome}</div>
@@ -201,10 +222,45 @@ export default function MeusClientes() {
             <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
               {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto} · {tempoRelativo(c.created_at)}
               {' · '}
-              <span style={{ color: docsAnexados >= 4 ? '#3B6D11' : '#A32D2D' }}>
-                📎 {docsAnexados}/5 documentos
-              </span>
+              <span style={{ color: docsAnexados >= 4 ? '#3B6D11' : '#A32D2D' }}>📎 {docsAnexados}/5 documentos</span>
             </div>
+
+            {/* DEVOLVIDO - mensagem destacada */}
+            {ehDevolvido && c.motivo_devolucao && (
+              <div style={{ marginTop: 10, padding: 12, background: '#FCEBEB', borderRadius: 8, border: '1px solid #A32D2D40' }}>
+                <div style={{ fontSize: 12, color: '#A32D2D', fontWeight: 500, marginBottom: 4 }}>
+                  💬 Motivo da devolução pela analista:
+                </div>
+                <div style={{ fontSize: 13, color: '#A32D2D', fontStyle: 'italic', marginBottom: 10 }}>
+                  "{c.motivo_devolucao}"
+                </div>
+                {c.status === 'devolvido_correcao_doc' ? (
+                  <>
+                    <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
+                      Edite os documentos abaixo, depois clique em "✅ Marcar corrigido" pra mandar de volta.
+                    </div>
+                    <button onClick={() => setEditandoDocsId(c.id)}
+                      style={{ width: '100%', padding: '10px', background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 6 }}>
+                      📎 Editar documentos
+                    </button>
+                    <button onClick={() => marcarCorrigido(c)}
+                      style={{ width: '100%', padding: '10px', background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      ✅ Marcar corrigido — voltar pra analista
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
+                      O contrato precisa ser refeito. Verifique o cadastro e clique abaixo pra mandar pra supervisão emitir novamente.
+                    </div>
+                    <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
+                      style={{ width: '100%', padding: '10px', background: reemitindoId === c.id ? '#aaa' : '#A32D2D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
+                      {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Reiniciar fluxo'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {c.observacao && (
               <div style={{ fontSize: 12, color: '#666', marginTop: 8, padding: '6px 10px', background: '#f8f8f6', borderRadius: 6, fontStyle: 'italic' }}>
@@ -212,22 +268,20 @@ export default function MeusClientes() {
               </div>
             )}
 
-            {/* DOCUMENTOS - editável até ser emitido */}
+            {/* DOCUMENTOS */}
             <div style={{ marginTop: 10 }}>
               {!editando ? (
                 <button onClick={() => setEditandoDocsId(c.id)}
                   style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                  📎 Ver/{editavel ? 'editar' : ''} documentos anexados
+                  📎 Ver/{editavel ? 'editar' : ''} documentos
                 </button>
               ) : (
                 <div style={{ marginTop: 8, padding: 12, background: '#f8f8f6', borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#555' }}>
-                      Documentos {!editavel && '(somente leitura — contrato já emitido)'}
+                      Documentos {!editavel && '(somente leitura)'}
                     </div>
-                    <button onClick={() => setEditandoDocsId(null)} style={{ fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
-                      fechar
-                    </button>
+                    <button onClick={() => setEditandoDocsId(null)} style={{ fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>fechar</button>
                   </div>
                   {editavel ? (
                     TIPOS_DOC.map(tipo => (
@@ -242,10 +296,7 @@ export default function MeusClientes() {
                       <div key={tipo.chave} style={{ marginBottom: 6, fontSize: 12 }}>
                         <span style={{ color: '#555' }}>{tipo.label}: </span>
                         {docs[tipo.chave] ? (
-                          <a href={docs[tipo.chave]} target="_blank" rel="noreferrer"
-                            style={{ color: '#3B6D11', textDecoration: 'underline' }}>
-                            ✓ ver arquivo
-                          </a>
+                          <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#3B6D11', textDecoration: 'underline' }}>✓ ver arquivo</a>
                         ) : (
                           <span style={{ color: '#aaa' }}>— não anexado</span>
                         )}
@@ -276,30 +327,28 @@ export default function MeusClientes() {
 
             {c.status === 'expirado' && (
               <div style={{ marginTop: 10, padding: 10, background: '#FCEBEB', borderRadius: 8 }}>
-                <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>
-                  ⌛ Cliente não assinou em 15 horas. Se ele ainda quiser fechar, peça reemissão.
-                </div>
-                <button onClick={() => solicitarReemissao(c)}
-                  disabled={reemitindoId === c.id}
-                  style={{
-                    width: '100%', padding: '8px', background: reemitindoId === c.id ? '#aaa' : '#A32D2D',
-                    color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                    cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer'
-                  }}>
-                  {reemitindoId === c.id ? '⏳ Solicitando...' : '🔄 Solicitar nova emissão'}
+                <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
+                <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
+                  style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#aaa' : '#A32D2D', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
+                  {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Solicitar nova emissão'}
                 </button>
               </div>
             )}
 
             {c.status === 'aguardando_emissao' && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>
-                Aguardando supervisão emitir o contrato...
+              <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>Aguardando supervisão emitir o contrato...</div>
+            )}
+            {c.status === 'em_validacao' && (
+              <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>🔍 Cliente assinou. Aguardando analista validar pra confirmar bônus.</div>
+            )}
+            {c.status === 'validado' && (
+              <div style={{ marginTop: 8, padding: 8, background: '#EAF3DE', borderRadius: 6, fontSize: 11, color: '#3B6D11', textAlign: 'center', fontWeight: 500 }}>
+                🏆 Validado pela analista — bônus confirmado!
               </div>
             )}
-
-            {c.status === 'assinado' && (
-              <div style={{ marginTop: 8, padding: 8, background: '#EAF3DE', borderRadius: 6, fontSize: 11, color: '#3B6D11', textAlign: 'center', fontWeight: 500 }}>
-                ✅ Contrato assinado pelo cliente
+            {c.status === 'entregue' && (
+              <div style={{ marginTop: 8, padding: 8, background: '#E6F1FB', borderRadius: 6, fontSize: 11, color: '#185FA5', textAlign: 'center', fontWeight: 500 }}>
+                📦 Entregue ao advogado
               </div>
             )}
           </div>
