@@ -42,6 +42,22 @@ function diasDesde(data) {
 export default function Dashboard() {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
+
+  // Bloqueio de acesso: supervisor de produção, produtor, vendedor-operador e analista não podem ver o dashboard de vendas
+  if (profile && ['supervisor_producao','produtor','vendedor_operador','analista'].includes(profile.role)) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(0,0,0,0.1)' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 6 }}>Acesso restrito</div>
+          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+            Esta página é exclusiva para administradores e vendedores de advogado.
+            Use o menu lateral para acessar suas áreas disponíveis.
+          </div>
+        </div>
+      </div>
+    )
+  }
   const [vendedores, setVendedores] = useState([])
   const [filtroVendedor, setFiltroVendedor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
