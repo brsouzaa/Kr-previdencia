@@ -271,7 +271,7 @@ export default function MeuDesempenho() {
       </div>
 
       <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 16 }}>
-        Bônus zera todo dia 1 do mês · Pagamento no início do mês seguinte · Atualiza a cada 60 segundos
+        Bônus zera todo dia 1 do mês · Conta automaticamente quando o cliente assina · Se a analista devolver, desconta · Atualiza a cada 60s
       </div>
     </div>
   )
