@@ -5,6 +5,7 @@ import formatarParaWhatsApp from '../lib/formatarParaWhatsApp'
 
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
+  cardReemissao: { background: '#fff', border: '1.5px solid #A32D2D', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
   sectionTitle: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500 },
   btn: { padding: '10px 16px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { padding: '10px 16px', background: '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'not-allowed' },
@@ -50,7 +51,6 @@ export default function FilaDigitacao() {
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
-
     const { data: cs } = await supabase.from('clientes')
       .select('*, profiles!clientes_vendedor_operador_id_fkey(nome)')
       .eq('status', 'aguardando_emissao')
@@ -72,7 +72,6 @@ export default function FilaDigitacao() {
   }, [])
 
   useEffect(() => { fetchTudo() }, [fetchTudo])
-
   useEffect(() => {
     const id = setInterval(fetchTudo, 45000)
     return () => clearInterval(id)
@@ -104,15 +103,13 @@ export default function FilaDigitacao() {
   function copiarLink() {
     if (!resultado?.link) return
     navigator.clipboard.writeText(resultado.link)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2500)
+    setCopiado(true); setTimeout(() => setCopiado(false), 2500)
   }
 
   function copiarWhats(c) {
     const texto = formatarParaWhatsApp(c, c.profiles?.nome)
     navigator.clipboard.writeText(texto)
-    setCopiadoWhatsId(c.id)
-    setTimeout(() => setCopiadoWhatsId(null), 2500)
+    setCopiadoWhatsId(c.id); setTimeout(() => setCopiadoWhatsId(null), 2500)
   }
 
   function fecharModal() {
@@ -128,12 +125,9 @@ export default function FilaDigitacao() {
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📥 Fila de digitação</div>
           <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} aguardando emissão</div>
         </div>
-        <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
-          ↻ Atualizar
-        </button>
+        <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>↻ Atualizar</button>
       </div>
 
-      {/* Card do advogado da vez */}
       {proximoLote && proximoLote.advogados ? (
         <div style={{ ...s.card, background: proximoLote.prioridade_fila ? '#FEF3C7' : '#E6F1FB', border: proximoLote.prioridade_fila ? '1.5px solid #F59E0B' : '1.5px solid #185FA540' }}>
           <div style={{ ...s.sectionTitle, marginBottom: 6 }}>
@@ -142,18 +136,14 @@ export default function FilaDigitacao() {
           </div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLote.advogados.nome_completo}</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLote.advogados.estado} {proximoLote.advogados.oab}</div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-            Lote: {proximoLote.qtd_emitidos}/{proximoLote.total_contratos} emitidos · Vendedor: {proximoLote.profiles?.nome}
-          </div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Lote: {proximoLote.qtd_emitidos}/{proximoLote.total_contratos} emitidos · Vendedor: {proximoLote.profiles?.nome}</div>
         </div>
       ) : (
         <div style={{ ...s.card, background: '#FCEBEB', border: '1.5px solid #A32D2D40' }}>
           <div style={{ fontSize: 14, color: '#A32D2D', fontWeight: 500 }}>⚠️ Nenhum advogado disponível na fila</div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>Você não consegue emitir contratos enquanto não houver lote em "a_entregar".</div>
         </div>
       )}
 
-      {/* Lista de clientes */}
       {clientes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#888', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.06)' }}>
           ✅ Fila vazia — nenhum cliente aguardando.
@@ -164,12 +154,17 @@ export default function FilaDigitacao() {
         const docsObrigatorios = ['rg_frente','rg_verso','comprovante_1','comprovante_2'].filter(k => docs[k]).length
         const docsCompletos = docsObrigatorios === 4
         const verDocs = verDocsId === c.id
+        // Cliente que veio de uma devolução de reemissão
+        const ehReemissao = !!c.devolvido_em && !c.contrato_producao_id
 
         return (
-          <div key={c.id} style={s.card}>
+          <div key={c.id} style={ehReemissao ? s.cardReemissao : s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>#{idx + 1} · há {tempoNaFila(c.created_at)}</div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>
+                  #{idx + 1} · há {tempoNaFila(c.created_at)}
+                  {ehReemissao && <span style={{ marginLeft: 8, color: '#A32D2D', fontWeight: 500 }}>🔄 REEMISSÃO</span>}
+                </div>
                 <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{c.nome}</div>
                 <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{c.cpf} · {c.telefone}</div>
               </div>
@@ -180,6 +175,13 @@ export default function FilaDigitacao() {
                 {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto}
               </span>
             </div>
+
+            {ehReemissao && c.motivo_devolucao && (
+              <div style={{ background: '#FCEBEB', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 12, color: '#A32D2D' }}>
+                <strong>🔄 Cliente devolvido pela analista:</strong> "{c.motivo_devolucao}"
+                <br /><span style={{ fontSize: 11 }}>Confira os dados antes de reemitir.</span>
+              </div>
+            )}
 
             <div style={{ background: '#f8f8f6', padding: '8px 10px', borderRadius: 6, marginBottom: 8 }}>
               <div style={s.field}>
@@ -208,13 +210,8 @@ export default function FilaDigitacao() {
               </div>
             )}
 
-            {/* Status dos documentos */}
-            <div style={{
-              padding: '8px 10px', borderRadius: 6, marginBottom: 10,
-              background: docsCompletos ? '#EAF3DE' : '#FCEBEB',
-              fontSize: 12, color: docsCompletos ? '#3B6D11' : '#A32D2D',
-            }}>
-              📎 {docsAnexados}/5 documentos anexados {docsCompletos ? '· obrigatórios completos ✓' : `· faltam ${4 - docsObrigatorios} obrigatório${4 - docsObrigatorios !== 1 ? 's' : ''}`}
+            <div style={{ padding: '8px 10px', borderRadius: 6, marginBottom: 10, background: docsCompletos ? '#EAF3DE' : '#FCEBEB', fontSize: 12, color: docsCompletos ? '#3B6D11' : '#A32D2D' }}>
+              📎 {docsAnexados}/5 documentos {docsCompletos ? '· obrigatórios completos ✓' : `· faltam ${4 - docsObrigatorios}`}
               <button onClick={() => setVerDocsId(verDocs ? null : c.id)}
                 style={{ marginLeft: 10, fontSize: 11, background: 'none', border: 'none', color: docsCompletos ? '#3B6D11' : '#A32D2D', cursor: 'pointer', textDecoration: 'underline' }}>
                 {verDocs ? 'esconder' : 'ver links'}
@@ -227,9 +224,7 @@ export default function FilaDigitacao() {
                   <div key={tipo.chave} style={{ marginBottom: 4, fontSize: 12 }}>
                     <span style={{ color: '#555', minWidth: 200, display: 'inline-block' }}>{tipo.label}:</span>
                     {docs[tipo.chave] ? (
-                      <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#185FA5', textDecoration: 'underline' }}>
-                        ✓ abrir
-                      </a>
+                      <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#185FA5', textDecoration: 'underline' }}>✓ abrir</a>
                     ) : (
                       <span style={{ color: '#aaa' }}>— não anexado</span>
                     )}
@@ -245,9 +240,7 @@ export default function FilaDigitacao() {
                   s.btnSec}>
                 {copiadoWhatsId === c.id ? '✓ Copiado pra WhatsApp' : '📋 Copiar pra WhatsApp'}
               </button>
-              <button onClick={() => setModalAberto(c)}
-                style={proximoLote ? s.btn : s.btnDisabled}
-                disabled={!proximoLote}>
+              <button onClick={() => setModalAberto(c)} style={proximoLote ? s.btn : s.btnDisabled} disabled={!proximoLote}>
                 🚀 Emitir contrato
               </button>
             </div>
@@ -255,7 +248,6 @@ export default function FilaDigitacao() {
         )
       })}
 
-      {/* Modal de confirmação/emissão */}
       {modalAberto && (
         <div style={s.modalBg} onClick={fecharModal}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
@@ -279,37 +271,28 @@ export default function FilaDigitacao() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                    Cancelar
-                  </button>
+                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
                   <button onClick={() => emitir(modalAberto)} disabled={emitindo}
                     style={{ flex: 2, padding: '10px', background: emitindo ? '#aaa' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: emitindo ? 'not-allowed' : 'pointer' }}>
                     {emitindo ? '⏳ Emitindo...' : '🚀 Confirmar e emitir'}
                   </button>
                 </div>
-                {emitindo && <div style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 10 }}>Criando os 3 documentos no ZapSign...</div>}
               </>
             ) : (
               <>
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
                   <div style={{ fontSize: 16, fontWeight: 500, color: '#3B6D11' }}>Contrato emitido!</div>
-                  <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{resultado.clienteNome} · vinculado a {resultado.advogado}</div>
+                  <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{resultado.clienteNome} · {resultado.advogado}</div>
                 </div>
 
                 <div style={s.successBox}>
                   <div style={{ fontSize: 12, color: '#3B6D11', fontWeight: 500, marginBottom: 6 }}>📨 Link de assinatura</div>
-                  <div style={{ background: '#fff', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#185FA5', wordBreak: 'break-all', marginBottom: 8 }}>
-                    {resultado.link}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#854F0B', marginBottom: 10 }}>⏰ Expira em 15h ({resultado.expira})</div>
+                  <div style={{ background: '#fff', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#185FA5', wordBreak: 'break-all', marginBottom: 8 }}>{resultado.link}</div>
+                  <div style={{ fontSize: 11, color: '#854F0B', marginBottom: 10 }}>⏰ Expira em 15h</div>
                   <button onClick={copiarLink} style={{ width: '100%', padding: '10px', background: copiado ? '#3B6D11' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                     {copiado ? '✓ Link copiado' : '📋 Copiar link'}
                   </button>
-                </div>
-
-                <div style={{ fontSize: 12, color: '#666', marginTop: 12, textAlign: 'center' }}>
-                  O link já está disponível no painel do <strong>vendedor que cadastrou</strong>.
                 </div>
 
                 <button onClick={fecharModal} style={{ width: '100%', marginTop: 14, padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
