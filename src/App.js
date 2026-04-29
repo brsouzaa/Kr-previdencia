@@ -55,7 +55,7 @@ function paginaPermitida(role, page) {
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
-  if (role === 'analista') return ['entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista') return ['entregas','advogados','fila','ranking','supervisor_producao','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   return false
 }
