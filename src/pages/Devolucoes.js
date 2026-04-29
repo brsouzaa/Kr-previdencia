@@ -40,6 +40,17 @@ function diasParado(dt) {
   return Math.floor(ms / (1000 * 60 * 60 * 24))
 }
 
+// Calcula horas até cancelamento automático (24h após devolução)
+function horasRestantes24h(devolvidoEm) {
+  if (!devolvidoEm) return null
+  const limite = new Date(devolvidoEm).getTime() + (24 * 60 * 60 * 1000)
+  const restanteMs = limite - Date.now()
+  if (restanteMs <= 0) return { vencido: true, horas: 0, minutos: 0 }
+  const horas = Math.floor(restanteMs / (60 * 60 * 1000))
+  const minutos = Math.floor((restanteMs % (60 * 60 * 1000)) / (60 * 1000))
+  return { vencido: false, horas, minutos }
+}
+
 export default function Devolucoes() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -106,7 +117,11 @@ export default function Devolucoes() {
     todos: clientes.length,
     correcao_doc: clientes.filter(c => c.status === 'devolvido_correcao_doc').length,
     reemissao: clientes.filter(c => c.status === 'devolvido_reemissao').length,
-    parados3dias: clientes.filter(c => diasParado(c.devolvido_em) >= 3).length,
+    vencidas24h: clientes.filter(c => {
+      if (c.status !== 'devolvido_correcao_doc') return false
+      const r = horasRestantes24h(c.devolvido_em)
+      return r?.vencido || (r && r.horas < 6)
+    }).length,
   }
 
   // Top 3 vendedoras com mais devoluções (insight de qualidade)
@@ -173,8 +188,8 @@ export default function Devolucoes() {
           <div style={{ fontSize: 26, fontWeight: 500, color: '#A32D2D' }}>{totais.reemissao}</div>
         </div>
         <div style={s.metricCard}>
-          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>🚨 Parados 3+ dias</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: totais.parados3dias > 0 ? '#A32D2D' : '#aaa' }}>{totais.parados3dias}</div>
+          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>⏰ Urgentes &lt;6h</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: totais.vencidas24h > 0 ? '#A32D2D' : '#aaa' }}>{totais.vencidas24h}</div>
         </div>
         <div style={s.metricCard}>
           <div style={{ fontSize: 11, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Total devoluções</div>
@@ -236,8 +251,9 @@ export default function Devolucoes() {
         const docs = c.documentos || {}
         const verDocs = verDocsId === c.id
         const dias = diasParado(c.devolvido_em)
-        const urgente = dias >= 3
         const ehReemissao = c.status === 'devolvido_reemissao'
+        const restante = !ehReemissao ? horasRestantes24h(c.devolvido_em) : null
+        const urgente = (!ehReemissao && (restante?.vencido || (restante && restante.horas < 6))) || (ehReemissao && dias >= 3)
 
         return (
           <div key={c.id} style={urgente ? s.cardUrgente : s.card}>
@@ -255,8 +271,14 @@ export default function Devolucoes() {
                 )}>
                   {ehReemissao ? '🔄 Reemissão' : '🔁 Correção doc'}
                 </span>
-                {urgente && (
-                  <span style={s.badge('#A32D2D', '#FCEBEB')}>🚨 {dias} dias parado</span>
+                {restante?.vencido && (
+                  <span style={s.badge('#fff', '#A32D2D')}>⚠️ VENCIDO 24h — vai cancelar</span>
+                )}
+                {restante && !restante.vencido && restante.horas < 6 && (
+                  <span style={s.badge('#A32D2D', '#FCEBEB')}>⏰ Restam {restante.horas}h{restante.minutos}min</span>
+                )}
+                {ehReemissao && dias >= 3 && (
+                  <span style={s.badge('#A32D2D', '#FCEBEB')}>🚨 {dias}d parado</span>
                 )}
               </div>
             </div>
