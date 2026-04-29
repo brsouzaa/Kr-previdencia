@@ -60,7 +60,7 @@ export default function Advogados() {
   const fetch = useCallback(async () => {
     setLoading(true)
     let q = supabase.from('advogados').select(`*, profiles(nome), advogado_produtos(produto)`).order('updated_at', { ascending: false })
-    if (profile?.role !== 'admin') q = q.eq('vendedor_id', profile?.id)
+    if (profile?.role !== 'admin' && profile?.role !== 'analista') q = q.eq('vendedor_id', profile?.id)
     if (filtroStatus) q = q.eq('status', filtroStatus)
     const { data } = await q
     setAdvogados(data || [])
@@ -118,7 +118,7 @@ export default function Advogados() {
                 <th style={{ ...s.th, width: '22%' }}>Advogado</th>
                 <th style={{ ...s.th, width: '10%' }}>OAB</th>
                 <th style={{ ...s.th, width: '9%' }}>Estado</th>
-                {profile?.role === 'admin' && <th style={{ ...s.th, width: '13%' }}>Vendedor</th>}
+                {(profile?.role === 'admin' || profile?.role === 'analista') && <th style={{ ...s.th, width: '13%' }}>Vendedor</th>}
                 <th style={{ ...s.th, width: '11%' }}>Status</th>
                 <th style={{ ...s.th, width: '15%' }}>Título</th>
                 <th style={{ ...s.th, width: '14%' }}>Produtos</th>
@@ -137,7 +137,7 @@ export default function Advogados() {
                   </td>
                   <td style={{ ...s.td, fontSize: 12, color: '#888' }}>{a.oab}</td>
                   <td style={{ ...s.td, fontSize: 12 }}>{a.estado}</td>
-                  {profile?.role === 'admin' && <td style={{ ...s.td, fontSize: 12 }}>{a.profiles?.nome || '—'}</td>}
+                  {(profile?.role === 'admin' || profile?.role === 'analista') && <td style={{ ...s.td, fontSize: 12 }}>{a.profiles?.nome || '—'}</td>}
                   <td style={s.td}>
                     <span style={s.badge(a.status)}>
                       <span style={s.dot(a.status)}></span>
@@ -150,7 +150,7 @@ export default function Advogados() {
                   <td style={{ ...s.td, color: '#aaa', fontSize: 16 }}>›</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#aaa', padding: '2rem' }}>Nenhum advogado encontrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={(profile?.role === 'admin' || profile?.role === 'analista') ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#aaa', padding: '2rem' }}>Nenhum advogado encontrado</td></tr>}
             </tbody>
           </table>
         )}
