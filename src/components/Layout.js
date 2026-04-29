@@ -38,6 +38,10 @@ const NAV_VENDEDOR_OPERADOR = [
   { key: 'devolucoes', label: '⚠️ Meus devolvidos' },
   { key: 'meu_desempenho', label: '🏆 Meu desempenho' },
 ]
+const NAV_POS_VENDA = [
+  { key: 'pos_venda', label: '📞 Fila de pós-venda' },
+  { key: 'pos_venda_historico', label: '📚 Histórico' },
+]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
@@ -77,6 +81,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
     : profile?.role === 'analista' ? NAV_ANALISTA
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
+    : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
@@ -146,6 +151,7 @@ export default function Layout({ children, page, setPage }) {
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
                 : profile?.role === 'analista' ? 'Analista'
+                : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
                 : profile?.role === 'produtor' ? 'Produtor'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
                 : 'Vendedor'}
