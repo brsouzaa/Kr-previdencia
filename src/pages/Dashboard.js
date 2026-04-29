@@ -43,8 +43,9 @@ export default function Dashboard() {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
 
-  // Bloqueio de acesso: supervisor de produção, produtor, vendedor-operador e analista não podem ver o dashboard de vendas
-  if (profile && ['supervisor_producao','produtor','vendedor_operador','analista'].includes(profile.role)) {
+  // Bloqueio de acesso: supervisor de produção, produtor e vendedor-operador não podem ver o dashboard de vendas
+  // Analista pode ver (precisa entregar lotes e ver os antigos)
+  if (profile && ['supervisor_producao','produtor','vendedor_operador'].includes(profile.role)) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
         <div style={{ background: '#fff', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(0,0,0,0.1)' }}>
@@ -70,9 +71,34 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [modalStatus, setModalStatus] = useState(null) // 'a_entregar' | 'entregue' | 'pago' | 'inadimplente'
   const [modalComprovante, setModalComprovante] = useState(null)
+  // Expansao de cards: { [lote_id]: { aberto: true, contratos: [...] } }
+  const [loteExpandido, setLoteExpandido] = useState({})
+
+  async function toggleExpandirLote(loteId) {
+    if (loteExpandido[loteId]?.aberto) {
+      setLoteExpandido(prev => ({ ...prev, [loteId]: { ...prev[loteId], aberto: false } }))
+      return
+    }
+    // Se ja tem contratos carregados, só abre
+    if (loteExpandido[loteId]?.contratos) {
+      setLoteExpandido(prev => ({ ...prev, [loteId]: { ...prev[loteId], aberto: true } }))
+      return
+    }
+    // Senao, busca contratos
+    setLoteExpandido(prev => ({ ...prev, [loteId]: { aberto: true, loading: true } }))
+    const { data } = await supabase
+      .from('contratos_producao')
+      .select('id, cliente_nome, cliente_cpf, status, link_assinatura, zapsign_token, data_assinatura, data_envio')
+      .eq('lote_id', loteId)
+      .order('data_assinatura', { ascending: true, nullsFirst: false })
+    setLoteExpandido(prev => ({
+      ...prev,
+      [loteId]: { aberto: true, loading: false, contratos: data || [] }
+    }))
+  }
 
   useEffect(() => {
-    if (profile?.role === 'admin') {
+    if ((profile?.role === 'admin' || profile?.role === 'analista')) {
       supabase.from('profiles').select('id, nome').eq('role', 'vendedor').order('nome').then(({ data }) => setVendedores(data || []))
     }
     fetchDados()
@@ -84,7 +110,9 @@ export default function Dashboard() {
     let qL = supabase.from('lotes').select('*, advogados(nome_completo, oab, cidade), profiles(nome)').order('data_compra', { ascending: false })
     let qA = supabase.from('advogados').select('id, nome_completo, oab, ultima_compra, status, profiles!advogados_vendedor_id_fkey(nome)').eq('status', 'vermelho').not('ultima_compra', 'is', null).order('ultima_compra', { ascending: true }).limit(10)
 
-    if (profile?.role !== 'admin') {
+    // Analista vê tudo (igual admin) — precisa enxergar todos os lotes pra entregar e gerenciar
+    const veTudo = (profile?.role === 'admin' || profile?.role === 'analista') || profile?.role === 'analista'
+    if (!veTudo) {
       qC = qC.eq('vendedor_id', profile?.id)
       qL = qL.eq('vendedor_id', profile?.id)
       qA = qA.eq('vendedor_id', profile?.id)
@@ -253,7 +281,7 @@ export default function Dashboard() {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
                     <div style={{ fontSize: 11, color: '#888' }}>{lote.advogados?.oab} · {lote.advogados?.cidade}</div>
-                    {profile?.role === 'admin' && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Vendedor: {lote.profiles?.nome}</div>}
+                    {(profile?.role === 'admin' || profile?.role === 'analista') && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Vendedor: {lote.profiles?.nome}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{fmt(lote.valor_total)}</div>
@@ -267,6 +295,63 @@ export default function Dashboard() {
                   <div style={{ fontSize: 11, color: '#3B6D11', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                     ✓ Pago em {lote.data_pagamento}
                     {lote.comprovante_url && <button onClick={() => verComprovante(lote)} style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Ver comprovante</button>}
+                  </div>
+                )}
+
+                {/* Botão expandir lista de contratos (a entregar / entregue / pago / inadimplente) */}
+                {['a_entregar','entregue','pago','inadimplente'].includes(modalStatus) && (
+                  <button
+                    onClick={() => toggleExpandirLote(lote.id)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      marginBottom: 8,
+                      background: loteExpandido[lote.id]?.aberto ? '#fff' : '#f0f0ee',
+                      color: '#5F5E5A',
+                      border: '0.5px solid rgba(0,0,0,0.1)',
+                      borderRadius: 7,
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <span>📄 Ver clientes assinados ({lote.qtd_assinados || 0}/{lote.total_contratos})</span>
+                    <span>{loteExpandido[lote.id]?.aberto ? '▲' : '▼'}</span>
+                  </button>
+                )}
+
+                {/* Lista expandida de contratos do lote */}
+                {loteExpandido[lote.id]?.aberto && (
+                  <div style={{ background: '#fafaf8', border: '0.5px solid rgba(0,0,0,0.06)', borderRadius: 7, padding: 8, marginBottom: 8 }}>
+                    {loteExpandido[lote.id]?.loading && <div style={{ fontSize: 11, color: '#888', textAlign: 'center', padding: 8 }}>Carregando...</div>}
+                    {!loteExpandido[lote.id]?.loading && loteExpandido[lote.id]?.contratos?.length === 0 && (
+                      <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', padding: 8 }}>Nenhum contrato neste lote</div>
+                    )}
+                    {(loteExpandido[lote.id]?.contratos || []).map((c, idx) => {
+                      const ehAssinado = c.status === 'assinado'
+                      const corStatus = ehAssinado ? '#3B6D11' : c.status === 'expirado' || c.status === 'cancelado' ? '#A32D2D' : '#888'
+                      return (
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 6px', borderBottom: idx < loteExpandido[lote.id].contratos.length - 1 ? '0.5px solid rgba(0,0,0,0.05)' : 'none', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {ehAssinado && <span style={{ color: '#3B6D11', marginRight: 4 }}>✓</span>}
+                              {c.cliente_nome}
+                            </div>
+                            <div style={{ fontSize: 10, color: '#888' }}>
+                              {c.cliente_cpf} · <span style={{ color: corStatus }}>{c.status}</span>
+                              {c.data_assinatura && ` · assinou em ${new Date(c.data_assinatura).toLocaleDateString('pt-BR')}`}
+                            </div>
+                          </div>
+                          {c.link_assinatura && (
+                            <a href={c.link_assinatura} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: '#185FA5', textDecoration: 'none', flexShrink: 0, padding: '3px 6px', background: '#E6F1FB', borderRadius: 4 }}>
+                              🔗 Contrato
+                            </a>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
@@ -374,7 +459,7 @@ export default function Dashboard() {
                     <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#F1EFE8', borderRadius: 8, marginBottom: 6, border: '0.5px solid #5F5E5A40' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
-                        <div style={{ fontSize: 11, color: '#5F5E5A' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                        <div style={{ fontSize: 11, color: '#5F5E5A' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: dias === 0 ? '#5F5E5A' : '#A32D2D' }}>{dias === 0 ? 'Hoje' : `${dias} dia${dias!==1?'s':''} sem emitir`}</div>
@@ -399,7 +484,7 @@ export default function Dashboard() {
                     <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#EEEDFE', borderRadius: 8, marginBottom: 6, border: '0.5px solid #534AB740' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
-                        <div style={{ fontSize: 11, color: '#534AB7' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                        <div style={{ fontSize: 11, color: '#534AB7' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dia{dias!==1?'s':''} sem assinar</div>
@@ -424,7 +509,7 @@ export default function Dashboard() {
                     <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#E6F1FB', borderRadius: 8, marginBottom: 6, border: '0.5px solid #185FA540' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
-                        <div style={{ fontSize: 11, color: '#185FA5' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                        <div style={{ fontSize: 11, color: '#185FA5' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dias atrasado</div>
@@ -450,7 +535,7 @@ export default function Dashboard() {
                     <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#FAEEDA', borderRadius: 8, marginBottom: 6, border: '0.5px solid #85400B40' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
-                        <div style={{ fontSize: 11, color: '#854F0B' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{profile?.role === 'admin' ? ` · ${lote.profiles?.nome}` : ''}</div>
+                        <div style={{ fontSize: 11, color: '#854F0B' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 11, color: '#A32D2D', fontWeight: 500 }}>{restam === 0 ? 'Vira inadimp. hoje' : `${restam}d restante${restam!==1?'s':''}`}</div>
@@ -476,7 +561,7 @@ export default function Dashboard() {
           <option value="total">Todo período</option>
           <option value="custom">Período personalizado</option>
         </select>
-        {profile?.role === 'admin' && (
+        {(profile?.role === 'admin' || profile?.role === 'analista') && (
           <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}>
             <option value="">Todos os vendedores</option>
             {vendedores.map(v => <option key={v.id}>{v.nome}</option>)}
