@@ -65,7 +65,7 @@ export default function FilaDigitacao() {
       .order('data_compra', { ascending: true })
       .limit(20)
 
-    const disponivel = (lotes || []).find(l => (l.qtd_emitidos || 0) < (l.total_contratos || 0))
+    const disponivel = (lotes || []).find(l => Math.max(l.qtd_emitidos || 0, l.qtd_assinados || 0, l.qtd_entregues || 0) < (l.total_contratos || 0))
     setProximoLote(disponivel || null)
     setClientes(cs || [])
     setLoading(false)
@@ -136,7 +136,7 @@ export default function FilaDigitacao() {
           </div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLote.advogados.nome_completo}</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLote.advogados.estado} {proximoLote.advogados.oab}</div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Lote: {proximoLote.qtd_emitidos}/{proximoLote.total_contratos} emitidos · Vendedor: {proximoLote.profiles?.nome}</div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Lote: {Math.max(proximoLote.qtd_emitidos||0, proximoLote.qtd_assinados||0, proximoLote.qtd_entregues||0)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}</div>
         </div>
       ) : (
         <div style={{ ...s.card, background: '#FCEBEB', border: '1.5px solid #A32D2D40' }}>
