@@ -58,14 +58,20 @@ export default function FilaDigitacao() {
 
     const { data: lotes } = await supabase
       .from('lotes')
-      .select('*, advogados(*), profiles(nome)')
+      .select('*, advogados(*), profiles(nome), clientes(status)')
       .eq('status_pagamento', 'a_entregar')
       .order('prioridade_fila', { ascending: false, nullsFirst: false })
       .order('data_prioridade', { ascending: true, nullsFirst: false })
       .order('data_compra', { ascending: true })
       .limit(20)
 
-    const disponivel = (lotes || []).find(l => Math.max(l.qtd_emitidos || 0, l.qtd_assinados || 0, l.qtd_entregues || 0) < (l.total_contratos || 0))
+    // Regra v2: lote disponivel se (assinados + aguardando_assinatura) < total
+    // qtd_assinados = card (vem do banco). aguardando_assinatura = clientes com status='emitido'
+    const disponivel = (lotes || []).find(l => {
+      const aguardando = (l.clientes || []).filter(c => c.status === 'emitido').length
+      const assinados = l.qtd_assinados || 0
+      return (assinados + aguardando) < (l.total_contratos || 0)
+    })
     setProximoLote(disponivel || null)
     setClientes(cs || [])
     setLoading(false)
@@ -136,7 +142,9 @@ export default function FilaDigitacao() {
           </div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLote.advogados.nome_completo}</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLote.advogados.estado} {proximoLote.advogados.oab}</div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Lote: {Math.max(proximoLote.qtd_emitidos||0, proximoLote.qtd_assinados||0, proximoLote.qtd_entregues||0)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}</div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+            Lote: {(proximoLote.qtd_assinados || 0) + ((proximoLote.clientes || []).filter(c => c.status === 'emitido').length)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}
+          </div>
         </div>
       ) : (
         <div style={{ ...s.card, background: '#FCEBEB', border: '1.5px solid #A32D2D40' }}>
