@@ -32,11 +32,32 @@ function tempoRelativo(data) {
 function prazoRestante(prazo) {
   if (!prazo) return null
   const ms = new Date(prazo).getTime() - Date.now()
-  if (ms < 0) return { vencido: true, texto: 'PRAZO VENCIDO' }
+  if (ms < 0) return { vencido: true, texto: 'PRAZO VENCIDO', nivel: 'vencido' }
   const horas = Math.floor(ms / 3600000)
-  const dias = Math.floor(horas / 24)
-  if (dias >= 1) return { vencido: false, dias, horas: horas % 24, texto: `${dias}d ${horas % 24}h restantes`, urgente: dias < 1 }
-  return { vencido: false, dias: 0, horas, texto: `${horas}h restantes`, urgente: true }
+  const min = Math.floor((ms % 3600000) / 60000)
+
+  // Escalas por horas (sobre 24h totais):
+  // >18h restantes (0-6h passou)  → verde (tranquilo)
+  // 12-18h restantes (6-12h passou) → amarelo (atenção)
+  // 6-12h restantes (12-18h passou) → laranja (urgente)
+  // <6h restantes (18-24h passou)  → vermelho (crítico)
+  let nivel = 'tranquilo'
+  if (horas < 6) nivel = 'critico'
+  else if (horas < 12) nivel = 'urgente'
+  else if (horas < 18) nivel = 'atencao'
+
+  const texto = horas < 1 ? `${min}min restantes` :
+                horas < 24 ? `${horas}h ${min}min restantes` :
+                `${Math.floor(horas/24)}d ${horas%24}h restantes`
+  return { vencido: false, horas, min, texto, nivel, urgente: nivel === 'critico' || nivel === 'urgente' }
+}
+
+function corPrazo(nivel) {
+  if (nivel === 'vencido') return { bg: '#A32D2D', cor: '#fff', borda: '#A32D2D' }
+  if (nivel === 'critico') return { bg: '#FCEBEB', cor: '#A32D2D', borda: '#A32D2D' }
+  if (nivel === 'urgente') return { bg: '#FBE5D6', cor: '#C2410C', borda: '#C2410C' }
+  if (nivel === 'atencao') return { bg: '#FAEEDA', cor: '#854F0B', borda: '#854F0B' }
+  return { bg: '#EAF3DE', cor: '#3B6D11', borda: '#3B6D11' }
 }
 
 export default function PosVenda() {
@@ -77,13 +98,13 @@ export default function PosVenda() {
     total: clientes.length,
     novos: clientes.filter(c => c.status === 'aguardando_pos_venda').length,
     em_contato: clientes.filter(c => c.status === 'em_contato_pos_venda').length,
+    criticos: clientes.filter(c => {
+      const p = prazoRestante(c.pos_venda_prazo)
+      return p && (p.nivel === 'critico' || p.nivel === 'vencido')
+    }).length,
     urgentes: clientes.filter(c => {
       const p = prazoRestante(c.pos_venda_prazo)
-      return p && (p.vencido || p.urgente)
-    }).length,
-    vencidos: clientes.filter(c => {
-      const p = prazoRestante(c.pos_venda_prazo)
-      return p?.vencido
+      return p && (p.nivel === 'urgente' || p.nivel === 'critico' || p.nivel === 'vencido')
     }).length,
   }
 
@@ -91,9 +112,13 @@ export default function PosVenda() {
   const filtrados = clientes.filter(c => {
     if (filtro === 'novos' && c.status !== 'aguardando_pos_venda') return false
     if (filtro === 'em_contato' && c.status !== 'em_contato_pos_venda') return false
+    if (filtro === 'criticos') {
+      const p = prazoRestante(c.pos_venda_prazo)
+      if (!(p?.nivel === 'critico' || p?.nivel === 'vencido')) return false
+    }
     if (filtro === 'urgentes') {
       const p = prazoRestante(c.pos_venda_prazo)
-      if (!(p?.vencido || p?.urgente)) return false
+      if (!(p?.nivel === 'urgente' || p?.nivel === 'critico' || p?.nivel === 'vencido')) return false
     }
     if (busca) {
       const b = busca.toLowerCase()
@@ -148,15 +173,29 @@ export default function PosVenda() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
+      {/* Animação de pulse pra prazos críticos */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+      `}</style>
+
       <div style={{ marginBottom: 18 }}>
         <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111', marginBottom: 4 }}>📞 Fila de Pós-Venda / Qualidade</h2>
         <div style={{ fontSize: 13, color: '#666' }}>
-          Você tem <strong>5 dias</strong> a partir da assinatura pra validar ou barrar cada cliente.
+          Você tem <strong>24 horas</strong> a partir da assinatura pra validar ou barrar cada cliente. Após esse prazo, o cliente é <strong>barrado automaticamente</strong> e a vendedora precisa reabordar.
+        </div>
+        <div style={{ fontSize: 11, color: '#888', marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <span>✅ <strong style={{ color: '#3B6D11' }}>Verde</strong> = +36h</span>
+          <span>⏰ <strong style={{ color: '#854F0B' }}>Amarelo</strong> = 24-36h</span>
+          <span>⚠️ <strong style={{ color: '#C2410C' }}>Laranja</strong> = 12-24h</span>
+          <span>🔥 <strong style={{ color: '#A32D2D' }}>Vermelho</strong> = &lt;12h (URGENTE)</span>
         </div>
       </div>
 
       {/* Cards de estatísticas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 }}>
         <button onClick={() => setFiltro('todos')} style={statCard(filtro === 'todos', '#185FA5')}>
           <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total na fila</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: '#111', marginTop: 4 }}>{stats.total}</div>
@@ -169,9 +208,13 @@ export default function PosVenda() {
           <div style={{ fontSize: 11, color: '#854F0B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📞 Em contato</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: '#854F0B', marginTop: 4 }}>{stats.em_contato}</div>
         </button>
-        <button onClick={() => setFiltro('urgentes')} style={statCard(filtro === 'urgentes', '#A32D2D', '#FCEBEB')}>
-          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚠️ Urgentes</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#A32D2D', marginTop: 4 }}>{stats.urgentes}</div>
+        <button onClick={() => setFiltro('urgentes')} style={statCard(filtro === 'urgentes', '#C2410C', '#FBE5D6')}>
+          <div style={{ fontSize: 11, color: '#C2410C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚠️ Urgentes (&lt;24h)</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#C2410C', marginTop: 4 }}>{stats.urgentes}</div>
+        </button>
+        <button onClick={() => setFiltro('criticos')} style={statCard(filtro === 'criticos', '#A32D2D', '#FCEBEB')}>
+          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔥 CRÍTICOS (&lt;12h)</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#A32D2D', marginTop: 4 }}>{stats.criticos}</div>
         </button>
       </div>
 
@@ -197,12 +240,16 @@ export default function PosVenda() {
       ) : filtrados.map(c => {
         const info = STATUS_LABEL[c.status] || STATUS_LABEL.aguardando_pos_venda
         const prazo = prazoRestante(c.pos_venda_prazo)
+        const corPz = prazo ? corPrazo(prazo.nivel) : null
         const tempoEsperando = c.contrato?.data_assinatura ? tempoRelativo(c.contrato.data_assinatura) : 'recente'
 
         return (
           <div key={c.id} style={{
             background: '#fff',
-            border: prazo?.vencido ? '1.5px solid #A32D2D' : prazo?.urgente ? '1px solid #A32D2D60' : '0.5px solid rgba(0,0,0,0.1)',
+            border: prazo?.nivel === 'vencido' ? `1.5px solid ${corPz.borda}`
+                  : prazo?.nivel === 'critico' ? `1.5px solid ${corPz.borda}`
+                  : prazo?.nivel === 'urgente' ? `1px solid ${corPz.borda}80`
+                  : '0.5px solid rgba(0,0,0,0.1)',
             borderRadius: 12,
             padding: 14,
             marginBottom: 10,
@@ -234,17 +281,19 @@ export default function PosVenda() {
               </div>
 
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {prazo && (
+                {prazo && corPz && (
                   <div style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: prazo.vencido ? '#fff' : prazo.urgente ? '#A32D2D' : '#5F5E5A',
-                    background: prazo.vencido ? '#A32D2D' : prazo.urgente ? '#FCEBEB' : '#f0f0ee',
+                    color: corPz.cor,
+                    background: corPz.bg,
                     padding: '4px 8px',
                     borderRadius: 6,
                     display: 'inline-block',
+                    border: prazo.nivel === 'critico' || prazo.nivel === 'urgente' ? `0.5px solid ${corPz.borda}` : 'none',
+                    animation: prazo.nivel === 'critico' || prazo.nivel === 'vencido' ? 'pulse 2s ease-in-out infinite' : 'none',
                   }}>
-                    ⏰ {prazo.texto}
+                    {prazo.nivel === 'vencido' ? '🚨' : prazo.nivel === 'critico' ? '🔥' : prazo.nivel === 'urgente' ? '⚠️' : prazo.nivel === 'atencao' ? '⏰' : '✅'} {prazo.texto}
                   </div>
                 )}
               </div>
