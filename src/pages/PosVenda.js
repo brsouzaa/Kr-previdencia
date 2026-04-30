@@ -70,6 +70,9 @@ export default function PosVenda() {
   const [obs, setObs] = useState('')
   const [motivoBarrado, setMotivoBarrado] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [prints, setPrints] = useState([]) // arquivos selecionados (File[])
+  const [printsUrls, setPrintsUrls] = useState([]) // URLs apos upload
+  const [uploadando, setUploadando] = useState(false)
 
   const fetchDados = useCallback(async () => {
     setLoading(true)
@@ -129,6 +132,31 @@ export default function PosVenda() {
 
   async function executarAcao() {
     if (!acaoCliente) return
+
+    // Upload dos prints PRIMEIRO (se for validar ou barrar)
+    let urlsFinais = []
+    if (acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') {
+      if (prints.length === 0) {
+        alert('Anexe pelo menos 1 print da conversa antes de ' + (acaoCliente.tipo === 'validar' ? 'validar' : 'barrar') + '.')
+        return
+      }
+      setUploadando(true)
+      try {
+        for (const arquivo of prints) {
+          const ext = arquivo.name.split('.').pop().toLowerCase()
+          const nomeArquivo = `${acaoCliente.cliente.id}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`
+          const { error: errUp } = await supabase.storage.from('pos-venda-prints').upload(nomeArquivo, arquivo)
+          if (errUp) throw new Error('Erro ao subir print: ' + errUp.message)
+          urlsFinais.push(nomeArquivo)
+        }
+      } catch (e) {
+        alert('Erro ao anexar prints: ' + (e.message || e))
+        setUploadando(false)
+        return
+      }
+      setUploadando(false)
+    }
+
     setSalvando(true)
     try {
       const url = `https://sdqslzpfbazehqcvibjy.supabase.co/functions/v1/gerar-contratos-zapsign/${
@@ -141,6 +169,7 @@ export default function PosVenda() {
         pos_venda_id: profile.id,
         observacao: obs || null,
         motivo: acaoCliente.tipo === 'barrar' ? (motivoBarrado || obs || 'Sem motivo informado') : undefined,
+        prints_urls: urlsFinais,
       }
       const resp = await fetch(url, {
         method: 'POST',
@@ -155,6 +184,8 @@ export default function PosVenda() {
       setAcaoCliente(null)
       setObs('')
       setMotivoBarrado('')
+      setPrints([])
+      setPrintsUrls([])
       await fetchDados()
     } catch (e) {
       alert('Erro: ' + (e.message || e))
@@ -375,13 +406,50 @@ export default function PosVenda() {
               style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 16 }}
             />
 
+            {/* Anexar prints — obrigatório pra validar/barrar */}
+            {(acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>
+                  📎 Prints da conversa <span style={{ color: '#A32D2D' }}>*obrigatório</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
+                  multiple
+                  onChange={e => {
+                    const novos = Array.from(e.target.files || [])
+                    setPrints(p => [...p, ...novos])
+                    e.target.value = '' // permite selecionar o mesmo arquivo de novo
+                  }}
+                  style={{ width: '100%', padding: 8, fontSize: 12, border: '0.5px dashed rgba(0,0,0,0.25)', borderRadius: 8, marginBottom: 8, background: '#fafafa', cursor: 'pointer' }}
+                />
+                {prints.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+                    {prints.map((arq, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#EAF3DE', borderRadius: 6, fontSize: 12, color: '#3B6D11' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>📎 {arq.name} ({Math.round(arq.size/1024)} KB)</span>
+                        <button onClick={() => setPrints(p => p.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'transparent', color: '#A32D2D', cursor: 'pointer', fontSize: 14, padding: 0 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                  Aceita: JPG, PNG, WebP, HEIC, PDF · até 10MB cada · pode anexar vários
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setAcaoCliente(null)} disabled={salvando} style={{ padding: '8px 14px', background: '#f0f0ee', color: '#5F5E5A', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={() => { setAcaoCliente(null); setPrints([]) }} disabled={salvando || uploadando} style={{ padding: '8px 14px', background: '#f0f0ee', color: '#5F5E5A', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button
                 onClick={executarAcao}
-                disabled={salvando || (acaoCliente.tipo === 'barrar' && !motivoBarrado)}
+                disabled={
+                  salvando || uploadando ||
+                  (acaoCliente.tipo === 'barrar' && !motivoBarrado) ||
+                  ((acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') && prints.length === 0)
+                }
                 style={{
                   padding: '8px 14px',
                   background: acaoCliente.tipo === 'validar' ? '#3B6D11' : acaoCliente.tipo === 'barrar' ? '#A32D2D' : '#854F0B',
@@ -390,11 +458,20 @@ export default function PosVenda() {
                   borderRadius: 7,
                   fontSize: 13,
                   fontWeight: 500,
-                  cursor: (salvando || (acaoCliente.tipo === 'barrar' && !motivoBarrado)) ? 'not-allowed' : 'pointer',
-                  opacity: (salvando || (acaoCliente.tipo === 'barrar' && !motivoBarrado)) ? 0.5 : 1,
+                  cursor: (
+                    salvando || uploadando ||
+                    (acaoCliente.tipo === 'barrar' && !motivoBarrado) ||
+                    ((acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') && prints.length === 0)
+                  ) ? 'not-allowed' : 'pointer',
+                  opacity: (
+                    salvando || uploadando ||
+                    (acaoCliente.tipo === 'barrar' && !motivoBarrado) ||
+                    ((acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') && prints.length === 0)
+                  ) ? 0.5 : 1,
                 }}
               >
-                {salvando ? 'Salvando...' :
+                {uploadando ? 'Anexando prints...' :
+                 salvando ? 'Salvando...' :
                  acaoCliente.tipo === 'contato' ? 'Registrar contato' :
                  acaoCliente.tipo === 'validar' ? 'Validar venda' : 'Barrar cliente'}
               </button>
