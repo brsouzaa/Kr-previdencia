@@ -97,7 +97,11 @@ export default function FilaEntregas() {
         const entregues = lote.qtd_entregues || 0
         // Contar assinados reais do ZapSign
         const contratos = lote.contratos_producao || []
-        const assinadosReais = contratos.filter(c => c.status === 'assinado').length
+        // Assinados do ZapSign (sistema)
+        const assinadosSistema = contratos.filter(c => c.status === 'assinado').length
+        // Card mostra o MAIOR entre sistema e entregues (manual)
+        // Assim quando vendedor digita "29 entregues", card mostra Assinados=29 também
+        const assinadosReais = Math.max(assinadosSistema, lote.qtd_entregues || 0)
         const enviadosTotal = contratos.length
         const expiradosOuPendentes = contratos.filter(c => c.status === 'expirado').length
         const faltamEntregar = Math.max(0, assinadosReais - entregues)
