@@ -11,10 +11,6 @@ const TIPOS_DOC = [
   { chave: 'comprovante_endereco', label: 'Comprovante de endereço' },
 ]
 
-// Status considerados "vivos" (cliente real que vai chegar até o advogado)
-// Expirados, cancelados e barrados ficam fora da fila da analista
-const STATUS_ATIVOS = ['em_validacao','validado','devolvido_correcao_doc','entregue']
-
 const s = {
   card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
   loteCard: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem', marginBottom: 10, cursor: 'pointer' },
@@ -25,14 +21,6 @@ const s = {
   btnSec: { padding: '8px 14px', background: '#fff', color: '#185FA5', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
   modalBg: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
   modal: { background: '#fff', borderRadius: 14, padding: '1.5rem', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
-  liberarBox: {
-    background: 'linear-gradient(135deg, #185FA5 0%, #3B6D11 100%)',
-    color: '#fff',
-    borderRadius: 14,
-    padding: '1.25rem',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
 }
 
 export default function Entregas() {
@@ -48,16 +36,16 @@ export default function Entregas() {
   const [verDocsId, setVerDocsId] = useState(null)
   const [copiadoId, setCopiadoId] = useState(null)
   const [copiadoTodos, setCopiadoTodos] = useState(false)
-  const [mostrarExpirados, setMostrarExpirados] = useState(false)
 
-  // Busca lotes que têm pelo menos 1 cliente em status que precisa de ação da analista
+  // Busca lotes que têm clientes em em_validacao OU validado (ainda não entregues)
   const fetchLotes = useCallback(async () => {
     setLoading(true)
     const { data: cs } = await supabase.from('clientes')
       .select('lote_id, status, advogado_id')
-      .in('status', STATUS_ATIVOS)
+      .in('status', ['em_validacao','validado','devolvido_correcao_doc'])
       .not('lote_id', 'is', null)
 
+    // Agrupa por lote_id
     const loteIds = [...new Set((cs || []).map(c => c.lote_id))]
     if (loteIds.length === 0) { setLotes([]); setLoading(false); return }
 
@@ -67,26 +55,14 @@ export default function Entregas() {
 
     const enriquecido = (lts || []).map(l => {
       const dolote = (cs || []).filter(c => c.lote_id === l.id)
-      const emValidacao = dolote.filter(c => c.status === 'em_validacao').length
-      const validados = dolote.filter(c => c.status === 'validado').length
-      const devolvidos = dolote.filter(c => c.status === 'devolvido_correcao_doc').length
-      const entregues = dolote.filter(c => c.status === 'entregue').length
-      const totalAtivos = dolote.length
-      const todosValidados = totalAtivos > 0 && (validados + entregues) === totalAtivos && devolvidos === 0
       return {
         ...l,
-        em_validacao: emValidacao,
-        validados,
-        devolvidos,
-        entregues,
-        total_ativos: totalAtivos,
-        prontoLiberar: todosValidados && validados > 0,
+        em_validacao: dolote.filter(c => c.status === 'em_validacao').length,
+        validados: dolote.filter(c => c.status === 'validado').length,
+        devolvidos: dolote.filter(c => c.status === 'devolvido_correcao_doc').length,
+        total: dolote.length,
       }
-    }).sort((a,b) => {
-      if (a.prontoLiberar && !b.prontoLiberar) return -1
-      if (!a.prontoLiberar && b.prontoLiberar) return 1
-      return (b.em_validacao + b.devolvidos) - (a.em_validacao + a.devolvidos)
-    })
+    }).sort((a,b) => (b.em_validacao + b.devolvidos) - (a.em_validacao + a.devolvidos))
 
     setLotes(enriquecido)
     setLoading(false)
@@ -94,21 +70,9 @@ export default function Entregas() {
 
   useEffect(() => { fetchLotes() }, [fetchLotes])
   useEffect(() => {
-    const id = setInterval(fetchLotes, 30000)
+    const id = setInterval(fetchLotes, 60000)
     return () => clearInterval(id)
   }, [fetchLotes])
-
-  // Realtime: quando cliente muda de status, atualiza
-  useEffect(() => {
-    const ch = supabase.channel('analista-clientes')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'clientes' }, () => {
-        fetchLotes()
-        if (loteAberto) refreshLote(loteAberto.id)
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(ch) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loteAberto?.id])
 
   async function abrirLote(lote) {
     setLoteAberto(lote)
@@ -145,6 +109,7 @@ export default function Entregas() {
     setProcessando(true)
     try {
       if (tipoDevolucao === 'correcao_doc') {
+        // Correção de documento — mantém contrato, só vendedor re-uploada
         const { error } = await supabase.from('clientes').update({
           status: 'devolvido_correcao_doc',
           motivo_devolucao: motivoDevolucao,
@@ -153,6 +118,7 @@ export default function Entregas() {
         }).eq('id', modalDevolucao.id)
         if (error) throw error
       } else {
+        // Reemissão — cancela ZapSign, vendedor corrige dados, supervisora reemite
         const resp = await supabase.functions.invoke('gerar-contratos-zapsign/devolver-reemissao', {
           body: { cliente_id: modalDevolucao.id, motivo: motivoDevolucao, analista_id: profile.id }
         })
@@ -187,19 +153,23 @@ export default function Entregas() {
     setTimeout(() => setCopiadoTodos(false), 2500)
   }
 
-  // Libera o lote pro advogado: marca todos validados como entregues e o lote como liberado
-  async function liberarLoteParaAdvogado() {
+  async function entregarLote() {
     if (!loteAberto) return
     const validados = clientesLote.filter(c => c.status === 'validado')
     if (validados.length === 0) {
-      alert('Nenhum cliente validado pra liberar')
+      alert('Nenhum cliente validado pra entregar')
       return
     }
     const aindaPendentes = clientesLote.filter(c => c.status === 'em_validacao' || c.status === 'devolvido_correcao_doc').length
+    const totalLote = loteAberto.total_contratos || clientesLote.length
+    const jaEntreguesAntes = clientesLote.filter(c => c.status === 'entregue').length
+    const totalEntregando = validados.length
+    const futuroEntregue = jaEntreguesAntes + totalEntregando
+    const eEntregaTotal = futuroEntregue >= totalLote && aindaPendentes === 0
 
     const msg = aindaPendentes > 0
-      ? `⚠️ Liberar ${validados.length} cliente(s) validado(s)?\n\nAtenção: ainda restam ${aindaPendentes} pendente(s) — esta será uma ENTREGA PARCIAL pro advogado.\n\nO ideal é validar todos antes de liberar.`
-      : `Liberar lote completo pro advogado ${loteAberto.advogados?.nome_completo}?\n\n${validados.length} cliente(s) validado(s) serão entregues.`
+      ? `Entregar ${totalEntregando} cliente(s) validados? ⚠️ Restam ${aindaPendentes} pendentes — esta será uma ENTREGA PARCIAL.`
+      : `Entregar ${totalEntregando} cliente(s) validados pro advogado ${loteAberto.advogados?.nome_completo}?`
 
     if (!window.confirm(msg)) return
     setProcessando(true)
@@ -213,25 +183,22 @@ export default function Entregas() {
       }).in('id', ids)
       if (e1) throw e1
 
-      const totalLote = loteAberto.total_contratos || clientesLote.length
-      const jaEntreguesAntes = clientesLote.filter(c => c.status === 'entregue').length
-      const futuroEntregue = jaEntreguesAntes + validados.length
-      const eEntregaTotal = futuroEntregue >= totalLote && aindaPendentes === 0
-
       const updates = {
+        qtd_validados: futuroEntregue,
         notificacao_pendente: true,
         updated_at: agora,
       }
       if (!loteAberto.data_primeira_entrega) updates.data_primeira_entrega = agora
       if (eEntregaTotal) {
         updates.status_pagamento = 'entregue'
+        updates.qtd_entregues = totalLote
         updates.data_entrega = agora.slice(0, 10)
         updates.data_entrega_total = agora
       }
       const { error: e2 } = await supabase.from('lotes').update(updates).eq('id', loteAberto.id)
       if (e2) throw e2
 
-      alert(`✅ ${validados.length} cliente(s) liberado(s) pro advogado!\nVendedor B2B foi notificado.`)
+      alert(`✅ ${totalEntregando} cliente(s) marcados como entregue${totalEntregando !== 1 ? 's' : ''}!\nVendedor de advogado foi notificado.`)
       setLoteAberto(null)
       await fetchLotes()
     } catch (err) {
@@ -249,13 +216,6 @@ export default function Entregas() {
     const emValidacao = clientesLote.filter(c => c.status === 'em_validacao')
     const devolvidos = clientesLote.filter(c => c.status === 'devolvido_correcao_doc')
     const entregues = clientesLote.filter(c => c.status === 'entregue')
-    const expirados = clientesLote.filter(c => ['expirado','cancelado','barrado_pos_venda'].includes(c.status))
-
-    const clientesVisiveis = mostrarExpirados
-      ? clientesLote
-      : clientesLote.filter(c => !['expirado','cancelado','barrado_pos_venda'].includes(c.status))
-
-    const lotePronto = validados.length > 0 && emValidacao.length === 0 && devolvidos.length === 0
 
     return (
       <div>
@@ -267,33 +227,10 @@ export default function Entregas() {
           </div>
         </div>
 
-        {lotePronto && (
-          <div style={s.liberarBox}>
-            <div style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>🎉 Lote pronto pra liberar!</div>
-            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 14 }}>
-              Todos os {validados.length} cliente(s) ativo(s) estão validados. Pode liberar pro advogado.
-            </div>
-            <button onClick={liberarLoteParaAdvogado} disabled={processando}
-              style={{
-                padding: '12px 28px',
-                background: '#fff',
-                color: '#185FA5',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: processando ? 'wait' : 'pointer',
-                opacity: processando ? 0.7 : 1,
-              }}>
-              {processando ? '⏳ Liberando...' : '📦 Liberar lote pro advogado'}
-            </button>
-          </div>
-        )}
-
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 16 }}>
           <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#FAEEDA' }}>
             <div style={{ fontSize: 24, fontWeight: 600, color: '#854F0B' }}>{emValidacao.length}</div>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#854F0B' }}>Pra validar</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#854F0B' }}>Em validação</div>
           </div>
           <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#EAF3DE' }}>
             <div style={{ fontSize: 24, fontWeight: 600, color: '#3B6D11' }}>{validados.length}</div>
@@ -309,57 +246,35 @@ export default function Entregas() {
           </div>
         </div>
 
-        {expirados.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, fontSize: 12, color: '#888' }}>
-            <span>⚠️ {expirados.length} cliente(s) expirado(s)/barrado(s) escondido(s)</span>
-            <button onClick={() => setMostrarExpirados(!mostrarExpirados)}
-              style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
-              {mostrarExpirados ? 'Esconder' : 'Mostrar'}
-            </button>
-          </div>
-        )}
-
-        {validados.length > 0 && !lotePronto && (
+        {validados.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <button onClick={copiarTodosValidados} style={copiadoTodos ? s.btnGreen : s.btn}>
               {copiadoTodos ? '✓ Copiado' : `📋 Copiar ${validados.length} dossiê(s) pra WhatsApp`}
             </button>
-            <button onClick={liberarLoteParaAdvogado} disabled={processando}
+            <button onClick={entregarLote} disabled={processando}
               style={{ ...s.btnGreen, padding: '8px 16px', fontSize: 13, fontWeight: 600, opacity: processando ? 0.5 : 1 }}>
-              📦 Liberar {validados.length} validado(s) pro advogado (parcial)
+              📦 Entregar {validados.length} validado(s) pro advogado
             </button>
           </div>
         )}
 
-        {clientesVisiveis.length === 0 && (
-          <div style={{ ...s.card, textAlign: 'center', color: '#888' }}>
-            Nenhum cliente ativo nesse lote no momento.
-          </div>
-        )}
-
-        {clientesVisiveis.map(c => {
+        {clientesLote.map(c => {
           const docs = c.documentos || {}
           const verDocs = verDocsId === c.id
-          const isExpirado = ['expirado','cancelado','barrado_pos_venda'].includes(c.status)
           const cor = c.status === 'validado' ? '#3B6D11' :
                       c.status === 'em_validacao' ? '#854F0B' :
                       c.status === 'devolvido_correcao_doc' ? '#A32D2D' :
-                      c.status === 'entregue' ? '#185FA5' :
-                      isExpirado ? '#888' : '#666'
+                      c.status === 'entregue' ? '#185FA5' : '#666'
           const bg = c.status === 'validado' ? '#EAF3DE' :
                      c.status === 'em_validacao' ? '#FAEEDA' :
                      c.status === 'devolvido_correcao_doc' ? '#FCEBEB' :
-                     c.status === 'entregue' ? '#E6F1FB' :
-                     '#f0f0ee'
+                     c.status === 'entregue' ? '#E6F1FB' : '#f0f0ee'
           const labelStatus = c.status === 'validado' ? '✓ Validado' :
                               c.status === 'em_validacao' ? '⏳ Aguardando você validar' :
                               c.status === 'devolvido_correcao_doc' ? '⚠️ Devolvido — aguarda correção' :
-                              c.status === 'entregue' ? '📦 Entregue ao advogado' :
-                              c.status === 'expirado' ? '⌛ Expirou (não assinou)' :
-                              c.status === 'barrado_pos_venda' ? '❌ Barrado (pós-venda)' :
-                              c.status === 'cancelado' ? '❌ Cancelado' : c.status
+                              c.status === 'entregue' ? '📦 Já entregue' : c.status
           return (
-            <div key={c.id} style={{ ...s.card, borderLeft: `3px solid ${cor}`, opacity: isExpirado ? 0.55 : 1 }}>
+            <div key={c.id} style={{ ...s.card, borderLeft: `3px solid ${cor}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{c.nome}</div>
@@ -379,12 +294,10 @@ export default function Entregas() {
                 {c.produto === 'Maternidade' && c.nis && ` · NIS: ${c.nis}`}
               </div>
 
-              {!isExpirado && (
-                <button onClick={() => setVerDocsId(verDocs ? null : c.id)}
-                  style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
-                  📎 {verDocs ? 'Esconder documentos' : 'Ver documentos'}
-                </button>
-              )}
+              <button onClick={() => setVerDocsId(verDocs ? null : c.id)}
+                style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
+                📎 {verDocs ? 'Esconder documentos' : 'Ver documentos'}
+              </button>
 
               {verDocs && (
                 <div style={{ background: '#fafaf8', borderRadius: 6, padding: 10, marginBottom: 8 }}>
@@ -487,7 +400,7 @@ export default function Entregas() {
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📥 Validação e Entregas</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{lotes.length} lote{lotes.length !== 1 ? 's' : ''} com clientes ativos</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{lotes.length} lote{lotes.length !== 1 ? 's' : ''} com clientes pra validar/entregar</div>
         </div>
         <button onClick={fetchLotes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
           ↻ Atualizar
@@ -499,22 +412,17 @@ export default function Entregas() {
           ✅ Sem lotes pendentes no momento.
         </div>
       ) : lotes.map(l => (
-        <div key={l.id} style={{
-          ...s.loteCard,
-          ...(l.prontoLiberar ? { borderLeft: '4px solid #3B6D11', background: 'linear-gradient(90deg, #EAF3DE 0%, #fff 100%)' } : {})
-        }} onClick={() => abrirLote(l)}>
+        <div key={l.id} style={s.loteCard} onClick={() => abrirLote(l)}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{l.advogados?.nome_completo}</div>
               <div style={{ fontSize: 11, color: '#888' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Vendedor: {l.profiles?.nome}</div>
             </div>
-            {l.prontoLiberar && <span style={s.badge('#3B6D11', '#EAF3DE')}>🎉 Pronto pra liberar</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
             {l.em_validacao > 0 && <span style={s.badge('#854F0B', '#FAEEDA')}>⏳ {l.em_validacao} pra validar</span>}
             {l.validados > 0 && <span style={s.badge('#3B6D11', '#EAF3DE')}>✓ {l.validados} validado{l.validados !== 1 ? 's' : ''}</span>}
             {l.devolvidos > 0 && <span style={s.badge('#A32D2D', '#FCEBEB')}>⚠️ {l.devolvidos} devolvido{l.devolvidos !== 1 ? 's' : ''}</span>}
-            {l.entregues > 0 && <span style={s.badge('#185FA5', '#E6F1FB')}>📦 {l.entregues} entregue{l.entregues !== 1 ? 's' : ''}</span>}
           </div>
         </div>
       ))}
