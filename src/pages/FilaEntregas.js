@@ -26,9 +26,10 @@ export default function FilaEntregas() {
 
   async function fetchFila() {
     setLoading(true)
+    // Pegamos os lotes + clientes do sistema novo (não mais contratos_producao legado)
     const { data } = await supabase
       .from('lotes')
-      .select('*, advogados(nome_completo, oab, cidade, estado, telefone, email), profiles(nome), contratos_producao(id, status, cliente_nome, data_expiracao)')
+      .select('*, advogados(nome_completo, oab, cidade, estado, telefone, email), profiles(nome), clientes(id, nome, status)')
       .eq('status_pagamento', 'a_entregar')
       .order('data_compra', { ascending: true })
     setLotes(data || [])
@@ -95,13 +96,23 @@ export default function FilaEntregas() {
         const chegouHa = diasDesde(lote.data_compra)
         const u = urgencia(restam)
         const entregues = lote.qtd_entregues || 0
-        // Contar assinados reais do ZapSign
-        const contratos = lote.contratos_producao || []
-        const assinadosReais = contratos.filter(c => c.status === 'assinado').length
-        const enviadosTotal = contratos.length
-        const expiradosOuPendentes = contratos.filter(c => c.status === 'expirado').length
-        const faltamEntregar = Math.max(0, assinadosReais - entregues)
-        const progresso = assinadosReais > 0 ? Math.round((entregues / assinadosReais) * 100) : 0
+
+        // ✅ FONTE DA VERDADE: lote.qtd_assinados do banco
+        // Já soma manuais legados + assinados reais do sistema novo
+        const assinadosCard = lote.qtd_assinados || 0
+
+        // Listar clientes do sistema novo (pra mostrar status individual)
+        const clientesSistema = (lote.clientes || []).filter(c =>
+          ['assinado','aguardando_pos_venda','em_contato_pos_venda','validado_pos_venda','em_validacao','validado','entregue','expirado','cancelado','barrado_pos_venda'].includes(c.status)
+        )
+        const expiradosOuPendentes = clientesSistema.filter(c => ['expirado','cancelado','barrado_pos_venda'].includes(c.status)).length
+        const progresso = assinadosCard > 0 ? Math.round((entregues / assinadosCard) * 100) : 0
+
+        // Se há manuais legados, separa quanto é manual vs sistema pra mostrar
+        const manuais = lote.qtd_assinados_manual || 0
+        const assinadosSistema = clientesSistema.filter(c =>
+          ['assinado','aguardando_pos_venda','em_contato_pos_venda','validado_pos_venda','em_validacao','validado','entregue'].includes(c.status)
+        ).length
 
         return (
           <div key={lote.id} style={{ background: u.bg, border: `1.5px solid ${u.border}`, borderRadius: 14, padding: '1.25rem', marginBottom: 14 }}>
@@ -139,8 +150,8 @@ export default function FilaEntregas() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
               {[
                 ['Total pedido', lote.total_contratos, '#111', '#f8f8f6'],
-                ['Assinados ✓', assinadosReais, assinadosReais > 0 ? '#3B6D11' : '#888', assinadosReais > 0 ? '#EAF3DE' : '#f8f8f6'],
-                ['Entregues', entregues, entregues >= assinadosReais && assinadosReais > 0 ? '#3B6D11' : '#185FA5', entregues >= assinadosReais && assinadosReais > 0 ? '#EAF3DE' : '#E6F1FB'],
+                ['Assinados ✓', assinadosCard, assinadosCard > 0 ? '#3B6D11' : '#888', assinadosCard > 0 ? '#EAF3DE' : '#f8f8f6'],
+                ['Entregues', entregues, entregues >= assinadosCard && assinadosCard > 0 ? '#3B6D11' : '#185FA5', entregues >= assinadosCard && assinadosCard > 0 ? '#EAF3DE' : '#E6F1FB'],
               ].map(([l, v, c, bg]) => (
                 <div key={l} style={{ background: bg, borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: c, opacity: 0.75, marginBottom: 2 }}>{l}</div>
@@ -149,21 +160,34 @@ export default function FilaEntregas() {
               ))}
             </div>
 
-            {/* Clientes que assinaram */}
-            {contratos.length > 0 && (
+            {/* Aviso quando há contagem manual (lote legado) */}
+            {manuais > 0 && (
+              <div style={{ fontSize: 11, color: '#854F0B', background: '#FAEEDA', padding: '6px 10px', borderRadius: 6, marginBottom: 10, border: '0.5px solid #854F0B30' }}>
+                ℹ️ Lote com contagem mista: <strong>{assinadosSistema}</strong> assinados pelo sistema + <strong>{manuais}</strong> registrados manualmente (legado)
+              </div>
+            )}
+
+            {/* Clientes do sistema novo */}
+            {clientesSistema.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>Clientes — status de assinatura</div>
-                {contratos.map(c => (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: c.status === 'assinado' ? '#EAF3DE' : c.status === 'expirado' ? '#FCEBEB' : '#f8f8f6', borderRadius: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: '#111' }}>{c.cliente_nome}</span>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: c.status === 'assinado' ? '#3B6D11' : c.status === 'expirado' ? '#A32D2D' : '#854F0B' }}>
-                      {c.status === 'assinado' ? '✓ Assinou' : c.status === 'expirado' ? 'Expirou' : '⏳ Aguardando'}
-                    </span>
-                  </div>
-                ))}
+                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>
+                  Clientes — status de assinatura {clientesSistema.length < lote.total_contratos && `(${clientesSistema.length}/${lote.total_contratos} cadastrados)`}
+                </div>
+                {clientesSistema.map(c => {
+                  const assinou = ['assinado','aguardando_pos_venda','em_contato_pos_venda','validado_pos_venda','em_validacao','validado','entregue'].includes(c.status)
+                  const expirou = ['expirado','cancelado','barrado_pos_venda'].includes(c.status)
+                  return (
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: assinou ? '#EAF3DE' : expirou ? '#FCEBEB' : '#f8f8f6', borderRadius: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: '#111' }}>{c.nome}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: assinou ? '#3B6D11' : expirou ? '#A32D2D' : '#854F0B' }}>
+                        {assinou ? '✓ Assinou' : expirou ? 'Expirou' : '⏳ Aguardando'}
+                      </span>
+                    </div>
+                  )
+                })}
                 {expiradosOuPendentes > 0 && (
                   <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>
-                    {expiradosOuPendentes} contrato{expiradosOuPendentes !== 1 ? 's' : ''} expirado{expiradosOuPendentes !== 1 ? 's' : ''} ou não assinado{expiradosOuPendentes !== 1 ? 's' : ''} — reemita se necessário
+                    {expiradosOuPendentes} contrato{expiradosOuPendentes !== 1 ? 's' : ''} expirado{expiradosOuPendentes !== 1 ? 's' : ''} ou cancelado{expiradosOuPendentes !== 1 ? 's' : ''} — reemita se necessário
                   </div>
                 )}
               </div>
