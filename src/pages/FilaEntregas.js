@@ -421,6 +421,12 @@ export default function FilaEntregas() {
                   <div><strong>Telefone:</strong> {clienteDetalhe.telefone}</div>
                   <div><strong>Endereço:</strong> {clienteDetalhe.rua}, {clienteDetalhe.numero} {clienteDetalhe.bairro ? `· ${clienteDetalhe.bairro}` : ''}</div>
                   <div><strong>Cidade/UF:</strong> {clienteDetalhe.cidade}/{clienteDetalhe.uf} · CEP {clienteDetalhe.cep}</div>
+                  <div style={{ marginTop: 6, paddingTop: 6, borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
+                    <strong>🤰 DPP:</strong> {clienteDetalhe.data_prevista_parto ? new Date(clienteDetalhe.data_prevista_parto + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                    {' · '}
+                    <strong>Meses:</strong> {clienteDetalhe.meses_gravidez || '—'}
+                  </div>
+                  <div><strong>NIS:</strong> {clienteDetalhe.nis || '—'}</div>
                   <div><strong>Vendedora:</strong> {clienteDetalhe.profiles?.nome || '—'}</div>
                   <div><strong>Status:</strong> <span style={{ color: (STATUS_LABELS[clienteDetalhe.status] || {}).cor || '#888', fontWeight: 500 }}>{(STATUS_LABELS[clienteDetalhe.status] || {}).txt || clienteDetalhe.status}</span></div>
                   {clienteDetalhe.pos_venda_observacao && <div><strong>Obs Luciane:</strong> <span style={{ color: '#854F0B' }}>{clienteDetalhe.pos_venda_observacao}</span></div>}
