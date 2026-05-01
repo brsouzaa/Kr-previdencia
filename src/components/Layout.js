@@ -16,9 +16,8 @@ const NAV_SUPERVISOR_PRODUCAO = [
 const NAV_ANALISTA = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: '⚖️ Advogados' },
-  { key: 'entregas', label: '📥 Validação e Entregas' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
-  { key: 'fila', label: '📦 Fila de advogados' },
+  { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
 ]
@@ -28,7 +27,6 @@ const NAV_VENDEDOR = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
-  { key: 'lotes_entregues', label: '✅ Lotes liberados' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
@@ -50,9 +48,7 @@ const NAV_ADMIN = [
   { key: 'equipe', label: 'Equipe' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
-  { key: 'entregas', label: '📥 Validação e Entregas' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
-  { key: 'lotes_entregues', label: '✅ Lotes liberados' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
