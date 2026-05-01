@@ -47,6 +47,9 @@ export default function FilaEntregas() {
   const [motivoDevolucao, setMotivoDevolucao] = useState('')
   const [salvandoDevolucao, setSalvandoDevolucao] = useState(false)
 
+  // Estado da validação por cliente
+  const [validandoCliente, setValidandoCliente] = useState({})
+
   // Painel lateral do cliente (ficha + docs)
   const [clienteAberto, setClienteAberto] = useState(null) // cliente_id
   const [clienteDetalhe, setClienteDetalhe] = useState(null) // dados completos
@@ -151,6 +154,23 @@ export default function FilaEntregas() {
       await fetchFila()
     } catch (e) { alert('Erro: ' + e.message) }
     setSalvandoDevolucao(false)
+  }
+
+  async function validarCliente(cliente, lote) {
+    if (!confirm(`Confirmar validação do cliente ${cliente.nome}?\nDocumentos e contrato OK.`)) return
+    setValidandoCliente(v => ({ ...v, [cliente.id]: true }))
+    try {
+      const ANON = process.env.REACT_APP_SUPABASE_ANON_KEY || (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch('https://sdqslzpfbazehqcvibjy.supabase.co/functions/v1/gerar-contratos-zapsign/analista-validar-cliente', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cliente_id: cliente.id, analista_id: profile.id })
+      })
+      const j = await r.json()
+      if (!j.ok) { alert('Erro: ' + (j.error || 'falhou')); setValidandoCliente(v => ({ ...v, [cliente.id]: false })); return }
+      await fetchFila()
+    } catch (e) { alert('Erro: ' + e.message) }
+    setValidandoCliente(v => ({ ...v, [cliente.id]: false }))
   }
 
   function tentarEntregar(lote) {
@@ -307,17 +327,23 @@ export default function FilaEntregas() {
                 </div>
                 {clientes.map(c => {
                   const lbl = STATUS_LABELS[c.status] || { txt: c.status, cor: '#888' }
-                  const podeDevolver = ['em_validacao','validado'].includes(c.status)
+                  const emValidacao = c.status === 'em_validacao'
+                  const validando = validandoCliente[c.id]
                   return (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: clienteAberto === c.id ? '#E6F1FB' : '#f8f8f6', borderRadius: 6, marginBottom: 4, border: clienteAberto === c.id ? '1px solid #185FA5' : '1px solid transparent' }}>
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: clienteAberto === c.id ? '#E6F1FB' : '#f8f8f6', borderRadius: 6, marginBottom: 4, border: clienteAberto === c.id ? '1px solid #185FA5' : '1px solid transparent', gap: 6 }}>
                       <span onClick={() => abrirPainelCliente(c.id)} style={{ fontSize: 12, color: '#185FA5', flex: 1, cursor: 'pointer', textDecoration: 'underline' }}>
                         🔍 {c.nome}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 500, color: lbl.cor, marginRight: 10 }}>{lbl.txt}</span>
-                      {podeDevolver && (
-                        <button onClick={() => abrirDevolucao(c, lote)} style={{ padding: '3px 8px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D40', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-                          ↩️ Devolver
-                        </button>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: lbl.cor, marginRight: 6 }}>{lbl.txt}</span>
+                      {emValidacao && (
+                        <>
+                          <button onClick={() => validarCliente(c, lote)} disabled={validando} style={{ padding: '3px 8px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D1140', borderRadius: 6, fontSize: 11, cursor: validando ? 'wait' : 'pointer', opacity: validando ? 0.5 : 1 }}>
+                            {validando ? '...' : '✅ Validar'}
+                          </button>
+                          <button onClick={() => abrirDevolucao(c, lote)} disabled={validando} style={{ padding: '3px 8px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D40', borderRadius: 6, fontSize: 11, cursor: 'pointer', opacity: validando ? 0.5 : 1 }}>
+                            ↩️ Devolver
+                          </button>
+                        </>
                       )}
                     </div>
                   )
