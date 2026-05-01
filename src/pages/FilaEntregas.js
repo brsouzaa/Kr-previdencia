@@ -47,6 +47,13 @@ export default function FilaEntregas() {
   const [motivoDevolucao, setMotivoDevolucao] = useState('')
   const [salvandoDevolucao, setSalvandoDevolucao] = useState(false)
 
+  // Painel lateral do cliente (ficha + docs)
+  const [clienteAberto, setClienteAberto] = useState(null) // cliente_id
+  const [clienteDetalhe, setClienteDetalhe] = useState(null) // dados completos
+  const [carregandoCliente, setCarregandoCliente] = useState(false)
+  const [zapsignDocs, setZapsignDocs] = useState(null) // links assinados
+  const [carregandoZapsign, setCarregandoZapsign] = useState(false)
+
   // Modal entrega parcial
   const [confirmandoEntrega, setConfirmandoEntrega] = useState(null) // lote
   const [salvandoEntrega, setSalvandoEntrega] = useState(false)
@@ -85,6 +92,39 @@ export default function FilaEntregas() {
   async function abrirDevolucao(cliente, lote) {
     setDevolvendo({ cliente, lote })
     setMotivoDevolucao('')
+  }
+
+  async function abrirPainelCliente(clienteId) {
+    setClienteAberto(clienteId)
+    setClienteDetalhe(null)
+    setZapsignDocs(null)
+    setCarregandoCliente(true)
+    const { data } = await supabase.from('clientes').select('*, profiles!clientes_vendedor_operador_id_fkey(nome)').eq('id', clienteId).single()
+    setClienteDetalhe(data)
+    setCarregandoCliente(false)
+    // Buscar PDFs assinados do ZapSign em paralelo
+    if (data?.zapsign_token) {
+      setCarregandoZapsign(true)
+      try {
+        const r = await fetch(`https://api.zapsign.com.br/api/v1/docs/${data.zapsign_token}/`, {
+          headers: { 'Authorization': 'Bearer 51c9009c-597c-436b-908d-92b3875c331bc2ef76e9-e116-4ba5-8342-e8ab3e1324cd' }
+        })
+        const j = await r.json()
+        setZapsignDocs({
+          contrato: j.signed_file || j.original_file,
+          procuracao: j.extra_docs?.find(d => d.name?.toLowerCase().includes('procuracao'))?.signed_file || j.extra_docs?.[0]?.signed_file,
+          termo: j.extra_docs?.find(d => d.name?.toLowerCase().includes('termo'))?.signed_file || j.extra_docs?.[1]?.signed_file,
+          status: j.status,
+        })
+      } catch (e) { console.error('Erro ZapSign:', e) }
+      setCarregandoZapsign(false)
+    }
+  }
+
+  function fecharPainelCliente() {
+    setClienteAberto(null)
+    setClienteDetalhe(null)
+    setZapsignDocs(null)
   }
 
   async function confirmarDevolucao() {
@@ -269,8 +309,10 @@ export default function FilaEntregas() {
                   const lbl = STATUS_LABELS[c.status] || { txt: c.status, cor: '#888' }
                   const podeDevolver = ['em_validacao','validado'].includes(c.status)
                   return (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f8f8f6', borderRadius: 6, marginBottom: 4 }}>
-                      <span style={{ fontSize: 12, color: '#111', flex: 1 }}>{c.nome}</span>
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: clienteAberto === c.id ? '#E6F1FB' : '#f8f8f6', borderRadius: 6, marginBottom: 4, border: clienteAberto === c.id ? '1px solid #185FA5' : '1px solid transparent' }}>
+                      <span onClick={() => abrirPainelCliente(c.id)} style={{ fontSize: 12, color: '#185FA5', flex: 1, cursor: 'pointer', textDecoration: 'underline' }}>
+                        🔍 {c.nome}
+                      </span>
                       <span style={{ fontSize: 11, fontWeight: 500, color: lbl.cor, marginRight: 10 }}>{lbl.txt}</span>
                       {podeDevolver && (
                         <button onClick={() => abrirDevolucao(c, lote)} style={{ padding: '3px 8px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D40', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
@@ -330,6 +372,114 @@ export default function FilaEntregas() {
           </div>
         )
       })}
+
+      {/* PAINEL LATERAL DO CLIENTE */}
+      {clienteAberto && (
+        <div style={{ position: 'fixed', top: 0, right: 0, width: '50%', maxWidth: 600, height: '100vh', background: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)', zIndex: 90, overflowY: 'auto', padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+            <div style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>📋 Detalhes do cliente</div>
+            <button onClick={fecharPainelCliente} style={{ padding: '6px 12px', background: '#f0f0ee', color: '#555', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>✕ Fechar</button>
+          </div>
+
+          {carregandoCliente && <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Carregando...</div>}
+
+          {clienteDetalhe && !carregandoCliente && (
+            <>
+              {/* FICHA CADASTRAL */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>Ficha cadastral</div>
+                <div style={{ background: '#f8f8f6', padding: 14, borderRadius: 8, fontSize: 13, lineHeight: 1.7 }}>
+                  <div><strong>Nome:</strong> {clienteDetalhe.nome}</div>
+                  <div><strong>CPF:</strong> {clienteDetalhe.cpf}</div>
+                  <div><strong>RG:</strong> {clienteDetalhe.rg || '—'}</div>
+                  <div><strong>Telefone:</strong> {clienteDetalhe.telefone}</div>
+                  <div><strong>Endereço:</strong> {clienteDetalhe.rua}, {clienteDetalhe.numero} {clienteDetalhe.bairro ? `· ${clienteDetalhe.bairro}` : ''}</div>
+                  <div><strong>Cidade/UF:</strong> {clienteDetalhe.cidade}/{clienteDetalhe.uf} · CEP {clienteDetalhe.cep}</div>
+                  <div><strong>Vendedora:</strong> {clienteDetalhe.profiles?.nome || '—'}</div>
+                  <div><strong>Status:</strong> <span style={{ color: (STATUS_LABELS[clienteDetalhe.status] || {}).cor || '#888', fontWeight: 500 }}>{(STATUS_LABELS[clienteDetalhe.status] || {}).txt || clienteDetalhe.status}</span></div>
+                  {clienteDetalhe.pos_venda_observacao && <div><strong>Obs Luciane:</strong> <span style={{ color: '#854F0B' }}>{clienteDetalhe.pos_venda_observacao}</span></div>}
+                </div>
+              </div>
+
+              {/* DOCUMENTOS DO CLIENTE */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>📎 Documentos enviados</div>
+                {clienteDetalhe.documentos && Object.keys(clienteDetalhe.documentos).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {Object.entries(clienteDetalhe.documentos).filter(([k,v]) => v).map(([nome, url]) => {
+                      const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço' }
+                      return (
+                        <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8f8f6', borderRadius: 8 }}>
+                          <span style={{ fontSize: 13, color: '#111' }}>{labels[nome] || nome}</span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <a href={url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#E6F1FB', color: '#185FA5', border: '0.5px solid #185FA5', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Ver</a>
+                            <a href={url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#3B6D11', color: '#fff', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar</a>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ background: '#FCEBEB', padding: 12, borderRadius: 8, fontSize: 12, color: '#A32D2D' }}>
+                    ⚠️ Cliente sem documentos cadastrados
+                  </div>
+                )}
+              </div>
+
+              {/* CONTRATOS ZAPSIGN */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>✍️ Contratos assinados (ZapSign)</div>
+                {carregandoZapsign && <div style={{ fontSize: 12, color: '#888' }}>Buscando PDFs...</div>}
+                {!carregandoZapsign && zapsignDocs && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { nome: '📜 Contrato principal', url: zapsignDocs.contrato },
+                      { nome: '📋 Procuração', url: zapsignDocs.procuracao },
+                      { nome: '📝 Termo', url: zapsignDocs.termo },
+                    ].filter(d => d.url).map(d => (
+                      <div key={d.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#EAF3DE', borderRadius: 8 }}>
+                        <span style={{ fontSize: 13, color: '#111' }}>{d.nome}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <a href={d.url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#fff', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Ver</a>
+                          <a href={d.url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#3B6D11', color: '#fff', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar PDF</a>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                      💡 Os PDFs assinados saem direto do ZapSign. Clique em Baixar e jogue na pasta do Drive.
+                    </div>
+                  </div>
+                )}
+                {!carregandoZapsign && !zapsignDocs && clienteDetalhe.zapsign_token && (
+                  <div style={{ fontSize: 12, color: '#A32D2D' }}>Erro ao buscar PDFs do ZapSign</div>
+                )}
+                {!clienteDetalhe.zapsign_token && (
+                  <div style={{ background: '#FAEEDA', padding: 12, borderRadius: 8, fontSize: 12, color: '#854F0B' }}>
+                    Cliente ainda sem token ZapSign
+                  </div>
+                )}
+              </div>
+
+              {/* PRINTS DA LUCIANE */}
+              {clienteDetalhe.pos_venda_prints && Array.isArray(clienteDetalhe.pos_venda_prints) && clienteDetalhe.pos_venda_prints.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>📸 Prints da Luciane (validação pós-venda)</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {clienteDetalhe.pos_venda_prints.map((path, i) => {
+                      const url = `https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/public/pos-venda-prints/${path}`
+                      return (
+                        <a key={i} href={url} target="_blank" rel="noreferrer" style={{ padding: '8px 12px', background: '#F5F0E8', color: '#854F0B', border: '0.5px solid #854F0B40', borderRadius: 6, fontSize: 12, textDecoration: 'none' }}>
+                          📸 Print {i+1} →
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* MODAL DEVOLUÇÃO */}
       {devolvendo && (
