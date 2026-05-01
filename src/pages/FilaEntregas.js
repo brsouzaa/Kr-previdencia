@@ -50,6 +50,12 @@ export default function FilaEntregas() {
   // Estado da validação por cliente
   const [validandoCliente, setValidandoCliente] = useState({})
 
+  // Modal edicao manual do lote
+  const [editandoLote, setEditandoLote] = useState(null) // { id, total_contratos, qtd_assinados, advogado_nome }
+  const [editTotal, setEditTotal] = useState('')
+  const [editAssinados, setEditAssinados] = useState('')
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+
   // Painel lateral do cliente (ficha + docs)
   const [clienteAberto, setClienteAberto] = useState(null) // cliente_id
   const [clienteDetalhe, setClienteDetalhe] = useState(null) // dados completos
@@ -173,6 +179,36 @@ export default function FilaEntregas() {
     setValidandoCliente(v => ({ ...v, [cliente.id]: false }))
   }
 
+  function abrirEdicaoManual(lote) {
+    setEditandoLote(lote)
+    setEditTotal(String(lote.total_contratos || 0))
+    setEditAssinados(String(lote.qtd_assinados || 0))
+  }
+
+  async function salvarEdicaoManual() {
+    if (!editandoLote) return
+    const total = parseInt(editTotal, 10)
+    const assinados = parseInt(editAssinados, 10)
+    if (!Number.isInteger(total) || total < 1) { alert('Total de contratos deve ser >= 1'); return }
+    if (!Number.isInteger(assinados) || assinados < 0) { alert('Quantidade de assinados deve ser >= 0'); return }
+    if (assinados > total) { alert('Assinados nao pode ser maior que Total'); return }
+    setSalvandoEdicao(true)
+    try {
+      const ANON = process.env.REACT_APP_SUPABASE_ANON_KEY || (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch('https://sdqslzpfbazehqcvibjy.supabase.co/functions/v1/gerar-contratos-zapsign/lote-editar-manual', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lote_id: editandoLote.id, total_contratos: total, qtd_assinados: assinados, editor_id: profile.id })
+      })
+      const j = await r.json()
+      if (!j.ok) { alert('Erro: ' + (j.error || 'falhou')); setSalvandoEdicao(false); return }
+      setEditandoLote(null)
+      await fetchFila()
+      alert(`✅ Lote atualizado! Total: ${j.total_contratos} · Assinados: ${j.qtd_assinados} · Emitidos: ${j.qtd_emitidos}`)
+    } catch (e) { alert('Erro: ' + e.message) }
+    setSalvandoEdicao(false)
+  }
+
   function tentarEntregar(lote) {
     if (!isUrlValida(lote.link_entrega)) {
       alert('⚠️ Cole o link da pasta no Drive antes de entregar (campo "Link da entrega")')
@@ -290,6 +326,11 @@ export default function FilaEntregas() {
                 <span style={{ padding: '3px 10px', background: u.badgeBg, color: u.badgeColor, borderRadius: 20, fontSize: 11, fontWeight: 500 }}>
                   {restam === null ? 'Sem prazo' : restam <= 0 ? '🔴 Vencido' : restam === 1 ? '⚠️ Vence hoje' : `${restam}d restantes`}
                 </span>
+                {(profile?.role === 'admin' || profile?.role === 'analista') && (
+                  <button onClick={() => abrirEdicaoManual(lote)} title="Corrigir números manualmente" style={{ marginTop: 6, padding: '3px 8px', background: '#fff', color: '#5F5E5A', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 6, fontSize: 11, cursor: 'pointer', display: 'block', marginLeft: 'auto' }}>
+                    ✏️ Corrigir
+                  </button>
+                )}
               </div>
             </div>
 
@@ -510,6 +551,41 @@ export default function FilaEntregas() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* MODAL EDIÇÃO MANUAL DO LOTE */}
+      {editandoLote && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 12, width: '90%', maxWidth: 480 }}>
+            <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>✏️ Corrigir números do lote</div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Lote do <strong>{editandoLote.advogados?.nome_completo}</strong></div>
+            <div style={{ background: '#FAEEDA', padding: 10, borderRadius: 6, fontSize: 11, color: '#854F0B', marginBottom: 16 }}>
+              ⚠️ Use só pra corrigir erros de operação ou questões da empresa. O sistema vai reaplicar a regra de prioridade automaticamente.
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>Total de contratos *</label>
+              <input type="number" min="1" max="999" value={editTotal} onChange={e => setEditTotal(e.target.value)}
+                style={{ width: '100%', padding: 10, fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
+              <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>Quantos contratos esse advogado fechou no total</div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>Quantidade de assinados *</label>
+              <input type="number" min="0" max={editTotal || 999} value={editAssinados} onChange={e => setEditAssinados(e.target.value)}
+                style={{ width: '100%', padding: 10, fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
+              <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>Não pode ser maior que o total. Atual: {editandoLote.qtd_assinados}</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditandoLote(null)} disabled={salvandoEdicao} style={{ padding: '8px 14px', background: '#f0f0ee', color: '#5F5E5A', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={salvarEdicaoManual} disabled={salvandoEdicao}
+                style={{ padding: '8px 14px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: salvandoEdicao ? 'not-allowed' : 'pointer', opacity: salvandoEdicao ? 0.5 : 1 }}>
+                {salvandoEdicao ? 'Salvando...' : 'Salvar correção'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
