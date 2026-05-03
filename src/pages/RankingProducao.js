@@ -34,6 +34,13 @@ export default function RankingProducao() {
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('mes')
 
+  // Filtro de período personalizado
+  const [modalCustom, setModalCustom] = useState(false)
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
+  const [rankingCustom, setRankingCustom] = useState(null) // null = não aplicado, [] = aplicado vazio
+  const [loadingCustom, setLoadingCustom] = useState(false)
+
   const fetch = useCallback(async () => {
     setLoading(true)
 
@@ -61,11 +68,34 @@ export default function RankingProducao() {
     return () => clearInterval(id)
   }, [fetch])
 
+  async function aplicarFiltroCustom() {
+    if (!dataInicio || !dataFim) { alert('Selecione as duas datas'); return }
+    if (dataInicio > dataFim) { alert('Data início não pode ser maior que data fim'); return }
+    setLoadingCustom(true)
+    const { data, error } = await supabase.rpc('ranking_periodo_personalizado', {
+      p_inicio: dataInicio,
+      p_fim: dataFim
+    })
+    if (error) { alert('Erro: ' + error.message); setLoadingCustom(false); return }
+    setRankingCustom(data || [])
+    setPeriodo('custom')
+    setModalCustom(false)
+    setLoadingCustom(false)
+  }
+
+  function fecharCustom() {
+    setRankingCustom(null)
+    setPeriodo('mes')
+  }
+
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
+  const usandoCustom = periodo === 'custom' && rankingCustom !== null
   const campoQtd = periodo === 'hoje' ? 'assinados_hoje' : periodo === 'semana' ? 'assinados_semana' : 'assinados_mes'
   const campoPos = periodo === 'hoje' ? 'posicao_hoje' : periodo === 'semana' ? 'posicao_semana' : 'posicao_mes'
-  const rankingOrdenado = [...ranking].sort((a,b) => a[campoPos] - b[campoPos])
+  const rankingOrdenado = usandoCustom 
+    ? [...rankingCustom].sort((a,b) => a.posicao - b.posicao) 
+    : [...ranking].sort((a,b) => a[campoPos] - b[campoPos])
 
   // Totais
   const totalAssinadosMes = ranking.reduce((s, r) => s + (r.assinados_mes || 0), 0)
@@ -137,7 +167,7 @@ export default function RankingProducao() {
           <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>🏆 Ranking completo</div>
           <div style={{ display: 'flex', gap: 4, background: '#f8f8f6', borderRadius: 8, padding: 3 }}>
             {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([k, label]) => (
-              <button key={k} onClick={() => setPeriodo(k)}
+              <button key={k} onClick={() => { setPeriodo(k); setRankingCustom(null) }}
                 style={{
                   padding: '6px 14px', fontSize: 12, fontWeight: 500,
                   border: 'none', cursor: 'pointer', borderRadius: 6,
@@ -146,6 +176,14 @@ export default function RankingProducao() {
                   boxShadow: periodo === k ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
                 }}>{label}</button>
             ))}
+            <button onClick={() => setModalCustom(true)}
+              style={{
+                padding: '6px 14px', fontSize: 12, fontWeight: 500,
+                border: 'none', cursor: 'pointer', borderRadius: 6,
+                background: periodo === 'custom' ? '#fff' : 'transparent',
+                color: periodo === 'custom' ? '#185FA5' : '#888',
+                boxShadow: periodo === 'custom' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              }}>📅 {periodo === 'custom' && rankingCustom ? `${dataInicio.split('-').reverse().slice(0,2).join('/')} → ${dataFim.split('-').reverse().slice(0,2).join('/')}` : 'Personalizado'}</button>
           </div>
         </div>
 
@@ -159,24 +197,31 @@ export default function RankingProducao() {
         </div>
 
         {rankingOrdenado.map(r => {
-          const bonus = bonusPorFaixa(r.assinados_mes || 0)
+          // No modo custom, a estrutura é diferente
+          const qtd = usandoCustom ? r.assinados_periodo : (r[campoQtd] || 0)
+          const cadastros = usandoCustom ? r.cadastros_periodo : (r.cadastros_mes || 0)
+          const tempoMedio = usandoCustom ? r.tempo_medio_h : r.tempo_medio_h_mes
+          const taxa = usandoCustom ? Number(r.taxa_assinatura) : Number(r.taxa_assinatura_mes || 0)
+          const pos = usandoCustom ? r.posicao : r[campoPos]
+          // Bônus só faz sentido no contexto mensal
+          const bonus = usandoCustom ? null : bonusPorFaixa(r.assinados_mes || 0)
           return (
             <div key={r.vendedor_id} style={s.rankRow}>
-              <div style={s.rankPos(r[campoPos])}>{r[campoPos]}</div>
+              <div style={s.rankPos(pos)}>{pos}</div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{r.vendedor_nome}</div>
                 <div style={{ fontSize: 10, color: '#888' }}>
-                  {r.cadastros_mes || 0} cadastros · {r.tempo_medio_h_mes ? `${Math.round(r.tempo_medio_h_mes)}h média` : 'sem dados'}
+                  {cadastros} cadastros · {tempoMedio ? `${Math.round(tempoMedio)}h média` : 'sem dados'}
                 </div>
               </div>
               <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 500, color: '#185FA5' }}>
-                {r[campoQtd] || 0}
+                {qtd}
               </div>
-              <div style={{ textAlign: 'right', fontSize: 12, color: r.taxa_assinatura_mes >= 60 ? '#3B6D11' : r.taxa_assinatura_mes >= 40 ? '#854F0B' : '#A32D2D' }}>
-                {r.taxa_assinatura_mes || 0}%
+              <div style={{ textAlign: 'right', fontSize: 12, color: taxa >= 60 ? '#3B6D11' : taxa >= 40 ? '#854F0B' : '#A32D2D' }}>
+                {taxa}%
               </div>
               <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 500, color: bonus > 0 ? '#3B6D11' : '#aaa' }}>
-                R$ {bonus.toLocaleString('pt-BR')}
+                {bonus !== null ? `R$ ${bonus.toLocaleString('pt-BR')}` : '—'}
               </div>
             </div>
           )
@@ -187,6 +232,80 @@ export default function RankingProducao() {
           <strong>Desempate:</strong> menor tempo médio entre cadastro e assinatura
         </div>
       </div>
+
+      {/* MODAL FILTRO PERSONALIZADO */}
+      {modalCustom && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 12, width: '90%', maxWidth: 440 }}>
+            <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>📅 Filtro de período personalizado</div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Veja produção das vendedoras em qualquer intervalo</div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>Data início *</label>
+              <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                style={{ width: '100%', padding: 10, fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>Data fim *</label>
+              <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)}
+                style={{ width: '100%', padding: 10, fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ background: '#FAEEDA', padding: 10, borderRadius: 6, fontSize: 11, color: '#854F0B', marginBottom: 14 }}>
+              💡 Bônus mensal não se aplica a períodos custom — ele continua sendo calculado pelo mês corrente.
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+              {rankingCustom !== null && (
+                <button onClick={fecharCustom} style={{ padding: '8px 14px', background: '#FCEBEB', color: '#A32D2D', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Limpar filtro</button>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                <button onClick={() => setModalCustom(false)} disabled={loadingCustom} style={{ padding: '8px 14px', background: '#f0f0ee', color: '#5F5E5A', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={aplicarFiltroCustom} disabled={loadingCustom || !dataInicio || !dataFim}
+                  style={{ padding: '8px 14px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: loadingCustom ? 'not-allowed' : 'pointer', opacity: loadingCustom || !dataInicio || !dataFim ? 0.5 : 1 }}>
+                  {loadingCustom ? 'Carregando...' : 'Aplicar'}
+                </button>
+              </div>
+            </div>
+
+            {/* Atalhos rápidos */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Atalhos rápidos:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  ['Mês passado', () => {
+                    const hoje = new Date()
+                    const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
+                    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0)
+                    setDataInicio(inicio.toISOString().slice(0,10))
+                    setDataFim(fim.toISOString().slice(0,10))
+                  }],
+                  ['Últimos 30 dias', () => {
+                    const hoje = new Date()
+                    const inicio = new Date(hoje.getTime() - 30 * 86400000)
+                    setDataInicio(inicio.toISOString().slice(0,10))
+                    setDataFim(hoje.toISOString().slice(0,10))
+                  }],
+                  ['Últimos 90 dias', () => {
+                    const hoje = new Date()
+                    const inicio = new Date(hoje.getTime() - 90 * 86400000)
+                    setDataInicio(inicio.toISOString().slice(0,10))
+                    setDataFim(hoje.toISOString().slice(0,10))
+                  }],
+                  ['Este ano', () => {
+                    const hoje = new Date()
+                    setDataInicio(`${hoje.getFullYear()}-01-01`)
+                    setDataFim(hoje.toISOString().slice(0,10))
+                  }],
+                ].map(([label, fn]) => (
+                  <button key={label} onClick={fn} style={{ padding: '4px 10px', background: '#f8f8f6', color: '#5F5E5A', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>{label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
