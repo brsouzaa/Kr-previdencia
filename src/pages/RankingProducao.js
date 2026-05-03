@@ -100,6 +100,8 @@ export default function RankingProducao() {
   // Totais
   const totalAssinadosMes = ranking.reduce((s, r) => s + (r.assinados_mes || 0), 0)
   const totalBonusMes = ranking.reduce((s, r) => s + bonusPorFaixa(r.assinados_mes || 0), 0)
+  // Total de bônus quando custom está ativo (usa mesma fórmula de faixas)
+  const totalBonusCustom = (rankingCustom || []).reduce((s, r) => s + bonusPorFaixa(r.assinados_periodo || 0), 0)
   const totalAssinadosHoje = ranking.reduce((s, r) => s + (r.assinados_hoje || 0), 0)
   const totalAssinadosSem = ranking.reduce((s, r) => s + (r.assinados_semana || 0), 0)
   const ativosHoje = ranking.filter(r => r.assinados_hoje > 0).length
@@ -129,9 +131,17 @@ export default function RankingProducao() {
           <div style={s.cardSub}>mês corrente</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#854F0B' }}>💰 Bônus do mês</div>
-          <div style={{ ...s.cardValue, color: '#854F0B' }}>R$ {totalBonusMes.toLocaleString('pt-BR')}</div>
-          <div style={s.cardSub}>a pagar dia 1 do próximo mês</div>
+          <div style={{ ...s.cardLabel, color: '#854F0B' }}>
+            💰 Bônus {periodo === 'custom' && rankingCustom ? 'do período' : 'do mês'}
+          </div>
+          <div style={{ ...s.cardValue, color: '#854F0B' }}>
+            R$ {(periodo === 'custom' && rankingCustom ? totalBonusCustom : totalBonusMes).toLocaleString('pt-BR')}
+          </div>
+          <div style={s.cardSub}>
+            {periodo === 'custom' && rankingCustom 
+              ? `${dataInicio.split('-').reverse().slice(0,2).join('/')} → ${dataFim.split('-').reverse().slice(0,2).join('/')}` 
+              : 'a pagar dia 1 do próximo mês'}
+          </div>
         </div>
       </div>
 
@@ -203,8 +213,8 @@ export default function RankingProducao() {
           const tempoMedio = usandoCustom ? r.tempo_medio_h : r.tempo_medio_h_mes
           const taxa = usandoCustom ? Number(r.taxa_assinatura) : Number(r.taxa_assinatura_mes || 0)
           const pos = usandoCustom ? r.posicao : r[campoPos]
-          // Bônus só faz sentido no contexto mensal
-          const bonus = usandoCustom ? null : bonusPorFaixa(r.assinados_mes || 0)
+          // Bônus: no modo mês usa assinados_mes, no custom usa assinados_periodo (mesma fórmula de faixas)
+          const bonus = usandoCustom ? bonusPorFaixa(r.assinados_periodo || 0) : bonusPorFaixa(r.assinados_mes || 0)
           return (
             <div key={r.vendedor_id} style={s.rankRow}>
               <div style={s.rankPos(pos)}>{pos}</div>
@@ -221,7 +231,7 @@ export default function RankingProducao() {
                 {taxa}%
               </div>
               <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 500, color: bonus > 0 ? '#3B6D11' : '#aaa' }}>
-                {bonus !== null ? `R$ ${bonus.toLocaleString('pt-BR')}` : '—'}
+                R$ {bonus.toLocaleString('pt-BR')}
               </div>
             </div>
           )
@@ -252,8 +262,8 @@ export default function RankingProducao() {
                 style={{ width: '100%', padding: 10, fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ background: '#FAEEDA', padding: 10, borderRadius: 6, fontSize: 11, color: '#854F0B', marginBottom: 14 }}>
-              💡 Bônus mensal não se aplica a períodos custom — ele continua sendo calculado pelo mês corrente.
+            <div style={{ background: '#EAF3DE', padding: 10, borderRadius: 6, fontSize: 11, color: '#3B6D11', marginBottom: 14 }}>
+              💡 O bônus será recalculado pelo período usando as mesmas faixas (1-15 R$15 · 16-40 R$17 · 41+ R$20).
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
