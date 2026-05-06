@@ -23,6 +23,8 @@ import Devolucoes from './pages/Devolucoes'
 import PosVenda from './pages/PosVenda'
 import PosVendaHistorico from './pages/PosVendaHistorico'
 import Portal from './pages/Portal'
+import RevisaoIA from './pages/RevisaoIA'
+import PerformanceIA from './pages/PerformanceIA'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -48,6 +50,7 @@ function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
   if (role === 'supervisor_producao') return 'fila_digitacao'
   if (role === 'analista') return 'entregas'
+  if (role === 'analista_ia') return 'revisao_ia'
   if (role === 'vendedor_operador') return 'meus_clientes'
   if (role === 'pos_venda') return 'pos_venda'
   return 'dashboard'
@@ -59,6 +62,7 @@ function paginaPermitida(role, page) {
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   return false
@@ -111,6 +115,8 @@ function AppInner() {
     meu_desempenho: <MeuDesempenho />,
     pos_venda: <PosVenda />,
     pos_venda_historico: <PosVendaHistorico />,
+    revisao_ia: <RevisaoIA />,
+    performance_ia: <PerformanceIA />,
   }
 
   const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
