@@ -40,6 +40,10 @@ const NAV_POS_VENDA = [
   { key: 'pos_venda', label: '📞 Fila de pós-venda' },
   { key: 'pos_venda_historico', label: '📚 Histórico' },
 ]
+const NAV_ANALISTA_IA = [
+  { key: 'revisao_ia', label: '🤖 Revisão IA' },
+  { key: 'performance_ia', label: '📈 Performance IA' },
+]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
@@ -53,6 +57,8 @@ const NAV_ADMIN = [
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
   { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
+  { key: 'revisao_ia', label: '🤖 Revisão IA' },
+  { key: 'performance_ia', label: '📈 Performance IA' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 
@@ -76,6 +82,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
     : profile?.role === 'analista' ? NAV_ANALISTA
+    : profile?.role === 'analista_ia' ? NAV_ANALISTA_IA
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
