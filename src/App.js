@@ -25,6 +25,7 @@ import PosVendaHistorico from './pages/PosVendaHistorico'
 import Portal from './pages/Portal'
 import RevisaoIA from './pages/RevisaoIA'
 import PerformanceIA from './pages/PerformanceIA'
+import PrimeiroAcesso from './pages/PrimeiroAcesso'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -94,6 +95,9 @@ function AppInner() {
       <div style={{ fontSize: 14, color: '#888' }}>Carregando...</div>
     </div>
   )
+
+  // Primeiro acesso: força troca de senha + nome
+  if (profile.senha_temporaria === true) return <PrimeiroAcesso />
 
   const pages = {
     dashboard: <Dashboard />,
