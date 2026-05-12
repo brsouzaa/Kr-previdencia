@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+
+const IA_ID = 'a1a1a1a1-aaaa-bbbb-cccc-aaaaaaaaaaaa'
 
 export default function SupervisorProducao() {
+  const { profile } = useAuth()
   const [contratos, setContratos] = useState([])
   const [produtores, setProdutores] = useState([])
   const [lotesPrioridade, setLotesPrioridade] = useState([])
+  const [rankingSupervisoras, setRankingSupervisoras] = useState([])
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('mes')
   const [filtroProd, setFiltroProd] = useState('')
@@ -15,43 +20,75 @@ export default function SupervisorProducao() {
   const [salvando, setSalvando] = useState(false)
   const [msgSalvo, setMsgSalvo] = useState('')
 
-  useEffect(() => { fetchDados() }, [])
+  // Detecta contexto: admin vê tudo, sup_producao vê só seu setor
+  const isAdmin = profile?.role === 'admin'
+  const meuSetor = profile?.setor || 'captacao'
+  const isSupAutonomo = profile?.role === 'supervisor_producao' && meuSetor === 'autonomos'
+
+  useEffect(() => { if (profile) fetchDados() }, [profile])
 
   async function fetchDados() {
     setLoading(true)
-    const [{ data: c }, { data: p }, { data: lp }] = await Promise.all([
-      supabase.from('contratos_producao').select(`
-        *,
-        profiles(nome),
-        advogados(nome_completo, oab),
-        clientes!clientes_contrato_producao_id_fkey(
-          id,
-          nome,
-          cpf,
-          rg,
-          email,
-          telefone,
-          rua,
-          numero,
-          bairro,
-          cidade,
-          uf,
-          cep,
-          status,
-          origem,
-          data_prevista_parto,
-          meses_gravidez,
-          nis,
-          vendedor_operador_id,
-          vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome)
+
+    // Query base de contratos (sem filtro por setor — RLS filtra automaticamente)
+    let contratosQuery = supabase.from('contratos_producao').select(`
+      *,
+      profiles(nome),
+      advogados(nome_completo, oab),
+      clientes!clientes_contrato_producao_id_fkey(
+        id, nome, cpf, rg, email, telefone, rua, numero, bairro, cidade, uf, cep,
+        status, origem, setor, data_prevista_parto, meses_gravidez, nis,
+        vendedor_operador_id,
+        vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome, setor, supervisora_id)
+      )
+    `).order('created_at', { ascending: false })
+
+    // Query de vendedores pro dropdown — admin vê todos, sup vê só do setor dele
+    let prodQuery = supabase.from('profiles').select('id, nome, setor, supervisora_id').in('role', ['vendedor_operador', 'supervisor_producao']).order('nome')
+
+    // Query de lotes em prioridade
+    let lpQuery = supabase.from('lotes').select('*, advogados(nome_completo)').eq('prioridade_fila', true).order('data_prioridade', { ascending: true })
+
+    const [{ data: c }, { data: p }, { data: lp }] = await Promise.all([contratosQuery, prodQuery, lpQuery])
+
+    // Filtros do frontend (RLS já filtra no banco, mas garante consistência)
+    let contratosFiltrados = c || []
+    let produtoresFiltrados = p || []
+
+    if (!isAdmin) {
+      // Supervisora vê SÓ vendedores do setor dela
+      // E SÓ os vendedores do time dela (se autônomos)
+      if (isSupAutonomo) {
+        // Sup autônoma: só seu time + IA
+        produtoresFiltrados = produtoresFiltrados.filter(prod =>
+          prod.supervisora_id === profile.id || prod.id === IA_ID
         )
-      `).order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, nome').in('role', ['vendedor_operador', 'supervisor_producao']).order('nome'),
-      supabase.from('lotes').select('*, advogados(nome_completo)').eq('prioridade_fila', true).order('data_prioridade', { ascending: true }),
-    ])
-    setContratos(c || [])
-    setProdutores(p || [])
+        contratosFiltrados = contratosFiltrados.filter(con => {
+          const vendId = con.clientes?.[0]?.vendedor_operador_id
+          return produtoresFiltrados.some(p => p.id === vendId)
+        })
+      } else {
+        // Maryana (sup captação): só vendedores captação + IA
+        produtoresFiltrados = produtoresFiltrados.filter(prod =>
+          (prod.setor === 'captacao' || !prod.setor) || prod.id === IA_ID
+        )
+        contratosFiltrados = contratosFiltrados.filter(con => {
+          const cliSetor = con.clientes?.[0]?.setor || 'captacao'
+          return cliSetor === 'captacao'
+        })
+      }
+    }
+
+    setContratos(contratosFiltrados)
+    setProdutores(produtoresFiltrados)
     setLotesPrioridade(lp || [])
+
+    // Carrega ranking de supervisoras APENAS se for sup autônoma ou admin
+    if (isSupAutonomo || isAdmin) {
+      const { data: rsa } = await supabase.from('vw_ranking_supervisoras_autonomos').select('*')
+      setRankingSupervisoras(rsa || [])
+    }
+
     setLoading(false)
   }
 
@@ -59,9 +96,7 @@ export default function SupervisorProducao() {
     if (sincronizando) return
     setSincronizando(true)
     try {
-      const resp = await supabase.functions.invoke('gerar-contratos-zapsign/sincronizar', {
-        body: {}
-      })
+      const resp = await supabase.functions.invoke('gerar-contratos-zapsign/sincronizar', { body: {} })
       if (resp.error) throw new Error(typeof resp.error === 'string' ? resp.error : JSON.stringify(resp.error))
       const r = resp.data
       setUltimaSync({
@@ -84,6 +119,9 @@ export default function SupervisorProducao() {
   }
   function getCliente(c) {
     return c.clientes?.[0] || null
+  }
+  function isIA(c) {
+    return c.clientes?.[0]?.vendedor_operador_id === IA_ID
   }
 
   function abrirCliente(contrato) {
@@ -176,7 +214,8 @@ export default function SupervisorProducao() {
 
   const rankingMap = filtrados.reduce((acc, c) => {
     const nome = getVendedorB2C(c)
-    if (!acc[nome]) acc[nome] = { enviados: 0, assinados: 0 }
+    const vendId = getVendedorB2CId(c)
+    if (!acc[nome]) acc[nome] = { enviados: 0, assinados: 0, is_ia: vendId === IA_ID }
     acc[nome].enviados++
     if (c.status === 'assinado') acc[nome].assinados++
     return acc
@@ -185,38 +224,23 @@ export default function SupervisorProducao() {
 
   const card = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }
 
+  const titulo = isSupAutonomo ? '📊 Supervisão Autônomos' : '📊 Supervisão de Produção'
+
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>📊 Supervisão de Produção</div>
-        <button
-          onClick={sincronizarAgora}
-          disabled={sincronizando}
-          style={{
-            padding: '8px 14px',
-            background: sincronizando ? '#aaa' : '#185FA5',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: sincronizando ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>{titulo}</div>
+        <button onClick={sincronizarAgora} disabled={sincronizando}
+          style={{ padding: '8px 14px', background: sincronizando ? '#aaa' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: sincronizando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           {sincronizando ? '⏳ Sincronizando...' : '🔄 Sincronizar agora'}
         </button>
       </div>
 
       {ultimaSync && (
         <div style={{ ...card, marginBottom: 14, background: '#EAF3DE', border: '0.5px solid #3B6D1130' }}>
-          <div style={{ fontSize: 13, color: '#3B6D11', fontWeight: 500 }}>
-            ✓ Sincronização concluída às {ultimaSync.horario}
-          </div>
+          <div style={{ fontSize: 13, color: '#3B6D11', fontWeight: 500 }}>✓ Sincronização concluída às {ultimaSync.horario}</div>
           <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
             {ultimaSync.assinados} contrato{ultimaSync.assinados !== 1 ? 's' : ''} marcado{ultimaSync.assinados !== 1 ? 's' : ''} como assinado · {ultimaSync.expirados} contrato{ultimaSync.expirados !== 1 ? 's' : ''} expirado{ultimaSync.expirados !== 1 ? 's' : ''} (voltaram para a fila com prioridade)
           </div>
@@ -237,6 +261,41 @@ export default function SupervisorProducao() {
           </div>
         ))}
       </div>
+
+      {/* Card especial: ranking de supervisoras autônomas (só pra sup autônoma e admin) */}
+      {(isSupAutonomo || isAdmin) && rankingSupervisoras.length > 0 && (
+        <div style={{ ...card, marginBottom: '1.25rem', background: '#F0F7FF', border: '0.5px solid #185FA540' }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#185FA5', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            🏅 Ranking entre supervisoras autônomas (este mês)
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {rankingSupervisoras.map(s => {
+              const ehVoce = s.supervisora_id === profile.id
+              return (
+                <div key={s.supervisora_id} style={{
+                  flex: '1 1 200px',
+                  padding: '12px',
+                  background: ehVoce ? '#185FA5' : '#fff',
+                  color: ehVoce ? '#fff' : '#111',
+                  borderRadius: 8,
+                  border: ehVoce ? 'none' : '0.5px solid rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>
+                    {['🥇','🥈','🥉'][s.posicao - 1] || `${s.posicao}º`} {ehVoce && '· VOCÊ'}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{s.supervisora_nome}</div>
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>
+                    {s.assinados_mes} assinados · {s.qtd_vendedores} vendedor{s.qtd_vendedores !== 1 ? 'es' : ''}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
+                    Conversão: {s.taxa_assinatura_mes}%
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {lotesPrioridade.length > 0 && (
         <div style={{ ...card, marginBottom: '1.25rem', background: '#FEF3C7', border: '0.5px solid #F59E0B40' }}>
@@ -274,7 +333,7 @@ export default function SupervisorProducao() {
         </select>
         <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
           <option value="">Todos os vendedores B2C</option>
-          {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}{p.id === IA_ID ? ' 🤖' : ''}</option>)}
         </select>
       </div>
 
@@ -285,10 +344,12 @@ export default function SupervisorProducao() {
           {ranking.map(([nome, dados], i) => {
             const conv = dados.enviados > 0 ? Math.round((dados.assinados / dados.enviados) * 100) : 0
             return (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i === 0 ? '#E6F1FB' : '#f8f8f6', borderRadius: 8 }}>
-                <div style={{ width: 24, fontSize: 16, textAlign: 'center' }}>{['🥇','🥈','🥉'][i] || `${i+1}º`}</div>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: dados.is_ia ? '#FFF6E6' : (i === 0 ? '#E6F1FB' : '#f8f8f6'), borderRadius: 8, border: dados.is_ia ? '0.5px dashed #F59E0B60' : 'none' }}>
+                <div style={{ width: 24, fontSize: 16, textAlign: 'center' }}>{dados.is_ia ? '🤖' : (['🥇','🥈','🥉'][i] || `${i+1}º`)}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{nome}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                    {nome} {dados.is_ia && <span style={{ fontSize: 10, color: '#854F0B', background: '#FAEEDA', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>observador</span>}
+                  </div>
                   <div style={{ fontSize: 11, color: '#888' }}>{dados.enviados} enviados · {dados.assinados} assinados · {conv}% conversão</div>
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 500, color: '#185FA5' }}>{dados.enviados}</div>
@@ -323,23 +384,8 @@ export default function SupervisorProducao() {
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Contratos gerados ({filtrados.length})</div>
-          <input
-            type="text"
-            placeholder="🔍 Buscar por nome, CPF, telefone ou advogado..."
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            style={{
-              flex: 1,
-              minWidth: 240,
-              maxWidth: 400,
-              padding: '8px 12px',
-              fontSize: 13,
-              border: '0.5px solid rgba(0,0,0,0.18)',
-              borderRadius: 8,
-              background: '#fff',
-              outline: 'none'
-            }}
-          />
+          <input type="text" placeholder="🔍 Buscar por nome, CPF, telefone ou advogado..." value={busca} onChange={e => setBusca(e.target.value)}
+            style={{ flex: 1, minWidth: 240, maxWidth: 400, padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} />
         </div>
 
         {filtrados.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhum contrato encontrado</div>}
@@ -350,14 +396,12 @@ export default function SupervisorProducao() {
             ? { bg: '#FCEBEB', cor: '#A32D2D', label: '✗ Expirado' }
             : { bg: '#FAEEDA', cor: '#854F0B', label: 'Aguardando' }
           const cli = getCliente(c)
+          const ehIA = isIA(c)
           return (
-            <div
-              key={c.id}
-              onClick={() => abrirCliente(c)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s' }}
-              onMouseEnter={e => { if (cli) e.currentTarget.style.background = '#f8f8f6' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            >
+            <div key={c.id} onClick={() => abrirCliente(c)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s', background: ehIA ? '#FFFBF0' : 'transparent' }}
+              onMouseEnter={e => { if (cli) e.currentTarget.style.background = ehIA ? '#FFF6E0' : '#f8f8f6' }}
+              onMouseLeave={e => { e.currentTarget.style.background = ehIA ? '#FFFBF0' : 'transparent' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
                   {c.cliente_nome}
@@ -365,6 +409,7 @@ export default function SupervisorProducao() {
                 </div>
                 <div style={{ fontSize: 11, color: '#888' }}>
                   Advogado: {c.advogados?.nome_completo} · Vendedor B2C: <strong>{getVendedorB2C(c)}</strong>
+                  {ehIA && <span style={{ marginLeft: 6, padding: '1px 5px', background: '#FAEEDA', color: '#854F0B', borderRadius: 4, fontSize: 10 }}>🤖 IA</span>}
                   {c.profiles?.nome && getVendedorB2C(c) !== c.profiles?.nome && (
                     <span style={{ color: '#aaa' }}> · Digitado por: {c.profiles?.nome}</span>
                   )}
@@ -375,14 +420,10 @@ export default function SupervisorProducao() {
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-                <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: statusConfig.bg, color: statusConfig.cor }}>
-                  {statusConfig.label}
-                </span>
+                <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: statusConfig.bg, color: statusConfig.cor }}>{statusConfig.label}</span>
                 {c.link_assinatura && c.status !== 'expirado' && (
                   <div style={{ marginTop: 4 }}>
-                    <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: '#185FA5', textDecoration: 'none' }}>
-                      Ver link ↗
-                    </a>
+                    <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: '#185FA5', textDecoration: 'none' }}>Ver link ↗</a>
                   </div>
                 )}
               </div>
@@ -399,6 +440,7 @@ export default function SupervisorProducao() {
                 <h2 style={{ margin: 0, fontSize: 18, color: '#111' }}>✏️ Editar cliente</h2>
                 <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
                   Status: <strong>{clienteAberto.status}</strong> · Origem: <strong>{clienteAberto.origem === 'ia' ? '🤖 IA' : '👤 Vendedora'}</strong>
+                  {clienteAberto.setor && <> · Setor: <strong>{clienteAberto.setor}</strong></>}
                 </div>
                 <div style={{ fontSize: 11, color: '#888' }}>
                   Advogado: {clienteAberto._advogado?.nome_completo} · Vendedor: {clienteAberto._vendedor}
@@ -431,9 +473,7 @@ export default function SupervisorProducao() {
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#f0f0ee', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
-                Cancelar
-              </button>
+              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#f0f0ee', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
               <button onClick={salvarCliente} disabled={salvando} style={{ flex: 2, padding: 10, background: salvando ? '#aaa' : '#185FA5', color: '#fff', border: 'none', borderRadius: 6, cursor: salvando ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}>
                 {salvando ? '⏳ Salvando...' : '💾 Salvar alterações'}
               </button>
@@ -449,12 +489,8 @@ function Campo({ label, valor, onChange, colSpan = 1 }) {
   return (
     <div style={{ gridColumn: colSpan === 2 ? 'span 2' : 'span 1' }}>
       <label style={{ display: 'block', fontSize: 11, color: '#666', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</label>
-      <input
-        type="text"
-        value={valor || ''}
-        onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-      />
+      <input type="text" value={valor || ''} onChange={e => onChange(e.target.value)}
+        style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }} />
     </div>
   )
 }
