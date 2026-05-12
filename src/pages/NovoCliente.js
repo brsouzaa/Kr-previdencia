@@ -129,20 +129,28 @@ export default function NovoCliente({ onSucesso }) {
   function setDoc(chave, url) { setDocs(d => ({ ...d, [chave]: url })) }
 
   // === Verificar CPF duplicado em tempo real ===
+  // Status que LIBERAM recadastro (cliente "morto"): expirado, cancelado, barrado_pos_venda
+  // Qualquer outro status = cliente ainda "vivo" no sistema, bloqueia se for outro vendedor
   async function verificarCpfDuplicado(cpf) {
     if (!cpf || !cpfValido(cpf)) { setDuplicado(null); return }
     setVerificandoCpf(true)
     try {
+      // Busca o cliente mais recente com mesmo CPF que NÃO esteja "morto"
       const { data } = await supabase.from('clientes')
-        .select('id, nome, status, vendedor_operador_id, profiles!clientes_vendedor_operador_id_fkey(nome)')
+        .select('id, nome, status, vendedor_operador_id, setor, profiles!clientes_vendedor_operador_id_fkey(nome)')
         .eq('cpf', cpf)
-        .in('status', ['aguardando_emissao','emitido'])
+        .not('status', 'in', '(expirado,cancelado,barrado_pos_venda)')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
       if (data) {
+        const vendedorMesmo = data.vendedor_operador_id === profile.id
         setDuplicado({
-          nome: data.nome, status: data.status,
+          nome: data.nome,
+          status: data.status,
+          setor: data.setor,
           vendedorNome: data.profiles?.nome || 'outro vendedor',
-          vendedorMesmo: data.vendedor_operador_id === profile.id,
+          vendedorMesmo,
         })
       } else { setDuplicado(null) }
     } catch (e) { setDuplicado(null) }
@@ -231,7 +239,10 @@ export default function NovoCliente({ onSucesso }) {
   // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2
   const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
 
-  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicado && camposMatOk && docsOk
+  // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
+  const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
+
+  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && docsOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
@@ -256,9 +267,13 @@ export default function NovoCliente({ onSucesso }) {
 
       const { data, error } = await supabase.from('clientes').insert(payload).select().single()
       if (error) {
-        if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
-          setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', vendedorNome: 'no sistema', vendedorMesmo: false })
-          alert('Este CPF já está cadastrado no sistema com status pendente.')
+        // Trigger do banco bloqueou CPF duplicado
+        if (/CPF_DUPLICADO/i.test(error.message)) {
+          setDuplicado({ nome: 'um cliente', status: 'cadastro_existente', setor: null, vendedorNome: 'outro vendedor', vendedorMesmo: false })
+          alert('❌ Este CPF já está cadastrado por outro vendedor no sistema. Não é possível cadastrar duplicado.')
+        } else if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
+          setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', setor: null, vendedorNome: 'no sistema', vendedorMesmo: false })
+          alert('Este CPF já está cadastrado no sistema.')
         } else { throw error }
         setEnviando(false); return
       }
@@ -380,7 +395,7 @@ export default function NovoCliente({ onSucesso }) {
         <div style={s.grid2}>
           <div>
             <label style={s.label}>CPF *</label>
-            <input style={(c.cpf && !cpfOk) || duplicado ? s.inputErr : s.input}
+            <input style={(c.cpf && !cpfOk) || duplicadoBloqueia ? s.inputErr : s.input}
               value={c.cpf}
               onChange={e => { const v = maskCPF(e.target.value); set('cpf', v); setDuplicado(null) }}
               onBlur={() => verificarCpfDuplicado(c.cpf)}
@@ -397,10 +412,15 @@ export default function NovoCliente({ onSucesso }) {
         </div>
 
         {duplicado && (
-          <div style={s.duplicadoBox}>
-            <div style={{ fontWeight: 500, marginBottom: 4 }}>⚠️ CPF já cadastrado no sistema</div>
+          <div style={duplicado.vendedorMesmo ? { ...s.duplicadoBox, background: '#FEF3C7', borderColor: '#F59E0B40', color: '#854F0B' } : s.duplicadoBox}>
+            <div style={{ fontWeight: 500, marginBottom: 4 }}>
+              {duplicado.vendedorMesmo
+                ? '✓ CPF já é seu cliente (pode prosseguir, será atualizado)'
+                : '🚫 CPF já cadastrado por outro vendedor'}
+            </div>
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '(seu cliente)' : `(cadastrado por ${duplicado.vendedorNome})`} está com status <strong>{duplicado.status === 'aguardando_emissao' ? 'aguardando emissão' : 'emitido'}</strong>.
+              <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '— seu cliente' : `— cadastrado por ${duplicado.vendedorNome}`} · status: <strong>{duplicado.status}</strong>{duplicado.setor && duplicado.setor !== 'captacao' && <> · setor <strong>{duplicado.setor}</strong></>}.
+              {!duplicado.vendedorMesmo && <><br />Você não pode cadastrar o mesmo CPF enquanto este cliente estiver ativo no sistema.</>}
             </div>
           </div>
         )}
