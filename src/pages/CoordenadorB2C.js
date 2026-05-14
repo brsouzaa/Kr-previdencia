@@ -430,12 +430,28 @@ function ModalCancelar({ onClose, onSucesso, setorResp }) {
     if (motivoFinal.length < 3) { setErro('Motivo precisa de pelo menos 3 caracteres.'); return }
 
     setEnviando(true)
-    const { error } = await supabase.rpc('coordenadora_cancelar_cliente', {
-      p_cliente_id: cliente.id,
-      p_motivo: motivoFinal,
-    })
+    // Chama edge function pra cancelar ZapSign + cancelar cliente + auditar
+    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
+    const resp = await fetch(
+      `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/gerar-contratos-zapsign/coordenadora-cancelar-cliente`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session?.access_token || process.env.REACT_APP_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          cliente_id: cliente.id,
+          motivo: motivoFinal,
+          coord_id: user?.id,
+        }),
+      }
+    )
+    const body = await resp.json()
     setEnviando(false)
-    if (error) { setErro(error.message); return }
+    if (!body.ok) { setErro(body.error || 'Erro ao cancelar'); return }
     onSucesso()
     onClose()
   }
