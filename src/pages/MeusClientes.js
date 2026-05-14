@@ -78,7 +78,12 @@ export default function MeusClientes() {
 
   const fetchClientes = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('clientes').select('*').order('created_at', { ascending: false })
+    // Coordenadora B2C: RLS já filtra pelo setor_responsavel; busca JOIN com vendedor pra ver quem cadastrou
+    const isCoord = profile?.role === 'coordenador_b2c'
+    let q = supabase
+      .from('clientes')
+      .select(isCoord ? '*, profiles!clientes_vendedor_operador_id_fkey(nome)' : '*')
+      .order('created_at', { ascending: false })
     if (profile?.role === 'vendedor_operador') {
       q = q.eq('vendedor_operador_id', profile.id)
     }
@@ -199,7 +204,11 @@ export default function MeusClientes() {
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📋 Meus clientes</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>
+            {profile?.role === 'coordenador_b2c'
+              ? `📋 Clientes do setor ${profile?.setor_responsavel === 'autonomos' ? 'autônomos' : 'captação + IA'}`
+              : '📋 Meus clientes'}
+          </div>
           <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
         </div>
         <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
@@ -272,6 +281,9 @@ export default function MeusClientes() {
               {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto} · {tempoRelativo(c.created_at)}
               {' · '}
               <span style={{ color: docsAnexados >= 4 ? '#3B6D11' : '#A32D2D' }}>📎 {docsAnexados}/5 documentos</span>
+              {profile?.role === 'coordenador_b2c' && c.profiles?.nome && (
+                <> · 👤 <span style={{ color: '#555' }}>{c.profiles.nome}</span></>
+              )}
             </div>
 
             {/* REEMITIDO AUTOMATICAMENTE — informativo, vendedor não precisa fazer nada */}
