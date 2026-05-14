@@ -44,6 +44,21 @@ const NAV_ANALISTA_IA = [
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
   { key: 'performance_ia', label: '📈 Performance IA' },
 ]
+const NAV_COORDENADOR_B2C = [
+  { key: 'painel_coordenador', label: '🎛️ Painel da coordenadora' },
+  { key: 'dashboard', label: '📊 Dashboard B2C' },
+  { key: 'meus_clientes', label: '📋 Clientes do setor' },
+  { key: 'supervisor_producao', label: '📊 Supervisão produção' },
+  { key: 'fila_digitacao', label: '📥 Fila de digitação' },
+  { key: 'ranking', label: '🏆 Ranking vendedoras' },
+  { key: 'dashboard_producao', label: '📈 Dashboard produção' },
+  { key: 'pos_venda', label: '📞 Pós-venda' },
+  { key: 'pos_venda_historico', label: '📚 Histórico pós-venda' },
+  { key: 'devolucoes', label: '⚠️ Devoluções' },
+  // Bloco IA só aparece se setor_responsavel = captacao (filtrado abaixo no map do nav)
+  { key: 'revisao_ia', label: '🤖 Revisão IA', soCaptacao: true },
+  { key: 'performance_ia', label: '📈 Performance IA', soCaptacao: true },
+]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: 'Advogados' },
@@ -78,14 +93,20 @@ export default function Layout({ children, page, setPage }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [novosLotes, setNovosLotes] = useState(0)
 
-  const nav = profile?.role === 'admin' ? NAV_ADMIN
+  const navBase = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
     : profile?.role === 'analista' ? NAV_ANALISTA
     : profile?.role === 'analista_ia' ? NAV_ANALISTA_IA
+    : profile?.role === 'coordenador_b2c' ? NAV_COORDENADOR_B2C
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
+
+  // Coordenadora de autônomos não vê itens marcados como soCaptacao
+  const nav = (profile?.role === 'coordenador_b2c' && profile?.setor_responsavel !== 'captacao')
+    ? navBase.filter(n => !n.soCaptacao)
+    : navBase
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
   useEffect(() => {
@@ -154,6 +175,8 @@ export default function Layout({ children, page, setPage }) {
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
                 : profile?.role === 'analista' ? 'Analista'
+                : profile?.role === 'analista_ia' ? 'Analista IA'
+                : profile?.role === 'coordenador_b2c' ? `Coordenadora ${profile?.setor_responsavel === 'autonomos' ? 'Autônomos' : 'Captação'}`
                 : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
                 : profile?.role === 'produtor' ? 'Produtor'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
