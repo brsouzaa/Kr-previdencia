@@ -17,10 +17,17 @@ import MeusClientes from './pages/MeusClientes'
 import MeuDesempenho from './pages/MeuDesempenho'
 import FilaDigitacao from './pages/FilaDigitacao'
 import RankingProducao from './pages/RankingProducao'
+import Entregas from './pages/Entregas'
+import LotesEntregues from './pages/LotesEntregues'
 import Devolucoes from './pages/Devolucoes'
 import PosVenda from './pages/PosVenda'
 import PosVendaHistorico from './pages/PosVendaHistorico'
 import Portal from './pages/Portal'
+import RevisaoIA from './pages/RevisaoIA'
+import PerformanceIA from './pages/PerformanceIA'
+import PrimeiroAcesso from './pages/PrimeiroAcesso'
+import CoordenadorB2C from './pages/CoordenadorB2C'
+import DashboardProducao from './pages/DashboardProducao'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -45,7 +52,9 @@ function PortalRoute() {
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
   if (role === 'supervisor_producao') return 'fila_digitacao'
-  if (role === 'analista') return 'fila'
+  if (role === 'analista') return 'entregas'
+  if (role === 'analista_ia') return 'revisao_ia'
+  if (role === 'coordenador_b2c') return 'painel_coordenador'
   if (role === 'vendedor_operador') return 'meus_clientes'
   if (role === 'pos_venda') return 'pos_venda'
   return 'dashboard'
@@ -53,10 +62,12 @@ function paginaInicial(role) {
 
 function paginaPermitida(role, page) {
   if (role === 'admin') return true
-  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','devolucoes'].includes(page)
+  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
-  if (role === 'analista') return ['dashboard','advogados','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
+  if (role === 'coordenador_b2c') return ['painel_coordenador','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   return false
@@ -89,6 +100,9 @@ function AppInner() {
     </div>
   )
 
+  // Primeiro acesso: força troca de senha + nome
+  if (profile.senha_temporaria === true) return <PrimeiroAcesso />
+
   const pages = {
     dashboard: <Dashboard />,
     advogados: <Advogados />,
@@ -101,12 +115,18 @@ function AppInner() {
     supervisor_producao: <SupervisorProducao />,
     fila_digitacao: <FilaDigitacao />,
     ranking: <RankingProducao />,
+    entregas: <Entregas />,
+    lotes_entregues: <LotesEntregues />,
     devolucoes: <Devolucoes />,
     meus_clientes: <MeusClientes />,
     novo_cliente: <NovoCliente onSucesso={() => setPage('meus_clientes')} />,
     meu_desempenho: <MeuDesempenho />,
     pos_venda: <PosVenda />,
     pos_venda_historico: <PosVendaHistorico />,
+    revisao_ia: <RevisaoIA />,
+    performance_ia: <PerformanceIA />,
+    painel_coordenador: <CoordenadorB2C />,
+    dashboard_producao: <DashboardProducao />,
   }
 
   const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
