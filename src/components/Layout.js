@@ -46,7 +46,6 @@ const NAV_ANALISTA_IA = [
 ]
 const NAV_COORDENADOR_B2C = [
   { key: 'painel_coordenador', label: '🎛️ Painel da coordenadora' },
-  { key: 'dashboard', label: '📊 Dashboard B2C' },
   { key: 'meus_clientes', label: '📋 Clientes do setor' },
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
