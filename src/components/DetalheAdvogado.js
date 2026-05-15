@@ -34,7 +34,51 @@ const PAG_STYLE = {
 }
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
 const PRODUTOS = ['Maternidade', 'BPC', 'Auxilio Acidente']
-const VALOR_CONTRATO = 299
+
+// Tabela de preços por produto (fallback, sincronizado com produtos_precos do banco)
+const FALLBACK_TABELAS = {
+  'Maternidade': [
+    { qtd_min: 1, qtd_max: 4, preco: 449 },
+    { qtd_min: 5, qtd_max: 9, preco: 399 },
+    { qtd_min: 10, qtd_max: 29, preco: 359 },
+    { qtd_min: 30, qtd_max: 49, preco: 329 },
+    { qtd_min: 50, qtd_max: 99, preco: 299 },
+    { qtd_min: 100, qtd_max: null, preco: 279 },
+  ],
+  'BPC': [
+    { qtd_min: 1, qtd_max: 5, preco: 999 },
+    { qtd_min: 6, qtd_max: 10, preco: 899 },
+    { qtd_min: 11, qtd_max: 30, preco: 849 },
+    { qtd_min: 31, qtd_max: 50, preco: 799 },
+    { qtd_min: 51, qtd_max: 99, preco: 749 },
+    { qtd_min: 100, qtd_max: null, preco: 699 },
+  ],
+  'Auxilio Acidente': [
+    { qtd_min: 1, qtd_max: 4, preco: 449 },
+    { qtd_min: 5, qtd_max: 9, preco: 399 },
+    { qtd_min: 10, qtd_max: 29, preco: 359 },
+    { qtd_min: 30, qtd_max: 49, preco: 329 },
+    { qtd_min: 50, qtd_max: 99, preco: 299 },
+    { qtd_min: 100, qtd_max: null, preco: 279 },
+  ],
+}
+
+function precoUnitarioFromTabela(tabela, qtd) {
+  if (!qtd || qtd < 1) return 0
+  const linha = (tabela || []).find(l => l.qtd_min <= qtd && (l.qtd_max == null || l.qtd_max >= qtd))
+  return linha ? Number(linha.preco) : 0
+}
+
+function calcularValorPorQtds(qtds, tabelas) {
+  let total = 0
+  for (const produto of PRODUTOS) {
+    const qtd = qtds[produto] || 0
+    if (qtd === 0) continue
+    const preco = precoUnitarioFromTabela(tabelas[produto], qtd)
+    total += qtd * preco
+  }
+  return total
+}
 
 const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' },
@@ -70,8 +114,30 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [adv, setAdv] = useState(advogado)
   const [modalLote, setModalLote] = useState(null)
   const [aba, setAba] = useState('lotes')
+  const [tabelas, setTabelas] = useState(FALLBACK_TABELAS)
 
   useEffect(() => { fetchTudo() }, [advogado.id])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('produtos_precos')
+          .select('produto, qtd_min, qtd_max, preco_unitario')
+          .eq('ativo', true)
+          .order('qtd_min', { ascending: true })
+        if (error || !data) return
+        const novo = {}
+        for (const row of data) {
+          if (!novo[row.produto]) novo[row.produto] = []
+          novo[row.produto].push({ qtd_min: row.qtd_min, qtd_max: row.qtd_max, preco: Number(row.preco_unitario) })
+        }
+        if (novo['Maternidade'] && novo['BPC'] && novo['Auxilio Acidente']) {
+          setTabelas(novo)
+        }
+      } catch(e) { /* mantém fallback */ }
+    })()
+  }, [])
 
   async function notificarEmail(tipo, dados) {
     try { await supabase.functions.invoke('enviar-email', { body: { tipo, dados } }) }
@@ -94,7 +160,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   }
 
   const totalLote = Object.values(qtds).reduce((a, b) => a + b, 0)
-  const valorLote = totalLote * VALOR_CONTRATO
+  const valorLote = calcularValorPorQtds(qtds, tabelas)
 
   async function registrarLote() {
     if (totalLote === 0) return
@@ -110,7 +176,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     if (loteExistente) {
       await supabase.from('lotes').update({
         total_contratos: loteExistente.total_contratos + totalLote,
-        valor_total: (loteExistente.total_contratos + totalLote) * VALOR_CONTRATO,
+        valor_total: Number(loteExistente.valor_total) + valorLote,
         updated_at: new Date().toISOString(),
       }).eq('id', loteExistente.id)
     } else {
@@ -144,7 +210,29 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     const novaQtd = parseInt(input)
     if (isNaN(novaQtd) || novaQtd < 1) { alert('Quantidade inválida.'); return }
     const diff = novaQtd - qtdAtual
-    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novaQtd * VALOR_CONTRATO, updated_at: new Date().toISOString() }).eq('id', loteId)
+    // Recalcula valor baseado nos produtos reais das compras vinculadas ao lote
+    const lote = lotes.find(l => l.id === loteId)
+    const comprasDoLote = compras.filter(c => c.data_compra === lote.data_compra)
+    // Conta produtos atuais e mantém proporção
+    const breakdown = comprasDoLote.reduce((acc, c) => {
+      acc[c.produto] = (acc[c.produto] || 0) + 1
+      return acc
+    }, {})
+    // Se só tem 1 produto, escala direto. Se misturado, mantém proporção e aproxima.
+    const produtos = Object.keys(breakdown)
+    let novoValor
+    if (produtos.length === 1) {
+      // Lote 100% de um produto: simples
+      const tabela = tabelas[produtos[0]] || FALLBACK_TABELAS[produtos[0]]
+      novoValor = novaQtd * precoUnitarioFromTabela(tabela, novaQtd)
+    } else {
+      // Lote misto: escala proporcionalmente
+      const fator = novaQtd / qtdAtual
+      const novasQtds = {}
+      for (const p of PRODUTOS) novasQtds[p] = Math.round((breakdown[p] || 0) * fator)
+      novoValor = calcularValorPorQtds(novasQtds, tabelas)
+    }
+    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novoValor, updated_at: new Date().toISOString() }).eq('id', loteId)
     await supabase.from('advogados').update({ total_compras: Math.max(0, totalAtual + diff) }).eq('id', adv.id)
     await fetchTudo()
   }
