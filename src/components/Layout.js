@@ -64,6 +64,7 @@ const NAV_ADMIN = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'equipe', label: 'Equipe' },
+  { key: 'metas', label: '🎯 Metas' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
