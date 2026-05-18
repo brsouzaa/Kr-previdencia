@@ -8,6 +8,10 @@ export default function DashboardProducao() {
   const [sincronizando, setSincronizando] = useState(false)
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [periodo, setPeriodo] = useState('hoje') // hoje | ontem | semana | mes | mes_passado | custom
+  const [customInicio, setCustomInicio] = useState(() => new Date().toISOString().slice(0, 10))
+  const [customFim, setCustomFim] = useState(() => new Date().toISOString().slice(0, 10))
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     fetchDados()
@@ -17,12 +21,15 @@ export default function DashboardProducao() {
   }, [autoRefresh])
 
   async function fetchDados() {
-    const [{ data: l }, { data: c }] = await Promise.all([
+    const agora = new Date()
+    const [{ data: l }, { data: c }, { data: m }] = await Promise.all([
       supabase.from('lotes').select('*, advogados(nome_completo, oab, estado)').in('status_pagamento', ['a_entregar', 'entregue']).order('data_limite_entrega', { ascending: true }),
-      supabase.from('contratos_producao').select('*, advogados(nome_completo)').order('created_at', { ascending: false }),
+      supabase.from('contratos_producao').select('*, advogados(nome_completo), lotes!lote_id(produto)').order('created_at', { ascending: false }),
+      supabase.from('metas').select('*').eq('escopo', 'b2c_geral').eq('ano', agora.getFullYear()).eq('mes', agora.getMonth() + 1).is('vendedor_id', null).maybeSingle(),
     ])
     setLotes(l || [])
     setContratos(c || [])
+    setMeta(m || null)
     setUltimaAtualizacao(new Date())
     setLoading(false)
   }
@@ -129,6 +136,75 @@ export default function DashboardProducao() {
   const totalAssinados = contratos.filter(c => c.status === 'assinado').length
   const taxaConversao = totalEmitidos > 0 ? Math.round((totalAssinados / totalEmitidos) * 100) : 0
 
+  // === Período selecionado (filtro top da tela) ===
+  function rangePeriodo() {
+    const ini = new Date(); ini.setHours(0, 0, 0, 0)
+    const fim = new Date(); fim.setHours(23, 59, 59, 999)
+    if (periodo === 'hoje') return { ini, fim, label: 'Hoje' }
+    if (periodo === 'ontem') {
+      const i = new Date(ini); i.setDate(i.getDate() - 1)
+      const f = new Date(fim); f.setDate(f.getDate() - 1)
+      return { ini: i, fim: f, label: 'Ontem' }
+    }
+    if (periodo === 'semana') {
+      const i = new Date(ini); i.setDate(i.getDate() - i.getDay()) // domingo
+      return { ini: i, fim, label: 'Esta semana' }
+    }
+    if (periodo === 'mes') {
+      const i = new Date(ini.getFullYear(), ini.getMonth(), 1)
+      return { ini: i, fim, label: 'Este mês' }
+    }
+    if (periodo === 'mes_passado') {
+      const i = new Date(ini.getFullYear(), ini.getMonth() - 1, 1)
+      const f = new Date(ini.getFullYear(), ini.getMonth(), 0); f.setHours(23, 59, 59, 999)
+      return { ini: i, fim: f, label: 'Mês passado' }
+    }
+    if (periodo === 'custom') {
+      const i = new Date(customInicio + 'T00:00:00')
+      const f = new Date(customFim + 'T23:59:59')
+      return { ini: i, fim: f, label: `${customInicio} → ${customFim}` }
+    }
+    return { ini, fim, label: '' }
+  }
+  const range = rangePeriodo()
+
+  // Emitidos no período + por produto
+  const contratosNoPeriodo = contratos.filter(c => {
+    const d = new Date(c.created_at)
+    return d >= range.ini && d <= range.fim
+  })
+  const emitidosPeriodo = contratosNoPeriodo.length
+  const emitidosMaternidade = contratosNoPeriodo.filter(c => c.lotes?.produto === 'Maternidade').length
+  const emitidosBPC = contratosNoPeriodo.filter(c => c.lotes?.produto === 'BPC').length
+  const emitidosAux = contratosNoPeriodo.filter(c => c.lotes?.produto === 'Auxilio Acidente').length
+
+  const assinadosPeriodo = contratos.filter(c => {
+    if (!c.data_assinatura) return false
+    const d = new Date(c.data_assinatura)
+    return d >= range.ini && d <= range.fim
+  }).length
+
+  const validosPeriodo = contratosNoPeriodo.filter(c => c.status !== 'expirado').length
+  const assinadosValidos = contratosNoPeriodo.filter(c => c.status === 'assinado').length
+  const taxaAssinaturaPeriodo = validosPeriodo > 0 ? Math.round((assinadosValidos / validosPeriodo) * 100) : 0
+
+  // Meta do mês (sempre referente ao mês atual, mesmo filtro de período sendo diferente)
+  // Pra projeção, considera o mês inteiro.
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); fimMes.setHours(23, 59, 59, 999)
+  const emitidosMes = contratos.filter(c => {
+    const d = new Date(c.created_at)
+    return d >= inicioMes && d <= fimMes
+  })
+  const emitidosMesTotal = emitidosMes.length
+  const emitidosMesMat = emitidosMes.filter(c => c.lotes?.produto === 'Maternidade').length
+  const emitidosMesBPC = emitidosMes.filter(c => c.lotes?.produto === 'BPC').length
+  const emitidosMesAux = emitidosMes.filter(c => c.lotes?.produto === 'Auxilio Acidente').length
+
+  // Dias úteis restantes no mês (aproximação: dias corridos × 5/7)
+  const diasCorridosRestantes = Math.max(1, Math.ceil((fimMes - hoje) / (1000 * 60 * 60 * 24)))
+  const diasUteisRestantes = Math.max(1, Math.round(diasCorridosRestantes * 5 / 7))
+
   const card = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
@@ -183,6 +259,124 @@ export default function DashboardProducao() {
           </button>
         </div>
       </div>
+
+      {/* === FILTRO DE PERÍODO === */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📅 Período</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {[
+            { k: 'hoje', l: 'Hoje' },
+            { k: 'ontem', l: 'Ontem' },
+            { k: 'semana', l: 'Esta semana' },
+            { k: 'mes', l: 'Este mês' },
+            { k: 'mes_passado', l: 'Mês passado' },
+            { k: 'custom', l: 'Personalizado' },
+          ].map(p => (
+            <button
+              key={p.k}
+              onClick={() => setPeriodo(p.k)}
+              style={{
+                padding: '7px 12px',
+                fontSize: 12,
+                fontWeight: 500,
+                borderRadius: 8,
+                border: '0.5px solid rgba(0,0,0,0.15)',
+                background: periodo === p.k ? '#111' : '#fff',
+                color: periodo === p.k ? '#fff' : '#555',
+                cursor: 'pointer',
+              }}
+            >
+              {p.l}
+            </button>
+          ))}
+          {periodo === 'custom' && (
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 6 }}>
+              <input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' }} />
+              <span style={{ fontSize: 12, color: '#888' }}>→</span>
+              <input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' }} />
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 10 }}>
+          <div style={card}>
+            <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Emitidos · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#111' }}>{emitidosPeriodo}</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Mat {emitidosMaternidade} · BPC {emitidosBPC} · Aux {emitidosAux}</div>
+          </div>
+          <div style={card}>
+            <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Assinados · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#3B6D11' }}>{assinadosPeriodo}</div>
+          </div>
+          <div style={{ ...card, background: taxaAssinaturaPeriodo >= 70 ? '#EAF3DE' : taxaAssinaturaPeriodo >= 40 ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${taxaAssinaturaPeriodo >= 70 ? '#3B6D11' : taxaAssinaturaPeriodo >= 40 ? '#854F0B' : '#A32D2D'}30` }}>
+            <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Taxa assinatura · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: taxaAssinaturaPeriodo >= 70 ? '#3B6D11' : taxaAssinaturaPeriodo >= 40 ? '#854F0B' : '#A32D2D' }}>{taxaAssinaturaPeriodo}%</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{assinadosValidos} de {validosPeriodo} válidos</div>
+          </div>
+          <div style={card}>
+            <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Pendentes emissão (geral)</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#7C3AED' }}>{pendentesEmissao}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* === CARD DE META B2C DO MÊS === */}
+      {meta && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>🎯 Meta do mês</div>
+          <div style={{ ...card, background: '#FFF8E7', border: '0.5px solid #B7892530' }}>
+            {(() => {
+              const metaTotal = (meta.contratos_maternidade || 0) + (meta.contratos_bpc || 0) + (meta.contratos_aux || 0)
+              const pctTotal = metaTotal > 0 ? Math.round((emitidosMesTotal / metaTotal) * 100) : 0
+              const ritmo = Math.max(0, Math.ceil((metaTotal - emitidosMesTotal) / diasUteisRestantes))
+              const pctMat = meta.contratos_maternidade > 0 ? Math.round((emitidosMesMat / meta.contratos_maternidade) * 100) : 0
+              const pctBPC = meta.contratos_bpc > 0 ? Math.round((emitidosMesBPC / meta.contratos_bpc) * 100) : 0
+              const pctAux = meta.contratos_aux > 0 ? Math.round((emitidosMesAux / meta.contratos_aux) * 100) : 0
+              const corPct = pctTotal >= 90 ? '#3B6D11' : pctTotal >= 50 ? '#854F0B' : '#A32D2D'
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                        Total emitido no mês: <span style={{ color: corPct, fontWeight: 600 }}>{emitidosMesTotal.toLocaleString('pt-BR')}</span> / {metaTotal.toLocaleString('pt-BR')} ({pctTotal}%)
+                      </div>
+                      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                        Falta {Math.max(0, metaTotal - emitidosMesTotal).toLocaleString('pt-BR')} em ~{diasUteisRestantes} dias úteis · ritmo {ritmo}/dia
+                      </div>
+                    </div>
+                    {meta.taxa_assinatura_pct > 0 && (
+                      <div style={{ fontSize: 12, color: '#555' }}>
+                        Taxa assinatura: <strong style={{ color: taxaConversao >= meta.taxa_assinatura_pct ? '#3B6D11' : '#A32D2D' }}>{taxaConversao}%</strong> / {meta.taxa_assinatura_pct}%
+                      </div>
+                    )}
+                  </div>
+                  {/* Barra geral */}
+                  <div style={{ height: 8, background: '#fff', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
+                    <div style={{ height: '100%', width: Math.min(100, pctTotal) + '%', background: corPct, transition: 'width 0.3s' }} />
+                  </div>
+                  {/* Detalhe por produto */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Maternidade</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>{emitidosMesMat} / {meta.contratos_maternidade || 0}</div>
+                      <div style={{ fontSize: 11, color: pctMat >= 90 ? '#3B6D11' : pctMat >= 50 ? '#854F0B' : '#A32D2D', marginTop: 2 }}>{pctMat}%</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>BPC</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>{emitidosMesBPC} / {meta.contratos_bpc || 0}</div>
+                      <div style={{ fontSize: 11, color: pctBPC >= 90 ? '#3B6D11' : pctBPC >= 50 ? '#854F0B' : '#A32D2D', marginTop: 2 }}>{pctBPC}%</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Aux. Acidente</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>{emitidosMesAux} / {meta.contratos_aux || 0}</div>
+                      <div style={{ fontSize: 11, color: pctAux >= 90 ? '#3B6D11' : pctAux >= 50 ? '#854F0B' : '#A32D2D', marginTop: 2 }}>{pctAux}%</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* === ALERTAS CRÍTICOS === */}
       {(lotesAtrasados.length > 0 || expirandoEm3h.length > 0 || lotesVencendoHoje.length > 0) && (
