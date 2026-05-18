@@ -269,8 +269,10 @@ export default function NovoCliente({ onSucesso }) {
       if (error) {
         // Trigger do banco bloqueou CPF duplicado
         if (/CPF_DUPLICADO/i.test(error.message)) {
+          // Extrai mensagem amigável (depois de "CPF_DUPLICADO:")
+          const msgAmigavel = error.message.replace(/.*CPF_DUPLICADO:\s*/i, '').trim()
           setDuplicado({ nome: 'um cliente', status: 'cadastro_existente', setor: null, vendedorNome: 'outro vendedor', vendedorMesmo: false })
-          alert('❌ Este CPF já está cadastrado por outro vendedor no sistema. Não é possível cadastrar duplicado.')
+          alert('❌ ' + (msgAmigavel || 'Este CPF já está cadastrado e em atendimento. Aguarde a finalização.'))
         } else if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
           setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', setor: null, vendedorNome: 'no sistema', vendedorMesmo: false })
           alert('Este CPF já está cadastrado no sistema.')
