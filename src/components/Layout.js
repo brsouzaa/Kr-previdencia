@@ -41,6 +41,7 @@ const NAV_POS_VENDA = [
   { key: 'pos_venda_historico', label: '📚 Histórico' },
 ]
 const NAV_ANALISTA_IA = [
+  { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
   { key: 'performance_ia', label: '📈 Performance IA' },
 ]
