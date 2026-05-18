@@ -29,6 +29,7 @@ import PrimeiroAcesso from './pages/PrimeiroAcesso'
 import CoordenadorB2C from './pages/CoordenadorB2C'
 import DashboardProducao from './pages/DashboardProducao'
 import Metas from './pages/Metas'
+import BIBruno from './pages/BIBruno'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -129,6 +130,7 @@ function AppInner() {
     painel_coordenador: <CoordenadorB2C />,
     dashboard_producao: <DashboardProducao />,
     metas: <Metas />,
+    bi: <BIBruno />,
   }
 
   const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
