@@ -77,6 +77,8 @@ export default function Metas() {
         .eq('ano', ano)
         .eq('mes', mes)
         .is('vendedor_id', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
 
       if (cancelado) return
