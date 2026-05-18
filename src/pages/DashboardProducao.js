@@ -25,7 +25,7 @@ export default function DashboardProducao() {
     const [{ data: l }, { data: c }, { data: m }] = await Promise.all([
       supabase.from('lotes').select('*, advogados(nome_completo, oab, estado)').in('status_pagamento', ['a_entregar', 'entregue']).order('data_limite_entrega', { ascending: true }),
       supabase.from('contratos_producao').select('*, advogados(nome_completo), lotes!lote_id(produto)').order('created_at', { ascending: false }),
-      supabase.from('metas').select('*').eq('escopo', 'b2c_geral').eq('ano', agora.getFullYear()).eq('mes', agora.getMonth() + 1).is('vendedor_id', null).maybeSingle(),
+      supabase.from('metas').select('*').eq('escopo', 'b2c_geral').eq('ano', agora.getFullYear()).eq('mes', agora.getMonth() + 1).is('vendedor_id', null).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     ])
     setLotes(l || [])
     setContratos(c || [])
