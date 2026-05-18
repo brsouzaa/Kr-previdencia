@@ -31,6 +31,8 @@ const PAG_STYLE = {
   entregue: { bg: '#FAEEDA', color: '#854F0B', label: 'Entregue' },
   pago: { bg: '#EAF3DE', color: '#3B6D11', label: 'Pago' },
   inadimplente: { bg: '#FCEBEB', color: '#A32D2D', label: 'Inadimplente' },
+  pendente_aprovacao: { bg: '#FFF8E7', color: '#854F0B', label: '🔄 Reposição pendente' },
+  nao_assinou: { bg: '#F1EFE8', color: '#888', label: 'Não assinou' },
 }
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
 const PRODUTOS = ['Maternidade', 'BPC', 'Auxilio Acidente']
@@ -113,6 +115,9 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [saving, setSaving] = useState(false)
   const [adv, setAdv] = useState(advogado)
   const [modalLote, setModalLote] = useState(null)
+  const [modalReposicao, setModalReposicao] = useState(false)
+  const [repForm, setRepForm] = useState({ qtd: 1, motivo: '', observacao: '' })
+  const [savingRep, setSavingRep] = useState(false)
   const [aba, setAba] = useState('lotes')
   const [tabelas, setTabelas] = useState(FALLBACK_TABELAS)
 
@@ -191,6 +196,37 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   }
 
   // FUNÇÕES ADMIN
+  async function solicitarReposicao() {
+    if (!repForm.motivo) { alert('Selecione o motivo da reposição.'); return }
+    if (repForm.qtd < 1) { alert('Quantidade inválida.'); return }
+    setSavingRep(true)
+    
+    const motivoCompleto = repForm.motivo + (repForm.observacao ? ': ' + repForm.observacao : '')
+    
+    const { error } = await supabase.from('lotes').insert({
+      advogado_id: adv.id,
+      vendedor_id: profile.id,
+      data_compra: new Date().toISOString().slice(0, 10),
+      total_contratos: repForm.qtd,
+      valor_total: 0,
+      status_pagamento: 'pendente_aprovacao',
+      tipo: 'reposicao',
+      motivo_reposicao: motivoCompleto,
+      status_aprovacao: 'pendente',
+    })
+    
+    setSavingRep(false)
+    if (error) {
+      alert('Erro ao solicitar reposição: ' + error.message)
+      return
+    }
+    
+    setModalReposicao(false)
+    setRepForm({ qtd: 1, motivo: '', observacao: '' })
+    alert('✓ Solicitação de reposição enviada. Aguarde aprovação do admin.')
+    await fetchTudo()
+  }
+
   async function excluirAdvogado() {
     if (!window.confirm('Excluir permanentemente "' + adv.nome_completo + '"? Todos os lotes e compras serão removidos.')) return
     for (const lote of lotes) {
@@ -415,6 +451,9 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                 <button style={totalLote === 0 || saving ? s.btnDisabled : s.btnSave} onClick={registrarLote} disabled={totalLote === 0 || saving}>
                   {saving ? 'Salvando...' : `Registrar ${totalLote > 0 ? `${totalLote} contrato${totalLote !== 1 ? 's' : ''} · ${fmt(valorLote)}` : 'lote'}`}
                 </button>
+                <button onClick={() => setModalReposicao(true)} style={{ width: '100%', marginTop: 8, padding: '10px', background: '#FFF8E7', color: '#854F0B', border: '0.5px solid #B78925', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                  🔄 Solicitar reposição (grátis)
+                </button>
               </div>
             </div>
 
@@ -525,6 +564,65 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           onClose={() => setModalLote(null)}
           onConfirm={confirmarPagamento}
         />
+      )}
+
+      {modalReposicao && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModalReposicao(false)}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 'min(440px, 92vw)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 4 }}>🔄 Solicitar reposição</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Contratos grátis pra cobrir problemas com advogado. Não conta no faturamento nem na meta.</div>
+            
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Quantidade de contratos</div>
+            <input 
+              type="number" 
+              min="1" 
+              max="50"
+              value={repForm.qtd} 
+              onChange={e => setRepForm({ ...repForm, qtd: Math.max(1, parseInt(e.target.value) || 1) })}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box' }}
+            />
+            
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Motivo</div>
+            <select 
+              value={repForm.motivo} 
+              onChange={e => setRepForm({ ...repForm, motivo: e.target.value })}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 12, background: '#fff', boxSizing: 'border-box' }}
+            >
+              <option value="">Selecione...</option>
+              <option value="Cliente não assinou">Cliente não assinou</option>
+              <option value="CCT sem sucesso">CCT sem sucesso</option>
+              <option value="Cliente desistiu">Cliente desistiu</option>
+              <option value="Documentação inválida">Documentação inválida</option>
+              <option value="Erro na emissão">Erro na emissão</option>
+              <option value="Outro">Outro</option>
+            </select>
+            
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Observação (opcional)</div>
+            <textarea
+              value={repForm.observacao} 
+              onChange={e => setRepForm({ ...repForm, observacao: e.target.value })}
+              placeholder="Detalhe o motivo se necessário..."
+              rows={3}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 16, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+            
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button 
+                onClick={() => setModalReposicao(false)}
+                style={{ flex: 1, padding: '10px', background: '#f0f0ee', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={solicitarReposicao}
+                disabled={savingRep || !repForm.motivo}
+                style={{ flex: 2, padding: '10px', background: savingRep || !repForm.motivo ? '#aaa' : '#854F0B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: savingRep || !repForm.motivo ? 'not-allowed' : 'pointer' }}
+              >
+                {savingRep ? 'Enviando...' : 'Enviar solicitação'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
