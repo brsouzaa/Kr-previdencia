@@ -146,6 +146,7 @@ export default function Dashboard() {
   function filtrarLotes(lista) {
     const { inicio, fim } = getPeriodo()
     return lista.filter(l => {
+      if (l.tipo === 'reposicao') return false
       const dentroDoP = (!inicio || l.data_compra >= inicio) && (!fim || l.data_compra <= fim)
       const vendedorOk = !filtroVendedor || l.profiles?.nome === filtroVendedor
       return dentroDoP && vendedorOk
@@ -154,6 +155,10 @@ export default function Dashboard() {
 
   const comprasFiltradas = filtrarCompras(compras)
   const lotesFiltrados = filtrarLotes(lotes)
+
+  // Reposições pendentes (todos os lotes carregados, ignorando período)
+  const reposicoesPendentes = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'pendente')
+  const reposicoesPendentesQtd = reposicoesPendentes.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
 
   const vendas = {
     hoje: compras.filter(c => c.data_compra === hoje()).length,
@@ -236,6 +241,21 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Aviso de reposições pendentes (só admin) */}
+      {profile?.role === 'admin' && reposicoesPendentes.length > 0 && (
+        <div style={{ background: '#FFF8E7', border: '0.5px solid #B7892550', borderRadius: 12, padding: '14px 16px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#854F0B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>🔄 Reposições aguardando aprovação</div>
+            <div style={{ fontSize: 13, color: '#555' }}>
+              <strong style={{ color: '#854F0B' }}>{reposicoesPendentes.length}</strong> solicitação{reposicoesPendentes.length !== 1 ? 'ões' : ''}
+              {' · '}
+              <strong style={{ color: '#854F0B' }}>{reposicoesPendentesQtd}</strong> contrato{reposicoesPendentesQtd !== 1 ? 's' : ''} grátis
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#888' }}>Vá em <strong>🔄 Reposições</strong> no menu</div>
+        </div>
+      )}
 
       {/* Cards de status clicáveis */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1.25rem' }}>
