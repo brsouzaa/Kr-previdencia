@@ -28,6 +28,8 @@ import PerformanceIA from './pages/PerformanceIA'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
 import CoordenadorB2C from './pages/CoordenadorB2C'
 import DashboardProducao from './pages/DashboardProducao'
+import Metas from './pages/Metas'
+import BIBruno from './pages/BIBruno'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -66,8 +68,8 @@ function paginaPermitida(role, page) {
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
-  if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
-  if (role === 'coordenador_b2c') return ['painel_coordenador','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
+  if (role === 'analista_ia') return ['revisao_ia','performance_ia','supervisor_producao'].includes(page)
+  if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   return false
@@ -127,6 +129,8 @@ function AppInner() {
     performance_ia: <PerformanceIA />,
     painel_coordenador: <CoordenadorB2C />,
     dashboard_producao: <DashboardProducao />,
+    metas: <Metas />,
+    bi: <BIBruno />,
   }
 
   const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
