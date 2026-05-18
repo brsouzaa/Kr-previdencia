@@ -83,6 +83,8 @@ export default function FilaEntregas() {
       .from('lotes')
       .select('*, advogados(nome_completo, oab, cidade, estado, telefone, email), profiles(nome), clientes(id, nome, status, link_assinatura)')
       .eq('status_pagamento', 'a_entregar')
+      .order('prioridade_fila', { ascending: false, nullsFirst: false })
+      .order('data_prioridade', { ascending: true, nullsFirst: false })
       .order('data_compra', { ascending: true })
     setLotes(data || [])
     setLoading(false)
@@ -310,7 +312,12 @@ export default function FilaEntregas() {
         const linkValido = isUrlValida(lote.link_entrega)
 
         return (
-          <div key={lote.id} style={{ background: u.bg, border: `1.5px solid ${u.border}`, borderRadius: 14, padding: '1.25rem', marginBottom: 14 }}>
+          <div key={lote.id} style={{ background: lote.tipo === 'reposicao' ? '#FFF8E7' : u.bg, border: `${lote.tipo === 'reposicao' ? '2px' : '1.5px'} solid ${lote.tipo === 'reposicao' ? '#F59E0B' : u.border}`, borderRadius: 14, padding: '1.25rem', marginBottom: 14 }}>
+            {lote.tipo === 'reposicao' && (
+              <div style={{ background: '#F59E0B', color: '#fff', padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, marginBottom: 10, display: 'inline-block', letterSpacing: '0.3px' }}>
+                🔄 REPOSIÇÃO · PRAZO 24H · ENTREGAR HOJE
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#185FA5', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{idx + 1}°</div>
