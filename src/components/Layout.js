@@ -67,6 +67,7 @@ const NAV_ADMIN = [
   { key: 'equipe', label: 'Equipe' },
   { key: 'metas', label: '🎯 Metas' },
   { key: 'bi', label: '📊 BI Bruno' },
+  { key: 'reposicoes', label: '🔄 Reposições' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
