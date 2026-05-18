@@ -224,7 +224,22 @@ export default function Dashboard() {
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
 
   // Lotes do modal selecionado
-  const lotesModal = modalStatus ? lotesFiltrados.filter(l => l.status_pagamento === modalStatus) : []
+  const lotesModal = modalStatus
+    ? lotesFiltrados
+        .filter(l => l.status_pagamento === modalStatus)
+        .sort((a, b) => {
+          // Reposição sempre primeiro
+          const aRep = a.tipo === 'reposicao' ? 1 : 0
+          const bRep = b.tipo === 'reposicao' ? 1 : 0
+          if (aRep !== bRep) return bRep - aRep
+          // Depois prioridade_fila (boolean)
+          const aPri = a.prioridade_fila ? 1 : 0
+          const bPri = b.prioridade_fila ? 1 : 0
+          if (aPri !== bPri) return bPri - aPri
+          // Por fim, data_compra mais antiga primeiro
+          return (a.data_compra || '').localeCompare(b.data_compra || '')
+        })
+    : []
   const valorModal = lotesModal.reduce((s, l) => s + Number(l.valor_total), 0)
 
   return (
@@ -295,8 +310,14 @@ export default function Dashboard() {
           {lotesModal.map(lote => {
             const dias = diasDesde(lote.data_compra)
             const alerta = modalStatus === 'a_entregar' && dias >= 3
+            const ehReposicao = lote.tipo === 'reposicao'
             return (
-              <div key={lote.id} style={{ border: `0.5px solid ${alerta ? '#A32D2D' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: alerta ? '#FCEBEB40' : '#f8f8f6' }}>
+              <div key={lote.id} style={{ border: `${ehReposicao ? '2px' : '0.5px'} solid ${ehReposicao ? '#F59E0B' : alerta ? '#A32D2D' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: ehReposicao ? '#FFF8E7' : alerta ? '#FCEBEB40' : '#f8f8f6' }}>
+                {ehReposicao && (
+                  <div style={{ background: '#F59E0B', color: '#fff', padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, marginBottom: 8, display: 'inline-block', letterSpacing: '0.3px' }}>
+                    🔄 REPOSIÇÃO · 24H
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
