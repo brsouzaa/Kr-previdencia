@@ -140,13 +140,15 @@ export default function BIBruno() {
       if (cancelado) return
 
       // Pega lotes do mês das vendedoras com status válido
+      // Exclui lotes de reposição (eles não contam pra meta)
       const { data: lotesValidos } = await supabase
         .from('lotes')
-        .select('id, advogado_id, data_compra, status_pagamento, vendedor_id')
+        .select('id, advogado_id, data_compra, status_pagamento, vendedor_id, tipo')
         .in('vendedor_id', vendedorIds.length > 0 ? vendedorIds : ['00000000-0000-0000-0000-000000000000'])
         .gte('data_compra', dataIni)
         .lte('data_compra', dataFim)
         .in('status_pagamento', ['pago', 'entregue', 'a_entregar'])
+        .or('tipo.eq.normal,tipo.is.null')
 
       if (cancelado) return
 
