@@ -53,66 +53,65 @@ export default function Metas() {
   })
 
   useEffect(() => {
-    fetchTudo()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelado = false
+    async function carrega() {
+      setLoading(true)
+      setFeedback('')
+
+      const { data: vends } = await supabase
+        .from('profiles')
+        .select('id, nome, email, ativo')
+        .eq('role', 'vendedor')
+        .eq('ativo', true)
+        .order('nome', { ascending: true })
+
+      if (cancelado) return
+      setVendedoresB2B(vends || [])
+
+      const { data: b2c } = await supabase
+        .from('metas')
+        .select('*')
+        .eq('escopo', 'b2c_geral')
+        .eq('ano', ano)
+        .eq('mes', mes)
+        .is('vendedor_id', null)
+        .maybeSingle()
+
+      if (cancelado) return
+      if (b2c) {
+        setMetaB2C({
+          contratos_total: b2c.contratos_total || 0,
+          taxa_assinatura_pct: b2c.taxa_assinatura_pct || 0,
+        })
+      } else {
+        setMetaB2C({ contratos_total: 0, taxa_assinatura_pct: 0 })
+      }
+
+      const { data: b2b } = await supabase
+        .from('metas')
+        .select('*')
+        .eq('escopo', 'b2b_individual')
+        .eq('ano', ano)
+        .eq('mes', mes)
+        .is('vendedor_id', null)
+        .maybeSingle()
+
+      if (cancelado) return
+      if (b2b) {
+        setMetaB2B({
+          contratos_maternidade: b2b.contratos_maternidade || 0,
+          contratos_bpc: b2b.contratos_bpc || 0,
+          contratos_aux: b2b.contratos_aux || 0,
+        })
+      } else {
+        setMetaB2B({ contratos_maternidade: 0, contratos_bpc: 0, contratos_aux: 0 })
+      }
+
+      setLoading(false)
+    }
+    carrega()
+    return () => { cancelado = true }
   }, [ano, mes])
-
-  async function fetchTudo() {
-    setLoading(true)
-    setFeedback('')
-
-    // Busca vendedoras B2B (role=vendedor)
-    const { data: vends } = await supabase
-      .from('profiles')
-      .select('id, nome, email, ativo')
-      .eq('role', 'vendedor')
-      .eq('ativo', true)
-      .order('nome', { ascending: true })
-
-    setVendedoresB2B(vends || [])
-
-    // Busca meta B2C do período
-    const { data: b2c } = await supabase
-      .from('metas')
-      .select('*')
-      .eq('escopo', 'b2c_geral')
-      .eq('ano', ano)
-      .eq('mes', mes)
-      .is('vendedor_id', null)
-      .maybeSingle()
-
-    if (b2c) {
-      setMetaB2C({
-        contratos_total: b2c.contratos_total || 0,
-        taxa_assinatura_pct: b2c.taxa_assinatura_pct || 0,
-      })
-    } else {
-      setMetaB2C({ contratos_total: 0, taxa_assinatura_pct: 0 })
-    }
-
-    // Busca meta B2B (uma só - igual pra todas)
-    // Como é igual pra todas, salvo apenas 1 linha com vendedor_id = null e escopo='b2b_individual'
-    const { data: b2b } = await supabase
-      .from('metas')
-      .select('*')
-      .eq('escopo', 'b2b_individual')
-      .eq('ano', ano)
-      .eq('mes', mes)
-      .is('vendedor_id', null)
-      .maybeSingle()
-
-    if (b2b) {
-      setMetaB2B({
-        contratos_maternidade: b2b.contratos_maternidade || 0,
-        contratos_bpc: b2b.contratos_bpc || 0,
-        contratos_aux: b2b.contratos_aux || 0,
-      })
-    } else {
-      setMetaB2B({ contratos_maternidade: 0, contratos_bpc: 0, contratos_aux: 0 })
-    }
-
-    setLoading(false)
-  }
 
   async function salvarMetaB2C() {
     setSalvando(true)
