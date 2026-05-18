@@ -63,15 +63,21 @@ export default function Reposicoes() {
   }, [aba])
 
   async function aprovar(lote) {
-    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?`)) return
+    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?\n\n⚠️ Vai entrar na fila com PRIORIDADE MÁXIMA e prazo de 24h.`)) return
     setAcaoEmCurso(lote.id)
-    
+
+    const agora = new Date()
+    const limite = new Date(agora.getTime() + 24 * 60 * 60 * 1000) // +24h
+
     const { error } = await supabase.from('lotes').update({
       status_aprovacao: 'aprovado',
-      status_pagamento: 'emitir_contrato',
+      status_pagamento: 'a_entregar',
       aprovado_por: profile.id,
-      aprovado_em: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      aprovado_em: agora.toISOString(),
+      prioridade_fila: true,
+      data_prioridade: agora.toISOString(),
+      data_limite_entrega: limite.toISOString().slice(0, 10), // YYYY-MM-DD (coluna DATE)
+      updated_at: agora.toISOString(),
     }).eq('id', lote.id)
 
     setAcaoEmCurso(null)
