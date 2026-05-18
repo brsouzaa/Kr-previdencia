@@ -71,6 +71,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [modalStatus, setModalStatus] = useState(null) // 'a_entregar' | 'entregue' | 'pago' | 'inadimplente'
   const [modalComprovante, setModalComprovante] = useState(null)
+  const [repExpandido, setRepExpandido] = useState(false)
   // Expansao de cards: { [lote_id]: { aberto: true, contratos: [...] } }
   const [loteExpandido, setLoteExpandido] = useState({})
 
@@ -159,6 +160,57 @@ export default function Dashboard() {
   // Reposições pendentes (todos os lotes carregados, ignorando período)
   const reposicoesPendentes = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'pendente')
   const reposicoesPendentesQtd = reposicoesPendentes.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+
+  // Reposições APROVADAS no período (usa aprovado_em pra filtrar)
+  const CAC_MEDIO = 100
+  const periodoRep = getPeriodo()
+  function dentroPeriodoRep(lote) {
+    if (!lote.aprovado_em) return false
+    const dataAprov = lote.aprovado_em.slice(0, 10) // YYYY-MM-DD
+    const okInicio = !periodoRep.inicio || dataAprov >= periodoRep.inicio
+    const okFim = !periodoRep.fim || dataAprov <= periodoRep.fim
+    return okInicio && okFim
+  }
+  const reposicoesAprovadas = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'aprovado' && dentroPeriodoRep(l))
+  const reposicoesAprovadasQtd = reposicoesAprovadas.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+  const reposicoesCustoCAC = reposicoesAprovadasQtd * CAC_MEDIO
+
+  // Total de contratos vendidos no período (pra calcular % de reposição)
+  const contratosVendidosPeriodo = comprasFiltradas.length
+  const taxaReposicao = contratosVendidosPeriodo > 0
+    ? (reposicoesAprovadasQtd / contratosVendidosPeriodo) * 100
+    : 0
+
+  // Cor e label do alerta
+  let alertaRep = { cor: '#3B6D11', bg: '#EAF3DE', label: 'Dentro do esperado' }
+  if (taxaReposicao >= 20) alertaRep = { cor: '#A32D2D', bg: '#FCEBEB', label: 'Algo errado no funil' }
+  else if (taxaReposicao >= 10) alertaRep = { cor: '#854F0B', bg: '#FAEEDA', label: 'Olho aberto' }
+
+  // Breakdown por vendedora (B2B) — agrupa reposições por nome do vendedor do lote
+  const repPorVendedora = reposicoesAprovadas.reduce((acc, l) => {
+    const nome = l.profiles?.nome || 'Sem nome'
+    if (!acc[nome]) acc[nome] = { qtd: 0, contratos: 0 }
+    acc[nome].qtd += 1
+    acc[nome].contratos += Number(l.total_contratos || 0)
+    return acc
+  }, {})
+  const rankingRepVendedora = Object.entries(repPorVendedora)
+    .map(([nome, v]) => ({ nome, ...v }))
+    .sort((a, b) => b.contratos - a.contratos)
+    .slice(0, 5)
+
+  // Breakdown por advogado
+  const repPorAdvogado = reposicoesAprovadas.reduce((acc, l) => {
+    const nome = l.advogados?.nome_completo || 'Sem nome'
+    if (!acc[nome]) acc[nome] = { qtd: 0, contratos: 0 }
+    acc[nome].qtd += 1
+    acc[nome].contratos += Number(l.total_contratos || 0)
+    return acc
+  }, {})
+  const rankingRepAdvogado = Object.entries(repPorAdvogado)
+    .map(([nome, v]) => ({ nome, ...v }))
+    .sort((a, b) => b.contratos - a.contratos)
+    .slice(0, 5)
 
   const vendas = {
     hoje: compras.filter(c => c.data_compra === hoje()).length,
@@ -269,6 +321,76 @@ export default function Dashboard() {
             </div>
           </div>
           <div style={{ fontSize: 12, color: '#888' }}>Vá em <strong>🔄 Reposições</strong> no menu</div>
+        </div>
+      )}
+
+      {/* Métricas de reposição aprovadas (só admin) */}
+      {profile?.role === 'admin' && (
+        <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: '14px 16px', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ fontSize: 11, color: '#5F5E5A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔄 Reposições no período · {periodo === 'hoje' ? 'Hoje' : periodo === 'semana' ? 'Semana' : periodo === 'mes' ? 'Mês' : 'Personalizado'}</div>
+            <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: alertaRep.cor, background: alertaRep.bg }}>{alertaRep.label}</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: rankingRepVendedora.length > 0 ? 12 : 0 }}>
+            <div style={{ padding: '10px 12px', background: '#fafaf8', borderRadius: 8 }}>
+              <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Aprovadas</div>
+              <div style={{ fontSize: 22, fontWeight: 500, color: '#111' }}>{reposicoesAprovadas.length}</div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>solicitaç{reposicoesAprovadas.length !== 1 ? 'ões' : 'ão'}</div>
+            </div>
+            <div style={{ padding: '10px 12px', background: '#fafaf8', borderRadius: 8 }}>
+              <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Contratos grátis</div>
+              <div style={{ fontSize: 22, fontWeight: 500, color: '#111' }}>{reposicoesAprovadasQtd}</div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>repostos</div>
+            </div>
+            <div style={{ padding: '10px 12px', background: '#fafaf8', borderRadius: 8 }}>
+              <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Taxa de reposição</div>
+              <div style={{ fontSize: 22, fontWeight: 500, color: alertaRep.cor }}>{taxaReposicao.toFixed(1)}%</div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>sobre {contratosVendidosPeriodo} vendidos</div>
+            </div>
+            <div style={{ padding: '10px 12px', background: '#fafaf8', borderRadius: 8 }}>
+              <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>CAC desperdiçado</div>
+              <div style={{ fontSize: 22, fontWeight: 500, color: '#A32D2D' }}>{fmt(reposicoesCustoCAC)}</div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>~R$100/contrato</div>
+            </div>
+          </div>
+
+          {(rankingRepVendedora.length > 0 || rankingRepAdvogado.length > 0) && (
+            <button
+              onClick={() => setRepExpandido(!repExpandido)}
+              style={{ width: '100%', padding: '7px 10px', marginTop: 8, background: '#fafaf8', color: '#5F5E5A', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 7, fontSize: 12, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <span>📊 Ver detalhes por vendedora e advogado</span>
+              <span>{repExpandido ? '▲' : '▼'}</span>
+            </button>
+          )}
+
+          {repExpandido && (
+            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+              {rankingRepVendedora.length > 0 && (
+                <div style={{ background: '#fafaf8', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Top vendedoras (reposições pedidas)</div>
+                  {rankingRepVendedora.map((v, i) => (
+                    <div key={v.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(0,0,0,0.05)' : 'none' }}>
+                      <span style={{ fontSize: 13, color: '#111' }}>{i + 1}. {v.nome}</span>
+                      <span style={{ fontSize: 12, color: '#666' }}>{v.contratos} contrato{v.contratos !== 1 ? 's' : ''} · {v.qtd} pedido{v.qtd !== 1 ? 's' : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {rankingRepAdvogado.length > 0 && (
+                <div style={{ background: '#fafaf8', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Top advogados (mais reposições recebidas)</div>
+                  {rankingRepAdvogado.map((a, i) => (
+                    <div key={a.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(0,0,0,0.05)' : 'none' }}>
+                      <span style={{ fontSize: 13, color: '#111' }}>{i + 1}. {a.nome}</span>
+                      <span style={{ fontSize: 12, color: '#666' }}>{a.contratos} contrato{a.contratos !== 1 ? 's' : ''} · {a.qtd} pedido{a.qtd !== 1 ? 's' : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
