@@ -43,7 +43,9 @@ export default function Metas() {
 
   const [vendedoresB2B, setVendedoresB2B] = useState([])
   const [metaB2C, setMetaB2C] = useState({
-    contratos_total: 0,
+    contratos_maternidade: 0,
+    contratos_bpc: 0,
+    contratos_aux: 0,
     taxa_assinatura_pct: 0,
   })
   const [metaB2B, setMetaB2B] = useState({
@@ -80,11 +82,13 @@ export default function Metas() {
       if (cancelado) return
       if (b2c) {
         setMetaB2C({
-          contratos_total: b2c.contratos_total || 0,
+          contratos_maternidade: b2c.contratos_maternidade || 0,
+          contratos_bpc: b2c.contratos_bpc || 0,
+          contratos_aux: b2c.contratos_aux || 0,
           taxa_assinatura_pct: b2c.taxa_assinatura_pct || 0,
         })
       } else {
-        setMetaB2C({ contratos_total: 0, taxa_assinatura_pct: 0 })
+        setMetaB2C({ contratos_maternidade: 0, contratos_bpc: 0, contratos_aux: 0, taxa_assinatura_pct: 0 })
       }
 
       const { data: b2b } = await supabase
@@ -93,7 +97,7 @@ export default function Metas() {
         .eq('escopo', 'b2b_individual')
         .eq('ano', ano)
         .eq('mes', mes)
-        .is('vendedor_id', null)
+        .limit(1)
         .maybeSingle()
 
       if (cancelado) return
@@ -122,13 +126,18 @@ export default function Metas() {
       ano,
       mes,
       vendedor_id: null,
-      contratos_total: Number(metaB2C.contratos_total) || 0,
+      contratos_total:
+        (Number(metaB2C.contratos_maternidade) || 0) +
+        (Number(metaB2C.contratos_bpc) || 0) +
+        (Number(metaB2C.contratos_aux) || 0),
+      contratos_maternidade: Number(metaB2C.contratos_maternidade) || 0,
+      contratos_bpc: Number(metaB2C.contratos_bpc) || 0,
+      contratos_aux: Number(metaB2C.contratos_aux) || 0,
       taxa_assinatura_pct: Number(metaB2C.taxa_assinatura_pct) || 0,
       criado_por: profile.id,
       updated_at: new Date().toISOString(),
     }
 
-    // Upsert na unique key (escopo, ano, mes, vendedor_id)
     const { error } = await supabase
       .from('metas')
       .upsert(payload, { onConflict: 'escopo,ano,mes,vendedor_id' })
@@ -148,21 +157,35 @@ export default function Metas() {
     setSalvando(true)
     setFeedback('')
 
-    const payload = {
+    if (vendedoresB2B.length === 0) {
+      setSalvando(false)
+      setFeedbackErr(true)
+      setFeedback('Nenhuma vendedora B2B ativa pra atribuir meta.')
+      return
+    }
+
+    const total =
+      (Number(metaB2B.contratos_maternidade) || 0) +
+      (Number(metaB2B.contratos_bpc) || 0) +
+      (Number(metaB2B.contratos_aux) || 0)
+
+    // Replica a meta pra cada vendedora ativa (1 linha por vendedora)
+    const rows = vendedoresB2B.map(v => ({
       escopo: 'b2b_individual',
       ano,
       mes,
-      vendedor_id: null, // null = meta padrão pra todas
+      vendedor_id: v.id,
+      contratos_total: total,
       contratos_maternidade: Number(metaB2B.contratos_maternidade) || 0,
       contratos_bpc: Number(metaB2B.contratos_bpc) || 0,
       contratos_aux: Number(metaB2B.contratos_aux) || 0,
       criado_por: profile.id,
       updated_at: new Date().toISOString(),
-    }
+    }))
 
     const { error } = await supabase
       .from('metas')
-      .upsert(payload, { onConflict: 'escopo,ano,mes,vendedor_id' })
+      .upsert(rows, { onConflict: 'escopo,ano,mes,vendedor_id' })
 
     setSalvando(false)
     if (error) {
@@ -170,8 +193,8 @@ export default function Metas() {
       setFeedback('Erro: ' + error.message)
     } else {
       setFeedbackErr(false)
-      setFeedback('✓ Meta B2B salva (vale pra todas vendedoras)')
-      setTimeout(() => setFeedback(''), 3000)
+      setFeedback('✓ Meta B2B salva para ' + vendedoresB2B.length + ' vendedora(s)')
+      setTimeout(() => setFeedback(''), 3500)
     }
   }
 
@@ -220,15 +243,37 @@ export default function Metas() {
           </div>
           <div style={s.grid}>
             <div style={s.field}>
-              <div style={s.label}>Contratos emitidos (mês)</div>
+              <div style={s.label}>Maternidade (mês)</div>
               <input
                 type="number"
                 style={s.input}
-                value={metaB2C.contratos_total || ''}
-                onChange={e => setMetaB2C({ ...metaB2C, contratos_total: e.target.value })}
-                placeholder="Ex: 2000"
+                value={metaB2C.contratos_maternidade || ''}
+                onChange={e => setMetaB2C({ ...metaB2C, contratos_maternidade: e.target.value })}
+                placeholder="Ex: 1800"
               />
-              <div style={s.hint}>≈ {calcSemanal(metaB2C.contratos_total)}/sem · {calcDiario(metaB2C.contratos_total)}/dia</div>
+              <div style={s.hint}>≈ {calcSemanal(metaB2C.contratos_maternidade)}/sem · {calcDiario(metaB2C.contratos_maternidade)}/dia</div>
+            </div>
+            <div style={s.field}>
+              <div style={s.label}>BPC (mês)</div>
+              <input
+                type="number"
+                style={s.input}
+                value={metaB2C.contratos_bpc || ''}
+                onChange={e => setMetaB2C({ ...metaB2C, contratos_bpc: e.target.value })}
+                placeholder="Ex: 180"
+              />
+              <div style={s.hint}>≈ {calcSemanal(metaB2C.contratos_bpc)}/sem · {calcDiario(metaB2C.contratos_bpc)}/dia</div>
+            </div>
+            <div style={s.field}>
+              <div style={s.label}>Aux. Acidente (mês)</div>
+              <input
+                type="number"
+                style={s.input}
+                value={metaB2C.contratos_aux || ''}
+                onChange={e => setMetaB2C({ ...metaB2C, contratos_aux: e.target.value })}
+                placeholder="Ex: 20"
+              />
+              <div style={s.hint}>≈ {calcSemanal(metaB2C.contratos_aux)}/sem · {calcDiario(metaB2C.contratos_aux)}/dia</div>
             </div>
             <div style={s.field}>
               <div style={s.label}>Taxa assinatura (%)</div>
@@ -242,6 +287,9 @@ export default function Metas() {
               />
               <div style={s.hint}>Atual: 84% (semana passada)</div>
             </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 12, padding: '8px 12px', background: '#f8f8f6', borderRadius: 6 }}>
+            Total mensal: <strong style={{ color: '#111' }}>{((Number(metaB2C.contratos_maternidade) || 0) + (Number(metaB2C.contratos_bpc) || 0) + (Number(metaB2C.contratos_aux) || 0)).toLocaleString('pt-BR')}</strong> contratos
           </div>
           <button
             style={{ ...s.saveBtn, ...(salvando ? s.saveBtnDisabled : {}) }}
