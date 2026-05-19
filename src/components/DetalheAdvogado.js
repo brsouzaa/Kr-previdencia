@@ -116,7 +116,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [adv, setAdv] = useState(advogado)
   const [modalLote, setModalLote] = useState(null)
   const [modalReposicao, setModalReposicao] = useState(false)
-  const [repForm, setRepForm] = useState({ qtd: 1, motivo: '', observacao: '' })
+  const [repForm, setRepForm] = useState({ qtd: 1, motivo: '', observacao: '', produto: 'Maternidade' })
   const [savingRep, setSavingRep] = useState(false)
   const [aba, setAba] = useState('lotes')
   const [tabelas, setTabelas] = useState(FALLBACK_TABELAS)
@@ -185,9 +185,14 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         updated_at: new Date().toISOString(),
       }).eq('id', loteExistente.id)
     } else {
+      // Define produto do lote: o de maior quantidade
+      const produtoLote = Object.entries(qtds)
+        .filter(([, q]) => q > 0)
+        .sort(([, a], [, b]) => b - a)[0]?.[0] || null
       await supabase.from('lotes').insert({
         advogado_id: adv.id, vendedor_id: profile.id, data_compra: dataCompra,
         total_contratos: totalLote, valor_total: valorLote, status_pagamento: 'emitir_contrato',
+        produto: produtoLote,
       })
     }
     setQtds({ 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 })
@@ -211,6 +216,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
       valor_total: 0,
       status_pagamento: 'pendente_aprovacao',
       tipo: 'reposicao',
+      produto: repForm.produto,
       motivo_reposicao: motivoCompleto,
       status_aprovacao: 'pendente',
     })
@@ -222,7 +228,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     }
     
     setModalReposicao(false)
-    setRepForm({ qtd: 1, motivo: '', observacao: '' })
+    setRepForm({ qtd: 1, motivo: '', observacao: '', produto: 'Maternidade' })
     alert('✓ Solicitação de reposição enviada. Aguarde aprovação do admin.')
     await fetchTudo()
   }
@@ -572,6 +578,17 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
             <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 4 }}>🔄 Solicitar reposição</div>
             <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Contratos grátis pra cobrir problemas com advogado. Não conta no faturamento nem na meta.</div>
             
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Produto</div>
+            <select
+              value={repForm.produto}
+              onChange={e => setRepForm({ ...repForm, produto: e.target.value })}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 12, background: '#fff', boxSizing: 'border-box' }}
+            >
+              <option value="Maternidade">Maternidade</option>
+              <option value="BPC">BPC</option>
+              <option value="Auxilio Acidente">Auxílio Acidente</option>
+            </select>
+
             <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Quantidade de contratos</div>
             <input 
               type="number" 
