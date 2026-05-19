@@ -329,10 +329,15 @@ export default function Portal() {
       }
     }
     await supabase.from('compras').insert(comprasInserir)
+    // Define produto do lote: o de maior quantidade (ou o único se monoproduto)
+    const produtoLote = Object.entries(qtds)
+      .filter(([, q]) => q > 0)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null
     await supabase.from('lotes').insert({
       advogado_id: advId, vendedor_id: vendedorId,
       data_compra: dataCompra, total_contratos: total,
       valor_total: valorTotal, status_pagamento: 'emitir_contrato',
+      produto: produtoLote,
     })
     const prods = Object.entries(qtds).filter(([,q]) => q > 0).map(([p]) => p)
     for (const prod of prods) {
