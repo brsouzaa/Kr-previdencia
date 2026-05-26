@@ -160,6 +160,18 @@ export default function Dashboard() {
   const comprasFiltradas = filtrarCompras(compras)
   const lotesFiltrados = filtrarLotes(lotes)
 
+  // Mapa de status do lote por (advogado_id + data_compra), usado pra filtrar contratos por status do lote
+  const statusLotePorCompra = {}
+  for (const l of lotes) {
+    const key = `${l.advogado_id}__${l.data_compra}`
+    statusLotePorCompra[key] = l.status_pagamento
+  }
+  function compraEhFaturavel(c) {
+    const status = statusLotePorCompra[`${c.advogado_id}__${c.data_compra}`]
+    return STATUS_FATURAVEIS.includes(status)
+  }
+  const comprasFaturaveis = compras.filter(compraEhFaturavel)
+
   // Reposições pendentes (todos os lotes carregados, ignorando período)
   const reposicoesPendentes = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'pendente')
   const reposicoesPendentesQtd = reposicoesPendentes.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
@@ -218,18 +230,6 @@ export default function Dashboard() {
     .map(([nome, v]) => ({ nome, ...v }))
     .sort((a, b) => b.contratos - a.contratos)
     .slice(0, 5)
-
-  // Mapa de status do lote por (advogado_id + data_compra), usado pra filtrar contratos por status do lote
-  const statusLotePorCompra = {}
-  for (const l of lotes) {
-    const key = `${l.advogado_id}__${l.data_compra}`
-    statusLotePorCompra[key] = l.status_pagamento
-  }
-  function compraEhFaturavel(c) {
-    const status = statusLotePorCompra[`${c.advogado_id}__${c.data_compra}`]
-    return STATUS_FATURAVEIS.includes(status)
-  }
-  const comprasFaturaveis = compras.filter(compraEhFaturavel)
 
   const vendas = {
     hoje: comprasFaturaveis.filter(c => c.data_compra === hoje()).length,
