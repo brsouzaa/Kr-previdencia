@@ -29,10 +29,16 @@ const STATUS_LOTE = {
   inadimplente: { bg: '#FCEBEB', color: '#A32D2D', label: 'Inadimplente' },
 }
 
-function hoje() { return new Date().toISOString().slice(0,10) }
-function semanaAtras() { const d=new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10) }
-function mesAtras() { const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().slice(0,10) }
-function primeiroDiaMes() { const d=new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10) }
+function fmtLocal(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+function hoje() { return fmtLocal(new Date()) }
+function semanaAtras() { const d=new Date(); d.setDate(d.getDate()-7); return fmtLocal(d) }
+function mesAtras() { const d=new Date(); d.setDate(d.getDate()-30); return fmtLocal(d) }
+function primeiroDiaMes() { const d=new Date(); return fmtLocal(new Date(d.getFullYear(), d.getMonth(), 1)) }
 const STATUS_FATURAVEIS = ['a_entregar', 'entregue', 'pago']
 const MEDAL = ['🥇','🥈','🥉']
 const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR')}`
