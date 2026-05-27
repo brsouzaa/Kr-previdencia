@@ -180,6 +180,8 @@ export default function Dashboard() {
     return !STATUS_MORTOS.includes(status)
   }
   const comprasFaturaveis = compras.filter(compraEhFaturavel)
+  // Combinação: filtro de período + filtro de faturável (usado em ranking, por produto, por dia)
+  const comprasFiltradasFaturaveis = comprasFiltradas.filter(compraEhFaturavel)
 
   // Reposições pendentes (todos os lotes carregados, ignorando período)
   const reposicoesPendentes = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'pendente')
@@ -267,10 +269,10 @@ export default function Dashboard() {
     inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').length,
   }
 
-  const porProduto = comprasFiltradas.reduce((acc, c) => { acc[c.produto] = (acc[c.produto] || 0) + 1; return acc }, {})
-  const rankingMap = comprasFiltradas.reduce((acc, c) => { const n = c.profiles?.nome || 'Sem nome'; acc[n] = (acc[n] || 0) + 1; return acc }, {})
+  const porProduto = comprasFiltradasFaturaveis.reduce((acc, c) => { acc[c.produto] = (acc[c.produto] || 0) + 1; return acc }, {})
+  const rankingMap = comprasFiltradasFaturaveis.reduce((acc, c) => { const n = c.profiles?.nome || 'Sem nome'; acc[n] = (acc[n] || 0) + 1; return acc }, {})
   const ranking = Object.entries(rankingMap).sort((a, b) => b[1] - a[1])
-  const porDia = comprasFiltradas.reduce((acc, c) => { const d = c.data_compra; if (!acc[d]) acc[d] = { total: 0, produtos: {} }; acc[d].total++; acc[d].produtos[c.produto] = (acc[d].produtos[c.produto] || 0) + 1; return acc }, {})
+  const porDia = comprasFiltradasFaturaveis.reduce((acc, c) => { const d = c.data_compra; if (!acc[d]) acc[d] = { total: 0, produtos: {} }; acc[d].total++; acc[d].produtos[c.produto] = (acc[d].produtos[c.produto] || 0) + 1; return acc }, {})
   const diasOrdenados = Object.entries(porDia).sort((a, b) => b[0].localeCompare(a[0]))
 
   async function mudarStatusLote(loteId, novoStatus) {
@@ -805,7 +807,7 @@ export default function Dashboard() {
           <option value="Auxilio Acidente">Aux. Acidente</option>
         </select>
         <div style={{ padding: '8px 12px', background: '#f0f0ee', borderRadius: 8, fontSize: 13, color: '#555', display: 'flex', alignItems: 'center' }}>
-          {comprasFiltradas.length} contrato{comprasFiltradas.length!==1?'s':''}
+          {comprasFiltradasFaturaveis.length} contrato{comprasFiltradasFaturaveis.length!==1?'s':''}
         </div>
       </div>
       {periodo === 'custom' && (
@@ -830,7 +832,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Por produto</div>
           {['Maternidade','BPC','Auxilio Acidente'].map(p => {
             const qtd = porProduto[p] || 0
-            const pct = comprasFiltradas.length > 0 ? Math.round((qtd/comprasFiltradas.length)*100) : 0
+            const pct = comprasFiltradasFaturaveis.length > 0 ? Math.round((qtd/comprasFiltradasFaturaveis.length)*100) : 0
             return (
               <div key={p} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
