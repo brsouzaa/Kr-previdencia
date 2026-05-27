@@ -75,6 +75,8 @@ const NAV_ADMIN = [
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
   { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
   { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
+  { key: 'pos_venda', label: '📞 Pós-venda' },
+  { key: 'pos_venda_historico', label: '📚 Histórico pós-venda' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
   { key: 'performance_ia', label: '📈 Performance IA' },
   { key: 'meulink', label: '🔗 Meu link' },
