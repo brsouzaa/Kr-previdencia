@@ -39,7 +39,7 @@ function hoje() { return fmtLocal(new Date()) }
 function semanaAtras() { const d=new Date(); d.setDate(d.getDate()-7); return fmtLocal(d) }
 function mesAtras() { const d=new Date(); d.setDate(d.getDate()-30); return fmtLocal(d) }
 function primeiroDiaMes() { const d=new Date(); return fmtLocal(new Date(d.getFullYear(), d.getMonth(), 1)) }
-const STATUS_FATURAVEIS = ['a_entregar', 'entregue', 'pago']
+const STATUS_MORTOS = ['nao_assinou', 'inadimplente', 'cancelado', 'expirado']
 const MEDAL = ['🥇','🥈','🥉']
 const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR')}`
 
@@ -174,7 +174,10 @@ export default function Dashboard() {
   }
   function compraEhFaturavel(c) {
     const status = statusLotePorCompra[`${c.advogado_id}__${c.data_compra}`]
-    return STATUS_FATURAVEIS.includes(status)
+    // Se não tem lote ainda, conta (venda fresca, sem status ainda)
+    if (!status) return true
+    // Exclui apenas vendas mortas
+    return !STATUS_MORTOS.includes(status)
   }
   const comprasFaturaveis = compras.filter(compraEhFaturavel)
 
