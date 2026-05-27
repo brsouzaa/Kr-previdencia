@@ -110,7 +110,7 @@ export default function Dashboard() {
 
   async function fetchDados() {
     setLoading(true)
-    let qC = supabase.from('compras').select('id, produto, data_compra, vendedor_id, profiles(nome)').order('data_compra', { ascending: false })
+    let qC = supabase.from('compras').select('id, produto, data_compra, vendedor_id, advogado_id, profiles(nome)').order('data_compra', { ascending: false })
     let qL = supabase.from('lotes').select('*, advogados(nome_completo, oab, cidade), profiles(nome)').order('data_compra', { ascending: false })
     let qA = supabase.from('advogados').select('id, nome_completo, oab, ultima_compra, status, profiles!advogados_vendedor_id_fkey(nome)').eq('status', 'vermelho').not('ultima_compra', 'is', null).order('ultima_compra', { ascending: true }).limit(10)
 
@@ -159,18 +159,6 @@ export default function Dashboard() {
 
   const comprasFiltradas = filtrarCompras(compras)
   const lotesFiltrados = filtrarLotes(lotes)
-
-  // Mapa de status do lote por (advogado_id + data_compra), usado pra filtrar contratos por status do lote
-  const statusLotePorCompra = {}
-  for (const l of lotes) {
-    const key = `${l.advogado_id}__${l.data_compra}`
-    statusLotePorCompra[key] = l.status_pagamento
-  }
-  function compraEhFaturavel(c) {
-    const status = statusLotePorCompra[`${c.advogado_id}__${c.data_compra}`]
-    return STATUS_FATURAVEIS.includes(status)
-  }
-  const comprasFaturaveis = compras.filter(compraEhFaturavel)
 
   // Reposições pendentes (todos os lotes carregados, ignorando período)
   const reposicoesPendentes = lotes.filter(l => l.tipo === 'reposicao' && l.status_aprovacao === 'pendente')
@@ -230,6 +218,18 @@ export default function Dashboard() {
     .map(([nome, v]) => ({ nome, ...v }))
     .sort((a, b) => b.contratos - a.contratos)
     .slice(0, 5)
+
+  // Mapa de status do lote por (advogado_id + data_compra), usado pra filtrar contratos por status do lote
+  const statusLotePorCompra = {}
+  for (const l of lotes) {
+    const key = `${l.advogado_id}__${l.data_compra}`
+    statusLotePorCompra[key] = l.status_pagamento
+  }
+  function compraEhFaturavel(c) {
+    const status = statusLotePorCompra[`${c.advogado_id}__${c.data_compra}`]
+    return STATUS_FATURAVEIS.includes(status)
+  }
+  const comprasFaturaveis = compras.filter(compraEhFaturavel)
 
   const vendas = {
     hoje: comprasFaturaveis.filter(c => c.data_compra === hoje()).length,
