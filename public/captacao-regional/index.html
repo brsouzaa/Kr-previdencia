@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captação Regional Exclusiva — KR Previdência</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --navy: #1E2761;
+    --navy-dark: #141a47;
+    --gold: #C9A961;
+    --gold-light: #d9bf7e;
+    --ice: #CADCFC;
+    --bg: #f5f6fa;
+    --text: #1a1d2e;
+    --text-light: #6b7280;
+    --border: #e5e7eb;
+    --error: #dc2626;
+    --success: #16a34a;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+  
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: white;
+    padding: 32px 28px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(30, 39, 97, 0.15);
+  }
+  
+  .brand {
+    color: var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  
+  .header .vagas {
+    background: var(--gold);
+    color: var(--navy);
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: 700;
+    font-size: 14px;
+    margin-top: 8px;
+  }
+  
+  /* Intro */
+  .intro {
+    background: white;
+    padding: 24px 28px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border-left: 4px solid var(--gold);
+  }
+  
+  .intro p {
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  
+  .intro p:last-child { margin-bottom: 0; }
+  
+  .intro strong { color: var(--navy); }
+  
+  .alert {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 14px;
+    color: #78350f;
+  }
+  
+  /* Form */
+  .form-card {
+    background: white;
+    padding: 32px 28px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  
+  .section-title {
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    margin-top: 28px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--ice);
+  }
+  
+  .section-title:first-child { margin-top: 0; }
+  
+  .field {
+    margin-bottom: 22px;
+  }
+  
+  .field label {
+    display: block;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  
+  .field label .req {
+    color: var(--error);
+    margin-left: 4px;
+  }
+  
+  .field .hint {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+  
+  .field input[type="text"],
+  .field input[type="tel"],
+  .field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: white;
+  }
+  
+  .field input:focus,
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(30, 39, 97, 0.1);
+  }
+  
+  .field textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+  
+  /* Radio options */
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .radio-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: white;
+  }
+  
+  .radio-option:hover {
+    border-color: var(--navy);
+    background: #fafbff;
+  }
+  
+  .radio-option input[type="radio"] {
+    margin-right: 12px;
+    accent-color: var(--navy);
+    cursor: pointer;
+  }
+  
+  .radio-option input[type="radio"]:checked + span {
+    color: var(--navy);
+    font-weight: 600;
+  }
+  
+  .radio-option:has(input:checked) {
+    border-color: var(--navy);
+    background: #f0f3ff;
+  }
+  
+  /* Sim/Não buttons */
+  .sim-nao {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .sim-nao .radio-option {
+    justify-content: center;
+    text-align: center;
+    font-weight: 600;
+  }
+  
+  .sim-nao .sim:has(input:checked) {
+    border-color: var(--success);
+    background: #f0fdf4;
+    color: var(--success);
+  }
+  
+  .sim-nao .nao:has(input:checked) {
+    border-color: var(--error);
+    background: #fef2f2;
+    color: var(--error);
+  }
+  
+  /* Submit */
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.5px;
+  }
+  
+  .submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(30, 39, 97, 0.25);
+  }
+  
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  /* Success */
+  .success-screen {
+    display: none;
+    background: white;
+    padding: 48px 32px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  }
+  
+  .success-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+    border-radius: 50%;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: var(--navy);
+    font-weight: bold;
+  }
+  
+  .success-screen h2 {
+    color: var(--navy);
+    margin-bottom: 16px;
+    font-size: 24px;
+  }
+  
+  .success-screen p {
+    color: var(--text-light);
+    margin-bottom: 16px;
+  }
+  
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    color: var(--text-light);
+    font-size: 13px;
+  }
+  
+  .footer .kr {
+    color: var(--gold);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  
+  /* Error message */
+  .error-message {
+    background: #fef2f2;
+    border: 1.5px solid var(--error);
+    color: var(--error);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 14px;
+    display: none;
+  }
+  
+  @media (max-width: 600px) {
+    .container { padding: 16px 12px; }
+    .header { padding: 24px 20px; }
+    .header h1 { font-size: 22px; }
+    .form-card, .intro { padding: 20px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">KR PREVIDÊNCIA</div>
+    <h1>Captação Exclusiva Regional</h1>
+    <div class="vagas">🎯 APENAS 10 VAGAS DISPONÍVEIS</div>
+  </div>
+  
+  <!-- Intro -->
+  <div class="intro">
+    <p>A KR vai abrir <strong>10 vagas</strong> para um novo modelo: <strong>clientes exclusivos da sua região</strong>, com volume mensal contratado e preço diferenciado por exclusividade territorial.</p>
+    
+    <p>✅ Captação focada <strong>APENAS na sua cidade ou região</strong><br>
+    ✅ Sem concorrência de outros advogados da KR na mesma região<br>
+    ✅ Perfil 5+ meses de gestação<br>
+    ✅ Volume mensal contratado</p>
+    
+    <div class="alert">
+      ⚠️ <strong>Importante:</strong> pela alta demanda, nem todos serão selecionados. A escolha vai considerar cidade, volume desejado, valor que você aceita pagar e seu perfil profissional. Quanto melhor o seu perfil, maior a chance de ser escolhido.
+    </div>
+  </div>
+  
+  <!-- Form -->
+  <form id="formRegional" class="form-card">
+    
+    <div class="section-title">📋 Identificação</div>
+    
+    <div class="field">
+      <label>Nome completo<span class="req">*</span></label>
+      <input type="text" name="nome" required maxlength="200">
+    </div>
+    
+    <div class="field">
+      <label>WhatsApp com DDD<span class="req">*</span></label>
+      <input type="tel" name="whatsapp" required placeholder="(11) 99999-9999" maxlength="20">
+    </div>
+    
+    <div class="field">
+      <label>OAB (número e estado)<span class="req">*</span></label>
+      <input type="text" name="oab" required placeholder="Ex: 123456/SP" maxlength="30">
+    </div>
+    
+    <div class="field">
+      <label>Qual cidade ou região você quer atuar com captação exclusiva?<span class="req">*</span></label>
+      <div class="hint">Seja específico. Ex: "Cidade de Goiânia/GO" ou "Região metropolitana de Campinas/SP".</div>
+      <input type="text" name="cidade_regiao" required maxlength="200">
+    </div>
+    
+    <div class="section-title">🎯 Perfil de Operação</div>
+    
+    <div class="field">
+      <label>Quantas pessoas tem essa cidade ou região?<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="tamanho_cidade" value="ate_200k" required><span>Até 200 mil habitantes</span></label>
+        <label class="radio-option"><input type="radio" name="tamanho_cidade" value="200k_500k"><span>De 200 mil a 500 mil habitantes</span></label>
+        <label class="radio-option"><input type="radio" name="tamanho_cidade" value="500k_1mi"><span>De 500 mil a 1 milhão de habitantes</span></label>
+        <label class="radio-option"><input type="radio" name="tamanho_cidade" value="mais_1mi"><span>Mais de 1 milhão de habitantes</span></label>
+      </div>
+    </div>
+    
+    <div class="field">
+      <label>Qual volume mensal de contratos você quer comprar nessa região?<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="volume_mensal" value="ate_50" required><span>Até 50 contratos/mês</span></label>
+        <label class="radio-option"><input type="radio" name="volume_mensal" value="51_100"><span>De 51 a 100 contratos/mês</span></label>
+        <label class="radio-option"><input type="radio" name="volume_mensal" value="101_200"><span>De 101 a 200 contratos/mês</span></label>
+        <label class="radio-option"><input type="radio" name="volume_mensal" value="mais_200"><span>Mais de 200 contratos/mês</span></label>
+      </div>
+    </div>
+    
+    <div class="section-title">💰 Valor por Contrato</div>
+    
+    <div class="field">
+      <label>Você pagaria R$ 500 por contrato exclusivo da sua região?<span class="req">*</span></label>
+      <div class="sim-nao">
+        <label class="radio-option sim"><input type="radio" name="paga_500" value="true" required><span>Sim, pagaria R$ 500</span></label>
+        <label class="radio-option nao"><input type="radio" name="paga_500" value="false"><span>Não pagaria</span></label>
+      </div>
+    </div>
+    
+    <div class="field">
+      <label>Você pagaria R$ 600 por contrato exclusivo da sua região?<span class="req">*</span></label>
+      <div class="sim-nao">
+        <label class="radio-option sim"><input type="radio" name="paga_600" value="true" required><span>Sim, pagaria R$ 600</span></label>
+        <label class="radio-option nao"><input type="radio" name="paga_600" value="false"><span>Não pagaria</span></label>
+      </div>
+    </div>
+    
+    <div class="field">
+      <label>Você pagaria até R$ 700 por contrato exclusivo da sua região?<span class="req">*</span></label>
+      <div class="sim-nao">
+        <label class="radio-option sim"><input type="radio" name="paga_700" value="true" required><span>Sim, pagaria até R$ 700</span></label>
+        <label class="radio-option nao"><input type="radio" name="paga_700" value="false"><span>Não pagaria</span></label>
+      </div>
+    </div>
+    
+    <div class="section-title">📊 Histórico Profissional</div>
+    
+    <div class="field">
+      <label>Você já comprou contratos da KR antes?<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="historico_kr" value="nunca" required><span>Nunca comprei</span></label>
+        <label class="radio-option"><input type="radio" name="historico_kr" value="1_50"><span>Já comprei de 1 a 50 contratos</span></label>
+        <label class="radio-option"><input type="radio" name="historico_kr" value="51_200"><span>Já comprei de 51 a 200 contratos</span></label>
+        <label class="radio-option"><input type="radio" name="historico_kr" value="mais_200"><span>Já comprei mais de 200 contratos</span></label>
+      </div>
+    </div>
+    
+    <div class="field">
+      <label>Quanto tempo você atua em Direito Previdenciário?<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="tempo_atuacao" value="menos_2" required><span>Menos de 2 anos</span></label>
+        <label class="radio-option"><input type="radio" name="tempo_atuacao" value="2_5"><span>De 2 a 5 anos</span></label>
+        <label class="radio-option"><input type="radio" name="tempo_atuacao" value="mais_5"><span>Mais de 5 anos</span></label>
+      </div>
+    </div>
+    
+    <div class="field">
+      <label>Como está sua estrutura operacional hoje?<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="estrutura" value="sozinho" required><span>Atendo sozinho</span></label>
+        <label class="radio-option"><input type="radio" name="estrutura" value="2_5"><span>Tenho equipe de 2 a 5 pessoas</span></label>
+        <label class="radio-option"><input type="radio" name="estrutura" value="mais_5"><span>Tenho equipe de 5 ou mais pessoas</span></label>
+      </div>
+    </div>
+    
+    <div class="section-title">💬 Observações</div>
+    
+    <div class="field">
+      <label>Tem alguma observação que ajude a entender melhor sua proposta?</label>
+      <div class="hint">Opcional</div>
+      <textarea name="observacao" maxlength="1000"></textarea>
+    </div>
+    
+    <button type="submit" class="submit-btn" id="btnSubmit">ENVIAR CANDIDATURA →</button>
+    
+    <div class="error-message" id="errorMsg"></div>
+    
+  </form>
+  
+  <!-- Success Screen -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-icon">✓</div>
+    <h2>Candidatura recebida!</h2>
+    <p>Recebemos sua proposta de captação regional exclusiva.</p>
+    <p>Nossa equipe está analisando todos os candidatos.</p>
+    <p>Vamos retornar pelo WhatsApp em até <strong>72 horas</strong> com a resposta da seleção.</p>
+    <p style="margin-top: 24px; color: var(--navy); font-weight: 600;">Boa sorte! 🍀</p>
+  </div>
+  
+  <div class="footer">
+    <span class="kr">GRUPO KR</span> · Tecnologia em Vendas para Advocacia<br>
+    Captação Exclusiva Regional · 2026
+  </div>
+
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://sdqslzpfbazehqcvibjy.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_qvEsnu3ISMNKHkJKdUnxRA_JQ8lvh_H';
+  
+  const form = document.getElementById('formRegional');
+  const btn = document.getElementById('btnSubmit');
+  const errorMsg = document.getElementById('errorMsg');
+  const successScreen = document.getElementById('successScreen');
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    btn.disabled = true;
+    btn.textContent = 'ENVIANDO...';
+    errorMsg.style.display = 'none';
+    
+    const formData = new FormData(form);
+    const data = {
+      nome: formData.get('nome').trim(),
+      whatsapp: formData.get('whatsapp').trim(),
+      oab: formData.get('oab').trim(),
+      cidade_regiao: formData.get('cidade_regiao').trim(),
+      tamanho_cidade: formData.get('tamanho_cidade'),
+      volume_mensal: formData.get('volume_mensal'),
+      paga_500: formData.get('paga_500') === 'true',
+      paga_600: formData.get('paga_600') === 'true',
+      paga_700: formData.get('paga_700') === 'true',
+      historico_kr: formData.get('historico_kr'),
+      tempo_atuacao: formData.get('tempo_atuacao'),
+      estrutura: formData.get('estrutura'),
+      observacao: formData.get('observacao').trim() || null
+    };
+    
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/leads_regional`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+      
+      // Sucesso
+      form.style.display = 'none';
+      successScreen.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+    } catch (error) {
+      console.error('Erro:', error);
+      errorMsg.textContent = `Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp. (${error.message})`;
+      errorMsg.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'ENVIAR CANDIDATURA →';
+    }
+  });
+</script>
+
+</body>
+</html>
