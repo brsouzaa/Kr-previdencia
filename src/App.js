@@ -55,6 +55,7 @@ function PortalRoute() {
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
   if (role === 'supervisor_producao') return 'fila_digitacao'
+  if (role === 'supervisor_visualizacao') return 'supervisor_producao'
   if (role === 'analista') return 'entregas'
   if (role === 'analista_ia') return 'revisao_ia'
   if (role === 'coordenador_b2c') return 'painel_coordenador'
@@ -68,6 +69,7 @@ function paginaPermitida(role, page) {
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
+  if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
   if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
