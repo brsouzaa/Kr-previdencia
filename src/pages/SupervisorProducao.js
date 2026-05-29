@@ -297,32 +297,7 @@ export default function SupervisorProducao() {
         </div>
       )}
 
-      {lotesPrioridade.length > 0 && (
-        <div style={{ ...card, marginBottom: '1.25rem', background: '#FEF3C7', border: '0.5px solid #F59E0B40' }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#854F0B', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            ⚡ Lotes em prioridade na fila ({lotesPrioridade.length})
-          </div>
-          <div style={{ fontSize: 11, color: '#854F0B', marginBottom: 10, fontStyle: 'italic' }}>
-            Esses lotes têm contratos que expiraram sem assinatura e precisam ser reemitidos
-          </div>
-          {lotesPrioridade.map(l => {
-            const restantes = (l.total_contratos || 0) - (l.qtd_emitidos || 0)
-            return (
-              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#fff', borderRadius: 8, marginBottom: 6 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{l.advogados?.nome_completo}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>
-                    {restantes} contrato{restantes !== 1 ? 's' : ''} para reemitir · prioridade desde {l.data_prioridade ? new Date(l.data_prioridade).toLocaleDateString('pt-BR') : '-'}
-                  </div>
-                </div>
-                <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: '#F59E0B', color: '#fff' }}>
-                  {restantes} pendente{restantes !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {/* Bloco "Lotes em prioridade na fila" removido a pedido do Bruno (29/05/2026) */}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
