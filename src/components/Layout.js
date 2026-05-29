@@ -13,6 +13,9 @@ const NAV_SUPERVISOR_PRODUCAO = [
   { key: 'supervisor_producao', label: '📊 Supervisão' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
 ]
+const NAV_SUPERVISOR_VIEW = [
+  { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
+]
 const NAV_ANALISTA = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'advogados', label: '⚖️ Advogados' },
@@ -101,6 +104,7 @@ export default function Layout({ children, page, setPage }) {
   const navBase = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
     : profile?.role === 'supervisor_producao' ? NAV_SUPERVISOR_PRODUCAO
+    : profile?.role === 'supervisor_visualizacao' ? NAV_SUPERVISOR_VIEW
     : profile?.role === 'analista' ? NAV_ANALISTA
     : profile?.role === 'analista_ia' ? NAV_ANALISTA_IA
     : profile?.role === 'coordenador_b2c' ? NAV_COORDENADOR_B2C
@@ -179,6 +183,7 @@ export default function Layout({ children, page, setPage }) {
             <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
               {profile?.role === 'admin' ? 'Administrador'
                 : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
+                : profile?.role === 'supervisor_visualizacao' ? 'Supervisor (Visualização)'
                 : profile?.role === 'analista' ? 'Analista'
                 : profile?.role === 'analista_ia' ? 'Analista IA'
                 : profile?.role === 'coordenador_b2c' ? `Coordenadora ${profile?.setor_responsavel === 'autonomos' ? 'Autônomos' : 'Captação'}`
