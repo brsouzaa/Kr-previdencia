@@ -274,8 +274,33 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
       for (const p of PRODUTOS) novasQtds[p] = Math.round((breakdown[p] || 0) * fator)
       novoValor = calcularValorPorQtds(novasQtds, tabelas)
     }
-    await supabase.from('lotes').update({ total_contratos: novaQtd, valor_total: novoValor, updated_at: new Date().toISOString() }).eq('id', loteId)
+    // Se o valor foi editado manualmente, NÃO sobrescreve: muda só a quantidade.
+    const updateQtd = lote.valor_manual
+      ? { total_contratos: novaQtd, updated_at: new Date().toISOString() }
+      : { total_contratos: novaQtd, valor_total: novoValor, updated_at: new Date().toISOString() }
+    await supabase.from('lotes').update(updateQtd).eq('id', loteId)
     await supabase.from('advogados').update({ total_compras: Math.max(0, totalAtual + diff) }).eq('id', adv.id)
+    await fetchTudo()
+  }
+
+  // Edita o valor_total do lote manualmente (valor negociado com o advogado).
+  // Direto, sem aprovação. Bloqueado se o lote já estiver pago.
+  async function editarValorLote(lote) {
+    if (lote.status_pagamento === 'pago') {
+      alert('Lote já pago — o valor não pode mais ser alterado.')
+      return
+    }
+    const atual = Number(lote.valor_total) || 0
+    const input = window.prompt('Valor total do lote (R$) — valor final da negociação:', atual)
+    if (input === null) return
+    const limpo = String(input).replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')
+    const novoValor = Number(limpo)
+    if (isNaN(novoValor) || novoValor < 0) { alert('Valor inválido.'); return }
+    await supabase.from('lotes').update({
+      valor_total: novoValor,
+      valor_manual: true,
+      updated_at: new Date().toISOString(),
+    }).eq('id', lote.id)
     await fetchTudo()
   }
 
@@ -529,6 +554,13 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                         )}
                         <button onClick={() => excluirLote(lote)} style={{ padding: '7px 10px', background: 'none', color: '#ccc', border: '0.5px solid #ddd', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Excluir</button>
                       </div>
+
+                      {/* Editar valor negociado — dono do lote ou admin; bloqueado se pago */}
+                      {(profile?.role === 'admin' || lote.vendedor_id === profile?.id) && lote.status_pagamento !== 'pago' && (
+                        <button onClick={() => editarValorLote(lote)} style={{ marginTop: 8, fontSize: 11, padding: '5px 10px', background: '#EEF6FF', color: '#185FA5', border: '0.5px solid #185FA5', borderRadius: 7, cursor: 'pointer' }}>
+                          ✏️ Editar valor ({fmt(lote.valor_total)}){lote.valor_manual ? ' · manual' : ''}
+                        </button>
+                      )}
 
                       {/* Admin: editar */}
                       {profile?.role === 'admin' && (
