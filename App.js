@@ -31,6 +31,7 @@ import DashboardProducao from './pages/DashboardProducao'
 import Metas from './pages/Metas'
 import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
+import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -135,6 +136,7 @@ function AppInner() {
     metas: <Metas />,
     bi: <BIBruno />,
     reposicoes: <Reposicoes />,
+    distribuicao_gabriela: <DistribuicaoGabriela />,
   }
 
   const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
