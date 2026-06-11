@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const ESTADOS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-const PRODUTOS = ['Maternidade', 'BPC', 'Auxilio Acidente']
+const PRODUTOS = ['Maternidade', 'Pensão por Morte', 'Auxilio Acidente']
 
 // === Preço por produto (cada produto tem sua tabela própria) ===
 // Vem do banco via RPC, mas tem fallback hardcoded sincronizado pra evitar quebrar se RPC falhar
@@ -15,13 +15,11 @@ const FALLBACK_TABELAS = {
     { qtd_min: 50, qtd_max: 99, preco: 299 },
     { qtd_min: 100, qtd_max: null, preco: 279 },
   ],
-  'BPC': [
-    { qtd_min: 1, qtd_max: 5, preco: 999 },
-    { qtd_min: 6, qtd_max: 10, preco: 899 },
-    { qtd_min: 11, qtd_max: 30, preco: 849 },
-    { qtd_min: 31, qtd_max: 50, preco: 799 },
-    { qtd_min: 51, qtd_max: 99, preco: 749 },
-    { qtd_min: 100, qtd_max: null, preco: 699 },
+  'Pensão por Morte': [
+    { qtd_min: 1, qtd_max: 2, preco: 2498 },
+    { qtd_min: 3, qtd_max: 9, preco: 2297 },
+    { qtd_min: 10, qtd_max: 29, preco: 2097 },
+    { qtd_min: 30, qtd_max: null, preco: 1998 },
   ],
   'Auxilio Acidente': [
     { qtd_min: 1, qtd_max: 4, preco: 449 },
@@ -49,7 +47,7 @@ function faixaLabel(tabela, qtd) {
 
 const PROD_STYLE = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56', border: '#0F6E56' },
-  'BPC': { bg: '#EEEDFE', color: '#534AB7', border: '#534AB7' },
+  'Pensão por Morte': { bg: '#EEEDFE', color: '#534AB7', border: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B', border: '#854F0B' },
 }
 
@@ -84,7 +82,7 @@ const s = {
 }
 
 const INITIAL_FORM = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone: '', email: '', estado_civil: 'Solteiro(a)', nacionalidade: 'Brasileira', endereco: '', numero: '', bairro: '', cep: '' }
-const INITIAL_QTDS = { 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 }
+const INITIAL_QTDS = { 'Maternidade': 0, 'Pensão por Morte': 0, 'Auxilio Acidente': 0 }
 
 function dataMinima() { return new Date().toISOString().slice(0, 10) }
 
@@ -106,7 +104,7 @@ function useTabelas() {
           novo[row.produto].push({ qtd_min: row.qtd_min, qtd_max: row.qtd_max, preco: Number(row.preco_unitario) })
         }
         // só sobrescreve se trouxe dados pros 3 produtos
-        if (novo['Maternidade'] && novo['BPC'] && novo['Auxilio Acidente']) {
+        if (novo['Maternidade'] && novo['Pensão por Morte'] && novo['Auxilio Acidente']) {
           setTabelas(novo)
         }
       } catch(e) { /* mantém fallback */ }
