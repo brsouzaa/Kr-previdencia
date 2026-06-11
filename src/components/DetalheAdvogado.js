@@ -22,6 +22,7 @@ const TITULO_STYLE = {
 const PROD_STYLE = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
+  'Pensão por Morte': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
 const PAG_STYLE = {
@@ -35,7 +36,7 @@ const PAG_STYLE = {
   nao_assinou: { bg: '#F1EFE8', color: '#888', label: 'Não assinou' },
 }
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
-const PRODUTOS = ['Maternidade', 'BPC', 'Auxilio Acidente']
+const PRODUTOS = ['Maternidade', 'Pensão por Morte', 'Auxilio Acidente']
 
 // Tabela de preços por produto (fallback, sincronizado com produtos_precos do banco)
 const FALLBACK_TABELAS = {
@@ -47,13 +48,11 @@ const FALLBACK_TABELAS = {
     { qtd_min: 50, qtd_max: 99, preco: 299 },
     { qtd_min: 100, qtd_max: null, preco: 279 },
   ],
-  'BPC': [
-    { qtd_min: 1, qtd_max: 5, preco: 999 },
-    { qtd_min: 6, qtd_max: 10, preco: 899 },
-    { qtd_min: 11, qtd_max: 30, preco: 849 },
-    { qtd_min: 31, qtd_max: 50, preco: 799 },
-    { qtd_min: 51, qtd_max: 99, preco: 749 },
-    { qtd_min: 100, qtd_max: null, preco: 699 },
+  'Pensão por Morte': [
+    { qtd_min: 1, qtd_max: 2, preco: 2498 },
+    { qtd_min: 3, qtd_max: 9, preco: 2297 },
+    { qtd_min: 10, qtd_max: 29, preco: 2097 },
+    { qtd_min: 30, qtd_max: null, preco: 1998 },
   ],
   'Auxilio Acidente': [
     { qtd_min: 1, qtd_max: 4, preco: 449 },
@@ -110,7 +109,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const { profile } = useAuth()
   const [compras, setCompras] = useState([])
   const [lotes, setLotes] = useState([])
-  const [qtds, setQtds] = useState({ 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 })
+  const [qtds, setQtds] = useState({ 'Maternidade': 0, 'Pensão por Morte': 0, 'Auxilio Acidente': 0 })
   const [dataCompra, setDataCompra] = useState(new Date().toISOString().slice(0, 10))
   const [saving, setSaving] = useState(false)
   const [adv, setAdv] = useState(advogado)
@@ -137,7 +136,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
           if (!novo[row.produto]) novo[row.produto] = []
           novo[row.produto].push({ qtd_min: row.qtd_min, qtd_max: row.qtd_max, preco: Number(row.preco_unitario) })
         }
-        if (novo['Maternidade'] && novo['BPC'] && novo['Auxilio Acidente']) {
+        if (novo['Maternidade'] && novo['Pensão por Morte'] && novo['Auxilio Acidente']) {
           setTabelas(novo)
         }
       } catch(e) { /* mantém fallback */ }
@@ -195,7 +194,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         produto: produtoLote,
       })
     }
-    setQtds({ 'Maternidade': 0, 'BPC': 0, 'Auxilio Acidente': 0 })
+    setQtds({ 'Maternidade': 0, 'Pensão por Morte': 0, 'Auxilio Acidente': 0 })
     await fetchTudo()
     setSaving(false)
   }
@@ -617,7 +616,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
               style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 12, background: '#fff', boxSizing: 'border-box' }}
             >
               <option value="Maternidade">Maternidade</option>
-              <option value="BPC">BPC</option>
+              <option value="Pensão por Morte">Pensão por Morte</option>
               <option value="Auxilio Acidente">Auxílio Acidente</option>
             </select>
 
