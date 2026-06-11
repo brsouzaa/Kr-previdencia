@@ -16,6 +16,7 @@ function useIsMobile() {
 const PROD_STYLE = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
+  'Pensão por Morte': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
 
@@ -803,6 +804,7 @@ export default function Dashboard() {
         <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos produtos</option>
           <option value="Maternidade">Maternidade</option>
+          <option value="Pensão por Morte">Pensão por Morte</option>
           <option value="BPC">BPC</option>
           <option value="Auxilio Acidente">Aux. Acidente</option>
         </select>
@@ -830,7 +832,7 @@ export default function Dashboard() {
         {/* Por produto */}
         <div style={card}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Por produto</div>
-          {['Maternidade','BPC','Auxilio Acidente'].map(p => {
+          {['Maternidade','Pensão por Morte','Auxilio Acidente'].map(p => {
             const qtd = porProduto[p] || 0
             const pct = comprasFiltradasFaturaveis.length > 0 ? Math.round((qtd/comprasFiltradasFaturaveis.length)*100) : 0
             return (
