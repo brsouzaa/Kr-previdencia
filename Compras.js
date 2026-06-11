@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 const PROD_STYLE = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
+  'Pensão por Morte': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
 
@@ -40,7 +41,7 @@ export default function Compras() {
   const counts = {
     total: compras.length,
     mat: compras.filter(c => c.produto === 'Maternidade').length,
-    bpc: compras.filter(c => c.produto === 'BPC').length,
+    pensao: compras.filter(c => c.produto === 'Pensão por Morte').length,
     aux: compras.filter(c => c.produto === 'Auxilio Acidente').length,
   }
 
@@ -50,7 +51,7 @@ export default function Compras() {
       <div style={s.metrics}>
         <div style={s.metric}><div style={s.metricLabel}>Total</div><div style={s.metricValue}>{counts.total}</div></div>
         <div style={s.metric}><div style={{ ...s.metricLabel, color: '#0F6E56' }}>Maternidade</div><div style={{ ...s.metricValue, color: '#0F6E56' }}>{counts.mat}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#534AB7' }}>BPC</div><div style={{ ...s.metricValue, color: '#534AB7' }}>{counts.bpc}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#534AB7' }}>Pensão por Morte</div><div style={{ ...s.metricValue, color: '#534AB7' }}>{counts.pensao}</div></div>
       </div>
 
       <div style={s.tableWrap}>
