@@ -177,8 +177,8 @@ export default function FilaDigitacao() {
                 <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{c.cpf} · {c.telefone}</div>
               </div>
               <span style={s.badge(
-                c.produto === 'Maternidade' ? '#0F6E56' : c.produto === 'BPC' ? '#534AB7' : '#854F0B',
-                c.produto === 'Maternidade' ? '#E1F5EE' : c.produto === 'BPC' ? '#EEEDFE' : '#FAEEDA'
+                c.produto === 'Maternidade' ? '#0F6E56' : (c.produto === 'BPC' || c.produto === 'Pensão por Morte') ? '#534AB7' : '#854F0B',
+                c.produto === 'Maternidade' ? '#E1F5EE' : (c.produto === 'BPC' || c.produto === 'Pensão por Morte') ? '#EEEDFE' : '#FAEEDA'
               )}>
                 {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto}
               </span>
