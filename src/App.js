@@ -32,6 +32,7 @@ import Metas from './pages/Metas'
 import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
 import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
+import ParceriaPensao from './pages/ParceriaPensao'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -91,6 +92,9 @@ function AppInner() {
 
   const isPortal = window.location.pathname.startsWith('/cadastro/')
   if (isPortal) return <PortalRoute />
+
+  const isParceriaPensao = window.location.pathname.startsWith('/parceria-pensao')
+  if (isParceriaPensao) return <ParceriaPensao />
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
