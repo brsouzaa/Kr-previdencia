@@ -167,6 +167,20 @@ export default function Dashboard() {
   const comprasFiltradas = filtrarCompras(compras)
   const lotesFiltrados = filtrarLotes(lotes)
 
+  // PAGO usa régua de CAIXA (data_pagamento), não data_compra — senão pagamento de mês anterior some
+  const lotesPagosNoPeriodo = (() => {
+    const { inicio, fim } = getPeriodo()
+    return lotes.filter(l => {
+      if (l.status_pagamento !== 'pago') return false
+      if (l.tipo === 'reposicao') return false
+      const dp = l.data_pagamento // 'YYYY-MM-DD'
+      if (!dp) return false
+      const dentro = (!inicio || dp >= inicio) && (!fim || dp <= fim)
+      const vendedorOk = !filtroVendedor || l.profiles?.nome === filtroVendedor
+      return dentro && vendedorOk
+    })
+  })()
+
   // Mapa de status do lote por (advogado_id + data_compra)
   const statusLotePorCompra = {}
   for (const l of lotes) {
@@ -256,7 +270,7 @@ export default function Dashboard() {
     assinar_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'assinar_contrato').reduce((s,l) => s + Number(l.valor_total), 0),
     a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').reduce((s,l) => s + Number(l.valor_total), 0),
     entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').reduce((s,l) => s + Number(l.valor_total), 0),
-    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').reduce((s,l) => s + Number(l.valor_total), 0),
+    pago: lotesPagosNoPeriodo.reduce((s,l) => s + Number(l.valor_total), 0),
     inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').reduce((s,l) => s + Number(l.valor_total), 0),
   }
 
@@ -266,7 +280,7 @@ export default function Dashboard() {
     assinar_contrato: lotesFiltrados.filter(l => l.status_pagamento === 'assinar_contrato').length,
     a_entregar: lotesFiltrados.filter(l => l.status_pagamento === 'a_entregar').length,
     entregue: lotesFiltrados.filter(l => l.status_pagamento === 'entregue').length,
-    pago: lotesFiltrados.filter(l => l.status_pagamento === 'pago').length,
+    pago: lotesPagosNoPeriodo.length,
     inadimplente: lotesFiltrados.filter(l => l.status_pagamento === 'inadimplente').length,
   }
 
@@ -674,7 +688,7 @@ export default function Dashboard() {
         const atrasadosEntrega = lotes.filter(l => l.status_pagamento === 'a_entregar' && diasDesde(l.data_compra) >= 7)
         const atrasadosPagamento = lotes.filter(l => l.status_pagamento === 'entregue' && diasDesde(l.data_entrega || l.data_compra) >= 1)
 
-        if (atrasadosEmissao.length === 0 && atrasadosAssinatura.length === 0 && atrasadosEntrega.length === 0 && atrasadosPagamento.length === 0) return null
+        if (atrasadosEmissao.length === 0 && atrasadosAssinatura.length === 0 && atrasadosPagamento.length === 0) return null
 
         return (
           <div style={{ background: '#FCEBEB', border: '2.5px solid #A32D2D', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem', boxShadow: '0 4px 16px rgba(163,45,45,0.15)' }}>
@@ -732,30 +746,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {atrasadosEntrega.length > 0 && (
-              <div style={{ marginBottom: atrasadosPagamento.length > 0 ? 14 : 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
-                  Entrega atrasada — +7 dias ({atrasadosEntrega.length})
-                </div>
-                {atrasadosEntrega.map(lote => {
-                  const dias = diasDesde(lote.data_compra)
-                  return (
-                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#E6F1FB', borderRadius: 8, marginBottom: 6, border: '0.5px solid #185FA540' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{lote.advogados?.nome_completo}</div>
-                        <div style={{ fontSize: 11, color: '#185FA5' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D' }}>{dias} dias atrasado</div>
-                        <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ fontSize: 11, padding: '3px 8px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
-                          Marcar entregue
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+
 
             {atrasadosPagamento.length > 0 && (
               <div>
