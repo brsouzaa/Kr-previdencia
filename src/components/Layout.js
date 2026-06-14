@@ -65,6 +65,7 @@ const NAV_COORDENADOR_B2C = [
 ]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
+  { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
