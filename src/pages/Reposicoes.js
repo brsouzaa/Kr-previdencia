@@ -63,8 +63,35 @@ export default function Reposicoes() {
   }, [aba])
 
   async function aprovar(lote) {
-    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?\n\n⚠️ Vai entrar na fila com PRIORIDADE MÁXIMA e prazo de 24h.`)) return
     setAcaoEmCurso(lote.id)
+    // Régua de reposição: checa se aprovar este lote estoura o teto (15% alerta, 20% bloqueio)
+    // sobre clientes fechados do mês. Dado vivo via função no banco (não contador).
+    const agoraCheck = new Date()
+    const { data: reguaArr } = await supabase.rpc('pct_reposicao_mes', {
+      p_ano: agoraCheck.getFullYear(),
+      p_mes: agoraCheck.getMonth() + 1,
+      p_repostos_extra: Number(lote.total_contratos || 0),
+    })
+    const regua = Array.isArray(reguaArr) ? reguaArr[0] : reguaArr
+    if (regua && regua.situacao === 'bloqueio') {
+      setAcaoEmCurso(null)
+      alert(
+        `🚫 BLOQUEADO — teto de reposição estourado.\n\n` +
+        `Aprovar esta reposição levaria o mês a ${regua.pct}% de reposição ` +
+        `(${regua.repostos_simulado} repostos sobre ${regua.clientes_fechados} clientes fechados).\n\n` +
+        `O limite é 20%. Acima disso o sistema não aprova — reposição alta come margem e indica problema na entrega.\n\n` +
+        `Teto de bloqueio neste mês: ${regua.teto_bloqueio} reposições.`
+      )
+      return
+    }
+    let avisoAlerta = ''
+    if (regua && regua.situacao === 'alerta') {
+      avisoAlerta = `\n\n⚠️ ATENÇÃO: isto leva o mês a ${regua.pct}% de reposição (alerta a partir de 15%, bloqueio em 20%). Teto de bloqueio: ${regua.teto_bloqueio}.`
+    }
+    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?\n\n⚠️ Vai entrar na fila com PRIORIDADE MÁXIMA e prazo de 24h.${avisoAlerta}`)) {
+      setAcaoEmCurso(null)
+      return
+    }
 
     const agora = new Date()
     const limite = new Date(agora.getTime() + 24 * 60 * 60 * 1000) // +24h
