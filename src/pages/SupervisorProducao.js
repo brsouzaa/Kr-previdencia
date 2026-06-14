@@ -25,23 +25,51 @@ export default function SupervisorProducao() {
   const meuSetor = profile?.setor || 'captacao'
   const isSupAutonomo = profile?.role === 'supervisor_producao' && meuSetor === 'autonomos'
 
-  useEffect(() => { if (profile) fetchDados() }, [profile])
+  useEffect(() => { if (profile) fetchDados() }, [profile, periodo])
 
   async function fetchDados() {
     setLoading(true)
 
-    // Query base de contratos (sem filtro por setor — RLS filtra automaticamente)
-    let contratosQuery = supabase.from('contratos_producao').select(`
-      *,
-      profiles(nome),
-      advogados(nome_completo, oab),
-      clientes!clientes_contrato_producao_id_fkey(
-        id, nome, cpf, rg, email, telefone, rua, numero, bairro, cidade, uf, cep,
-        status, origem, setor, data_prevista_parto, meses_gravidez, nis,
-        vendedor_operador_id,
-        vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome, setor, supervisora_id)
-      )
-    `).order('created_at', { ascending: false })
+    // Janela de data no BANCO (antes do limite de 1000), conforme o período.
+    // 'mes' = mês-calendário corrente (igual ao Painel Financeiro), não "últimos 30 dias".
+    let dataInicio = null, dataFim = null
+    const agora = new Date()
+    if (periodo === 'hoje') {
+      dataInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate())
+    } else if (periodo === 'semana') {
+      dataInicio = new Date(agora); dataInicio.setDate(dataInicio.getDate() - 7)
+    } else if (periodo === 'mes') {
+      dataInicio = new Date(agora.getFullYear(), agora.getMonth(), 1)
+      dataFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1)
+    }
+
+    // Paginação: o Supabase corta em 1000 por request. Busca em páginas até acabar.
+    async function buscarTodosContratos() {
+      const PAGINA = 1000
+      let todos = [], de = 0, temMais = true
+      while (temMais) {
+        let q = supabase.from('contratos_producao').select(`
+          *,
+          profiles(nome),
+          advogados(nome_completo, oab),
+          clientes!clientes_contrato_producao_id_fkey(
+            id, nome, cpf, rg, email, telefone, rua, numero, bairro, cidade, uf, cep,
+            status, origem, setor, data_prevista_parto, meses_gravidez, nis,
+            vendedor_operador_id,
+            vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome, setor, supervisora_id)
+          )
+        `).order('created_at', { ascending: false }).range(de, de + PAGINA - 1)
+        if (dataInicio) q = q.gte('created_at', dataInicio.toISOString())
+        if (dataFim) q = q.lt('created_at', dataFim.toISOString())
+        const { data, error } = await q
+        if (error) { console.error('Erro contratos_producao:', error); break }
+        todos = todos.concat(data || [])
+        temMais = (data || []).length === PAGINA
+        de += PAGINA
+        if (de > 50000) break // trava de segurança
+      }
+      return todos
+    }
 
     // Query de vendedores pro dropdown — admin vê todos, sup vê só do setor dele
     let prodQuery = supabase.from('profiles').select('id, nome, setor, supervisora_id').in('role', ['vendedor_operador', 'supervisor_producao']).order('nome')
@@ -49,7 +77,7 @@ export default function SupervisorProducao() {
     // Query de lotes em prioridade
     let lpQuery = supabase.from('lotes').select('*, advogados(nome_completo)').eq('prioridade_fila', true).order('data_prioridade', { ascending: true })
 
-    const [{ data: c }, { data: p }, { data: lp }] = await Promise.all([contratosQuery, prodQuery, lpQuery])
+    const [c, { data: p }, { data: lp }] = await Promise.all([buscarTodosContratos(), prodQuery, lpQuery])
 
     // Filtros do frontend (RLS já filtra no banco, mas garante consistência)
     let contratosFiltrados = c || []
@@ -175,16 +203,12 @@ export default function SupervisorProducao() {
   }
 
   function filtrar(lista) {
-    let inicio = null
-    if (periodo === 'hoje') { inicio = new Date(); inicio.setHours(0,0,0,0) }
-    else if (periodo === 'semana') { inicio = new Date(); inicio.setDate(inicio.getDate()-7) }
-    else if (periodo === 'mes') { inicio = new Date(); inicio.setDate(inicio.getDate()-30) }
-
+    // Filtro de DATA já é feito no banco (fetchDados, por período). Aqui só busca e produtor.
     const buscaLower = busca.trim().toLowerCase()
     const buscaDigits = busca.replace(/\D/g, '')
 
     return lista.filter(c => {
-      const dentroP = !inicio || new Date(c.created_at) >= inicio
+      const dentroP = true
       const prodOk = !filtroProd || getVendedorB2CId(c) === filtroProd
 
       let buscaOk = true
