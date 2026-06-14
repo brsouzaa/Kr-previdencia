@@ -132,17 +132,17 @@ export default function PainelFinanceiro() {
   const inadTotal = base.filter(l => l.eh_inadimplente)
   const inadTotalValor = inadTotal.reduce((s, l) => s + Number(l.valor_total || 0), 0)
 
-  // ---- REPOSIÇÕES: quantidade de reposições criadas no mês (por data_venda) ----
+  // ---- REPOSIÇÕES: aprovadas, por data de APROVAÇÃO (não data do pedido) ----
   const rRep = rangeMes(repAno, repMes)
   const repLin = base.filter(l =>
-    l.eh_reposicao && l.data_venda &&
-    l.data_venda >= rRep.ini && l.data_venda <= rRep.fim
+    l.eh_reposicao_aprovada && l.data_aprovacao_dia &&
+    l.data_aprovacao_dia >= rRep.ini && l.data_aprovacao_dia <= rRep.fim
   )
   const rep = {
     lotes: repLin.length,
     contratos: repLin.reduce((s, l) => s + Number(l.total_contratos || 0), 0),
   }
-  const repTotal = base.filter(l => l.eh_reposicao)
+  const repTotal = base.filter(l => l.eh_reposicao_aprovada)
   const repTotalContratos = repTotal.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
@@ -245,7 +245,7 @@ export default function PainelFinanceiro() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: COR.neutro }}>Reposições</div>
-              <div style={{ fontSize: 11, color: '#9a9a96' }}>Reposições criadas no mês</div>
+              <div style={{ fontSize: 11, color: '#9a9a96' }}>Reposições aprovadas no mês</div>
             </div>
             <Seletor mes={repMes} setMes={setRepMes} ano={repAno} setAno={setRepAno} cor={COR.neutro} />
           </div>
