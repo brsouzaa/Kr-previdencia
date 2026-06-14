@@ -60,6 +60,7 @@ export default function PainelFinanceiro() {
   const [repAno, setRepAno] = useState(hoje.getFullYear())
   const [produtoSel, setProdutoSel] = useState('Todos')
   const [gastos, setGastos] = useState([])
+  const [fechadosMes, setFechadosMes] = useState([])
   const [sincronizando, setSincronizando] = useState(false)
   const [custoMes, setCustoMes] = useState(hoje.getMonth())
   const [custoAno, setCustoAno] = useState(hoje.getFullYear())
@@ -75,6 +76,7 @@ export default function PainelFinanceiro() {
       setLoading(false)
     })
     supabase.from('gastos_anuncios').select('*').then(({ data }) => setGastos(data || []))
+    supabase.from('v_clientes_fechados_mes').select('*').then(({ data }) => setFechadosMes(data || []))
   }, [profile])
 
   if (!podeVer) {
@@ -175,12 +177,17 @@ export default function PainelFinanceiro() {
   const custoTotal = custoLin.reduce((s, g) => s + Number(g.gasto_total || 0), 0)
   const custoLiquido = custoLin.reduce((s, g) => s + Number(g.gasto_liquido || 0), 0)
   const custoSincronizadoEm = custoLin.length ? custoLin.map(g => g.sincronizado_em).sort().reverse()[0] : null
-  // CAC = custo / contratos vendidos (concluídos) no mesmo mês — usa a régua de vendas, sem filtro de produto
+  // CAC = custo / (clientes fechados no mês + contratos repostos aprovados no mês)
+  // Clientes fechados = status validado/entregue/assinado (cliente real, não pedido de advogado)
+  // Reposição também é cliente novo adquirido. Sempre geral (gasto de anúncio não separa por produto).
   const rCusto = rangeMes(custoAno, custoMes)
-  const contratosVendaCusto = linhas
-    .filter(l => l.eh_venda_viva && !l.eh_reposicao && l.data_venda && l.data_venda >= rCusto.ini && l.data_venda <= rCusto.fim)
+  const fechadosRow = fechadosMes.find(f => f.ano === custoAno && f.mes === (custoMes + 1))
+  const clientesFechadosCusto = fechadosRow ? Number(fechadosRow.clientes_fechados || 0) : 0
+  const reposicoesCusto = linhas
+    .filter(l => l.eh_reposicao_aprovada && l.data_aprovacao_dia && l.data_aprovacao_dia >= rCusto.ini && l.data_aprovacao_dia <= rCusto.fim)
     .reduce((s, l) => s + Number(l.total_contratos || 0), 0)
-  const cac = contratosVendaCusto > 0 ? custoTotal / contratosVendaCusto : 0
+  const baseAquisicao = clientesFechadosCusto + reposicoesCusto
+  const cac = baseAquisicao > 0 ? custoTotal / baseAquisicao : 0
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
 
@@ -330,12 +337,13 @@ export default function PainelFinanceiro() {
               </div>
               <div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#854F0B' }}>{fmt(cac)}</div>
-                <div style={{ fontSize: 11, color: '#9a9a96' }}>CAC (custo ÷ {fmtNum(contratosVendaCusto)} contratos vendidos)</div>
+                <div style={{ fontSize: 11, color: '#9a9a96' }}>CAC real (custo ÷ {fmtNum(baseAquisicao)} clientes adquiridos)</div>
               </div>
             </div>
             <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
               Mídia (sem imposto): {fmt(custoLiquido)} · {custoLin.map(g => `${g.conta_nome}: ${fmt(g.gasto_total)}`).join(' · ')}
               {custoSincronizadoEm ? ` · atualizado ${new Date(custoSincronizadoEm).toLocaleString('pt-BR')}` : ''}
+              <br />CAC = {fmtNum(clientesFechadosCusto)} clientes fechados (validado/entregue/assinado) + {fmtNum(reposicoesCusto)} repostos = {fmtNum(baseAquisicao)} adquiridos no mês.
             </div>
           </>
         )}
