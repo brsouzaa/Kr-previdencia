@@ -8,6 +8,7 @@ import Funil from './pages/Funil'
 import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
+import PainelFinanceiro from './pages/PainelFinanceiro'
 import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
 import GerarContratos from './pages/GerarContratos'
@@ -72,7 +73,7 @@ function paginaPermitida(role, page) {
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
-  if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista') return ['dashboard','painel_financeiro','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
@@ -115,6 +116,7 @@ function AppInner() {
 
   const pages = {
     dashboard: <Dashboard />,
+    painel_financeiro: <PainelFinanceiro />,
     advogados: <Advogados />,
     funil: <Funil />,
     compras: <Compras />,
