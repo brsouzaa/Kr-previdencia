@@ -56,6 +56,8 @@ export default function PainelFinanceiro() {
   const [caixaAno, setCaixaAno] = useState(hoje.getFullYear())
   const [inadMes, setInadMes] = useState(hoje.getMonth())
   const [inadAno, setInadAno] = useState(hoje.getFullYear())
+  const [repMes, setRepMes] = useState(hoje.getMonth())
+  const [repAno, setRepAno] = useState(hoje.getFullYear())
 
   // Bloqueio: só admin/analista veem financeiro
   const podeVer = profile && (profile.role === 'admin' || profile.role === 'analista')
@@ -123,6 +125,19 @@ export default function PainelFinanceiro() {
   // Inadimplência total acumulada (todos os inadimplentes vivos, independente do mês)
   const inadTotal = linhas.filter(l => l.eh_inadimplente)
   const inadTotalValor = inadTotal.reduce((s, l) => s + Number(l.valor_total || 0), 0)
+
+  // ---- REPOSIÇÕES: quantidade de reposições criadas no mês (por data_venda) ----
+  const rRep = rangeMes(repAno, repMes)
+  const repLin = linhas.filter(l =>
+    l.eh_reposicao && l.data_venda &&
+    l.data_venda >= rRep.ini && l.data_venda <= rRep.fim
+  )
+  const rep = {
+    lotes: repLin.length,
+    contratos: repLin.reduce((s, l) => s + Number(l.total_contratos || 0), 0),
+  }
+  const repTotal = linhas.filter(l => l.eh_reposicao)
+  const repTotalContratos = repTotal.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
 
@@ -207,6 +222,31 @@ export default function PainelFinanceiro() {
           valor={inad.valor}
           rodape={`Total acumulado em aberto (todos os meses): ${fmt(inadTotalValor)} · ${inadTotal.length} pedidos`}
         />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14, marginTop: 14 }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(0,0,0,0.1)', borderTop: `3px solid ${COR.neutro}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: COR.neutro }}>Reposições</div>
+              <div style={{ fontSize: 11, color: '#9a9a96' }}>Reposições criadas no mês</div>
+            </div>
+            <Seletor mes={repMes} setMes={setRepMes} ano={repAno} setAno={setRepAno} cor={COR.neutro} />
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#111' }}>{fmtNum(rep.contratos)}</div>
+              <div style={{ fontSize: 11, color: '#9a9a96' }}>contratos repostos</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: COR.neutro }}>{fmtNum(rep.lotes)}</div>
+              <div style={{ fontSize: 11, color: '#9a9a96' }}>reposições</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
+            Total histórico: {fmtNum(repTotalContratos)} contratos repostos em {fmtNum(repTotal.length)} reposições.
+          </div>
+        </div>
       </div>
 
       <div style={{ background: '#FBFAF7', borderRadius: 12, padding: '1rem 1.25rem', marginTop: 18, border: '0.5px solid rgba(0,0,0,0.07)' }}>
