@@ -107,9 +107,11 @@ export default function PainelFinanceiro() {
       const j = await r.json()
       if (!j.ok) { alert('Erro ao sincronizar: ' + (j.error || (j.erros && j.erros.map(e => e.conta + ': ' + e.erro).join(' | ')) || 'falhou')) }
       else { alert(`Gastos sincronizados! Total com imposto: R$ ${Number(j.total_com_imposto).toLocaleString('pt-BR')}`) }
-      // recarrega gastos
+      // recarrega gastos E clientes fechados (CAC atualiza junto)
       const { data } = await supabase.from('gastos_anuncios').select('*')
       setGastos(data || [])
+      const { data: fc } = await supabase.from('v_clientes_fechados_mes').select('*')
+      setFechadosMes(fc || [])
     } catch (e) { alert('Erro: ' + e.message) }
     setSincronizando(false)
   }
@@ -172,6 +174,23 @@ export default function PainelFinanceiro() {
   const repTotal = base.filter(l => l.eh_reposicao_aprovada)
   const repTotalContratos = repTotal.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
 
+  // ---- RÉGUA DE REPOSIÇÃO: % sobre clientes fechados do mês (alerta 15%, bloqueio 20%) ----
+  // Clientes fechados do mês de reposição (soma todos os produtos)
+  const fechadosRepMes = fechadosMes
+    .filter(f => f.ano === repAno && f.mes === (repMes + 1))
+    .reduce((s, f) => s + Number(f.clientes_fechados || 0), 0)
+  const repPct = fechadosRepMes > 0 ? (rep.contratos / fechadosRepMes * 100) : 0
+  const repTetoAlerta = Math.floor(fechadosRepMes * 0.15)
+  const repTetoBloqueio = Math.floor(fechadosRepMes * 0.20)
+  const repSituacao = fechadosRepMes === 0 ? 'sem_base'
+    : repPct > 20 ? 'bloqueio'
+    : repPct >= 15 ? 'alerta'
+    : 'ok'
+  const repCorRegua = repSituacao === 'bloqueio' ? '#A32D2D'
+    : repSituacao === 'alerta' ? '#854F0B'
+    : '#3B6D11'
+  const repPctTeto = Math.min(repPct / 20 * 100, 100)
+
   // ---- CUSTO DE ANÚNCIO: gasto Meta (com 13% imposto) do mês selecionado ----
   const custoLin = gastos.filter(g => g.ano === custoAno && g.mes === (custoMes + 1))
   const custoTotal = custoLin.reduce((s, g) => s + Number(g.gasto_total || 0), 0)
@@ -181,13 +200,29 @@ export default function PainelFinanceiro() {
   // Clientes fechados = status validado/entregue/assinado (cliente real, não pedido de advogado)
   // Reposição também é cliente novo adquirido. Sempre geral (gasto de anúncio não separa por produto).
   const rCusto = rangeMes(custoAno, custoMes)
-  const fechadosRow = fechadosMes.find(f => f.ano === custoAno && f.mes === (custoMes + 1))
-  const clientesFechadosCusto = fechadosRow ? Number(fechadosRow.clientes_fechados || 0) : 0
-  const reposicoesCusto = linhas
-    .filter(l => l.eh_reposicao_aprovada && l.data_aprovacao_dia && l.data_aprovacao_dia >= rCusto.ini && l.data_aprovacao_dia <= rCusto.fim)
-    .reduce((s, l) => s + Number(l.total_contratos || 0), 0)
-  const baseAquisicao = clientesFechadosCusto + reposicoesCusto
-  const cac = baseAquisicao > 0 ? custoTotal / baseAquisicao : 0
+  // Clientes fechados do mês (todos os produtos) — pra ratear o gasto
+  const fechadosDoMes = fechadosMes.filter(f => f.ano === custoAno && f.mes === (custoMes + 1))
+  const totalFechadosTodos = fechadosDoMes.reduce((s, f) => s + Number(f.clientes_fechados || 0), 0)
+  // Reposições do mês por produto (da view de linhas)
+  const reposicoesDoMes = linhas.filter(l => l.eh_reposicao_aprovada && l.data_aprovacao_dia && l.data_aprovacao_dia >= rCusto.ini && l.data_aprovacao_dia <= rCusto.fim)
+  const totalRepostosTodos = reposicoesDoMes.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+  const baseTodos = totalFechadosTodos + totalRepostosTodos
+
+  // Se filtrou produto: rateia o gasto proporcional aos adquiridos daquele produto
+  let clientesFechadosCusto, reposicoesCusto, baseAquisicao, custoRateado
+  if (produtoSel === 'Todos') {
+    clientesFechadosCusto = totalFechadosTodos
+    reposicoesCusto = totalRepostosTodos
+    baseAquisicao = baseTodos
+    custoRateado = custoTotal
+  } else {
+    clientesFechadosCusto = fechadosDoMes.filter(f => f.produto === produtoSel).reduce((s, f) => s + Number(f.clientes_fechados || 0), 0)
+    reposicoesCusto = reposicoesDoMes.filter(l => l.produto === produtoSel).reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+    baseAquisicao = clientesFechadosCusto + reposicoesCusto
+    // rateio: gasto total * (adquiridos do produto / adquiridos totais)
+    custoRateado = baseTodos > 0 ? custoTotal * (baseAquisicao / baseTodos) : 0
+  }
+  const cac = baseAquisicao > 0 ? custoRateado / baseAquisicao : 0
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
 
@@ -306,6 +341,25 @@ export default function PainelFinanceiro() {
           <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
             Total histórico: {fmtNum(repTotalContratos)} contratos repostos em {fmtNum(repTotal.length)} reposições.
           </div>
+          {fechadosRepMes > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: repCorRegua }}>
+                  {repPct.toFixed(1)}% de reposição
+                  {repSituacao === 'bloqueio' ? ' · 🚫 acima do teto' : repSituacao === 'alerta' ? ' · ⚠️ alerta' : ' · ok'}
+                </span>
+                <span style={{ fontSize: 11, color: '#9a9a96' }}>limite 15% · bloqueio 20%</span>
+              </div>
+              <div style={{ height: 8, background: '#EDECE6', borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${repPctTeto}%`, background: repCorRegua, borderRadius: 4 }} />
+                <div style={{ position: 'absolute', left: '75%', top: 0, bottom: 0, width: 1, background: '#854F0B' }} title="15%" />
+                <div style={{ position: 'absolute', left: '100%', top: 0, bottom: 0, width: 2, background: '#A32D2D', marginLeft: -2 }} title="20%" />
+              </div>
+              <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 6 }}>
+                {fmtNum(rep.contratos)} repostos de {fmtNum(fechadosRepMes)} clientes fechados · teto alerta {fmtNum(repTetoAlerta)} · teto bloqueio {fmtNum(repTetoBloqueio)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -314,7 +368,7 @@ export default function PainelFinanceiro() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#854F0B' }}>Custo de anúncio</div>
-            <div style={{ fontSize: 11, color: '#9a9a96' }}>Meta (Ana Livia 4 + KR Promotora Nova 01) · já com 13% de imposto</div>
+            <div style={{ fontSize: 11, color: '#9a9a96' }}>Meta (Ana Livia 4 + KR Promotora Nova 01) · com 13% imposto · CAC só anúncio (sem folha){produtoSel !== 'Todos' ? ` · rateado p/ ${produtoSel}` : ''}</div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Seletor mes={custoMes} setMes={setCustoMes} ano={custoAno} setAno={setCustoAno} cor="#854F0B" />
@@ -332,18 +386,18 @@ export default function PainelFinanceiro() {
           <>
             <div style={{ display: 'flex', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#111' }}>{fmt(custoTotal)}</div>
-                <div style={{ fontSize: 11, color: '#9a9a96' }}>custo total (com imposto)</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#111' }}>{fmt(produtoSel === 'Todos' ? custoTotal : custoRateado)}</div>
+                <div style={{ fontSize: 11, color: '#9a9a96' }}>{produtoSel === 'Todos' ? 'custo total (com imposto)' : `custo rateado p/ ${produtoSel}`}</div>
               </div>
               <div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#854F0B' }}>{fmt(cac)}</div>
-                <div style={{ fontSize: 11, color: '#9a9a96' }}>CAC real (custo ÷ {fmtNum(baseAquisicao)} clientes adquiridos)</div>
+                <div style={{ fontSize: 11, color: '#9a9a96' }}>CAC parcial (só anúncio) ÷ {fmtNum(baseAquisicao)} adquiridos</div>
               </div>
             </div>
             <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
               Mídia (sem imposto): {fmt(custoLiquido)} · {custoLin.map(g => `${g.conta_nome}: ${fmt(g.gasto_total)}`).join(' · ')}
               {custoSincronizadoEm ? ` · atualizado ${new Date(custoSincronizadoEm).toLocaleString('pt-BR')}` : ''}
-              <br />CAC = {fmtNum(clientesFechadosCusto)} clientes fechados (validado/entregue/assinado) + {fmtNum(reposicoesCusto)} repostos = {fmtNum(baseAquisicao)} adquiridos no mês.
+              <br />CAC = {fmtNum(clientesFechadosCusto)} clientes fechados + {fmtNum(reposicoesCusto)} repostos = {fmtNum(baseAquisicao)} adquiridos{produtoSel !== 'Todos' ? ` (${produtoSel})` : ''}. É CAC parcial: só anúncio, sem folha da equipe.
             </div>
           </>
         )}
