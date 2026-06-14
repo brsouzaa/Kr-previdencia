@@ -59,6 +59,10 @@ export default function PainelFinanceiro() {
   const [repMes, setRepMes] = useState(hoje.getMonth())
   const [repAno, setRepAno] = useState(hoje.getFullYear())
   const [produtoSel, setProdutoSel] = useState('Todos')
+  const [gastos, setGastos] = useState([])
+  const [sincronizando, setSincronizando] = useState(false)
+  const [custoMes, setCustoMes] = useState(hoje.getMonth())
+  const [custoAno, setCustoAno] = useState(hoje.getFullYear())
 
   // Bloqueio: só admin/analista veem financeiro
   const podeVer = profile && (profile.role === 'admin' || profile.role === 'analista')
@@ -70,6 +74,7 @@ export default function PainelFinanceiro() {
       setLinhas(data || [])
       setLoading(false)
     })
+    supabase.from('gastos_anuncios').select('*').then(({ data }) => setGastos(data || []))
   }, [profile])
 
   if (!podeVer) {
@@ -85,6 +90,26 @@ export default function PainelFinanceiro() {
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: '#5F5E5A' }}>Carregando painel financeiro…</div>
+  }
+
+  // Sincroniza gasto de anuncios da Meta (botao manual)
+  async function sincronizarGastos() {
+    setSincronizando(true)
+    try {
+      const ANON = process.env.REACT_APP_SUPABASE_ANON_KEY || (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch('https://sdqslzpfbazehqcvibjy.supabase.co/functions/v1/sincronizar-gastos-meta', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ano: custoAno, mes: custoMes + 1, editor_id: profile.id })
+      })
+      const j = await r.json()
+      if (!j.ok) { alert('Erro ao sincronizar: ' + (j.error || (j.erros && j.erros.map(e => e.conta + ': ' + e.erro).join(' | ')) || 'falhou')) }
+      else { alert(`Gastos sincronizados! Total com imposto: R$ ${Number(j.total_com_imposto).toLocaleString('pt-BR')}`) }
+      // recarrega gastos
+      const { data } = await supabase.from('gastos_anuncios').select('*')
+      setGastos(data || [])
+    } catch (e) { alert('Erro: ' + e.message) }
+    setSincronizando(false)
   }
 
   // Filtro de PRODUTO aplicado a todos os cards. 'Todos' = sem filtro.
@@ -144,6 +169,18 @@ export default function PainelFinanceiro() {
   }
   const repTotal = base.filter(l => l.eh_reposicao_aprovada)
   const repTotalContratos = repTotal.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+
+  // ---- CUSTO DE ANÚNCIO: gasto Meta (com 13% imposto) do mês selecionado ----
+  const custoLin = gastos.filter(g => g.ano === custoAno && g.mes === (custoMes + 1))
+  const custoTotal = custoLin.reduce((s, g) => s + Number(g.gasto_total || 0), 0)
+  const custoLiquido = custoLin.reduce((s, g) => s + Number(g.gasto_liquido || 0), 0)
+  const custoSincronizadoEm = custoLin.length ? custoLin.map(g => g.sincronizado_em).sort().reverse()[0] : null
+  // CAC = custo / contratos vendidos (concluídos) no mesmo mês — usa a régua de vendas, sem filtro de produto
+  const rCusto = rangeMes(custoAno, custoMes)
+  const contratosVendaCusto = linhas
+    .filter(l => l.eh_venda_viva && !l.eh_reposicao && l.data_venda && l.data_venda >= rCusto.ini && l.data_venda <= rCusto.fim)
+    .reduce((s, l) => s + Number(l.total_contratos || 0), 0)
+  const cac = contratosVendaCusto > 0 ? custoTotal / contratosVendaCusto : 0
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
 
@@ -263,6 +300,45 @@ export default function PainelFinanceiro() {
             Total histórico: {fmtNum(repTotalContratos)} contratos repostos em {fmtNum(repTotal.length)} reposições.
           </div>
         </div>
+      </div>
+
+      {/* CUSTO DE ANÚNCIO + CAC */}
+      <div style={{ background: '#fff', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(0,0,0,0.1)', borderTop: '3px solid #854F0B', marginTop: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#854F0B' }}>Custo de anúncio</div>
+            <div style={{ fontSize: 11, color: '#9a9a96' }}>Meta (Ana Livia 4 + KR Promotora Nova 01) · já com 13% de imposto</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Seletor mes={custoMes} setMes={setCustoMes} ano={custoAno} setAno={setCustoAno} cor="#854F0B" />
+            <button onClick={sincronizarGastos} disabled={sincronizando}
+              style={{ fontSize: 12, padding: '6px 12px', background: sincronizando ? '#f0f0ee' : '#854F0B', color: sincronizando ? '#888' : '#fff', border: 'none', borderRadius: 7, cursor: sincronizando ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+              {sincronizando ? 'Sincronizando…' : '🔄 Sincronizar'}
+            </button>
+          </div>
+        </div>
+        {custoLin.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#9a9a96', marginTop: 12 }}>
+            Sem gasto sincronizado para este mês. Clique em <strong>Sincronizar</strong> para puxar da Meta.
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#111' }}>{fmt(custoTotal)}</div>
+                <div style={{ fontSize: 11, color: '#9a9a96' }}>custo total (com imposto)</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#854F0B' }}>{fmt(cac)}</div>
+                <div style={{ fontSize: 11, color: '#9a9a96' }}>CAC (custo ÷ {fmtNum(contratosVendaCusto)} contratos vendidos)</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
+              Mídia (sem imposto): {fmt(custoLiquido)} · {custoLin.map(g => `${g.conta_nome}: ${fmt(g.gasto_total)}`).join(' · ')}
+              {custoSincronizadoEm ? ` · atualizado ${new Date(custoSincronizadoEm).toLocaleString('pt-BR')}` : ''}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ background: '#FBFAF7', borderRadius: 12, padding: '1rem 1.25rem', marginTop: 18, border: '0.5px solid rgba(0,0,0,0.07)' }}>
