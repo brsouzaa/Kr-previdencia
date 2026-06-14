@@ -58,6 +58,7 @@ export default function PainelFinanceiro() {
   const [inadAno, setInadAno] = useState(hoje.getFullYear())
   const [repMes, setRepMes] = useState(hoje.getMonth())
   const [repAno, setRepAno] = useState(hoje.getFullYear())
+  const [produtoSel, setProdutoSel] = useState('Todos')
 
   // Bloqueio: só admin/analista veem financeiro
   const podeVer = profile && (profile.role === 'admin' || profile.role === 'analista')
@@ -86,9 +87,14 @@ export default function PainelFinanceiro() {
     return <div style={{ padding: '2rem', textAlign: 'center', color: '#5F5E5A' }}>Carregando painel financeiro…</div>
   }
 
+  // Filtro de PRODUTO aplicado a todos os cards. 'Todos' = sem filtro.
+  const base = produtoSel === 'Todos' ? linhas : linhas.filter(l => l.produto === produtoSel)
+  // Lista de produtos disponíveis nos dados (pra montar o dropdown sem inventar opção vazia)
+  const produtosDisponiveis = Array.from(new Set(linhas.map(l => l.produto).filter(Boolean))).sort()
+
   // ---- VENDAS (competência): lotes vivos, não-reposição, por data_venda ----
   const rVenda = rangeMes(vendaAno, vendaMes)
-  const vendasLin = linhas.filter(l =>
+  const vendasLin = base.filter(l =>
     l.eh_venda_viva && !l.eh_reposicao &&
     l.data_venda && l.data_venda >= rVenda.ini && l.data_venda <= rVenda.fim
   )
@@ -100,7 +106,7 @@ export default function PainelFinanceiro() {
 
   // ---- FATURAMENTO (caixa): lotes pagos, por data_faturamento ----
   const rCaixa = rangeMes(caixaAno, caixaMes)
-  const caixaLin = linhas.filter(l =>
+  const caixaLin = base.filter(l =>
     l.eh_pago && l.data_faturamento &&
     l.data_faturamento >= rCaixa.ini && l.data_faturamento <= rCaixa.fim
   )
@@ -112,7 +118,7 @@ export default function PainelFinanceiro() {
 
   // ---- INADIMPLÊNCIA: por data_inadimplencia_dia ----
   const rInad = rangeMes(inadAno, inadMes)
-  const inadLin = linhas.filter(l =>
+  const inadLin = base.filter(l =>
     l.eh_inadimplente && l.data_inadimplencia_dia &&
     l.data_inadimplencia_dia >= rInad.ini && l.data_inadimplencia_dia <= rInad.fim
   )
@@ -123,12 +129,12 @@ export default function PainelFinanceiro() {
   }
 
   // Inadimplência total acumulada (todos os inadimplentes vivos, independente do mês)
-  const inadTotal = linhas.filter(l => l.eh_inadimplente)
+  const inadTotal = base.filter(l => l.eh_inadimplente)
   const inadTotalValor = inadTotal.reduce((s, l) => s + Number(l.valor_total || 0), 0)
 
   // ---- REPOSIÇÕES: quantidade de reposições criadas no mês (por data_venda) ----
   const rRep = rangeMes(repAno, repMes)
-  const repLin = linhas.filter(l =>
+  const repLin = base.filter(l =>
     l.eh_reposicao && l.data_venda &&
     l.data_venda >= rRep.ini && l.data_venda <= rRep.fim
   )
@@ -136,7 +142,7 @@ export default function PainelFinanceiro() {
     lotes: repLin.length,
     contratos: repLin.reduce((s, l) => s + Number(l.total_contratos || 0), 0),
   }
-  const repTotal = linhas.filter(l => l.eh_reposicao)
+  const repTotal = base.filter(l => l.eh_reposicao)
   const repTotalContratos = repTotal.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
@@ -184,11 +190,21 @@ export default function PainelFinanceiro() {
 
   return (
     <div style={{ padding: isMobile ? '1rem' : '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ marginBottom: 6 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: 0 }}>Painel Financeiro</h1>
-        <p style={{ fontSize: 13, color: '#5F5E5A', margin: '4px 0 0' }}>
-          Cada número tem sua própria régua de data — venda, caixa e inadimplência são coisas diferentes.
-        </p>
+      <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: 0 }}>Painel Financeiro</h1>
+          <p style={{ fontSize: 13, color: '#5F5E5A', margin: '4px 0 0' }}>
+            Cada número tem sua própria régua de data — venda, caixa e inadimplência são coisas diferentes.
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 11, color: '#9a9a96', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
+          <select value={produtoSel} onChange={e => setProdutoSel(e.target.value)}
+            style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.2)', color: '#111', fontWeight: 600, background: '#fff', cursor: 'pointer', minWidth: 180 }}>
+            <option value="Todos">Todos os produtos</option>
+            {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14, marginTop: 16 }}>
