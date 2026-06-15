@@ -46,6 +46,9 @@ const NAV_POS_VENDA = [
   { key: 'pos_venda', label: '📞 Fila de pós-venda' },
   { key: 'pos_venda_historico', label: '📚 Histórico' },
 ]
+const NAV_RESGATE = [
+  { key: 'resgate', label: '🛟 Ala de resgate' },
+]
 const NAV_ANALISTA_IA = [
   { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
@@ -115,6 +118,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'analista_ia' ? NAV_ANALISTA_IA
     : profile?.role === 'coordenador_b2c' ? NAV_COORDENADOR_B2C
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
+    : profile?.role === 'resgate' ? NAV_RESGATE
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
 
