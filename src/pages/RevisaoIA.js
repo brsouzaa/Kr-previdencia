@@ -10,13 +10,16 @@ const MOTIVOS = [
   { codigo: 'doc_faltando_comprovante_residencia', label: 'Falta comprovante de residência' },
   { codigo: 'doc_faltando_comprovante_gravidez', label: 'Falta comprovante de gravidez/parto' },
   { codigo: 'doc_faltando_comprovante_bolsa', label: 'Falta extrato Bolsa Família' },
+  { codigo: 'doc_faltando_certidao_obito', label: 'Falta certidão de óbito' },
+  { codigo: 'doc_faltando_certidao_casamento', label: 'Falta certidão de casamento' },
   { codigo: 'cliente_desistiu', label: 'Cliente desistiu' },
   { codigo: 'dados_divergentes', label: 'Dados divergentes' },
   { codigo: 'nao_se_encaixa_no_perfil', label: 'Não se encaixa no perfil' },
   { codigo: 'outros', label: 'Outros' },
 ]
 
-const TIPOS_DOC = [
+// Documentos de Maternidade (conjunto original)
+const DOCS_MATERNIDADE = [
   { key: 'rg_frente', label: 'RG (frente)' },
   { key: 'rg_verso', label: 'RG (verso)' },
   { key: 'comprovante_residencia', label: 'Comp. residência' },
@@ -27,6 +30,37 @@ const TIPOS_DOC = [
   { key: 'cartao_sus', label: 'Cartão SUS' },
   { key: 'outros', label: 'Outros' },
 ]
+
+// Documentos de Pensão por Morte (chaves reais do campo documentos)
+const DOCS_PENSAO = [
+  { key: 'rg_frente', label: 'RG titular (frente)' },
+  { key: 'rg_verso', label: 'RG titular (verso)' },
+  { key: 'certidao_obito_frente', label: 'Certidão óbito (frente)' },
+  { key: 'certidao_obito_verso', label: 'Certidão óbito (verso)' },
+  { key: 'certidao_casamento_frente', label: 'Certidão casamento (frente)' },
+  { key: 'certidao_casamento_verso', label: 'Certidão casamento (verso)' },
+  { key: 'rgs_filhos', label: 'RGs dos filhos' },
+  { key: 'rg_responsavel_legal_frente', label: 'RG resp. legal (frente)' },
+  { key: 'rg_responsavel_legal_verso', label: 'RG resp. legal (verso)' },
+  { key: 'comprovante_residencia', label: 'Comp. residência' },
+  { key: 'outros', label: 'Outros' },
+]
+
+// Estilo visual por produto (etiqueta/cor na lista)
+const PRODUTO_ESTILO = {
+  'Maternidade': { cor: '#B0468E', fundo: '#FBEFF6', label: 'Maternidade' },
+  'Pensão por Morte': { cor: '#3F5A78', fundo: '#EDF1F6', label: 'Pensão por Morte' },
+  'BPC': { cor: '#1E7A6F', fundo: '#E8F4F1', label: 'BPC' },
+  'Auxilio Acidente': { cor: '#9A6A1F', fundo: '#F6EFE2', label: 'Auxílio Acidente' },
+}
+function estiloProduto(produto) {
+  return PRODUTO_ESTILO[produto] || { cor: '#5F5E5A', fundo: '#F1EFE8', label: produto || 'Sem produto' }
+}
+// Lista de campos de anexo conforme o produto do cliente
+function docsDoProduto(produto) {
+  if (produto === 'Pensão por Morte') return DOCS_PENSAO
+  return DOCS_MATERNIDADE
+}
 
 function diasDesde(data) { return Math.floor((Date.now() - new Date(data)) / 86400000) }
 function horasDesde(data) { return Math.floor((Date.now() - new Date(data)) / 3600000) }
@@ -39,16 +73,19 @@ export default function RevisaoIA() {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
-  
+
+  // Filtro de produto (abas)
+  const [filtroProduto, setFiltroProduto] = useState('todos')
+
   // Modal de barragem
   const [modalBarrar, setModalBarrar] = useState(false)
   const [motivoBarrar, setMotivoBarrar] = useState('')
   const [obsBarrar, setObsBarrar] = useState('')
-  
+
   // Anexar docs
   const [docsNovos, setDocsNovos] = useState({})
   const [uploading, setUploading] = useState(false)
-  
+
   // Métricas resumo (cabeçalho)
   const [metricas, setMetricas] = useState(null)
 
@@ -61,7 +98,7 @@ export default function RevisaoIA() {
       const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(p)
     }
-    
+
     // Lista clientes pendentes de revisão IA
     const { data: cs } = await supabase
       .from('clientes')
@@ -70,7 +107,7 @@ export default function RevisaoIA() {
       .eq('origem', 'ia')
       .order('updated_at', { ascending: true })
     setClientes(cs || [])
-    
+
     // Métricas resumo (hoje)
     try {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/gerar-contratos-zapsign/metricas-ia?periodo=hoje`, {
@@ -79,7 +116,7 @@ export default function RevisaoIA() {
       const data = await r.json()
       if (data.ok) setMetricas(data)
     } catch (e) { console.error(e) }
-    
+
     setLoading(false)
   }
 
@@ -181,6 +218,12 @@ export default function RevisaoIA() {
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Carregando...</div>
 
+  // produtos presentes na fila (pra montar as abas dinamicamente)
+  const produtosNaFila = Array.from(new Set(clientes.map(c => c.produto).filter(Boolean)))
+  const clientesFiltrados = filtroProduto === 'todos'
+    ? clientes
+    : clientes.filter(c => c.produto === filtroProduto)
+
   return (
     <div style={{ padding: '20px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
@@ -200,35 +243,67 @@ export default function RevisaoIA() {
         )}
       </div>
 
+      {/* Abas por produto */}
+      {produtosNaFila.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <AbaProduto
+            ativo={filtroProduto === 'todos'}
+            onClick={() => setFiltroProduto('todos')}
+            cor="#444" fundo="#EFEFED"
+            label={`Todos (${clientes.length})`}
+          />
+          {produtosNaFila.map(prod => {
+            const est = estiloProduto(prod)
+            const qtd = clientes.filter(c => c.produto === prod).length
+            return (
+              <AbaProduto
+                key={prod}
+                ativo={filtroProduto === prod}
+                onClick={() => setFiltroProduto(prod)}
+                cor={est.cor} fundo={est.fundo}
+                label={`${est.label} (${qtd})`}
+              />
+            )
+          })}
+        </div>
+      )}
+
       {erro && <div style={{ padding: 12, background: '#FCEBEB', color: '#A32D2D', borderRadius: 6, marginBottom: 12 }}>{erro}</div>}
       {sucesso && <div style={{ padding: 12, background: '#EAF3DE', color: '#3B6D11', borderRadius: 6, marginBottom: 12 }}>{sucesso}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: selecionado ? '1fr 1fr' : '1fr', gap: 16 }}>
         {/* Lista */}
         <div>
-          {clientes.length === 0 ? (
+          {clientesFiltrados.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#888', background: '#fff', borderRadius: 8, border: '1px solid rgba(0,0,0,0.06)' }}>
               ✅ Nenhum cliente da IA aguardando revisão
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {clientes.map(c => {
+              {clientesFiltrados.map(c => {
                 const horas = horasDesde(c.updated_at)
                 const sel = selecionado?.id === c.id
+                const est = estiloProduto(c.produto)
                 return (
                   <div key={c.id} onClick={() => abrirCliente(c)}
                     style={{
                       padding: 14, background: sel ? '#E5EEF7' : '#fff',
                       border: sel ? '2px solid #185FA5' : '1px solid rgba(0,0,0,0.08)',
+                      borderLeft: `4px solid ${est.cor}`,
                       borderRadius: 8, cursor: 'pointer'
                     }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                       <strong>{c.nome}</strong>
-                      <span style={{ fontSize: 12, color: horas > 12 ? '#A32D2D' : '#888' }}>
+                      <span style={{ fontSize: 12, color: horas > 12 ? '#A32D2D' : '#888', whiteSpace: 'nowrap' }}>
                         {horas < 1 ? 'Agora' : `${horas}h atrás`}
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                    <div style={{ marginTop: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: est.fundo, color: est.cor }}>
+                        {est.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
                       CPF: {c.cpf} · Tel: {c.telefone}
                     </div>
                     <div style={{ fontSize: 11, color: '#185FA5', marginTop: 4 }}>
@@ -244,8 +319,13 @@ export default function RevisaoIA() {
         {/* Painel detalhe */}
         {selecionado && (
           <div style={{ background: '#fff', padding: 20, borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 20 }}>{selecionado.nome}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20 }}>{selecionado.nome}</h2>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: estiloProduto(selecionado.produto).fundo, color: estiloProduto(selecionado.produto).cor, display: 'inline-block', marginTop: 6 }}>
+                  {estiloProduto(selecionado.produto).label}
+                </span>
+              </div>
               <button onClick={() => setSelecionado(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>✕</button>
             </div>
 
@@ -260,6 +340,18 @@ export default function RevisaoIA() {
               {selecionado.meses_gravidez && <Linha label="Meses gravidez" valor={selecionado.meses_gravidez} />}
               {selecionado.nis && <Linha label="NIS" valor={selecionado.nis} />}
             </Section>
+
+            {/* Dados do produto Pensão por Morte */}
+            {selecionado.produto === 'Pensão por Morte' && selecionado.dados_produto && (
+              <Section titulo="Dados da pensão">
+                {selecionado.dados_produto.nome_falecido && <Linha label="Falecido(a)" valor={selecionado.dados_produto.nome_falecido} />}
+                {selecionado.dados_produto.cpf_falecido && <Linha label="CPF falecido(a)" valor={selecionado.dados_produto.cpf_falecido} />}
+                {selecionado.dados_produto.vinculo && <Linha label="Vínculo" valor={selecionado.dados_produto.vinculo} />}
+                {selecionado.dados_produto.qualidade_segurado_falecido && <Linha label="Qualidade segurado" valor={selecionado.dados_produto.qualidade_segurado_falecido} />}
+                {selecionado.dados_produto.filhos_total != null && <Linha label="Total de filhos" valor={String(selecionado.dados_produto.filhos_total)} />}
+                {selecionado.dados_produto.nome_responsavel_legal && <Linha label="Resp. legal" valor={selecionado.dados_produto.nome_responsavel_legal} />}
+              </Section>
+            )}
 
             {/* Conversa */}
             <Section titulo="Conversa">
@@ -294,10 +386,10 @@ export default function RevisaoIA() {
               </Section>
             )}
 
-            {/* Anexar novos docs */}
+            {/* Anexar novos docs — campos conforme o produto */}
             <Section titulo="Anexar documentos">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-                {TIPOS_DOC.map(t => (
+                {docsDoProduto(selecionado.produto).map(t => (
                   <div key={t.key} style={{ padding: 8, background: '#f8f8f6', borderRadius: 4, fontSize: 11 }}>
                     <div style={{ marginBottom: 4, color: '#666', fontWeight: 600 }}>{t.label}</div>
                     {docsNovos[t.key] ? (
@@ -363,6 +455,19 @@ export default function RevisaoIA() {
         </div>
       )}
     </div>
+  )
+}
+
+function AbaProduto({ ativo, onClick, cor, fundo, label }) {
+  return (
+    <button onClick={onClick}
+      style={{
+        padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        borderRadius: 20, border: `1px solid ${ativo ? cor : 'rgba(0,0,0,0.12)'}`,
+        background: ativo ? fundo : '#fff', color: ativo ? cor : '#777'
+      }}>
+      {label}
+    </button>
   )
 }
 
