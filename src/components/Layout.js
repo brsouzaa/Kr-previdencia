@@ -24,6 +24,7 @@ const NAV_ANALISTA = [
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
+  { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
 const NAV_VENDEDOR = [
   { key: 'dashboard', label: '📊 Dashboard' },
@@ -32,6 +33,7 @@ const NAV_VENDEDOR = [
   { key: 'compras', label: 'Histórico' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
+  { key: 'resgate_vendedor', label: '🛟 Resgate' },
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_VENDEDOR_OPERADOR = [
@@ -73,6 +75,7 @@ const NAV_ADMIN = [
   { key: 'metas', label: '🎯 Metas' },
   { key: 'bi', label: '📊 BI Bruno' },
   { key: 'reposicoes', label: '🔄 Reposições' },
+  { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
@@ -116,9 +119,14 @@ export default function Layout({ children, page, setPage }) {
     : NAV_VENDEDOR
 
   // Coordenadora de autônomos não vê itens marcados como soCaptacao
-  const nav = (profile?.role === 'coordenador_b2c' && profile?.setor_responsavel !== 'captacao')
+  let nav = (profile?.role === 'coordenador_b2c' && profile?.setor_responsavel !== 'captacao')
     ? navBase.filter(n => !n.soCaptacao)
     : navBase
+
+  // Setor resgate: garante o item da ala no meno (independente do role base)
+  if (profile?.setor === 'resgate' && !nav.some(n => n.key === 'resgate')) {
+    nav = [{ key: 'resgate', label: '🛟 Ala de resgate' }, ...nav]
+  }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
   useEffect(() => {
