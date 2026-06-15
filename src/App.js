@@ -34,6 +34,8 @@ import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
 import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
 import ParceriaPensao from './pages/ParceriaPensao'
+import Resgate from './pages/Resgate'
+import ResgateVendedor from './pages/ResgateVendedor'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -67,13 +69,16 @@ function paginaInicial(role) {
   return 'dashboard'
 }
 
-function paginaPermitida(role, page) {
+function paginaPermitida(profile, page) {
+  const role = profile.role
+  // Setor resgate vê a tela da ala, independente do role base
+  if (profile.setor === 'resgate' && ['resgate','resgate_vendedor'].includes(page)) return true
   if (role === 'admin') return true
-  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
+  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
-  if (role === 'analista') return ['dashboard','painel_financeiro','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista') return ['dashboard','painel_financeiro','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
@@ -142,10 +147,12 @@ function AppInner() {
     metas: <Metas />,
     bi: <BIBruno />,
     reposicoes: <Reposicoes />,
+    resgate: <Resgate />,
+    resgate_vendedor: <ResgateVendedor />,
     distribuicao_gabriela: <DistribuicaoGabriela />,
   }
 
-  const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
+  const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
