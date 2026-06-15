@@ -59,6 +59,7 @@ function PortalRoute() {
 
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
+  if (role === 'resgate') return 'resgate'
   if (role === 'supervisor_producao') return 'fila_digitacao'
   if (role === 'supervisor_visualizacao') return 'supervisor_producao'
   if (role === 'analista') return 'entregas'
@@ -71,8 +72,8 @@ function paginaInicial(role) {
 
 function paginaPermitida(profile, page) {
   const role = profile.role
-  // Setor resgate vê a tela da ala, independente do role base
-  if (profile.setor === 'resgate' && ['resgate','resgate_vendedor'].includes(page)) return true
+  // Setor resgate vê a tela da ala
+  if (profile.setor === 'resgate' && page === 'resgate') return true
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
