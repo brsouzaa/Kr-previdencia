@@ -2,6 +2,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
+// id da advogada Dra. Gabriela Barbosa Moraes — escopo da Bianca
+const GABRIELA_ADVOGADO_ID = 'e6fa0a0f-b09f-4b55-91b3-de2a19266098'
+
 const MOTIVO_LABEL = {
   gravidez_4_meses: 'Gravidez 4+ meses',
   menor_idade: 'Menor de idade',
@@ -71,6 +74,11 @@ export default function Resgate() {
       .eq('destino', 'resgate')
       .order('created_at', { ascending: false })
 
+    // segmentação por escopo: gabriela vê só a Dra. Gabriela, geral vê o resto, admin/analista vê tudo
+    const escopo = profile?.setor_responsavel
+    if (escopo === 'gabriela') query = query.eq('advogado_origem_id', GABRIELA_ADVOGADO_ID)
+    else if (escopo === 'geral') query = query.or(`advogado_origem_id.neq.${GABRIELA_ADVOGADO_ID},advogado_origem_id.is.null`)
+
     if (aba === 'em_andamento') query = query.eq('status', 'em_andamento')
     else if (aba === 'resolvidos') query = query.neq('status', 'em_andamento')
 
@@ -87,7 +95,7 @@ export default function Resgate() {
       .maybeSingle()
     setMetricas(m || null)
     setLoading(false)
-  }, [aba])
+  }, [aba, profile])
 
   useEffect(() => { if (podeOperar) carregar() }, [carregar, podeOperar])
 
@@ -145,7 +153,11 @@ export default function Resgate() {
   return (
     <div>
       <div style={s.title}>🛟 Ala de Resgate</div>
-      <div style={s.subtitle}>Clientes em tratamento antes de virar reposição. Recupere ou realoque.</div>
+      <div style={s.subtitle}>
+        Clientes em tratamento antes de virar reposição. Recupere ou realoque.
+        {profile?.setor_responsavel === 'gabriela' && ' · Escopo: Dra. Gabriela'}
+        {profile?.setor_responsavel === 'geral' && ' · Escopo: geral (exceto Dra. Gabriela)'}
+      </div>
 
       {metricas && (
         <div style={s.metricRow}>
