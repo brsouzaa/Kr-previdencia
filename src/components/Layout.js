@@ -49,6 +49,9 @@ const NAV_POS_VENDA = [
 const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
+const NAV_FINANCEIRO = [
+  { key: 'financeiro', label: '💰 Financeiro' },
+]
 const NAV_ANALISTA_IA = [
   { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
@@ -71,6 +74,7 @@ const NAV_COORDENADOR_B2C = [
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
+  { key: 'financeiro', label: '💸 Financeiro (contas a pagar)' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
@@ -119,6 +123,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'coordenador_b2c' ? NAV_COORDENADOR_B2C
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : profile?.role === 'resgate' ? NAV_RESGATE
+    : profile?.role === 'financeiro' ? NAV_FINANCEIRO
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
 
@@ -204,6 +209,7 @@ export default function Layout({ children, page, setPage }) {
                 : profile?.role === 'coordenador_b2c' ? `Coordenadora ${profile?.setor_responsavel === 'autonomos' ? 'Autônomos' : 'Captação'}`
                 : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
                 : profile?.role === 'produtor' ? 'Produtor'
+                : profile?.role === 'financeiro' ? 'Financeiro / Pagador'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
                 : 'Vendedor'}
             </div>
