@@ -1,12 +1,9 @@
 // ============================================================================
 // Financeiro.js — Módulo Financeiro KR (Fase 1: Contas a Pagar)
 // ----------------------------------------------------------------------------
-// AJUSTE 1 (única dependência externa): o import do supabase abaixo.
-//   Troque o caminho pelo client que o resto do CRM já usa.
-//   Ex.: import { supabase } from '../supabaseClient';
-// ----------------------------------------------------------------------------
-// A tela busca o próprio usuário/perfil (supabase.auth.getUser + profiles),
-// então não depende de receber props. Mostra abas conforme o role:
+// Vai em: src/pages/Financeiro.js
+// Usa o client e o auth do próprio CRM (../lib/supabase e ../lib/AuthContext).
+// Mostra abas conforme o perfil de quem logou:
 //   - todos        -> Lançar despesa, Minhas solicitações
 //   - admin        -> + Aprovar
 //   - financeiro   -> + Pagar
@@ -14,7 +11,8 @@
 // solicitar_ajuste / marcar_pago / cancelar). O RLS já garante quem vê o quê.
 // ============================================================================
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient'; // <-- AJUSTE o caminho
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
 
 const FORMAS = ['pix', 'boleto', 'transferencia', 'dinheiro', 'cartao'];
 
@@ -41,29 +39,14 @@ const brl = (v) =>
 const dataBR = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—');
 
 export default function Financeiro() {
-  const [perfil, setPerfil] = useState(null);
-  const [carregandoPerfil, setCarregandoPerfil] = useState(true);
+  const { profile: perfil } = useAuth();
   const [aba, setAba] = useState('lancar');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { setCarregandoPerfil(false); return; }
-        const { data } = await supabase
-          .from('profiles').select('id, nome, role').eq('id', user.id).single();
-        setPerfil(data || { id: user.id, role: null });
-      } finally {
-        setCarregandoPerfil(false);
-      }
-    })();
-  }, []);
 
   const role = perfil?.role;
   const ehAdmin = role === 'admin';
   const ehFinanceiro = role === 'financeiro' || ehAdmin;
 
-  if (carregandoPerfil) {
+  if (!perfil) {
     return <div className="fin-wrap"><Estilos /><div className="fin-vazio">Carregando…</div></div>;
   }
 
