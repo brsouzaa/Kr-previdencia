@@ -34,6 +34,28 @@ const STATUS_COR = {
   aguardando_pagamento: '#0f766e', pago: '#15803d', cancelado: '#6b7280', vencido: '#b91c1c',
 };
 
+// Recebimentos de advogado (fila de validação)
+const TIPO_PG_LABEL = {
+  pagamento_total: 'Total (bateu)',
+  pagamento_parcial: 'Parcial',
+  pagamento_maior: 'Pagou a mais',
+  pagamento_menor: 'Pagou a menos',
+  pagamento_antecipado: 'Antecipado',
+  pagamento_com_divergencia: 'Divergência',
+  pagamento_sem_lote_claro: 'Sem lote claro',
+};
+const TIPO_PG_COR = {
+  pagamento_total: '#15803d', pagamento_parcial: '#b45309', pagamento_maior: '#b45309',
+  pagamento_menor: '#b45309', pagamento_antecipado: '#0f766e',
+  pagamento_com_divergencia: '#b91c1c', pagamento_sem_lote_claro: '#b91c1c',
+};
+const FILA_STATUS_LABEL = {
+  aguardando_validacao: 'Aguardando validação',
+  aguardando_explicacao: 'Aguardando explicação',
+  aguardando_complemento: 'Aguardando complemento',
+  validado: 'Validado', rejeitado: 'Rejeitado', cancelado: 'Cancelado',
+};
+
 const brl = (v) =>
   (v == null ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 const dataBR = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—');
@@ -55,6 +77,7 @@ export default function Financeiro() {
     { key: 'minhas', label: 'Minhas solicitações' },
     ...(ehAdmin ? [{ key: 'aprovar', label: 'Aprovar' }] : []),
     ...(ehFinanceiro ? [{ key: 'pagar', label: 'Pagar' }] : []),
+    ...(ehFinanceiro ? [{ key: 'recebimentos', label: 'Recebimentos advogados' }] : []),
   ];
 
   return (
@@ -63,7 +86,7 @@ export default function Financeiro() {
       <header className="fin-head">
         <div>
           <h1 className="fin-titulo">Financeiro</h1>
-          <p className="fin-sub">Contas a pagar — solicitar, aprovar e pagar</p>
+          <p className="fin-sub">Contas a pagar e recebimentos de advogado</p>
         </div>
         {perfil?.nome && (
           <span className="fin-quem">{perfil.nome} · <b>{role || '—'}</b></span>
@@ -85,6 +108,7 @@ export default function Financeiro() {
         {aba === 'minhas' && <Minhas perfil={perfil} />}
         {aba === 'aprovar' && ehAdmin && <Aprovar />}
         {aba === 'pagar' && ehFinanceiro && <Pagar />}
+        {aba === 'recebimentos' && ehFinanceiro && <Recebimentos />}
       </main>
     </div>
   );
@@ -380,6 +404,102 @@ function Pagar() {
             Marcar paga</button>
         </Linha>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recebimentos de advogado (admin / financeiro) — fila de validação
+// A Luna só insere aqui. Validar/Rejeitar é humano. Validar+baixar toca o lote.
+// ---------------------------------------------------------------------------
+function Recebimentos() {
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState('');
+
+  const carregar = useCallback(async () => {
+    setErro('');
+    const { data, error } = await supabase
+      .from('finance_advogado_payments').select('*')
+      .in('status', ['aguardando_validacao', 'aguardando_explicacao', 'aguardando_complemento'])
+      .order('criado_em', { ascending: true });
+    if (error) setErro(error.message); else setItens(data || []);
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const validar = async (id, integrar) => {
+    const msg = integrar
+      ? 'Validar e DAR BAIXA no lote? Isso marca o lote como pago no CRM.'
+      : 'Validar este recebimento SEM baixar o lote (caso parcial)?';
+    if (!window.confirm(msg)) return;
+    const { error } = await supabase.rpc('finance_adv_validar', { p_id: id, p_integrar_no_lote: integrar });
+    if (error) { alert(error.message); return; }
+    carregar();
+  };
+  const rejeitar = async (id) => {
+    const motivo = window.prompt('Motivo da rejeição:');
+    if (motivo == null) return;
+    const { error } = await supabase.rpc('finance_adv_rejeitar', { p_id: id, p_motivo: motivo });
+    if (error) { alert(error.message); return; }
+    carregar();
+  };
+
+  if (erro) return <div className="fin-erro">{erro}</div>;
+  if (itens === null) return <div className="fin-vazio">Carregando…</div>;
+  if (!itens.length) return <div className="fin-vazio">Nenhum recebimento de advogado aguardando validação.</div>;
+
+  return (
+    <div className="fin-lista">
+      {itens.map((r) => (
+        <LinhaRecebimento key={r.id} r={r}
+          onValidarTotal={() => validar(r.id, true)}
+          onValidarParcial={() => validar(r.id, false)}
+          onRejeitar={() => rejeitar(r.id)} />
+      ))}
+    </div>
+  );
+}
+
+function LinhaRecebimento({ r, onValidarTotal, onValidarParcial, onRejeitar }) {
+  const dif = r.diferenca == null ? null : Number(r.diferenca);
+  const cor = TIPO_PG_COR[r.tipo_pagamento] || '#6b7280';
+  return (
+    <div className="fin-item">
+      <div className="fin-item-top">
+        <span className="fin-valor">{brl(r.valor_informado)}</span>
+        <span className="fin-badge" style={{ background: cor + '1a', color: cor }}>
+          {TIPO_PG_LABEL[r.tipo_pagamento] || r.tipo_pagamento || '—'}
+        </span>
+      </div>
+      <div className="fin-item-forn">{r.advogado_nome || 'Advogado não identificado'}</div>
+      <div className="fin-item-meta">
+        <span>Esperado {brl(r.valor_esperado)}</span>
+        <span>· Informado {brl(r.valor_informado)}</span>
+        {dif != null && dif !== 0 && <span>· Dif <b>{brl(dif)}</b></span>}
+        {r.vendedor_nome && <span>· por {r.vendedor_nome}</span>}
+      </div>
+      <div className="fin-item-meta">
+        <span>{FILA_STATUS_LABEL[r.status] || r.status}</span>
+        {r.lote_id && <span>· Lote {String(r.lote_id).slice(0, 8)}…</span>}
+        {!r.lote_id && <span>· sem lote vinculado</span>}
+        {r.data_pagamento_informada && <span>· pago em {dataBR(r.data_pagamento_informada)}</span>}
+      </div>
+      {r.explicacao_vendedor && <div className="fin-item-motivo">Vendedor: {r.explicacao_vendedor}</div>}
+      {r.analise_luna && <div className="fin-item-motivo">Luna: {r.analise_luna}</div>}
+      {r.comprovante_url && (
+        <div className="fin-item-pix">
+          <a href={r.comprovante_url} target="_blank" rel="noreferrer">Ver comprovante</a>
+        </div>
+      )}
+      <div className="fin-item-acoes">
+        {r.lote_id && (
+          <button className="fin-btn fin-btn-primary fin-btn-sm" onClick={onValidarTotal}>
+            Validar + baixar lote</button>
+        )}
+        <button className="fin-btn fin-btn-ghost fin-btn-sm" onClick={onValidarParcial}>
+          Validar parcial (não baixa)</button>
+        <button className="fin-btn fin-btn-danger fin-btn-sm" onClick={onRejeitar}>
+          Rejeitar</button>
+      </div>
     </div>
   );
 }
