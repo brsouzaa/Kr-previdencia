@@ -96,7 +96,7 @@ export default function Financeiro() {
 function Lancar({ perfil, onCriou }) {
   const vazio = {
     valor: '', fornecedor_nome: '', fornecedor_documento: '', motivo: '',
-    vencimento: '', forma_pagamento: '', categoria: '',
+    vencimento: '', forma_pagamento: '', categoria: '', tipo_gasto: '',
     chave_pix: '', boleto_linha_digitavel: '', possui_nota_fiscal: false, nota_fiscal_url: '',
   };
   const [f, setF] = useState(vazio);
@@ -116,6 +116,7 @@ function Lancar({ perfil, onCriou }) {
     vencimento: f.vencimento || null,
     forma_pagamento: f.forma_pagamento || null,
     categoria: f.categoria || null,
+    tipo_gasto: f.tipo_gasto || null,
     chave_pix: f.forma_pagamento === 'pix' ? (f.chave_pix || null) : null,
     boleto_linha_digitavel: f.forma_pagamento === 'boleto' ? (f.boleto_linha_digitavel || null) : null,
     possui_nota_fiscal: !!f.possui_nota_fiscal,
@@ -184,6 +185,14 @@ function Lancar({ perfil, onCriou }) {
         <Campo label="Categoria">
           <input className="fin-in" value={f.categoria}
             onChange={(e) => set('categoria', e.target.value)} placeholder="Ex.: exame, software, aluguel" />
+        </Campo>
+        <Campo label="Tipo de gasto">
+          <select className="fin-in" value={f.tipo_gasto}
+            onChange={(e) => set('tipo_gasto', e.target.value)}>
+            <option value="">Selecione…</option>
+            <option value="fixo">Fixo (recorrente — aluguel, salário, assinatura)</option>
+            <option value="variavel">Variável (pontual — varia mês a mês)</option>
+          </select>
         </Campo>
         {f.forma_pagamento === 'pix' && (
           <Campo label="Chave PIX">
@@ -272,6 +281,11 @@ function Minhas({ perfil }) {
               onClick={() => { if (window.confirm('Cancelar esta solicitação?')) acao('finance_cancelar', {}, r.id); }}>
               Cancelar</button>
           )}
+          {r.status !== 'pago' && (
+            <button className="fin-btn fin-btn-danger fin-btn-sm"
+              onClick={() => { if (window.confirm('Excluir DE VEZ esta despesa? Isso apaga o registro e não dá pra desfazer.')) acao('finance_excluir', {}, r.id); }}>
+              Excluir</button>
+          )}
         </Linha>
       ))}
     </div>
@@ -321,6 +335,8 @@ function Aprovar() {
             onClick={() => decidir('finance_solicitar_ajuste', r.id, true)}>Pedir ajuste</button>
           <button className="fin-btn fin-btn-danger fin-btn-sm"
             onClick={() => decidir('finance_recusar', r.id, true)}>Recusar</button>
+          <button className="fin-btn fin-btn-ghost fin-btn-sm"
+            onClick={() => { if (window.confirm('Excluir DE VEZ esta despesa? Isso apaga o registro e não dá pra desfazer.')) decidir('finance_excluir', r.id, false); }}>Excluir</button>
         </Linha>
       ))}
     </div>
@@ -385,6 +401,7 @@ function Linha({ r, children, destaqueSemNF, mostrarPix }) {
         <span>Vence {dataBR(r.vencimento)}</span>
         {r.forma_pagamento && <span>· {r.forma_pagamento}</span>}
         {r.categoria && <span>· {r.categoria}</span>}
+        {r.tipo_gasto && <span>· {r.tipo_gasto === 'fixo' ? 'fixo' : 'variável'}</span>}
         {r.solicitante_nome && <span>· por {r.solicitante_nome}</span>}
       </div>
       {r.motivo && <div className="fin-item-motivo">{r.motivo}</div>}
