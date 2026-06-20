@@ -36,6 +36,7 @@ import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
 import ParceriaPensao from './pages/ParceriaPensao'
 import Resgate from './pages/Resgate'
 import ResgateVendedor from './pages/ResgateVendedor'
+import Financeiro from './pages/Financeiro'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -60,6 +61,7 @@ function PortalRoute() {
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
   if (role === 'resgate') return 'resgate'
+  if (role === 'financeiro') return 'financeiro'
   if (role === 'supervisor_producao') return 'fila_digitacao'
   if (role === 'supervisor_visualizacao') return 'supervisor_producao'
   if (role === 'analista') return 'entregas'
@@ -77,6 +79,7 @@ function paginaPermitida(profile, page) {
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
+  if (role === 'financeiro') return ['financeiro'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
   if (role === 'analista') return ['dashboard','painel_financeiro','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
@@ -151,6 +154,7 @@ function AppInner() {
     resgate: <Resgate />,
     resgate_vendedor: <ResgateVendedor />,
     distribuicao_gabriela: <DistribuicaoGabriela />,
+    financeiro: <Financeiro />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
