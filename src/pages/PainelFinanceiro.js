@@ -206,7 +206,8 @@ export default function PainelFinanceiro() {
   // Reposições do mês por produto (da view de linhas)
   const reposicoesDoMes = linhas.filter(l => l.eh_reposicao_aprovada && l.data_aprovacao_dia && l.data_aprovacao_dia >= rCusto.ini && l.data_aprovacao_dia <= rCusto.fim)
   const totalRepostosTodos = reposicoesDoMes.reduce((s, l) => s + Number(l.total_contratos || 0), 0)
-  const baseTodos = totalFechadosTodos + totalRepostosTodos
+  // CAC: reposição NÃO entra no denominador — o cliente reposto já conta em "fechados" quando valida; somar duplicava a vaga.
+  const baseTodos = totalFechadosTodos
 
   // Se filtrou produto: rateia o gasto proporcional aos adquiridos daquele produto
   let clientesFechadosCusto, reposicoesCusto, baseAquisicao, custoRateado
@@ -218,7 +219,7 @@ export default function PainelFinanceiro() {
   } else {
     clientesFechadosCusto = fechadosDoMes.filter(f => f.produto === produtoSel).reduce((s, f) => s + Number(f.clientes_fechados || 0), 0)
     reposicoesCusto = reposicoesDoMes.filter(l => l.produto === produtoSel).reduce((s, l) => s + Number(l.total_contratos || 0), 0)
-    baseAquisicao = clientesFechadosCusto + reposicoesCusto
+    baseAquisicao = clientesFechadosCusto
     // rateio: gasto total * (adquiridos do produto / adquiridos totais)
     custoRateado = baseTodos > 0 ? custoTotal * (baseAquisicao / baseTodos) : 0
   }
@@ -397,7 +398,7 @@ export default function PainelFinanceiro() {
             <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
               Mídia (sem imposto): {fmt(custoLiquido)} · {custoLin.map(g => `${g.conta_nome}: ${fmt(g.gasto_total)}`).join(' · ')}
               {custoSincronizadoEm ? ` · atualizado ${new Date(custoSincronizadoEm).toLocaleString('pt-BR')}` : ''}
-              <br />CAC = {fmtNum(clientesFechadosCusto)} clientes fechados + {fmtNum(reposicoesCusto)} repostos = {fmtNum(baseAquisicao)} adquiridos{produtoSel !== 'Todos' ? ` (${produtoSel})` : ''}. É CAC parcial: só anúncio, sem folha da equipe.
+              <br />CAC = {fmtNum(baseAquisicao)} clientes fechados (validados/assinados, já sem barrados/cancelados){produtoSel !== 'Todos' ? ` (${produtoSel})` : ''}. Reposições do mês: {fmtNum(reposicoesCusto)} — não entram no denominador (o cliente reposto já conta quando valida). CAC parcial: só anúncio, sem folha.
             </div>
           </>
         )}
