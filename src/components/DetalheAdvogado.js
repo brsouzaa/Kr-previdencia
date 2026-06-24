@@ -117,6 +117,9 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [modalReposicao, setModalReposicao] = useState(false)
   const [repForm, setRepForm] = useState({ qtd: 1, motivo: '', observacao: '', produto: 'Maternidade' })
   const [savingRep, setSavingRep] = useState(false)
+  const [clientesAdv, setClientesAdv] = useState([])
+  const [repSelecionados, setRepSelecionados] = useState([])
+  const [repBusca, setRepBusca] = useState('')
   const [aba, setAba] = useState('lotes')
   const [tabelas, setTabelas] = useState(FALLBACK_TABELAS)
 
@@ -157,6 +160,14 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     setLotes(l || [])
     const { data: a } = await supabase.from('advogados').select('*').eq('id', advogado.id).single()
     if (a) setAdv(a)
+    // Clientes vivos do advogado, elegíveis a reposição (não em outra reposição pendente)
+    const { data: cli } = await supabase.from('clientes')
+      .select('id, nome, cpf, status, produto, reposto_por_lote_id')
+      .eq('advogado_id', advogado.id)
+      .in('status', ['assinado','em_validacao','validado','aguardando_pos_venda','em_contato_pos_venda','aguardando_emissao','emitido','aguardando_revisao_ia'])
+      .is('reposto_por_lote_id', null)
+      .order('nome', { ascending: true })
+    setClientesAdv(cli || [])
   }
 
   function ajustarQtd(produto, delta) {
@@ -165,6 +176,10 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
 
   const totalLote = Object.values(qtds).reduce((a, b) => a + b, 0)
   const valorLote = calcularValorPorQtds(qtds, tabelas)
+  const repBuscaNum = repBusca.replace(/\D/g, '')
+  const clientesAdvFiltrados = repBusca.trim()
+    ? clientesAdv.filter(c => (c.nome || '').toLowerCase().includes(repBusca.trim().toLowerCase()) || (repBuscaNum && (c.cpf || '').replace(/\D/g,'').includes(repBuscaNum)))
+    : clientesAdv
 
   async function registrarLote() {
     if (totalLote === 0) return
@@ -202,33 +217,28 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   // FUNÇÕES ADMIN
   async function solicitarReposicao() {
     if (!repForm.motivo) { alert('Selecione o motivo da reposição.'); return }
-    if (repForm.qtd < 1) { alert('Quantidade inválida.'); return }
+    if (repSelecionados.length < 1) { alert('Selecione ao menos um cliente que será reposto.'); return }
     setSavingRep(true)
-    
+
     const motivoCompleto = repForm.motivo + (repForm.observacao ? ': ' + repForm.observacao : '')
-    
-    const { error } = await supabase.from('lotes').insert({
-      advogado_id: adv.id,
-      vendedor_id: profile.id,
-      data_compra: new Date().toISOString().slice(0, 10),
-      total_contratos: repForm.qtd,
-      valor_total: 0,
-      status_pagamento: 'pendente_aprovacao',
-      tipo: 'reposicao',
-      produto: repForm.produto,
-      motivo_reposicao: motivoCompleto,
-      status_aprovacao: 'pendente',
+
+    const { error } = await supabase.rpc('reposicao_solicitar', {
+      p_advogado_id: adv.id,
+      p_produto: repForm.produto,
+      p_motivo: motivoCompleto,
+      p_cliente_ids: repSelecionados,
     })
-    
+
     setSavingRep(false)
     if (error) {
       alert('Erro ao solicitar reposição: ' + error.message)
       return
     }
-    
+
     setModalReposicao(false)
     setRepForm({ qtd: 1, motivo: '', observacao: '', produto: 'Maternidade' })
-    alert('✓ Solicitação de reposição enviada. Aguarde aprovação do admin.')
+    setRepSelecionados([])
+    alert('✓ Solicitação enviada (' + repSelecionados.length + ' cliente(s)). Os clientes serão cancelados quando o admin aprovar.')
     await fetchTudo()
   }
 
@@ -620,15 +630,36 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
               <option value="Auxilio Acidente">Auxílio Acidente</option>
             </select>
 
-            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Quantidade de contratos</div>
-            <input 
-              type="number" 
-              min="1" 
-              max="50"
-              value={repForm.qtd} 
-              onChange={e => setRepForm({ ...repForm, qtd: Math.max(1, parseInt(e.target.value) || 1) })}
-              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box' }}
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
+              Clientes que serão repostos <span style={{ color: '#A32D2D' }}>({repSelecionados.length} selecionado{repSelecionados.length !== 1 ? 's' : ''})</span>
+            </div>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Marque os clientes deste advogado que furaram. Serão CANCELADOS quando o admin aprovar.</div>
+            <input
+              value={repBusca}
+              onChange={e => setRepBusca(e.target.value)}
+              placeholder="🔎 Buscar por nome ou CPF..."
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
             />
+            <div style={{ maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, marginBottom: 12 }}>
+              {clientesAdv.length === 0 ? (
+                <div style={{ padding: '12px', fontSize: 12, color: '#888' }}>Nenhum cliente vivo deste advogado disponível.</div>
+              ) : clientesAdvFiltrados.length === 0 ? (
+                <div style={{ padding: '12px', fontSize: 12, color: '#888' }}>Nenhum cliente encontrado.</div>
+              ) : clientesAdvFiltrados.map(c => {
+                const sel = repSelecionados.includes(c.id)
+                return (
+                  <div key={c.id}
+                    onClick={() => setRepSelecionados(sel ? repSelecionados.filter(id => id !== c.id) : [...repSelecionados, c.id])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', background: sel ? '#FCEBEB' : '#fff' }}>
+                    <input type="checkbox" checked={sel} readOnly style={{ pointerEvents: 'none' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: '#111' }}>{c.nome}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{c.cpf} · {c.status}{c.produto ? ' · ' + c.produto : ''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
             
             <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>Motivo</div>
             <select 
@@ -656,17 +687,17 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
             
             <div style={{ display: 'flex', gap: 8 }}>
               <button 
-                onClick={() => setModalReposicao(false)}
+                onClick={() => { setModalReposicao(false); setRepSelecionados([]) }}
                 style={{ flex: 1, padding: '10px', background: '#f0f0ee', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button 
                 onClick={solicitarReposicao}
-                disabled={savingRep || !repForm.motivo}
-                style={{ flex: 2, padding: '10px', background: savingRep || !repForm.motivo ? '#aaa' : '#854F0B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: savingRep || !repForm.motivo ? 'not-allowed' : 'pointer' }}
+                disabled={savingRep || !repForm.motivo || repSelecionados.length === 0}
+                style={{ flex: 2, padding: '10px', background: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? '#aaa' : '#854F0B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? 'not-allowed' : 'pointer' }}
               >
-                {savingRep ? 'Enviando...' : 'Enviar solicitação'}
+                {savingRep ? 'Enviando...' : `Enviar solicitação${repSelecionados.length ? ' (' + repSelecionados.length + ')' : ''}`}
               </button>
             </div>
           </div>
