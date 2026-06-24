@@ -54,8 +54,23 @@ export default function Reposicoes() {
         .eq('status_aprovacao', aba)
         .order('created_at', { ascending: false })
 
+      const lotesArr = data || []
+      // Clientes vinculados a cada reposição (quem será / foi cancelado)
+      const ids = lotesArr.map(l => l.id)
+      const porLote = {}
+      if (ids.length) {
+        const { data: cls } = await supabase
+          .from('clientes')
+          .select('id, nome, cpf, status, reposto_por_lote_id')
+          .in('reposto_por_lote_id', ids)
+        for (const c of (cls || [])) {
+          (porLote[c.reposto_por_lote_id] = porLote[c.reposto_por_lote_id] || []).push(c)
+        }
+      }
+      const comClientes = lotesArr.map(l => ({ ...l, clientes_repostos: porLote[l.id] || [] }))
+
       if (cancelado) return
-      setReposicoes(data || [])
+      setReposicoes(comClientes)
       setLoading(false)
     }
     carrega()
@@ -88,28 +103,24 @@ export default function Reposicoes() {
     if (regua && regua.situacao === 'alerta') {
       avisoAlerta = `\n\n⚠️ ATENÇÃO: isto leva o mês a ${regua.pct}% de reposição (alerta a partir de 15%, bloqueio em 20%). Teto de bloqueio: ${regua.teto_bloqueio}.`
     }
-    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?\n\n⚠️ Vai entrar na fila com PRIORIDADE MÁXIMA e prazo de 24h.${avisoAlerta}`)) {
+    const repostos = lote.clientes_repostos || []
+    const listaCancelar = repostos.length
+      ? `\n\n🚫 Será(ão) CANCELADO(S) ${repostos.length} cliente(s) reposto(s):\n` + repostos.map(c => `• ${c.nome} (${c.cpf})`).join('\n')
+      : '\n\n(Sem cliente vinculado — nada será cancelado.)'
+    if (!window.confirm(`Aprovar reposição de ${lote.total_contratos} contrato(s) para ${lote.advogados?.nome_completo}?\n\n⚠️ Vai entrar na fila com PRIORIDADE MÁXIMA e prazo de 24h.${listaCancelar}${avisoAlerta}`)) {
       setAcaoEmCurso(null)
       return
     }
 
-    const agora = new Date()
-    const limite = new Date(agora.getTime() + 24 * 60 * 60 * 1000) // +24h
-
-    const { error } = await supabase.from('lotes').update({
-      status_aprovacao: 'aprovado',
-      status_pagamento: 'a_entregar',
-      aprovado_por: profile.id,
-      aprovado_em: agora.toISOString(),
-      prioridade_fila: true,
-      data_prioridade: agora.toISOString(),
-      data_limite_entrega: limite.toISOString().slice(0, 10), // YYYY-MM-DD (coluna DATE)
-      updated_at: agora.toISOString(),
-    }).eq('id', lote.id)
+    const { data: res, error } = await supabase.rpc('reposicao_aprovar', { p_lote_id: lote.id })
 
     setAcaoEmCurso(null)
-    if (error) { alert('Erro: ' + error.message); return }
-    
+    if (error) { alert('Erro ao aprovar: ' + error.message); return }
+
+    const nCancelados = res?.clientes_cancelados ?? 0
+    if (nCancelados > 0) {
+      alert(`✓ Reposição aprovada. ${nCancelados} cliente(s) reposto(s) cancelado(s) e fora da contagem.`)
+    }
     // Remove da lista atual
     setReposicoes(reposicoes.filter(r => r.id !== lote.id))
   }
@@ -119,13 +130,7 @@ export default function Reposicoes() {
     if (!motivo || motivo.trim() === '') { alert('Negação cancelada — motivo vazio.'); return }
     setAcaoEmCurso(lote.id)
     
-    const { error } = await supabase.from('lotes').update({
-      status_aprovacao: 'negado',
-      aprovado_por: profile.id,
-      aprovado_em: new Date().toISOString(),
-      motivo_negacao: motivo.trim(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', lote.id)
+    const { error } = await supabase.rpc('reposicao_negar', { p_lote_id: lote.id, p_motivo: motivo.trim() })
 
     setAcaoEmCurso(null)
     if (error) { alert('Erro: ' + error.message); return }
@@ -183,6 +188,17 @@ export default function Reposicoes() {
           {lote.motivo_reposicao && (
             <div style={s.motivoBox}>
               <strong style={{ color: '#854F0B' }}>Motivo:</strong> {lote.motivo_reposicao}
+            </div>
+          )}
+
+          {(lote.clientes_repostos || []).length > 0 && (
+            <div style={{ background: '#FCEBEB', border: '0.5px solid #A32D2D20', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#A32D2D', fontWeight: 600, marginBottom: 4 }}>
+                {aba === 'pendente' ? '🚫 Serão cancelados ao aprovar:' : '🚫 Clientes repostos:'}
+              </div>
+              {lote.clientes_repostos.map(c => (
+                <div key={c.id} style={{ fontSize: 12, color: '#555' }}>• {c.nome} · {c.cpf}{c.status === 'cancelado' ? ' — ✓ cancelado' : ''}</div>
+              ))}
             </div>
           )}
 
