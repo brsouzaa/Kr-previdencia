@@ -37,6 +37,13 @@ function tempoNaFila(dt) {
   return `${Math.floor(h/24)}d`
 }
 
+// lote tem vaga = (assinados + aguardando_assinatura) < total. Mesma regra do "advogado da vez".
+function loteTemVaga(l) {
+  const aguardando = (l.clientes || []).filter(c => c.status === 'emitido').length
+  const assinados = l.qtd_assinados || 0
+  return (assinados + aguardando) < (l.total_contratos || 0)
+}
+
 export default function FilaDigitacao() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -48,6 +55,9 @@ export default function FilaDigitacao() {
   const [copiado, setCopiado] = useState(false)
   const [copiadoWhatsId, setCopiadoWhatsId] = useState(null)
   const [verDocsId, setVerDocsId] = useState(null)
+  const [lotesFila, setLotesFila] = useState([])
+  const [salvandoOrdem, setSalvandoOrdem] = useState(false)
+  const [addAberto, setAddAberto] = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
@@ -63,7 +73,7 @@ export default function FilaDigitacao() {
       .order('prioridade_fila', { ascending: false, nullsFirst: false })
       .order('data_prioridade', { ascending: true, nullsFirst: false })
       .order('data_compra', { ascending: true })
-      .limit(20)
+      .limit(60)
 
     // Regra v2: lote disponivel se (assinados + aguardando_assinatura) < total
     // qtd_assinados = card (vem do banco). aguardando_assinatura = clientes com status='emitido'
@@ -73,6 +83,7 @@ export default function FilaDigitacao() {
       return (assinados + aguardando) < (l.total_contratos || 0)
     })
     setProximoLote(disponivel || null)
+    setLotesFila(lotes || [])
     setClientes(cs || [])
     setLoading(false)
   }, [])
@@ -106,6 +117,43 @@ export default function FilaDigitacao() {
     setEmitindo(false)
   }
 
+  // === Ordem manual da fila (lotes marcados pelo painel: motivo 'PAINEL:%') ===
+  const ordemManual = (lotesFila || [])
+    .filter(l => l.advogados && l.prioridade_congelada === true && (l.prioridade_congelada_motivo || '').startsWith('PAINEL:'))
+    .sort((a, b) => new Date(a.data_prioridade || 0) - new Date(b.data_prioridade || 0))
+  const idsOrdem = ordemManual.map(l => l.id)
+  const disponiveis = (lotesFila || []).filter(l => l.advogados && !idsOrdem.includes(l.id) && loteTemVaga(l))
+
+  async function aplicarOrdem(novaLista) {
+    if (salvandoOrdem) return
+    setSalvandoOrdem(true)
+    try {
+      const { error } = await supabase.rpc('fila_definir_ordem_manual', { p_lote_ids: novaLista })
+      if (error) throw new Error(error.message || JSON.stringify(error))
+      await fetchTudo()
+    } catch (err) {
+      alert('Erro ao salvar ordem: ' + (err.message || err.toString()))
+    }
+    setSalvandoOrdem(false)
+  }
+
+  function moverOrdem(idx, dir) {
+    const nova = [...idsOrdem]
+    const j = idx + dir
+    if (j < 0 || j >= nova.length) return
+    const tmp = nova[idx]; nova[idx] = nova[j]; nova[j] = tmp
+    aplicarOrdem(nova)
+  }
+
+  function removerDaOrdem(loteId) {
+    aplicarOrdem(idsOrdem.filter(id => id !== loteId))
+  }
+
+  function adicionarNaOrdem(loteId) {
+    setAddAberto(false)
+    aplicarOrdem([...idsOrdem, loteId])
+  }
+
   function copiarLink() {
     if (!resultado?.link) return
     navigator.clipboard.writeText(resultado.link)
@@ -133,6 +181,67 @@ export default function FilaDigitacao() {
         </div>
         <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>↻ Atualizar</button>
       </div>
+
+      {/* === Ordem manual da fila === */}
+      <div style={{ ...s.card, border: '1px solid #185FA530' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ ...s.sectionTitle, marginBottom: 0 }}>🔢 Ordem manual da fila</div>
+          <button onClick={() => setAddAberto(true)} disabled={salvandoOrdem} style={s.btnSec}>+ Adicionar advogado</button>
+        </div>
+
+        {ordemManual.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#888' }}>
+            Nenhum advogado fixado — a fila está no automático. Use <strong>+ Adicionar advogado</strong> para definir quem vem primeiro.
+          </div>
+        ) : (
+          ordemManual.map((l, i) => {
+            const emitidos = (l.clientes || []).filter(c => c.status === 'emitido').length
+            const ocupado = (l.qtd_assinados || 0) + emitidos
+            const cheio = ocupado >= (l.total_contratos || 0)
+            return (
+              <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: i === 0 ? '#FEF3C7' : '#f8f8f6', borderRadius: 8, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#888', minWidth: 20 }}>{i + 1}º</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{l.advogados?.nome_completo || '—'}</div>
+                  <div style={{ fontSize: 11, color: cheio ? '#A32D2D' : '#888' }}>{ocupado}/{l.total_contratos} ocupados{cheio ? ' · cheio → passa pro próximo' : ''}</div>
+                </div>
+                <button onClick={() => moverOrdem(i, -1)} disabled={i === 0 || salvandoOrdem} style={{ ...s.btnSec, padding: '4px 10px', opacity: i === 0 ? 0.4 : 1 }}>↑</button>
+                <button onClick={() => moverOrdem(i, 1)} disabled={i === ordemManual.length - 1 || salvandoOrdem} style={{ ...s.btnSec, padding: '4px 10px', opacity: i === ordemManual.length - 1 ? 0.4 : 1 }}>↓</button>
+                <button onClick={() => removerDaOrdem(l.id)} disabled={salvandoOrdem} style={{ padding: '4px 10px', background: '#fff', color: '#A32D2D', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
+              </div>
+            )
+          })
+        )}
+        {salvandoOrdem && <div style={{ fontSize: 11, color: '#185FA5', marginTop: 6 }}>⏳ salvando ordem...</div>}
+      </div>
+
+      {addAberto && (
+        <div style={s.modalBg} onClick={() => setAddAberto(false)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 4 }}>Adicionar advogado à ordem</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>Lotes com vaga. Entra no fim da sequência (depois você reposiciona com ↑ ↓).</div>
+            {disponiveis.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#888' }}>Nenhum lote disponível com vaga.</div>
+            ) : (
+              disponiveis.map(l => {
+                const emitidos = (l.clientes || []).filter(c => c.status === 'emitido').length
+                const ocupado = (l.qtd_assinados || 0) + emitidos
+                return (
+                  <div key={l.id} onClick={() => adicionarNaOrdem(l.id)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8f8f6', borderRadius: 8, marginBottom: 6, cursor: 'pointer' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{l.advogados?.nome_completo || '—'}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{ocupado}/{l.total_contratos} ocupados · {l.produto || ''}</div>
+                    </div>
+                    <span style={{ fontSize: 20, color: '#185FA5', marginLeft: 10 }}>＋</span>
+                  </div>
+                )
+              })
+            )}
+            <button onClick={() => setAddAberto(false)} style={{ width: '100%', marginTop: 12, padding: '10px', background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Fechar</button>
+          </div>
+        </div>
+      )}
 
       {proximoLote && proximoLote.advogados ? (
         <div style={{ ...s.card, background: proximoLote.prioridade_fila ? '#FEF3C7' : '#E6F1FB', border: proximoLote.prioridade_fila ? '1.5px solid #F59E0B' : '1.5px solid #185FA540' }}>
