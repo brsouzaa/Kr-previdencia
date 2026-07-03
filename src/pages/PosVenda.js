@@ -3,13 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const MOTIVOS_BARRADO = [
-  'Sem resposta após múltiplas tentativas',
-  'Cliente desistiu da contratação',
-  'Cliente não reconhece a contratação',
-  'Telefone inválido / não atende',
-  'Possível golpe / suspeita de fraude',
-  'Cliente fora do perfil (não tem direito)',
-  'Outro (especificar nas observações)',
+  'Cliente não respondeu',
+  'Achava que era empréstimo',
+  'Cliente sem NIS',
 ]
 
 const STATUS_LABEL = {
