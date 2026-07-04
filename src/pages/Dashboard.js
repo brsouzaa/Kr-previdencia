@@ -71,7 +71,7 @@ export default function Dashboard() {
   const [vendedores, setVendedores] = useState([])
   const [filtroVendedor, setFiltroVendedor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
-  const [periodo, setPeriodo] = useState('mes')
+  const [periodo, setPeriodo] = useState('total') // padrão: TUDO — status é estoque; mês é filtro opcional
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [compras, setCompras] = useState([])
