@@ -209,10 +209,10 @@ export default function PainelFinanceiro() {
 
   // Detalhe "despesa": carrega os lançamentos do mês corrente sob demanda
   useEffect(() => {
-    if (!podeVer || detalhe !== 'despesa' || despesasMes !== null) return
+    if (!podeVer || (detalhe !== 'despesa' && detalhe !== 'mkt') || despesasMes !== null) return
     const comp = `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}-01`
     supabase.from('finance_requests')
-      .select('motivo, fornecedor_nome, tipo_gasto, valor, status, vencimento')
+      .select('motivo, fornecedor_nome, tipo_gasto, categoria, valor, status, vencimento')
       .eq('competencia', comp)
       .in('status', ['aprovado', 'aguardando_pagamento', 'pago'])
       .order('valor', { ascending: false })
@@ -530,10 +530,10 @@ export default function PainelFinanceiro() {
       {/* KPIs DO MÊS — clique pra detalhar */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: 10 }}>
         {kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`, 'receita')}
-        {kpi('Despesa (mês)', fmtK(dreAtual.despesa_total), COR.vermelho, fmtPct(dreAtual.pct_custo_total) + ' da receita', 'despesa')}
-        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'com folha', 'resultado')}
+        {kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · sem mkt', 'despesa')}
+        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'desconta tudo, incl. mkt', 'resultado')}
         {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`, 'cac')}
-        {kpi('% Marketing', fmtPct(dreAtual.pct_marketing), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.verde, 'sobre a receita', 'mkt')}
+        {kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita', 'mkt')}
         {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`, 'agenda')}
       </div>
 
@@ -561,7 +561,6 @@ export default function PainelFinanceiro() {
             const itens = despesasMes || []
             const doGrupo = (g) => itens.filter(r => (r.tipo_gasto || 'sem_grupo') === g)
             const GRUPOS_DET = [
-              ['marketing', 'Marketing', COR.azul],
               ['folha', 'Folha', COR.roxo],
               ['comissao', 'Comissão', COR.roxo],
               ['fixo', 'Fixo', COR.laranja],
@@ -574,14 +573,13 @@ export default function PainelFinanceiro() {
             return (
               <>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-                  Despesas do mês por categoria — total {fmt(dreAtual.despesa_total)}{temReceita ? ` (${fmtPct(dreAtual.pct_custo_total)} da receita)` : ''}
+                  Despesa OPERACIONAL por categoria — total {fmt(dreAtual.despesa_operacional)}{temReceita ? ` (${fmtPct(dreAtual.pct_operacional)} da receita)` : ''}
+                  <span style={{ fontWeight: 400, color: '#9a9a96' }}> · marketing fica à parte (clique em Marketing)</span>
                 </div>
                 {despesasMes === null && <div style={{ fontSize: 12, color: '#9a9a96', padding: '6px 0' }}>Carregando lançamentos…</div>}
                 {GRUPOS_DET.map(([g, nome, cor]) => {
                   const doG = doGrupo(g)
-                  const somaItens = doG.reduce((s, r) => s + Number(r.valor || 0), 0)
-                  const trafegoG = g === 'marketing' ? Number(dreAtual.trafego || 0) : 0
-                  const subtotal = somaItens + trafegoG
+                  const subtotal = doG.reduce((s, r) => s + Number(r.valor || 0), 0)
                   if (subtotal <= 0) return null
                   return (
                     <div key={g} style={{ marginBottom: 12 }}>
@@ -592,12 +590,6 @@ export default function PainelFinanceiro() {
                           {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(subtotal / receitaMes * 100)} da receita</span>}
                         </span>
                       </div>
-                      {trafegoG > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                          <span style={{ color: '#374151' }}>Tráfego pago Meta (sincronizado, c/ 13% imposto)</span>
-                          <span>{fmt(trafegoG)}</span>
-                        </div>
-                      )}
                       {doG.map((r, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
                           <span style={{ color: '#374151' }}>{(r.motivo || r.fornecedor_nome || '—').slice(0, 58)} · {r.status}{r.vencimento ? ` · vence ${r.vencimento.split('-').reverse().join('/')}` : ''}</span>
@@ -607,13 +599,8 @@ export default function PainelFinanceiro() {
                     </div>
                   )
                 })}
-                {despesasMes !== null && itens.length === 0 && Number(dreAtual.trafego || 0) === 0 && (
-                  <div style={{ fontSize: 12, color: '#9a9a96' }}>Nenhuma despesa neste mês ainda.</div>
-                )}
-                {despesasMes !== null && itens.length === 0 && Number(dreAtual.trafego || 0) > 0 && (
-                  <div style={{ fontSize: 11.5, color: '#9a9a96', marginTop: 4 }}>
-                    Só o tráfego por enquanto — folha, fixos e dívidas aparecem aqui (com % de cada um) quando forem cadastrados no Financeiro.
-                  </div>
+                {despesasMes !== null && itens.filter(r => r.tipo_gasto !== 'marketing').length === 0 && (
+                  <div style={{ fontSize: 12, color: '#9a9a96' }}>Nenhuma despesa operacional neste mês ainda — folha, fixos e dívidas aparecem aqui quando lançados.</div>
                 )}
               </>
             )
@@ -656,22 +643,48 @@ export default function PainelFinanceiro() {
           )}
           {detalhe === 'mkt' && (() => {
             const contasMes = gastos.filter(g => g.ano === hoje.getFullYear() && g.mes === hoje.getMonth() + 1)
+            const lancMkt = (despesasMes || []).filter(r => r.tipo_gasto === 'marketing')
+            const lancCapt = lancMkt.filter(r => (r.categoria || '').toLowerCase() === 'captacao')
+            const lancEstr = lancMkt.filter(r => (r.categoria || '').toLowerCase() === 'estrutura')
+            const temReceita = receitaMes > 0
+            const bloco = (nome, cor, total, children) => total > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `${cor}12`, borderLeft: `4px solid ${cor}`, borderRadius: 8, padding: '7px 12px' }}>
+                  <b style={{ fontSize: 13, color: cor }}>{nome}</b>
+                  <span style={{ fontSize: 12.5 }}>
+                    <b>{fmt(total)}</b>
+                    {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(total / receitaMes * 100)} da receita</span>}
+                  </span>
+                </div>
+                {children}
+              </div>
+            )
+            const linha = (txt, v, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                <span style={{ color: '#374151' }}>{txt}</span><span>{fmt(v)}</span>
+              </div>
+            )
             return (
               <>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Marketing do mês — {fmt(dreAtual.marketing_total)} ({fmtPct(dreAtual.pct_marketing)} da receita)</div>
-                {contasMes.map((g, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                    <span style={{ color: '#374151' }}>{g.conta_nome || g.conta_id} (tráfego c/ imposto)</span>
-                    <b>{fmt(g.gasto_total)}</b>
-                  </div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+                  Marketing (investimento em aquisição) — {fmt(dreAtual.marketing_total)} ({fmtPct(dreAtual.pct_marketing)} da receita)
+                </div>
+                {despesasMes === null && <div style={{ fontSize: 12, color: '#9a9a96', padding: '4px 0' }}>Carregando lançamentos…</div>}
+                {bloco('🎯 Captação (tráfego, disparos)', COR.azul, Number(dreAtual.marketing_captacao || 0), (
+                  <>
+                    {contasMes.map((g, i) => linha(`${g.conta_nome || g.conta_id} — tráfego Meta c/ 13% imposto`, g.gasto_total, 'm' + i))}
+                    {lancCapt.map((r, i) => linha(`${(r.motivo || r.fornecedor_nome || '—').slice(0, 55)} · ${r.status}`, r.valor, 'c' + i))}
+                  </>
                 ))}
-                {Number(dreAtual.marketing_extra || 0) > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0' }}>
-                    <span style={{ color: '#374151' }}>Marketing extra (lançado no Financeiro)</span>
-                    <b>{fmt(dreAtual.marketing_extra)}</b>
-                  </div>
+                {bloco('🎬 Estrutura (video maker, design, conteúdo)', COR.roxo, Number(dreAtual.marketing_estrutura || 0), (
+                  <>{lancEstr.map((r, i) => linha(`${(r.motivo || r.fornecedor_nome || '—').slice(0, 55)} · ${r.status}`, r.valor, 'e' + i))}</>
+                ))}
+                {Number(dreAtual.marketing_estrutura || 0) === 0 && (
+                  <div style={{ fontSize: 11.5, color: '#9a9a96' }}>Estrutura zerada — lance video maker/design como Marketing → Estrutura no Financeiro pra separar aqui.</div>
                 )}
-                {contasMes.length === 0 && <div style={{ fontSize: 12, color: '#9a9a96' }}>Sem tráfego sincronizado neste mês — use "↻ Sincronizar Meta" na seção CAC.</div>}
+                <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 8 }}>
+                  Marketing é lido como investimento (mede-se por CAC e retorno), mas continua descontado no Resultado — saiu do caixa.
+                </div>
               </>
             )
           })()}
@@ -784,6 +797,21 @@ export default function PainelFinanceiro() {
           <button onClick={sincronizarGastos} disabled={sincronizando}
             style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.azul}`, background: '#fff', color: COR.azul, cursor: 'pointer' }}>
             {sincronizando ? 'Sincronizando…' : '↻ Sincronizar Meta'}
+          </button>
+          <button onClick={async () => {
+            try {
+              const tk = (await supabase.auth.getSession()).data.session?.access_token
+              const r = await fetch('https://sdqslzpfbazehqcvibjy.supabase.co/functions/v1/sincronizar-gastos-anthropic', {
+                method: 'POST', headers: { 'Authorization': `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, editor_id: profile.id })
+              })
+              const j = await r.json()
+              if (!j.ok) alert('Anthropic: ' + j.error)
+              else alert(`Custo IA sincronizado: US$ ${Number(j.total_usd).toFixed(2)} → R$ ${Number(j.total_brl).toLocaleString('pt-BR')} (câmbio ${j.cambio}). Aparece em Variável · IA / Anthropic.`)
+            } catch (e) { alert('Erro: ' + e.message) }
+          }}
+            style={{ marginTop: 6, marginLeft: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.roxo}`, background: '#fff', color: COR.roxo, cursor: 'pointer' }}>
+            🤖 Sincronizar custo IA
           </button>
           {custoSincronizadoEm && <div style={{ fontSize: 10, color: '#9a9a96', marginTop: 4 }}>últ. sync: {new Date(custoSincronizadoEm).toLocaleString('pt-BR')}</div>}
         </div>
