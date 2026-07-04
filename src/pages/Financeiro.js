@@ -77,6 +77,9 @@ export default function Financeiro() {
     { key: 'minhas', label: 'Minhas solicitações' },
     ...(ehAdmin ? [{ key: 'aprovar', label: 'Aprovar' }] : []),
     ...(ehFinanceiro ? [{ key: 'pagar', label: 'Pagar' }] : []),
+    ...(ehFinanceiro ? [{ key: 'recorrentes', label: 'Fixas & Recorrentes' }] : []),
+    ...(ehFinanceiro ? [{ key: 'agenda', label: 'Agenda' }] : []),
+    ...(ehFinanceiro ? [{ key: 'resumo', label: 'Resumo (DRE)' }] : []),
     ...(ehFinanceiro ? [{ key: 'recebimentos', label: 'Recebimentos advogados' }] : []),
   ];
 
@@ -108,6 +111,9 @@ export default function Financeiro() {
         {aba === 'minhas' && <Minhas perfil={perfil} />}
         {aba === 'aprovar' && ehAdmin && <Aprovar />}
         {aba === 'pagar' && ehFinanceiro && <Pagar />}
+        {aba === 'recorrentes' && ehFinanceiro && <Recorrentes perfil={perfil} />}
+        {aba === 'agenda' && ehFinanceiro && <Agenda />}
+        {aba === 'resumo' && ehFinanceiro && <ResumoDRE />}
         {aba === 'recebimentos' && ehFinanceiro && <Recebimentos />}
       </main>
     </div>
@@ -120,7 +126,7 @@ export default function Financeiro() {
 function Lancar({ perfil, onCriou }) {
   const vazio = {
     valor: '', fornecedor_nome: '', fornecedor_documento: '', motivo: '',
-    vencimento: '', forma_pagamento: '', categoria: '', tipo_gasto: '',
+    vencimento: '', forma_pagamento: '', categoria: '', tipo_gasto: '', competencia: '',
     chave_pix: '', boleto_linha_digitavel: '', possui_nota_fiscal: false, nota_fiscal_url: '',
   };
   const [f, setF] = useState(vazio);
@@ -141,6 +147,8 @@ function Lancar({ perfil, onCriou }) {
     forma_pagamento: f.forma_pagamento || null,
     categoria: f.categoria || null,
     tipo_gasto: f.tipo_gasto || null,
+    competencia: f.competencia ? (f.competencia + '-01')
+      : (f.vencimento ? f.vencimento.slice(0, 7) + '-01' : null),
     chave_pix: f.forma_pagamento === 'pix' ? (f.chave_pix || null) : null,
     boleto_linha_digitavel: f.forma_pagamento === 'boleto' ? (f.boleto_linha_digitavel || null) : null,
     possui_nota_fiscal: !!f.possui_nota_fiscal,
@@ -157,6 +165,7 @@ function Lancar({ perfil, onCriou }) {
       if (!f.motivo) falta.push('motivo');
       if (!f.vencimento) falta.push('vencimento');
       if (!f.forma_pagamento) falta.push('forma de pagamento');
+      if (!f.tipo_gasto) falta.push('tipo de gasto');
       if (falta.length) { setErro('Para enviar, preencha: ' + falta.join(', ') + '.'); return; }
     }
     setSalvando(true);
@@ -210,13 +219,22 @@ function Lancar({ perfil, onCriou }) {
           <input className="fin-in" value={f.categoria}
             onChange={(e) => set('categoria', e.target.value)} placeholder="Ex.: exame, software, aluguel" />
         </Campo>
-        <Campo label="Tipo de gasto">
+        <Campo label="Tipo de gasto" req>
           <select className="fin-in" value={f.tipo_gasto}
             onChange={(e) => set('tipo_gasto', e.target.value)}>
             <option value="">Selecione…</option>
-            <option value="fixo">Fixo (recorrente — aluguel, salário, assinatura)</option>
-            <option value="variavel">Variável (pontual — varia mês a mês)</option>
+            <option value="fixo">Fixo (aluguel, software, assinatura)</option>
+            <option value="folha">Folha (salário, pró-labore, benefícios)</option>
+            <option value="comissao">Comissão</option>
+            <option value="marketing">Marketing (fora do tráfego pago)</option>
+            <option value="variavel">Variável (pontual)</option>
+            <option value="imposto">Imposto</option>
+            <option value="divida">Dívida / parcelamento</option>
           </select>
+        </Campo>
+        <Campo label="Competência (mês do custo)">
+          <input className="fin-in" type="month" value={f.competencia}
+            onChange={(e) => set('competencia', e.target.value)} />
         </Campo>
         {f.forma_pagamento === 'pix' && (
           <Campo label="Chave PIX">
@@ -505,6 +523,318 @@ function LinhaRecebimento({ r, onValidarTotal, onValidarParcial, onRejeitar }) {
 }
 
 // ---------------------------------------------------------------------------
+// Fixas & Recorrentes (financeiro/admin) — cadastro-mãe; o gerador cria os
+// lançamentos do mês automaticamente (cron diário) já aprovados.
+// ---------------------------------------------------------------------------
+const GRUPOS = [
+  ['fixo', 'Fixo'], ['folha', 'Folha'], ['comissao', 'Comissão'],
+  ['marketing', 'Marketing'], ['variavel', 'Variável'], ['imposto', 'Imposto'], ['divida', 'Dívida'],
+];
+const GRUPO_LABEL = Object.fromEntries(GRUPOS);
+
+function Recorrentes({ perfil }) {
+  const vazio = {
+    nome: '', fornecedor_nome: '', valor: '', tipo_gasto: '', categoria: '',
+    forma_pagamento: '', chave_pix: '', dia_vencimento: '', parcelas_total: '', observacao: '',
+  };
+  const [f, setF] = useState(vazio);
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState('');
+  const [ok, setOk] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('despesas_recorrentes').select('*')
+      .order('ativo', { ascending: false }).order('dia_vencimento');
+    if (error) setErro(error.message); else setItens(data || []);
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const criar = async () => {
+    setErro(''); setOk('');
+    if (!f.nome || f.valor === '' || !f.tipo_gasto || !f.dia_vencimento) {
+      setErro('Preencha: nome, valor, tipo de gasto e dia do vencimento.'); return;
+    }
+    setSalvando(true);
+    try {
+      const { error } = await supabase.from('despesas_recorrentes').insert({
+        nome: f.nome,
+        fornecedor_nome: f.fornecedor_nome || null,
+        valor: Number(f.valor),
+        tipo_gasto: f.tipo_gasto,
+        categoria: f.categoria || null,
+        forma_pagamento: f.forma_pagamento || null,
+        chave_pix: f.forma_pagamento === 'pix' ? (f.chave_pix || null) : null,
+        dia_vencimento: Number(f.dia_vencimento),
+        parcelas_total: f.parcelas_total === '' ? null : Number(f.parcelas_total),
+        observacao: f.observacao || null,
+        criado_por: perfil.id,
+      });
+      if (error) throw error;
+      setOk('Recorrente cadastrada. Os lançamentos do mês são gerados automaticamente (ou use "Gerar agora").');
+      setF(vazio);
+      carregar();
+    } catch (e) { setErro(e.message || 'Não foi possível salvar.'); }
+    finally { setSalvando(false); }
+  };
+
+  const alternar = async (r) => {
+    const { error } = await supabase.from('despesas_recorrentes')
+      .update({ ativo: !r.ativo, atualizado_em: new Date().toISOString() }).eq('id', r.id);
+    if (error) { alert(error.message); return; }
+    carregar();
+  };
+
+  const excluir = async (r) => {
+    if (!window.confirm(`Excluir a recorrente "${r.nome}"? Lançamentos já gerados NÃO são apagados.`)) return;
+    const { error } = await supabase.from('despesas_recorrentes').delete().eq('id', r.id);
+    if (error) { alert(error.message); return; }
+    carregar();
+  };
+
+  const gerarAgora = async () => {
+    const { data, error } = await supabase.rpc('gerar_despesas_recorrentes');
+    if (error) { alert(error.message); return; }
+    const g = data && data[0] ? data[0].gerados : 0;
+    setOk(g > 0 ? `${g} lançamento(s) do mês gerado(s) — veja na aba Pagar.` : 'Nada novo pra gerar (mês já está em dia).');
+    carregar();
+  };
+
+  return (
+    <>
+      <div className="fin-card" style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Nova despesa fixa / recorrente / dívida parcelada</div>
+        <div className="fin-grid">
+          <Campo label="Nome" req>
+            <input className="fin-in" value={f.nome} onChange={(e) => set('nome', e.target.value)}
+              placeholder="Ex.: Salário Fulano · Aluguel · Empréstimo banco X" />
+          </Campo>
+          <Campo label="Valor (R$)" req>
+            <input className="fin-in" type="number" min="0" step="0.01" value={f.valor}
+              onChange={(e) => set('valor', e.target.value)} placeholder="0,00" />
+          </Campo>
+          <Campo label="Tipo de gasto" req>
+            <select className="fin-in" value={f.tipo_gasto} onChange={(e) => set('tipo_gasto', e.target.value)}>
+              <option value="">Selecione…</option>
+              {GRUPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Dia do vencimento (1–28)" req>
+            <input className="fin-in" type="number" min="1" max="28" value={f.dia_vencimento}
+              onChange={(e) => set('dia_vencimento', e.target.value)} placeholder="Ex.: 5" />
+          </Campo>
+          <Campo label="Nº de parcelas (vazio = pra sempre)">
+            <input className="fin-in" type="number" min="1" value={f.parcelas_total}
+              onChange={(e) => set('parcelas_total', e.target.value)} placeholder="Ex.: 12 (dívida) · vazio (salário)" />
+          </Campo>
+          <Campo label="Fornecedor / credor">
+            <input className="fin-in" value={f.fornecedor_nome} onChange={(e) => set('fornecedor_nome', e.target.value)} />
+          </Campo>
+          <Campo label="Forma de pagamento">
+            <select className="fin-in" value={f.forma_pagamento} onChange={(e) => set('forma_pagamento', e.target.value)}>
+              <option value="">Selecione…</option>
+              {FORMAS.map((x) => <option key={x} value={x}>{x[0].toUpperCase() + x.slice(1)}</option>)}
+            </select>
+          </Campo>
+          {f.forma_pagamento === 'pix' && (
+            <Campo label="Chave PIX">
+              <input className="fin-in" value={f.chave_pix} onChange={(e) => set('chave_pix', e.target.value)} />
+            </Campo>
+          )}
+          <Campo label="Categoria">
+            <input className="fin-in" value={f.categoria} onChange={(e) => set('categoria', e.target.value)}
+              placeholder="Ex.: aluguel, software, folha" />
+          </Campo>
+          <Campo label="Observação" full>
+            <input className="fin-in" value={f.observacao} onChange={(e) => set('observacao', e.target.value)} />
+          </Campo>
+        </div>
+        {erro && <div className="fin-erro">{erro}</div>}
+        {ok && <div className="fin-ok">{ok}</div>}
+        <div className="fin-acoes">
+          <button className="fin-btn fin-btn-ghost" onClick={gerarAgora}>Gerar lançamentos do mês agora</button>
+          <button className="fin-btn fin-btn-primary" disabled={salvando} onClick={criar}>
+            {salvando ? 'Salvando…' : 'Cadastrar recorrente'}
+          </button>
+        </div>
+      </div>
+
+      {itens === null ? <div className="fin-vazio">Carregando…</div>
+        : !itens.length ? <div className="fin-vazio">Nenhuma recorrente cadastrada. Cadastre a folha, aluguel, softwares e dívidas acima — o sistema gera os lançamentos todo mês sozinho.</div>
+        : (
+          <div className="fin-lista">
+            {itens.map((r) => (
+              <div key={r.id} className="fin-linha" style={{ opacity: r.ativo ? 1 : 0.55 }}>
+                <div className="fin-linha-info">
+                  <div className="fin-linha-top">
+                    <b>{r.nome}</b>
+                    <span className="fin-badge" style={{ background: '#eef2ff', color: '#3730a3' }}>{GRUPO_LABEL[r.tipo_gasto] || r.tipo_gasto}</span>
+                    {!r.ativo && <span className="fin-badge" style={{ background: '#f3f4f6', color: '#6b7280' }}>Pausada</span>}
+                  </div>
+                  <div className="fin-linha-sub">
+                    {brl(r.valor)} · vence dia {r.dia_vencimento}
+                    {r.parcelas_total
+                      ? ` · parcela ${Math.min(r.parcelas_geradas, r.parcelas_total)}/${r.parcelas_total}`
+                      : ' · sem fim (mensal)'}
+                    {r.fornecedor_nome ? ` · ${r.fornecedor_nome}` : ''}
+                  </div>
+                </div>
+                <div className="fin-linha-acoes">
+                  <button className="fin-btn fin-btn-ghost fin-btn-sm" onClick={() => alternar(r)}>
+                    {r.ativo ? 'Pausar' : 'Reativar'}
+                  </button>
+                  <button className="fin-btn fin-btn-danger fin-btn-sm" onClick={() => excluir(r)}>Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Agenda — vencimentos dos próximos 90 dias (reais + projeção de recorrentes)
+// ---------------------------------------------------------------------------
+function Agenda() {
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('v_fluxo_caixa_projetado').select('*')
+        .order('data_vencimento', { ascending: true });
+      if (error) setErro(error.message); else setItens(data || []);
+    })();
+  }, []);
+
+  if (erro) return <div className="fin-erro">{erro}</div>;
+  if (itens === null) return <div className="fin-vazio">Carregando…</div>;
+  if (!itens.length) return <div className="fin-vazio">Nada na agenda dos próximos 90 dias. Cadastre as recorrentes e lance as despesas pra agenda ganhar vida.</div>;
+
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const em = (dias) => { const d = new Date(hoje); d.setDate(d.getDate() + dias); return d; };
+  const dv = (s) => new Date(s + 'T00:00:00');
+
+  const soma = (arr) => arr.reduce((a, x) => a + Number(x.valor || 0), 0);
+  const atrasados = itens.filter((x) => x.origem === 'lancamento' && dv(x.data_vencimento) < hoje);
+  const d7 = itens.filter((x) => dv(x.data_vencimento) >= hoje && dv(x.data_vencimento) < em(7));
+  const d30 = itens.filter((x) => dv(x.data_vencimento) >= hoje && dv(x.data_vencimento) < em(30));
+  const d90 = itens.filter((x) => dv(x.data_vencimento) >= hoje);
+
+  return (
+    <>
+      <div className="fin-grid" style={{ marginBottom: 14 }}>
+        <div className="fin-kpi" style={{ borderColor: atrasados.length ? '#b91c1c' : undefined }}>
+          <span className="fin-kpi-t" style={{ color: '#b91c1c' }}>Atrasado</span>
+          <b style={{ color: '#b91c1c' }}>{brl(soma(atrasados))}</b>
+          <span className="fin-kpi-s">{atrasados.length} conta(s)</span>
+        </div>
+        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 7 dias</span><b>{brl(soma(d7))}</b><span className="fin-kpi-s">{d7.length} conta(s)</span></div>
+        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 30 dias</span><b>{brl(soma(d30))}</b><span className="fin-kpi-s">{d30.length} conta(s)</span></div>
+        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 90 dias</span><b>{brl(soma(d90))}</b><span className="fin-kpi-s">{d90.length} conta(s)</span></div>
+      </div>
+
+      <div className="fin-lista">
+        {itens.map((x, i) => {
+          const atrasado = x.origem === 'lancamento' && dv(x.data_vencimento) < hoje;
+          return (
+            <div key={i} className="fin-linha" style={atrasado ? { borderColor: '#b91c1c', background: '#fef2f2' } : undefined}>
+              <div className="fin-linha-info">
+                <div className="fin-linha-top">
+                  <b>{dataBR(x.data_vencimento)}</b>
+                  <span>{x.descricao || '—'}</span>
+                  {x.grupo && <span className="fin-badge" style={{ background: '#eef2ff', color: '#3730a3' }}>{GRUPO_LABEL[x.grupo] || x.grupo}</span>}
+                  {x.origem === 'projecao' && <span className="fin-badge" style={{ background: '#f3f4f6', color: '#6b7280' }}>projeção</span>}
+                  {atrasado && <span className="fin-badge" style={{ background: '#fee2e2', color: '#b91c1c' }}>ATRASADO</span>}
+                </div>
+                <div className="fin-linha-sub">{x.fornecedor_nome || ''}</div>
+              </div>
+              <div style={{ fontWeight: 600 }}>{brl(x.valor)}</div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Resumo (DRE) — receita, gasto por grupo e % sobre faturamento, mês a mês
+// ---------------------------------------------------------------------------
+function ResumoDRE() {
+  const [linhas, setLinhas] = useState(null);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('v_dre_mensal').select('*')
+        .order('mes', { ascending: false }).limit(12);
+      if (error) setErro(error.message); else setLinhas(data || []);
+    })();
+  }, []);
+
+  if (erro) return <div className="fin-erro">{erro}</div>;
+  if (linhas === null) return <div className="fin-vazio">Carregando…</div>;
+  if (!linhas.length) return <div className="fin-vazio">Sem dados ainda.</div>;
+
+  const mesBR = (m) => {
+    const d = new Date(m + 'T00:00:00');
+    return d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+  };
+  const pct = (v) => (v == null ? '—' : `${Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`);
+
+  return (
+    <div className="fin-card" style={{ overflowX: 'auto' }}>
+      <table className="fin-tabela">
+        <thead>
+          <tr>
+            <th>Mês</th><th>Receita</th>
+            <th>Marketing</th><th>% Mkt</th>
+            <th>Pessoas (folha+comissão)</th><th>% Pessoas</th>
+            <th>Fixo</th><th>% Fixo</th>
+            <th>Outros*</th>
+            <th>Despesa total</th><th>% Custo</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((l) => {
+            const outros = Number(l.variavel || 0) + Number(l.imposto || 0) + Number(l.divida || 0) + Number(l.sem_grupo || 0);
+            const pos = Number(l.resultado || 0) >= 0;
+            return (
+              <tr key={l.mes}>
+                <td><b>{mesBR(l.mes)}</b></td>
+                <td>{brl(l.receita)}</td>
+                <td>{brl(l.marketing_total)}</td>
+                <td>{pct(l.pct_marketing)}</td>
+                <td>{brl(Number(l.folha || 0) + Number(l.comissao || 0))}</td>
+                <td>{pct(l.pct_pessoas)}</td>
+                <td>{brl(l.fixo)}</td>
+                <td>{pct(l.pct_fixo)}</td>
+                <td>{brl(outros)}</td>
+                <td>{brl(l.despesa_total)}</td>
+                <td>{pct(l.pct_custo_total)}</td>
+                <td style={{ color: pos ? '#15803d' : '#b91c1c', fontWeight: 600 }}>{brl(l.resultado)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>
+        *Outros = variável + imposto + dívida + sem grupo. Receita = lotes pagos no mês · Marketing inclui o tráfego sincronizado.
+        O resultado só é real depois que folha e fixos estiverem cadastrados.
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Componentes auxiliares
 // ---------------------------------------------------------------------------
 function Linha({ r, children, destaqueSemNF, mostrarPix }) {
@@ -594,6 +924,18 @@ function Estilos() {
       .fin-item-pix{font-size:12px;margin-top:7px;background:var(--fin-soft);padding:6px 9px;border-radius:7px;word-break:break-all}
       .fin-semnf{font-size:12px;color:#b45309;margin-top:7px;font-weight:600}
       .fin-item-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+      .fin-linha{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--fin-line);border-radius:12px;padding:12px 16px;background:#fff}
+      .fin-linha-info{flex:1;min-width:0}
+      .fin-linha-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+      .fin-linha-sub{color:#6b7280;font-size:12px;margin-top:3px}
+      .fin-linha-acoes{display:flex;gap:8px;flex-wrap:wrap}
+      .fin-kpi{border:1px solid var(--fin-line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:2px}
+      .fin-kpi-t{font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600}
+      .fin-kpi b{font-size:19px;font-variant-numeric:tabular-nums}
+      .fin-kpi-s{font-size:11px;color:#9ca3af}
+      .fin-tabela{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+      .fin-tabela th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--fin-line);color:#6b7280;font-size:11px;text-transform:uppercase;white-space:nowrap}
+      .fin-tabela td{padding:8px 10px;border-bottom:1px solid var(--fin-line);white-space:nowrap}
       @media(max-width:640px){.fin-grid{grid-template-columns:1fr}.fin-head{flex-direction:column;align-items:flex-start}}
     `}</style>
   );
