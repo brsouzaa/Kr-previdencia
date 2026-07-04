@@ -110,22 +110,27 @@ function Sparkline({ pontos, cor = COR.azul, altura = 42 }) {
   )
 }
 
-// ---------- Composição de despesa (barras horizontais) ----------
-function Composicao({ itens }) {
+// ---------- Composição de despesa (barras horizontais, % sobre o FATURAMENTO) ----------
+function Composicao({ itens, receita }) {
   const total = itens.reduce((s, x) => s + x.valor, 0)
   if (total <= 0) return <div style={{ fontSize: 12, color: '#9a9a96', padding: '8px 0' }}>Nenhuma despesa classificada neste mês ainda.</div>
+  const temReceita = Number(receita || 0) > 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {itens.filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor).map(x => {
-        const pct = total > 0 ? x.valor / total * 100 : 0
+        const pctRec = temReceita ? x.valor / receita * 100 : null
+        const pctDesp = total > 0 ? x.valor / total * 100 : 0
+        const barra = temReceita ? Math.min(pctRec, 100) : pctDesp
         return (
           <div key={x.nome}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
               <span style={{ color: '#374151', fontWeight: 600 }}>{x.nome}</span>
-              <span style={{ color: '#5F5E5A' }}>{fmt(x.valor)} · {pct.toFixed(1)}%</span>
+              <span style={{ color: '#5F5E5A' }}>
+                {fmt(x.valor)} · <b style={{ color: '#111' }}>{temReceita ? `${pctRec.toFixed(1)}% da receita` : `${pctDesp.toFixed(1)}% da despesa`}</b>
+              </span>
             </div>
             <div style={{ height: 8, background: 'rgba(0,0,0,0.05)', borderRadius: 6, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: x.cor, borderRadius: 6 }} />
+              <div style={{ width: `${barra}%`, height: '100%', background: x.cor, borderRadius: 6 }} />
             </div>
           </div>
         )
@@ -164,6 +169,8 @@ export default function PainelFinanceiro() {
   const [persoIni, setPersoIni] = useState(ymd(new Date(hoje.getFullYear(), hoje.getMonth(), 1)))
   const [persoFim, setPersoFim] = useState(ymd(hoje))
   const [pulso, setPulso] = useState(null)
+  const [detalhe, setDetalhe] = useState(null) // receita | despesa | resultado | cac | mkt | agenda
+  const [despesasMes, setDespesasMes] = useState(null)
 
   const podeVer = profile && (profile.role === 'admin' || profile.role === 'analista')
 
@@ -199,6 +206,18 @@ export default function PainelFinanceiro() {
       setPulso({ ini, fim, entrou, saiu, qtdEnt: (ent || []).length, qtdSai: (sai || []).length })
     })()
   }, [periodo, persoIni, persoFim, podeVer])
+
+  // Detalhe "despesa": carrega os lançamentos do mês corrente sob demanda
+  useEffect(() => {
+    if (!podeVer || detalhe !== 'despesa' || despesasMes !== null) return
+    const comp = `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}-01`
+    supabase.from('finance_requests')
+      .select('motivo, fornecedor_nome, tipo_gasto, valor, status, vencimento')
+      .eq('competencia', comp)
+      .in('status', ['aprovado', 'aguardando_pagamento', 'pago'])
+      .order('valor', { ascending: false })
+      .then(({ data }) => setDespesasMes(data || []))
+  }, [detalhe, podeVer])
 
   // ======= HOOK-FREE a partir daqui (early returns) =======
   if (!podeVer) {
@@ -401,8 +420,14 @@ export default function PainelFinanceiro() {
   })
   if (semGrupoMes > 0)
     add('aviso', `${fmt(semGrupoMes)} em despesas SEM classificação de grupo.`, 'Classificar pra não sujar as porcentagens.')
-  if (inadTotalValor > 0 && receitaMes > 0 && inadTotalValor / receitaMes > 0.1)
-    add('aviso', `Inadimplência acumulada de ${fmt(inadTotalValor)} (${fmtPct(inadTotalValor / receitaMes * 100)} da receita do mês).`, 'Acionar cobrança dos lotes vencidos.')
+  // Inadimplência: NÃO é despesa (é receita que não entrou; não soma no resultado).
+  // Alerta compara a inadimplência NOVA do mês com a receita do mesmo mês (régua igual).
+  const rMesCorrente = rangeMes(hoje.getFullYear(), hoje.getMonth())
+  const inadNovaMes = base
+    .filter(l => l.eh_inadimplente && l.data_inadimplencia_dia && l.data_inadimplencia_dia >= rMesCorrente.ini && l.data_inadimplencia_dia <= rMesCorrente.fim)
+    .reduce((s, l) => s + Number(l.valor_total || 0), 0)
+  if (receitaMes > 0 && inadNovaMes / receitaMes > 0.1)
+    add('aviso', `Inadimplência nova neste mês: ${fmt(inadNovaMes)} (${fmtPct(inadNovaMes / receitaMes * 100)} da receita do mês). Acumulado em aberto: ${fmt(inadTotalValor)}. Obs: inadimplência não entra como despesa — é venda que não virou caixa.`, 'Acionar cobrança dos lotes vencidos.')
   if (!alertas.length)
     add('ok', 'Nenhum alerta crítico. Números do mês dentro dos parâmetros.', '')
 
@@ -455,12 +480,18 @@ export default function PainelFinanceiro() {
     )
   }
 
-  const kpi = (titulo, valor, cor, sub) => (
-    <div style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', border: '0.5px solid rgba(0,0,0,0.1)', borderTop: `3px solid ${cor}` }}>
+  const kpi = (titulo, valor, cor, sub, chave) => (
+    <button onClick={() => chave && setDetalhe(detalhe === chave ? null : chave)}
+      style={{
+        background: detalhe === chave ? '#F7FAFF' : '#fff', borderRadius: 14, padding: '14px 16px',
+        border: detalhe === chave ? `1.5px solid ${cor}` : '0.5px solid rgba(0,0,0,0.1)',
+        borderTop: `3px solid ${cor}`, textAlign: 'left', cursor: chave ? 'pointer' : 'default', width: '100%',
+      }}>
       <div style={{ fontSize: 11, color: '#9a9a96', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.4px' }}>{titulo}</div>
       <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: cor, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
       {sub && <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 2 }}>{sub}</div>}
-    </div>
+      {chave && <div style={{ fontSize: 10, color: detalhe === chave ? cor : '#c4c4c0', marginTop: 4, fontWeight: 700 }}>{detalhe === chave ? '▴ fechar' : '▾ detalhar'}</div>}
+    </button>
   )
 
   const secao = (titulo, extra) => (
@@ -496,15 +527,173 @@ export default function PainelFinanceiro() {
         </div>
       </div>
 
-      {/* KPIs DO MÊS */}
+      {/* KPIs DO MÊS — clique pra detalhar */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: 10 }}>
-        {kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`)}
-        {kpi('Despesa (mês)', fmtK(dreAtual.despesa_total), COR.vermelho, fmtPct(dreAtual.pct_custo_total) + ' da receita')}
-        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'com folha')}
-        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`)}
-        {kpi('% Marketing', fmtPct(dreAtual.pct_marketing), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.verde, 'sobre a receita')}
-        {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`)}
+        {kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`, 'receita')}
+        {kpi('Despesa (mês)', fmtK(dreAtual.despesa_total), COR.vermelho, fmtPct(dreAtual.pct_custo_total) + ' da receita', 'despesa')}
+        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'com folha', 'resultado')}
+        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`, 'cac')}
+        {kpi('% Marketing', fmtPct(dreAtual.pct_marketing), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.verde, 'sobre a receita', 'mkt')}
+        {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`, 'agenda')}
       </div>
+
+      {/* PAINEL DE DETALHE do KPI clicado */}
+      {detalhe && (
+        <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 14, padding: '1rem 1.25rem', marginTop: 10 }}>
+          {detalhe === 'receita' && (() => {
+            const pagosMes = base.filter(l => l.eh_pago && l.data_faturamento && l.data_faturamento >= rMesCorrente.ini && l.data_faturamento <= rMesCorrente.fim)
+              .sort((a, b) => (b.data_faturamento || '').localeCompare(a.data_faturamento || ''))
+            return (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Receita do mês — {pagosMes.length} lote(s) pago(s), {fmt(pagosMes.reduce((s, l) => s + Number(l.valor_total || 0), 0))}</div>
+                {pagosMes.length === 0 ? <div style={{ fontSize: 12, color: '#9a9a96' }}>Nenhum lote pago neste mês ainda.</div>
+                  : pagosMes.slice(0, 25).map((l, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                      <span style={{ color: '#374151' }}>{(l.data_faturamento || '').split('-').reverse().join('/')} · {l.produto || '—'} · {fmtNum(l.total_contratos)} contrato(s)</span>
+                      <b>{fmt(l.valor_total)}</b>
+                    </div>
+                  ))}
+                {pagosMes.length > 25 && <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 6 }}>+ {pagosMes.length - 25} lotes (recorte dos 25 maiores/recentes)</div>}
+              </>
+            )
+          })()}
+          {detalhe === 'despesa' && (() => {
+            const itens = despesasMes || []
+            const doGrupo = (g) => itens.filter(r => (r.tipo_gasto || 'sem_grupo') === g)
+            const GRUPOS_DET = [
+              ['marketing', 'Marketing', COR.azul],
+              ['folha', 'Folha', COR.roxo],
+              ['comissao', 'Comissão', COR.roxo],
+              ['fixo', 'Fixo', COR.laranja],
+              ['variavel', 'Variável', '#0F6E56'],
+              ['imposto', 'Imposto', '#6b7280'],
+              ['divida', 'Dívida', COR.vermelho],
+              ['sem_grupo', 'Sem grupo', '#9ca3af'],
+            ]
+            const temReceita = receitaMes > 0
+            return (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+                  Despesas do mês por categoria — total {fmt(dreAtual.despesa_total)}{temReceita ? ` (${fmtPct(dreAtual.pct_custo_total)} da receita)` : ''}
+                </div>
+                {despesasMes === null && <div style={{ fontSize: 12, color: '#9a9a96', padding: '6px 0' }}>Carregando lançamentos…</div>}
+                {GRUPOS_DET.map(([g, nome, cor]) => {
+                  const doG = doGrupo(g)
+                  const somaItens = doG.reduce((s, r) => s + Number(r.valor || 0), 0)
+                  const trafegoG = g === 'marketing' ? Number(dreAtual.trafego || 0) : 0
+                  const subtotal = somaItens + trafegoG
+                  if (subtotal <= 0) return null
+                  return (
+                    <div key={g} style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `${cor}12`, borderLeft: `4px solid ${cor}`, borderRadius: 8, padding: '7px 12px' }}>
+                        <b style={{ fontSize: 13, color: cor }}>{nome}</b>
+                        <span style={{ fontSize: 12.5 }}>
+                          <b>{fmt(subtotal)}</b>
+                          {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(subtotal / receitaMes * 100)} da receita</span>}
+                        </span>
+                      </div>
+                      {trafegoG > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                          <span style={{ color: '#374151' }}>Tráfego pago Meta (sincronizado, c/ 13% imposto)</span>
+                          <span>{fmt(trafegoG)}</span>
+                        </div>
+                      )}
+                      {doG.map((r, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                          <span style={{ color: '#374151' }}>{(r.motivo || r.fornecedor_nome || '—').slice(0, 58)} · {r.status}{r.vencimento ? ` · vence ${r.vencimento.split('-').reverse().join('/')}` : ''}</span>
+                          <span>{fmt(r.valor)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+                {despesasMes !== null && itens.length === 0 && Number(dreAtual.trafego || 0) === 0 && (
+                  <div style={{ fontSize: 12, color: '#9a9a96' }}>Nenhuma despesa neste mês ainda.</div>
+                )}
+                {despesasMes !== null && itens.length === 0 && Number(dreAtual.trafego || 0) > 0 && (
+                  <div style={{ fontSize: 11.5, color: '#9a9a96', marginTop: 4 }}>
+                    Só o tráfego por enquanto — folha, fixos e dívidas aparecem aqui (com % de cada um) quando forem cadastrados no Financeiro.
+                  </div>
+                )}
+              </>
+            )
+          })()}
+          {detalhe === 'resultado' && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Como o resultado é calculado ({MES_CURTO[hoje.getMonth()]})</div>
+              {[
+                ['Receita (lotes pagos)', dreAtual.receita, COR.verde],
+                ['− Marketing (tráfego + extra)', dreAtual.marketing_total, COR.azul],
+                ['− Folha + Comissão', folhaMes, COR.roxo],
+                ['− Fixo', dreAtual.fixo, COR.laranja],
+                ['− Variável', dreAtual.variavel, '#0F6E56'],
+                ['− Imposto', dreAtual.imposto, '#6b7280'],
+                ['− Dívida', dreAtual.divida, COR.vermelho],
+                ['− Sem grupo', dreAtual.sem_grupo, '#9ca3af'],
+              ].map(([lbl, v, c]) => (
+                <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '4px 0' }}>
+                  <span style={{ color: c, fontWeight: 600 }}>{lbl}</span><b>{fmt(v)}</b>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, padding: '8px 0 2px', borderTop: '2px solid rgba(0,0,0,0.08)', marginTop: 4 }}>
+                <b>= Resultado</b>
+                <b style={{ color: Number(dreAtual.resultado || 0) >= 0 ? '#15803d' : '#b91c1c' }}>{fmt(dreAtual.resultado)}</b>
+              </div>
+              <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 6 }}>Inadimplência NÃO entra aqui — é receita que não virou caixa, não despesa. Acumulado em aberto: {fmt(inadTotalValor)}.</div>
+            </>
+          )}
+          {detalhe === 'cac' && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Como o CAC é calculado ({MESES[custoMes]})</div>
+              <div style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.8 }}>
+                Gasto de anúncio com imposto: <b>{fmt(custoTotal)}</b> (líquido {fmt(custoLiquido)} + 13%)<br />
+                Clientes fechados no mês (validados/assinados, sem barrados/cancelados): <b>{fmtNum(totalFechadosTodos)}</b><br />
+                {produtoSel !== 'Todos' && (<>Filtro {produtoSel}: {fmtNum(baseAquisicao)} fechados → gasto rateado {fmt(custoRateado)}<br /></>)}
+                Reposições aprovadas no mês: <b>{fmtNum(reposicoesCusto)}</b> — fora do denominador (o reposto conta quando valida)<br />
+                <b style={{ color: COR.azul }}>CAC = {fmt(custoRateado)} ÷ {fmtNum(baseAquisicao)} = {cac > 0 ? fmt(cac) : '—'}</b> · parcial (só anúncio, sem folha)
+              </div>
+            </>
+          )}
+          {detalhe === 'mkt' && (() => {
+            const contasMes = gastos.filter(g => g.ano === hoje.getFullYear() && g.mes === hoje.getMonth() + 1)
+            return (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Marketing do mês — {fmt(dreAtual.marketing_total)} ({fmtPct(dreAtual.pct_marketing)} da receita)</div>
+                {contasMes.map((g, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                    <span style={{ color: '#374151' }}>{g.conta_nome || g.conta_id} (tráfego c/ imposto)</span>
+                    <b>{fmt(g.gasto_total)}</b>
+                  </div>
+                ))}
+                {Number(dreAtual.marketing_extra || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0' }}>
+                    <span style={{ color: '#374151' }}>Marketing extra (lançado no Financeiro)</span>
+                    <b>{fmt(dreAtual.marketing_extra)}</b>
+                  </div>
+                )}
+                {contasMes.length === 0 && <div style={{ fontSize: 12, color: '#9a9a96' }}>Sem tráfego sincronizado neste mês — use "↻ Sincronizar Meta" na seção CAC.</div>}
+              </>
+            )
+          })()}
+          {detalhe === 'agenda' && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Contas a sair — atrasadas ({atrasadas.length}) e próximos 7 dias ({prox7.length})</div>
+              {[...atrasadas, ...prox7].map((x, i) => {
+                const atr = x.origem === 'lancamento' && dv(x.data_vencimento) < h0
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                    <span style={{ color: atr ? COR.vermelho : '#374151', fontWeight: atr ? 700 : 400 }}>
+                      {x.data_vencimento.split('-').reverse().join('/')} · {(x.descricao || '—').slice(0, 55)}{atr ? ' · ATRASADA' : ''}{x.origem === 'projecao' ? ' · projeção' : ''}
+                    </span>
+                    <b style={{ color: atr ? COR.vermelho : '#111' }}>{fmt(x.valor)}</b>
+                  </div>
+                )
+              })}
+              {!atrasadas.length && !prox7.length && <div style={{ fontSize: 12, color: '#9a9a96' }}>Nada vencendo nos próximos 7 dias.</div>}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ANÁLISE AUTOMÁTICA */}
       {secao('🧠 Análise automática', <span style={{ fontSize: 11, color: '#9a9a96' }}>regras sobre os dados do mês — recalcula a cada acesso</span>)}
@@ -537,8 +726,8 @@ export default function PainelFinanceiro() {
           <GraficoMensal dados={dre6} isMobile={isMobile} />
         </div>
         <div style={{ background: '#fff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 10 }}>Pra onde vai o dinheiro ({MES_CURTO[hoje.getMonth()]})</div>
-          <Composicao itens={[
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 10 }}>Pra onde vai o dinheiro ({MES_CURTO[hoje.getMonth()]}) — % do faturamento</div>
+          <Composicao receita={receitaMes} itens={[
             { nome: 'Marketing (tráfego+extra)', valor: Number(dreAtual.marketing_total || 0), cor: COR.azul },
             { nome: 'Folha + Comissão', valor: folhaMes, cor: COR.roxo },
             { nome: 'Fixo', valor: fixoMes, cor: COR.laranja },
