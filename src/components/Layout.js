@@ -52,6 +52,9 @@ const NAV_RESGATE = [
 const NAV_FINANCEIRO = [
   { key: 'financeiro', label: '💰 Financeiro' },
 ]
+const NAV_RH = [
+  { key: 'financeiro', label: '💸 Financeiro (despesas)' },
+]
 const NAV_ANALISTA_IA = [
   { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
@@ -124,6 +127,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'vendedor_operador' ? NAV_VENDEDOR_OPERADOR
     : profile?.role === 'resgate' ? NAV_RESGATE
     : profile?.role === 'financeiro' ? NAV_FINANCEIRO
+    : profile?.role === 'rh' ? NAV_RH
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : NAV_VENDEDOR
 
@@ -210,6 +214,7 @@ export default function Layout({ children, page, setPage }) {
                 : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
                 : profile?.role === 'produtor' ? 'Produtor'
                 : profile?.role === 'financeiro' ? 'Financeiro / Pagador'
+                : profile?.role === 'rh' ? 'RH'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
                 : 'Vendedor'}
             </div>
