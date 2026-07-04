@@ -166,6 +166,7 @@ function Lancar({ perfil, onCriou }) {
       if (!f.vencimento) falta.push('vencimento');
       if (!f.forma_pagamento) falta.push('forma de pagamento');
       if (!f.tipo_gasto) falta.push('tipo de gasto');
+      if (f.tipo_gasto === 'marketing' && !['captacao', 'estrutura'].includes(f.categoria)) falta.push('tipo de marketing (captação/estrutura)');
       if (falta.length) { setErro('Para enviar, preencha: ' + falta.join(', ') + '.'); return; }
     }
     setSalvando(true);
@@ -215,10 +216,21 @@ function Lancar({ perfil, onCriou }) {
             {FORMAS.map((x) => <option key={x} value={x}>{x[0].toUpperCase() + x.slice(1)}</option>)}
           </select>
         </Campo>
-        <Campo label="Categoria">
-          <input className="fin-in" value={f.categoria}
-            onChange={(e) => set('categoria', e.target.value)} placeholder="Ex.: exame, software, aluguel" />
-        </Campo>
+        {f.tipo_gasto === 'marketing' ? (
+          <Campo label="Tipo de marketing" req>
+            <select className="fin-in" value={f.categoria}
+              onChange={(e) => set('categoria', e.target.value)}>
+              <option value="">Selecione…</option>
+              <option value="captacao">Captação (tráfego, disparos, leads)</option>
+              <option value="estrutura">Estrutura (video maker, design, conteúdo)</option>
+            </select>
+          </Campo>
+        ) : (
+          <Campo label="Categoria">
+            <input className="fin-in" value={f.categoria}
+              onChange={(e) => set('categoria', e.target.value)} placeholder="Ex.: exame, software, aluguel" />
+          </Campo>
+        )}
         <Campo label="Tipo de gasto" req>
           <select className="fin-in" value={f.tipo_gasto}
             onChange={(e) => set('tipo_gasto', e.target.value)}>
@@ -558,6 +570,9 @@ function Recorrentes({ perfil }) {
     if (!f.nome || f.valor === '' || !f.tipo_gasto || !f.dia_vencimento) {
       setErro('Preencha: nome, valor, tipo de gasto e dia do vencimento.'); return;
     }
+    if (f.tipo_gasto === 'marketing' && !['captacao', 'estrutura'].includes(f.categoria)) {
+      setErro('Marketing precisa do tipo: Captação ou Estrutura.'); return;
+    }
     setSalvando(true);
     try {
       const { error } = await supabase.from('despesas_recorrentes').insert({
@@ -644,10 +659,20 @@ function Recorrentes({ perfil }) {
               <input className="fin-in" value={f.chave_pix} onChange={(e) => set('chave_pix', e.target.value)} />
             </Campo>
           )}
-          <Campo label="Categoria">
-            <input className="fin-in" value={f.categoria} onChange={(e) => set('categoria', e.target.value)}
-              placeholder="Ex.: aluguel, software, folha" />
-          </Campo>
+          {f.tipo_gasto === 'marketing' ? (
+            <Campo label="Tipo de marketing" req>
+              <select className="fin-in" value={f.categoria} onChange={(e) => set('categoria', e.target.value)}>
+                <option value="">Selecione…</option>
+                <option value="captacao">Captação (tráfego, disparos, leads)</option>
+                <option value="estrutura">Estrutura (video maker, design, conteúdo)</option>
+              </select>
+            </Campo>
+          ) : (
+            <Campo label="Categoria">
+              <input className="fin-in" value={f.categoria} onChange={(e) => set('categoria', e.target.value)}
+                placeholder="Ex.: aluguel, software, folha" />
+            </Campo>
+          )}
           <Campo label="Observação" full>
             <input className="fin-in" value={f.observacao} onChange={(e) => set('observacao', e.target.value)} />
           </Campo>
