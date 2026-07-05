@@ -90,6 +90,13 @@ function Contas({ profile }) {
   const [busca, setBusca] = useState('')
   const [aberta, setAberta] = useState(null)
   const [agindo, setAgindo] = useState(null)
+  const [funcionarios, setFuncionarios] = useState([])
+  const [vinculoSel, setVinculoSel] = useState('')
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, nome, role').eq('ativo', true).order('nome')
+      .then(({ data }) => setFuncionarios(data || []))
+  }, [])
 
   const carregar = useCallback(async () => {
     setErro('')
@@ -162,6 +169,19 @@ function Contas({ profile }) {
   }
   const pagar = r => rpc('finance_marcar_pago', { p_id: r.id, p_comprovante_url: null },
     `Marcar como PAGO: "${(r.motivo || r.fornecedor_nome || '').slice(0, 55)}" — ${fmt(r.valor)}?`)
+  const vincularFuncionario = async (r) => {
+    if (!vinculoSel) { alert('Escolha o funcionário primeiro.'); return }
+    const nome = funcionarios.find(x => x.id === vinculoSel)?.nome || null
+    setAgindo(r.id)
+    const { error } = await supabase.from('finance_requests')
+      .update({ funcionario_id: vinculoSel, fornecedor_nome: nome })
+      .eq('id', r.id)
+    if (error) alert('Erro ao vincular: ' + error.message)
+    setVinculoSel('')
+    await carregar()
+    setAgindo(null)
+  }
+
   const excluir = async (r) => {
     if (!window.confirm(`EXCLUIR "${(r.motivo || r.fornecedor_nome || '').slice(0, 55)}" — ${fmt(r.valor)}?\nRemove o lançamento de vez (não afeta a recorrente-mãe).`)) return
     setAgindo(r.id)
@@ -302,6 +322,22 @@ function Contas({ profile }) {
                               {r.comprovante_pagamento_url && <span><b>Comprovante:</b> <a href={r.comprovante_pagamento_url} target="_blank" rel="noreferrer">abrir</a></span>}
                               <span><b>Criada em:</b> {dataBR(r.criado_em)}</span>
                             </div>
+                            {['folha', 'comissao'].includes(r.tipo_gasto) && (
+                              r.funcionario_id ? (
+                                <div style={{ marginTop: 8, fontSize: 12.5 }}>
+                                  <b>👤 Funcionário vinculado:</b> {funcionarios.find(x => x.id === r.funcionario_id)?.nome || r.fornecedor_nome || 'vinculado'}
+                                </div>
+                              ) : (
+                                <div style={{ marginTop: 10, background: '#FFF8EB', border: '1px solid #854F0B30', borderRadius: 8, padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <b style={{ color: LARANJA, fontSize: 12.5 }}>👤 Sem funcionário vinculado</b>
+                                  <select className="dc-in" style={{ padding: '5px 8px', fontSize: 12 }} value={vinculoSel} onChange={e => setVinculoSel(e.target.value)}>
+                                    <option value="">Escolher funcionário…</option>
+                                    {funcionarios.map(x => <option key={x.id} value={x.id}>{x.nome} · {x.role}</option>)}
+                                  </select>
+                                  <button className="dc-btn dc-btn-ok" disabled={agindo === r.id} onClick={() => vincularFuncionario(r)}>Vincular</button>
+                                </div>
+                              )
+                            )}
                             {r.recusa_motivo && <div style={{ marginTop: 8, color: VERMELHO }}><b>Motivo da recusa:</b> {r.recusa_motivo}</div>}
                             {r.ajuste_motivo && <div style={{ marginTop: 8, color: LARANJA }}><b>Ajuste solicitado:</b> {r.ajuste_motivo}</div>}
                             {temLuna && (
