@@ -50,7 +50,8 @@ const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
 const NAV_FINANCEIRO = [
-  { key: 'financeiro', label: '💰 Financeiro' },
+  { key: 'despesas', label: '📋 Despesas & Custos' },
+  { key: 'recebimentos', label: '💵 Recebimentos advogados' },
 ]
 const NAV_RH = [
   { key: 'financeiro', label: '💸 Financeiro (despesas)' },
@@ -77,7 +78,8 @@ const NAV_COORDENADOR_B2C = [
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
-  { key: 'financeiro', label: '💸 Financeiro (contas a pagar)' },
+  { key: 'despesas', label: '📋 Despesas & Custos' },
+  { key: 'recebimentos', label: '💵 Recebimentos advogados' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
