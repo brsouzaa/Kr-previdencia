@@ -21,8 +21,10 @@ const GRUPO_INFO = {
   divida: { label: 'Dívida', cor: VERMELHO },
 }
 const STATUS_INFO = {
-  pendente_aprovacao: { label: 'Aguard. aprovação', bg: '#FAEEDA', cor: LARANJA },
+  aguardando_aprovacao: { label: 'Aguard. aprovação', bg: '#FAEEDA', cor: LARANJA },
+  incompleto: { label: 'Incompleto (c/ solicitante)', bg: '#f3f4f6', cor: '#6b7280' },
   ajuste_solicitado: { label: 'Ajuste solicitado', bg: '#FAEEDA', cor: LARANJA },
+  vencido: { label: 'Vencido', bg: '#FCEBEB', cor: VERMELHO },
   aprovado: { label: 'Aprovado (a pagar)', bg: '#E6F1FB', cor: AZUL },
   aguardando_pagamento: { label: 'Aguard. pagamento', bg: '#E6F1FB', cor: AZUL },
   pago: { label: 'Pago', bg: '#EAF3DE', cor: VERDE },
@@ -108,7 +110,7 @@ function Contas({ profile }) {
 
   const filtradas = useMemo(() => {
     let l = linhas || []
-    if (fStatus === 'atrasado') l = l.filter(r => r.vencimento && r.vencimento < hojeStr && !['pago', 'cancelado', 'recusado'].includes(r.status))
+    if (fStatus === 'atrasado') l = l.filter(r => r.status === 'vencido' || (r.vencimento && r.vencimento < hojeStr && !['pago', 'cancelado', 'recusado'].includes(r.status)))
     else if (fStatus) l = l.filter(r => r.status === fStatus)
     if (fGrupo) l = l.filter(r => r.tipo_gasto === fGrupo)
     if (busca.trim()) {
@@ -126,9 +128,9 @@ function Contas({ profile }) {
     const l = linhas || []
     const soma = arr => arr.reduce((s, r) => s + Number(r.valor || 0), 0)
     const vivas = l.filter(r => !['cancelado', 'recusado'].includes(r.status))
-    const aprovacao = vivas.filter(r => ['pendente_aprovacao', 'ajuste_solicitado'].includes(r.status))
-    const aPagar = vivas.filter(r => ['aprovado', 'aguardando_pagamento'].includes(r.status))
-    const atrasadas = vivas.filter(r => r.status !== 'pago' && r.vencimento && r.vencimento < hojeStr)
+    const aprovacao = vivas.filter(r => ['aguardando_aprovacao', 'ajuste_solicitado', 'incompleto'].includes(r.status))
+    const aPagar = vivas.filter(r => ['aprovado', 'aguardando_pagamento', 'vencido'].includes(r.status))
+    const atrasadas = vivas.filter(r => r.status === 'vencido' || (r.status !== 'pago' && r.vencimento && r.vencimento < hojeStr))
     const pagas = vivas.filter(r => r.status === 'pago')
     return {
       aprovacao: soma(aprovacao), qAp: aprovacao.length,
@@ -207,8 +209,10 @@ function Contas({ profile }) {
         <select className="dc-in" value={fStatus} onChange={e => setFStatus(e.target.value)}>
           <option value="">Todos os status</option>
           <option value="atrasado">🔴 Atrasadas</option>
-          <option value="pendente_aprovacao">Aguardando aprovação</option>
+          <option value="aguardando_aprovacao">Aguardando aprovação</option>
           <option value="ajuste_solicitado">Ajuste solicitado</option>
+          <option value="incompleto">Incompleto</option>
+          <option value="vencido">Vencido</option>
           <option value="aprovado">Aprovadas (a pagar)</option>
           <option value="aguardando_pagamento">Aguardando pagamento</option>
           <option value="pago">Pagas</option>
@@ -241,8 +245,8 @@ function Contas({ profile }) {
                   const atrasada = r.vencimento && r.vencimento < hojeStr && !['pago', 'cancelado', 'recusado'].includes(r.status)
                   const st = STATUS_INFO[r.status] || { label: r.status, bg: '#f3f4f6', cor: '#6b7280' }
                   const g = GRUPO_INFO[r.tipo_gasto]
-                  const emAprovacao = ['pendente_aprovacao', 'ajuste_solicitado'].includes(r.status)
-                  const podePagar = ['aprovado', 'aguardando_pagamento'].includes(r.status)
+                  const emAprovacao = r.status === 'aguardando_aprovacao'
+                  const podePagar = ['aprovado', 'aguardando_pagamento', 'vencido'].includes(r.status)
                   const podeExcluir = r.status !== 'pago' && (ehAdmin || r.solicitante_id === profile.id)
                   const exp = aberta === r.id
                   const temLuna = r.analise_luna || r.risco_luna || r.recomendacao_luna
