@@ -52,6 +52,7 @@ const NAV_RESGATE = [
 const NAV_FINANCEIRO = [
   { key: 'despesas', label: '📋 Despesas & Custos' },
   { key: 'recebimentos', label: '💵 Recebimentos advogados' },
+  { key: 'financeiro', label: '💸 Financeiro (lançamentos)' },
 ]
 const NAV_RH = [
   { key: 'financeiro', label: '💸 Financeiro (despesas)' },
@@ -80,6 +81,7 @@ const NAV_ADMIN = [
   { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
   { key: 'despesas', label: '📋 Despesas & Custos' },
   { key: 'recebimentos', label: '💵 Recebimentos advogados' },
+  { key: 'financeiro', label: '💸 Financeiro (lançamentos)' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
