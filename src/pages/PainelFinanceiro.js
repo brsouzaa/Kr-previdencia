@@ -165,12 +165,12 @@ export default function PainelFinanceiro() {
   // Novos: DRE, agenda e pulso de caixa por período
   const [dre, setDre] = useState([])
   const [agenda, setAgenda] = useState([])
+  const [metas, setMetas] = useState(null)
   const [periodo, setPeriodo] = useState('mes') // hoje | semana | mes | perso
   const [persoIni, setPersoIni] = useState(ymd(new Date(hoje.getFullYear(), hoje.getMonth(), 1)))
   const [persoFim, setPersoFim] = useState(ymd(hoje))
   const [pulso, setPulso] = useState(null)
   const [detalhe, setDetalhe] = useState(null) // receita | despesa | resultado | cac | mkt | agenda
-  const [despesasMes, setDespesasMes] = useState(null)
 
   const podeVer = profile && (profile.role === 'admin' || profile.role === 'analista')
 
@@ -185,6 +185,7 @@ export default function PainelFinanceiro() {
     supabase.from('v_clientes_fechados_mes').select('*').then(({ data }) => setFechadosMes(data || []))
     supabase.from('v_dre_mensal').select('*').order('mes', { ascending: true }).then(({ data }) => setDre(data || []))
     supabase.from('v_fluxo_caixa_projetado').select('*').order('data_vencimento').then(({ data }) => setAgenda(data || []))
+    supabase.from('metas_financeiras').select('*').order('mes', { ascending: false }).limit(1).then(({ data }) => setMetas(data && data[0] ? data[0] : null))
   }, [profile])
 
   // Pulso de caixa: o que ENTROU e SAIU no período selecionado (dia/semana/mês/personalizado)
@@ -206,18 +207,6 @@ export default function PainelFinanceiro() {
       setPulso({ ini, fim, entrou, saiu, qtdEnt: (ent || []).length, qtdSai: (sai || []).length })
     })()
   }, [periodo, persoIni, persoFim, podeVer])
-
-  // Detalhe "despesa": carrega os lançamentos do mês corrente sob demanda
-  useEffect(() => {
-    if (!podeVer || (detalhe !== 'despesa' && detalhe !== 'mkt') || despesasMes !== null) return
-    const comp = `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}-01`
-    supabase.from('finance_requests')
-      .select('motivo, fornecedor_nome, tipo_gasto, categoria, valor, status, vencimento')
-      .eq('competencia', comp)
-      .in('status', ['aprovado', 'aguardando_pagamento', 'pago'])
-      .order('valor', { ascending: false })
-      .then(({ data }) => setDespesasMes(data || []))
-  }, [detalhe, podeVer])
 
   // ======= HOOK-FREE a partir daqui (early returns) =======
   if (!podeVer) {
@@ -385,6 +374,27 @@ export default function PainelFinanceiro() {
   const somaV = arr => arr.reduce((s, x) => s + Number(x.valor || 0), 0)
 
   // ============================================================
+  // METAS DO MÊS — réguas oficiais da KR sobre o faturamento
+  //   fixo+folha ≤ teto_fixo · marketing ≤ teto_mkt · comissão ≤ teto_com
+  //   imposto ≤ teto_imp · variável+dívida+sem grupo ≤ teto_var
+  // ============================================================
+  const metaFat = metas ? Number(metas.meta_faturamento || 0) : 0
+  const receitaAtual = Number(dreAtual.receita || 0)
+  const diasMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate()
+  const paceEsperado = metaFat > 0 ? metaFat * (hoje.getDate() / diasMes) : 0
+  const reguas = metas ? [
+    { nome: 'Fixo (c/ folha)', gasto: Number(dreAtual.fixo || 0) + folhaMes - Number(dreAtual.comissao || 0), tetoPct: Number(metas.teto_fixo_pct), cor: COR.laranja },
+    { nome: 'Marketing (c/ IA)', gasto: Number(dreAtual.marketing_total || 0), tetoPct: Number(metas.teto_marketing_pct), cor: COR.azul },
+    { nome: 'Comissão', gasto: Number(dreAtual.comissao || 0), tetoPct: Number(metas.teto_comissao_pct), cor: COR.roxo },
+    { nome: 'Imposto', gasto: Number(dreAtual.imposto || 0), tetoPct: Number(metas.teto_imposto_pct), cor: '#6b7280' },
+    { nome: 'Variáveis (resto)', gasto: Number(dreAtual.variavel || 0) + Number(dreAtual.divida || 0) + Number(dreAtual.sem_grupo || 0), tetoPct: Number(metas.teto_variavel_pct), cor: '#0F6E56' },
+  ].map(r => {
+    const tetoRS = metaFat * r.tetoPct / 100
+    const usoPct = tetoRS > 0 ? r.gasto / tetoRS * 100 : 0
+    return { ...r, tetoRS, usoPct, pctReceita: receitaAtual > 0 ? r.gasto / receitaAtual * 100 : null }
+  }) : []
+
+  // ============================================================
   // ANÁLISE AUTOMÁTICA — motor de regras sobre os dados do mês
   // ============================================================
   const alertas = []
@@ -428,6 +438,15 @@ export default function PainelFinanceiro() {
     .reduce((s, l) => s + Number(l.valor_total || 0), 0)
   if (receitaMes > 0 && inadNovaMes / receitaMes > 0.1)
     add('aviso', `Inadimplência nova neste mês: ${fmt(inadNovaMes)} (${fmtPct(inadNovaMes / receitaMes * 100)} da receita do mês). Acumulado em aberto: ${fmt(inadTotalValor)}. Obs: inadimplência não entra como despesa — é venda que não virou caixa.`, 'Acionar cobrança dos lotes vencidos.')
+  // Metas: estouro e proximidade de teto
+  reguas.forEach(r => {
+    if (r.usoPct > 100)
+      add('critico', `META ESTOURADA — ${r.nome}: ${fmt(r.gasto)} já passou o teto de ${fmt(r.tetoRS)} (${r.tetoPct}% da meta de ${fmtK(metaFat)}).`, 'Frear essa categoria ou revisar a meta.')
+    else if (r.usoPct >= 80)
+      add('aviso', `${r.nome} em ${r.usoPct.toFixed(0)}% do teto do mês (${fmt(r.gasto)} de ${fmt(r.tetoRS)}).`, 'Acompanhar antes de estourar.')
+  })
+  if (metaFat > 0 && receitaAtual < paceEsperado * 0.85)
+    add('aviso', `Receita abaixo do pace da meta: ${fmt(receitaAtual)} vs ${fmt(paceEsperado)} esperado pra hoje (meta ${fmtK(metaFat)}).`, 'Acelerar vendas/cobrança pra não perder o mês.')
   if (!alertas.length)
     add('ok', 'Nenhum alerta crítico. Números do mês dentro dos parâmetros.', '')
 
@@ -530,11 +549,11 @@ export default function PainelFinanceiro() {
       {/* KPIs DO MÊS — clique pra detalhar */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: 10 }}>
         {kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`, 'receita')}
-        {kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · sem mkt', 'despesa')}
-        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'desconta tudo, incl. mkt', 'resultado')}
-        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`, 'cac')}
+        {kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · detalhes em Despesas & Custos', null)}
         {kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita', 'mkt')}
+        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`, 'cac')}
         {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`, 'agenda')}
+        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'desconta tudo, incl. mkt', 'resultado')}
       </div>
 
       {/* PAINEL DE DETALHE do KPI clicado */}
@@ -554,54 +573,6 @@ export default function PainelFinanceiro() {
                     </div>
                   ))}
                 {pagosMes.length > 25 && <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 6 }}>+ {pagosMes.length - 25} lotes (recorte dos 25 maiores/recentes)</div>}
-              </>
-            )
-          })()}
-          {detalhe === 'despesa' && (() => {
-            const itens = despesasMes || []
-            const doGrupo = (g) => itens.filter(r => (r.tipo_gasto || 'sem_grupo') === g)
-            const GRUPOS_DET = [
-              ['folha', 'Folha', COR.roxo],
-              ['comissao', 'Comissão', COR.roxo],
-              ['fixo', 'Fixo', COR.laranja],
-              ['variavel', 'Variável', '#0F6E56'],
-              ['imposto', 'Imposto', '#6b7280'],
-              ['divida', 'Dívida', COR.vermelho],
-              ['sem_grupo', 'Sem grupo', '#9ca3af'],
-            ]
-            const temReceita = receitaMes > 0
-            return (
-              <>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-                  Despesa OPERACIONAL por categoria — total {fmt(dreAtual.despesa_operacional)}{temReceita ? ` (${fmtPct(dreAtual.pct_operacional)} da receita)` : ''}
-                  <span style={{ fontWeight: 400, color: '#9a9a96' }}> · marketing fica à parte (clique em Marketing)</span>
-                </div>
-                {despesasMes === null && <div style={{ fontSize: 12, color: '#9a9a96', padding: '6px 0' }}>Carregando lançamentos…</div>}
-                {GRUPOS_DET.map(([g, nome, cor]) => {
-                  const doG = doGrupo(g)
-                  const subtotal = doG.reduce((s, r) => s + Number(r.valor || 0), 0)
-                  if (subtotal <= 0) return null
-                  return (
-                    <div key={g} style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `${cor}12`, borderLeft: `4px solid ${cor}`, borderRadius: 8, padding: '7px 12px' }}>
-                        <b style={{ fontSize: 13, color: cor }}>{nome}</b>
-                        <span style={{ fontSize: 12.5 }}>
-                          <b>{fmt(subtotal)}</b>
-                          {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(subtotal / receitaMes * 100)} da receita</span>}
-                        </span>
-                      </div>
-                      {doG.map((r, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                          <span style={{ color: '#374151' }}>{(r.motivo || r.fornecedor_nome || '—').slice(0, 58)} · {r.status}{r.vencimento ? ` · vence ${r.vencimento.split('-').reverse().join('/')}` : ''}</span>
-                          <span>{fmt(r.valor)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })}
-                {despesasMes !== null && itens.filter(r => r.tipo_gasto !== 'marketing').length === 0 && (
-                  <div style={{ fontSize: 12, color: '#9a9a96' }}>Nenhuma despesa operacional neste mês ainda — folha, fixos e dívidas aparecem aqui quando lançados.</div>
-                )}
               </>
             )
           })()}
@@ -643,25 +614,14 @@ export default function PainelFinanceiro() {
           )}
           {detalhe === 'mkt' && (() => {
             const contasMes = gastos.filter(g => g.ano === hoje.getFullYear() && g.mes === hoje.getMonth() + 1)
-            const lancMkt = (despesasMes || []).filter(r => r.tipo_gasto === 'marketing')
-            const lancCapt = lancMkt.filter(r => (r.categoria || '').toLowerCase() === 'captacao')
-            const lancEstr = lancMkt.filter(r => (r.categoria || '').toLowerCase() === 'estrutura')
             const temReceita = receitaMes > 0
-            const bloco = (nome, cor, total, children) => total > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `${cor}12`, borderLeft: `4px solid ${cor}`, borderRadius: 8, padding: '7px 12px' }}>
-                  <b style={{ fontSize: 13, color: cor }}>{nome}</b>
-                  <span style={{ fontSize: 12.5 }}>
-                    <b>{fmt(total)}</b>
-                    {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(total / receitaMes * 100)} da receita</span>}
-                  </span>
-                </div>
-                {children}
-              </div>
-            )
-            const linha = (txt, v, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                <span style={{ color: '#374151' }}>{txt}</span><span>{fmt(v)}</span>
+            const linhaSub = (nome, cor, total) => total > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `${cor}12`, borderLeft: `4px solid ${cor}`, borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                <b style={{ fontSize: 13, color: cor }}>{nome}</b>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{fmt(total)}</b>
+                  {temReceita && <span style={{ color: '#5F5E5A' }}> · {fmtPct(total / receitaMes * 100)} da receita</span>}
+                </span>
               </div>
             )
             return (
@@ -669,21 +629,18 @@ export default function PainelFinanceiro() {
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
                   Marketing (investimento em aquisição) — {fmt(dreAtual.marketing_total)} ({fmtPct(dreAtual.pct_marketing)} da receita)
                 </div>
-                {despesasMes === null && <div style={{ fontSize: 12, color: '#9a9a96', padding: '4px 0' }}>Carregando lançamentos…</div>}
-                {bloco('🎯 Captação (tráfego, disparos)', COR.azul, Number(dreAtual.marketing_captacao || 0), (
-                  <>
-                    {contasMes.map((g, i) => linha(`${g.conta_nome || g.conta_id} — tráfego Meta c/ 13% imposto`, g.gasto_total, 'm' + i))}
-                    {lancCapt.map((r, i) => linha(`${(r.motivo || r.fornecedor_nome || '—').slice(0, 55)} · ${r.status}`, r.valor, 'c' + i))}
-                  </>
+                {linhaSub('🎯 Captação (tráfego, disparos)', COR.azul, Number(dreAtual.marketing_captacao || 0))}
+                {contasMes.map((g, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 12px', color: '#374151' }}>
+                    <span>{g.conta_nome || g.conta_id} — tráfego Meta c/ 13% imposto</span><span>{fmt(g.gasto_total)}</span>
+                  </div>
                 ))}
-                {bloco('🎬 Estrutura (video maker, design, conteúdo)', COR.roxo, Number(dreAtual.marketing_estrutura || 0), (
-                  <>{lancEstr.map((r, i) => linha(`${(r.motivo || r.fornecedor_nome || '—').slice(0, 55)} · ${r.status}`, r.valor, 'e' + i))}</>
-                ))}
+                {linhaSub('🎬 Estrutura (video maker, design, conteúdo)', COR.roxo, Number(dreAtual.marketing_estrutura || 0))}
                 {Number(dreAtual.marketing_estrutura || 0) === 0 && (
-                  <div style={{ fontSize: 11.5, color: '#9a9a96' }}>Estrutura zerada — lance video maker/design como Marketing → Estrutura no Financeiro pra separar aqui.</div>
+                  <div style={{ fontSize: 11.5, color: '#9a9a96' }}>Estrutura zerada — lance como Marketing → Estrutura no Financeiro.</div>
                 )}
                 <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 8 }}>
-                  Marketing é lido como investimento (mede-se por CAC e retorno), mas continua descontado no Resultado — saiu do caixa.
+                  Lançamento a lançamento fica na tela Despesas & Custos. Marketing é investimento na leitura, mas segue descontado no Resultado.
                 </div>
               </>
             )
@@ -724,6 +681,51 @@ export default function PainelFinanceiro() {
           )
         })}
       </div>
+
+      {/* METAS DO MÊS */}
+      {metas && (
+        <>
+          {secao('🎯 Metas do mês', <span style={{ fontSize: 11, color: '#9a9a96' }}>meta {fmtK(metaFat)} · réguas {reguas.map(r => r.tetoPct + '%').join(' / ')}</span>)}
+          <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem 1.25rem' }}>
+            {/* Faturamento vs meta */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+                <b style={{ color: '#111' }}>Faturamento</b>
+                <span style={{ color: '#5F5E5A' }}>
+                  <b style={{ color: receitaAtual >= paceEsperado ? COR.verde : COR.laranja }}>{fmt(receitaAtual)}</b>
+                  {' '}de {fmt(metaFat)} · {metaFat > 0 ? (receitaAtual / metaFat * 100).toFixed(1) : 0}%
+                  <span style={{ color: '#9a9a96' }}> · pace esperado hoje: {fmtK(paceEsperado)}</span>
+                </span>
+              </div>
+              <div style={{ height: 12, background: 'rgba(0,0,0,0.05)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ width: `${Math.min(metaFat > 0 ? receitaAtual / metaFat * 100 : 0, 100)}%`, height: '100%', background: COR.verde, borderRadius: 8 }} />
+                {metaFat > 0 && <div style={{ position: 'absolute', left: `${Math.min(paceEsperado / metaFat * 100, 100)}%`, top: 0, bottom: 0, width: 2, background: '#111', opacity: 0.5 }} title="pace esperado" />}
+              </div>
+            </div>
+            {/* Réguas de gasto */}
+            {reguas.map(r => {
+              const corBarra = r.usoPct > 100 ? COR.vermelho : r.usoPct >= 80 ? COR.laranja : COR.verde
+              return (
+                <div key={r.nome} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600, color: '#374151' }}>{r.nome} <span style={{ color: '#9a9a96', fontWeight: 400 }}>· teto {r.tetoPct}% = {fmtK(r.tetoRS)}</span></span>
+                    <span style={{ color: '#5F5E5A' }}>
+                      {fmt(r.gasto)} · <b style={{ color: corBarra }}>{r.usoPct.toFixed(0)}% do teto</b>
+                      {r.pctReceita != null && <span style={{ color: '#9a9a96' }}> · {r.pctReceita.toFixed(1)}% da receita real</span>}
+                    </span>
+                  </div>
+                  <div style={{ height: 8, background: 'rgba(0,0,0,0.05)', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(r.usoPct, 100)}%`, height: '100%', background: corBarra, borderRadius: 6 }} />
+                  </div>
+                </div>
+              )
+            })}
+            <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 8 }}>
+              Tetos em R$ calculados sobre a META de faturamento ({fmtK(metaFat)}). Soma das réguas = {reguas.reduce((s2, r) => s2 + r.tetoPct, 0)}% → margem alvo {100 - reguas.reduce((s2, r) => s2 + r.tetoPct, 0)}%.
+            </div>
+          </div>
+        </>
+      )}
 
       {/* GRÁFICO 6 MESES + COMPOSIÇÃO */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: 12, marginTop: 22 }}>
