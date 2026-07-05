@@ -65,8 +65,6 @@ export default function Financeiro() {
   const [aba, setAba] = useState('lancar');
 
   const role = perfil?.role;
-  const ehAdmin = role === 'admin';
-  const ehFinanceiro = role === 'financeiro' || ehAdmin;
 
   if (!perfil) {
     return <div className="fin-wrap"><Estilos /><div className="fin-vazio">Carregando…</div></div>;
@@ -75,13 +73,7 @@ export default function Financeiro() {
   const abas = [
     { key: 'lancar', label: 'Lançar despesa' },
     { key: 'minhas', label: 'Minhas solicitações' },
-    ...(ehAdmin ? [{ key: 'aprovar', label: 'Aprovar' }] : []),
-    ...(ehFinanceiro ? [{ key: 'pagar', label: 'Pagar' }] : []),
-    ...(ehFinanceiro ? [{ key: 'recorrentes', label: 'Fixas & Recorrentes' }] : []),
-    ...(ehFinanceiro ? [{ key: 'agenda', label: 'Agenda' }] : []),
-    ...(ehFinanceiro ? [{ key: 'resumo', label: 'Resumo (DRE)' }] : []),
-    ...(ehFinanceiro ? [{ key: 'recebimentos', label: 'Recebimentos advogados' }] : []),
-  ];
+  ]
 
   return (
     <div className="fin-wrap">
@@ -109,12 +101,6 @@ export default function Financeiro() {
       <main className="fin-main">
         {aba === 'lancar' && <Lancar perfil={perfil} onCriou={() => setAba('minhas')} />}
         {aba === 'minhas' && <Minhas perfil={perfil} />}
-        {aba === 'aprovar' && ehAdmin && <Aprovar />}
-        {aba === 'pagar' && ehFinanceiro && <Pagar />}
-        {aba === 'recorrentes' && ehFinanceiro && <Recorrentes perfil={perfil} />}
-        {aba === 'agenda' && ehFinanceiro && <Agenda />}
-        {aba === 'resumo' && ehFinanceiro && <ResumoDRE />}
-        {aba === 'recebimentos' && ehFinanceiro && <Recebimentos />}
       </main>
     </div>
   );
@@ -123,7 +109,7 @@ export default function Financeiro() {
 // ---------------------------------------------------------------------------
 // Lançar despesa
 // ---------------------------------------------------------------------------
-function Lancar({ perfil, onCriou }) {
+export function Lancar({ perfil, onCriou }) {
   const vazio = {
     valor: '', fornecedor_nome: '', fornecedor_documento: '', motivo: '',
     vencimento: '', forma_pagamento: '', categoria: '', tipo_gasto: '', competencia: '',
@@ -347,102 +333,9 @@ function Minhas({ perfil }) {
 }
 
 // ---------------------------------------------------------------------------
-// Aprovar (admin)
+// Recebimentos de advogados (usado pela página Recebimentos)
 // ---------------------------------------------------------------------------
-function Aprovar() {
-  const [itens, setItens] = useState(null);
-  const [erro, setErro] = useState('');
-
-  const carregar = useCallback(async () => {
-    setErro('');
-    const { data, error } = await supabase
-      .from('finance_requests').select('*')
-      .eq('status', 'aguardando_aprovacao')
-      .order('vencimento', { ascending: true });
-    if (error) setErro(error.message); else setItens(data || []);
-  }, []);
-  useEffect(() => { carregar(); }, [carregar]);
-
-  const decidir = async (fn, id, precisaMotivo) => {
-    let motivo;
-    if (precisaMotivo) {
-      motivo = window.prompt('Motivo:');
-      if (motivo == null) return;
-    }
-    const args = precisaMotivo ? { p_id: id, p_motivo: motivo } : { p_id: id };
-    const { error } = await supabase.rpc(fn, args);
-    if (error) { alert(error.message); return; }
-    carregar();
-  };
-
-  if (erro) return <div className="fin-erro">{erro}</div>;
-  if (itens === null) return <div className="fin-vazio">Carregando…</div>;
-  if (!itens.length) return <div className="fin-vazio">Nada aguardando aprovação agora.</div>;
-
-  return (
-    <div className="fin-lista">
-      {itens.map((r) => (
-        <Linha key={r.id} r={r} destaqueSemNF>
-          <button className="fin-btn fin-btn-primary fin-btn-sm"
-            onClick={() => decidir('finance_aprovar', r.id, false)}>Aprovar</button>
-          <button className="fin-btn fin-btn-ghost fin-btn-sm"
-            onClick={() => decidir('finance_solicitar_ajuste', r.id, true)}>Pedir ajuste</button>
-          <button className="fin-btn fin-btn-danger fin-btn-sm"
-            onClick={() => decidir('finance_recusar', r.id, true)}>Recusar</button>
-          <button className="fin-btn fin-btn-ghost fin-btn-sm"
-            onClick={() => { if (window.confirm('Excluir DE VEZ esta despesa? Isso apaga o registro e não dá pra desfazer.')) decidir('finance_excluir', r.id, false); }}>Excluir</button>
-        </Linha>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Pagar (financeiro / admin)
-// ---------------------------------------------------------------------------
-function Pagar() {
-  const [itens, setItens] = useState(null);
-  const [erro, setErro] = useState('');
-
-  const carregar = useCallback(async () => {
-    setErro('');
-    const { data, error } = await supabase
-      .from('finance_requests').select('*')
-      .in('status', ['aprovado', 'aguardando_pagamento'])
-      .order('vencimento', { ascending: true });
-    if (error) setErro(error.message); else setItens(data || []);
-  }, []);
-  useEffect(() => { carregar(); }, [carregar]);
-
-  const pagar = async (id) => {
-    const url = window.prompt('Link do comprovante (opcional — deixe em branco se anexar depois):', '');
-    if (url === null) return;
-    const { error } = await supabase.rpc('finance_marcar_pago', { p_id: id, p_comprovante_url: url || null });
-    if (error) { alert(error.message); return; }
-    carregar();
-  };
-
-  if (erro) return <div className="fin-erro">{erro}</div>;
-  if (itens === null) return <div className="fin-vazio">Carregando…</div>;
-  if (!itens.length) return <div className="fin-vazio">Nenhuma conta aprovada esperando pagamento.</div>;
-
-  return (
-    <div className="fin-lista">
-      {itens.map((r) => (
-        <Linha key={r.id} r={r} mostrarPix>
-          <button className="fin-btn fin-btn-primary fin-btn-sm" onClick={() => pagar(r.id)}>
-            Marcar paga</button>
-        </Linha>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Recebimentos de advogado (admin / financeiro) — fila de validação
-// A Luna só insere aqui. Validar/Rejeitar é humano. Validar+baixar toca o lote.
-// ---------------------------------------------------------------------------
-function Recebimentos() {
+export function Recebimentos() {
   const [itens, setItens] = useState(null);
   const [erro, setErro] = useState('');
 
@@ -544,7 +437,7 @@ const GRUPOS = [
 ];
 const GRUPO_LABEL = Object.fromEntries(GRUPOS);
 
-function Recorrentes({ perfil }) {
+export function Recorrentes({ perfil }) {
   const vazio = {
     nome: '', fornecedor_nome: '', valor: '', tipo_gasto: '', categoria: '',
     forma_pagamento: '', chave_pix: '', dia_vencimento: '', parcelas_total: '', observacao: '',
@@ -724,144 +617,6 @@ function Recorrentes({ perfil }) {
 // ---------------------------------------------------------------------------
 // Agenda — vencimentos dos próximos 90 dias (reais + projeção de recorrentes)
 // ---------------------------------------------------------------------------
-function Agenda() {
-  const [itens, setItens] = useState(null);
-  const [erro, setErro] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from('v_fluxo_caixa_projetado').select('*')
-        .order('data_vencimento', { ascending: true });
-      if (error) setErro(error.message); else setItens(data || []);
-    })();
-  }, []);
-
-  if (erro) return <div className="fin-erro">{erro}</div>;
-  if (itens === null) return <div className="fin-vazio">Carregando…</div>;
-  if (!itens.length) return <div className="fin-vazio">Nada na agenda dos próximos 90 dias. Cadastre as recorrentes e lance as despesas pra agenda ganhar vida.</div>;
-
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const em = (dias) => { const d = new Date(hoje); d.setDate(d.getDate() + dias); return d; };
-  const dv = (s) => new Date(s + 'T00:00:00');
-
-  const soma = (arr) => arr.reduce((a, x) => a + Number(x.valor || 0), 0);
-  const atrasados = itens.filter((x) => x.origem === 'lancamento' && dv(x.data_vencimento) < hoje);
-  const d7 = itens.filter((x) => dv(x.data_vencimento) >= hoje && dv(x.data_vencimento) < em(7));
-  const d30 = itens.filter((x) => dv(x.data_vencimento) >= hoje && dv(x.data_vencimento) < em(30));
-  const d90 = itens.filter((x) => dv(x.data_vencimento) >= hoje);
-
-  return (
-    <>
-      <div className="fin-grid" style={{ marginBottom: 14 }}>
-        <div className="fin-kpi" style={{ borderColor: atrasados.length ? '#b91c1c' : undefined }}>
-          <span className="fin-kpi-t" style={{ color: '#b91c1c' }}>Atrasado</span>
-          <b style={{ color: '#b91c1c' }}>{brl(soma(atrasados))}</b>
-          <span className="fin-kpi-s">{atrasados.length} conta(s)</span>
-        </div>
-        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 7 dias</span><b>{brl(soma(d7))}</b><span className="fin-kpi-s">{d7.length} conta(s)</span></div>
-        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 30 dias</span><b>{brl(soma(d30))}</b><span className="fin-kpi-s">{d30.length} conta(s)</span></div>
-        <div className="fin-kpi"><span className="fin-kpi-t">Próx. 90 dias</span><b>{brl(soma(d90))}</b><span className="fin-kpi-s">{d90.length} conta(s)</span></div>
-      </div>
-
-      <div className="fin-lista">
-        {itens.map((x, i) => {
-          const atrasado = x.origem === 'lancamento' && dv(x.data_vencimento) < hoje;
-          return (
-            <div key={i} className="fin-linha" style={atrasado ? { borderColor: '#b91c1c', background: '#fef2f2' } : undefined}>
-              <div className="fin-linha-info">
-                <div className="fin-linha-top">
-                  <b>{dataBR(x.data_vencimento)}</b>
-                  <span>{x.descricao || '—'}</span>
-                  {x.grupo && <span className="fin-badge" style={{ background: '#eef2ff', color: '#3730a3' }}>{GRUPO_LABEL[x.grupo] || x.grupo}</span>}
-                  {x.origem === 'projecao' && <span className="fin-badge" style={{ background: '#f3f4f6', color: '#6b7280' }}>projeção</span>}
-                  {atrasado && <span className="fin-badge" style={{ background: '#fee2e2', color: '#b91c1c' }}>ATRASADO</span>}
-                </div>
-                <div className="fin-linha-sub">{x.fornecedor_nome || ''}</div>
-              </div>
-              <div style={{ fontWeight: 600 }}>{brl(x.valor)}</div>
-            </div>
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Resumo (DRE) — receita, gasto por grupo e % sobre faturamento, mês a mês
-// ---------------------------------------------------------------------------
-function ResumoDRE() {
-  const [linhas, setLinhas] = useState(null);
-  const [erro, setErro] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from('v_dre_mensal').select('*')
-        .order('mes', { ascending: false }).limit(12);
-      if (error) setErro(error.message); else setLinhas(data || []);
-    })();
-  }, []);
-
-  if (erro) return <div className="fin-erro">{erro}</div>;
-  if (linhas === null) return <div className="fin-vazio">Carregando…</div>;
-  if (!linhas.length) return <div className="fin-vazio">Sem dados ainda.</div>;
-
-  const mesBR = (m) => {
-    const d = new Date(m + 'T00:00:00');
-    return d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-  };
-  const pct = (v) => (v == null ? '—' : `${Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`);
-
-  return (
-    <div className="fin-card" style={{ overflowX: 'auto' }}>
-      <table className="fin-tabela">
-        <thead>
-          <tr>
-            <th>Mês</th><th>Receita</th>
-            <th>Marketing</th><th>% Mkt</th>
-            <th>Pessoas (folha+comissão)</th><th>% Pessoas</th>
-            <th>Fixo</th><th>% Fixo</th>
-            <th>Outros*</th>
-            <th>Despesa total</th><th>% Custo</th>
-            <th>Resultado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => {
-            const outros = Number(l.variavel || 0) + Number(l.imposto || 0) + Number(l.divida || 0) + Number(l.sem_grupo || 0);
-            const pos = Number(l.resultado || 0) >= 0;
-            return (
-              <tr key={l.mes}>
-                <td><b>{mesBR(l.mes)}</b></td>
-                <td>{brl(l.receita)}</td>
-                <td>{brl(l.marketing_total)}</td>
-                <td>{pct(l.pct_marketing)}</td>
-                <td>{brl(Number(l.folha || 0) + Number(l.comissao || 0))}</td>
-                <td>{pct(l.pct_pessoas)}</td>
-                <td>{brl(l.fixo)}</td>
-                <td>{pct(l.pct_fixo)}</td>
-                <td>{brl(outros)}</td>
-                <td>{brl(l.despesa_total)}</td>
-                <td>{pct(l.pct_custo_total)}</td>
-                <td style={{ color: pos ? '#15803d' : '#b91c1c', fontWeight: 600 }}>{brl(l.resultado)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>
-        *Outros = variável + imposto + dívida + sem grupo. Receita = lotes pagos no mês · Marketing inclui o tráfego sincronizado.
-        O resultado só é real depois que folha e fixos estiverem cadastrados.
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Componentes auxiliares
-// ---------------------------------------------------------------------------
 function Linha({ r, children, destaqueSemNF, mostrarPix }) {
   return (
     <div className="fin-item">
@@ -903,7 +658,7 @@ function Campo({ label, req, full, children }) {
   );
 }
 
-function Estilos() {
+export function Estilos() {
   return (
     <style>{`
       .fin-wrap{--fin-ink:#0f1c1a;--fin-teal:#0f766e;--fin-teal-d:#0b5a54;--fin-line:#e5e7eb;--fin-soft:#f8fafa;font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--fin-ink);max-width:980px;margin:0 auto;padding:8px 16px 48px}
