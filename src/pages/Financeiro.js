@@ -111,11 +111,16 @@ export default function Financeiro() {
 // ---------------------------------------------------------------------------
 export function Lancar({ perfil, onCriou }) {
   const vazio = {
-    valor: '', fornecedor_nome: '', fornecedor_documento: '', motivo: '',
+    valor: '', fornecedor_nome: '', fornecedor_documento: '', motivo: '', funcionario_id: '',
     vencimento: '', forma_pagamento: '', categoria: '', tipo_gasto: '', competencia: '',
     chave_pix: '', boleto_linha_digitavel: '', possui_nota_fiscal: false, nota_fiscal_url: '',
   };
   const [f, setF] = useState(vazio);
+  const [funcionarios, setFuncionarios] = useState([]);
+  useEffect(() => {
+    supabase.from('profiles').select('id, nome, role').eq('ativo', true).order('nome')
+      .then(({ data }) => setFuncionarios(data || []));
+  }, []);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const [ok, setOk] = useState('');
@@ -126,7 +131,10 @@ export function Lancar({ perfil, onCriou }) {
     solicitante_id: perfil.id,
     solicitante_nome: perfil.nome || null,
     valor: f.valor === '' ? null : Number(f.valor),
-    fornecedor_nome: f.fornecedor_nome || null,
+    fornecedor_nome: (['folha','comissao'].includes(f.tipo_gasto)
+      ? (funcionarios.find(x => x.id === f.funcionario_id)?.nome || f.fornecedor_nome)
+      : f.fornecedor_nome) || null,
+    funcionario_id: ['folha','comissao'].includes(f.tipo_gasto) ? (f.funcionario_id || null) : null,
     fornecedor_documento: f.fornecedor_documento || null,
     motivo: f.motivo || null,
     vencimento: f.vencimento || null,
@@ -153,6 +161,7 @@ export function Lancar({ perfil, onCriou }) {
       if (!f.forma_pagamento) falta.push('forma de pagamento');
       if (!f.tipo_gasto) falta.push('tipo de gasto');
       if (f.tipo_gasto === 'marketing' && !['captacao', 'estrutura'].includes(f.categoria)) falta.push('tipo de marketing (captação/estrutura)');
+      if (['folha', 'comissao'].includes(f.tipo_gasto) && !f.funcionario_id) falta.push('funcionário vinculado');
       if (falta.length) { setErro('Para enviar, preencha: ' + falta.join(', ') + '.'); return; }
     }
     setSalvando(true);
@@ -230,6 +239,15 @@ export function Lancar({ perfil, onCriou }) {
             <option value="divida">Dívida / parcelamento</option>
           </select>
         </Campo>
+        {['folha', 'comissao'].includes(f.tipo_gasto) && (
+          <Campo label="Funcionário (usuário do sistema)" req>
+            <select className="fin-in" value={f.funcionario_id}
+              onChange={(e) => set('funcionario_id', e.target.value)}>
+              <option value="">Selecione…</option>
+              {funcionarios.map((x) => <option key={x.id} value={x.id}>{x.nome} · {x.role}</option>)}
+            </select>
+          </Campo>
+        )}
         <Campo label="Competência (mês do custo)">
           <input className="fin-in" type="month" value={f.competencia}
             onChange={(e) => set('competencia', e.target.value)} />
@@ -439,10 +457,15 @@ const GRUPO_LABEL = Object.fromEntries(GRUPOS);
 
 export function Recorrentes({ perfil }) {
   const vazio = {
-    nome: '', fornecedor_nome: '', valor: '', tipo_gasto: '', categoria: '',
+    nome: '', fornecedor_nome: '', valor: '', tipo_gasto: '', categoria: '', funcionario_id: '',
     forma_pagamento: '', chave_pix: '', dia_vencimento: '', parcelas_total: '', observacao: '',
   };
   const [f, setF] = useState(vazio);
+  const [funcionarios, setFuncionarios] = useState([]);
+  useEffect(() => {
+    supabase.from('profiles').select('id, nome, role').eq('ativo', true).order('nome')
+      .then(({ data }) => setFuncionarios(data || []));
+  }, []);
   const [itens, setItens] = useState(null);
   const [erro, setErro] = useState('');
   const [ok, setOk] = useState('');
@@ -466,11 +489,17 @@ export function Recorrentes({ perfil }) {
     if (f.tipo_gasto === 'marketing' && !['captacao', 'estrutura'].includes(f.categoria)) {
       setErro('Marketing precisa do tipo: Captação ou Estrutura.'); return;
     }
+    if (['folha', 'comissao'].includes(f.tipo_gasto) && !f.funcionario_id) {
+      setErro('Folha/Comissão precisa estar vinculada a um funcionário do sistema.'); return;
+    }
     setSalvando(true);
     try {
       const { error } = await supabase.from('despesas_recorrentes').insert({
         nome: f.nome,
-        fornecedor_nome: f.fornecedor_nome || null,
+        fornecedor_nome: (['folha','comissao'].includes(f.tipo_gasto)
+          ? (funcionarios.find(x => x.id === f.funcionario_id)?.nome || f.fornecedor_nome)
+          : f.fornecedor_nome) || null,
+        funcionario_id: ['folha','comissao'].includes(f.tipo_gasto) ? (f.funcionario_id || null) : null,
         valor: Number(f.valor),
         tipo_gasto: f.tipo_gasto,
         categoria: f.categoria || null,
@@ -538,6 +567,14 @@ export function Recorrentes({ perfil }) {
             <input className="fin-in" type="number" min="1" value={f.parcelas_total}
               onChange={(e) => set('parcelas_total', e.target.value)} placeholder="Ex.: 12 (dívida) · vazio (salário)" />
           </Campo>
+          {['folha', 'comissao'].includes(f.tipo_gasto) && (
+            <Campo label="Funcionário (usuário do sistema)" req>
+              <select className="fin-in" value={f.funcionario_id} onChange={(e) => set('funcionario_id', e.target.value)}>
+                <option value="">Selecione…</option>
+                {funcionarios.map((x) => <option key={x.id} value={x.id}>{x.nome} · {x.role}</option>)}
+              </select>
+            </Campo>
+          )}
           <Campo label="Fornecedor / credor">
             <input className="fin-in" value={f.fornecedor_nome} onChange={(e) => set('fornecedor_nome', e.target.value)} />
           </Campo>
