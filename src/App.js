@@ -39,6 +39,7 @@ import ResgateVendedor from './pages/ResgateVendedor'
 import Financeiro from './pages/Financeiro'
 import DespesasCustos from './pages/DespesasCustos'
 import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
+import MetasFinanceiras from './pages/MetasFinanceiras'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -86,7 +87,7 @@ function paginaPermitida(profile, page) {
   if (role === 'rh') return ['financeiro'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
-  if (role === 'analista') return ['dashboard','painel_financeiro','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
+  if (role === 'analista') return ['dashboard','painel_financeiro','metas_financeiras','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
@@ -161,6 +162,7 @@ function AppInner() {
     financeiro: <Financeiro />,
     despesas: <DespesasCustos />,
     recebimentos: <RecebimentosAdvogados />,
+    metas_financeiras: <MetasFinanceiras />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
