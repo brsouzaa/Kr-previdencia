@@ -383,7 +383,7 @@ export default function PainelFinanceiro() {
   const diasMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate()
   const paceEsperado = metaFat > 0 ? metaFat * (hoje.getDate() / diasMes) : 0
   const reguas = metas ? [
-    { nome: 'Fixo (c/ folha)', gasto: Number(dreAtual.fixo || 0) + folhaMes - Number(dreAtual.comissao || 0), tetoPct: Number(metas.teto_fixo_pct), cor: COR.laranja },
+    { nome: 'Fixo (c/ folha)', gasto: Number(dreAtual.fixo || 0) + Number(dreAtual.folha || 0), tetoPct: Number(metas.teto_fixo_pct), cor: COR.laranja },
     { nome: 'Marketing (c/ IA)', gasto: Number(dreAtual.marketing_total || 0), tetoPct: Number(metas.teto_marketing_pct), cor: COR.azul },
     { nome: 'Comissão', gasto: Number(dreAtual.comissao || 0), tetoPct: Number(metas.teto_comissao_pct), cor: COR.roxo },
     { nome: 'Imposto', gasto: Number(dreAtual.imposto || 0), tetoPct: Number(metas.teto_imposto_pct), cor: '#6b7280' },
