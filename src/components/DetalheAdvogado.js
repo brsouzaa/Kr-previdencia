@@ -21,6 +21,7 @@ const TITULO_STYLE = {
 }
 const PROD_STYLE = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
+  'Maternidade Mãe': { bg: '#FFF0E6', color: '#C2410C' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
   'Pensão por Morte': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
@@ -36,10 +37,17 @@ const PAG_STYLE = {
   nao_assinou: { bg: '#F1EFE8', color: '#888', label: 'Não assinou' },
 }
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
-const PRODUTOS = ['Maternidade', 'Pensão por Morte', 'Auxilio Acidente']
+const PRODUTOS = ['Maternidade', 'Maternidade Mãe', 'Pensão por Morte', 'Auxilio Acidente']
 
 // Tabela de preços por produto (fallback, sincronizado com produtos_precos do banco)
 const FALLBACK_TABELAS = {
+  'Maternidade Mãe': [
+    { qtd_min: 1, qtd_max: 10, preco: 499 },
+    { qtd_min: 11, qtd_max: 30, preco: 459 },
+    { qtd_min: 31, qtd_max: 50, preco: 439 },
+    { qtd_min: 51, qtd_max: 100, preco: 409 },
+    { qtd_min: 101, qtd_max: null, preco: 399 },
+  ],
   'Maternidade': [
     { qtd_min: 1, qtd_max: 4, preco: 449 },
     { qtd_min: 5, qtd_max: 9, preco: 399 },
