@@ -31,6 +31,19 @@ const DOCS_MATERNIDADE = [
   { key: 'outros', label: 'Outros' },
 ]
 
+// Documentos de Maternidade Mãe (bebê já nascido: certidão no lugar do comp. de gravidez)
+const DOCS_MATERNIDADE_MAE = [
+  { key: 'rg_frente', label: 'RG (frente)' },
+  { key: 'rg_verso', label: 'RG (verso)' },
+  { key: 'comprovante_residencia', label: 'Comp. residência' },
+  { key: 'certidao_nascimento_bebe', label: 'Certidão nascimento do bebê' },
+  { key: 'comprovante_bolsa_1', label: 'Bolsa Família 1' },
+  { key: 'comprovante_bolsa_2', label: 'Bolsa Família 2' },
+  { key: 'comprovante_bolsa_3', label: 'Bolsa Família 3' },
+  { key: 'cartao_sus', label: 'Cartão SUS' },
+  { key: 'outros', label: 'Outros' },
+]
+
 // Documentos de Pensão por Morte (chaves reais do campo documentos)
 const DOCS_PENSAO = [
   { key: 'rg_frente', label: 'RG titular (frente)' },
@@ -49,6 +62,7 @@ const DOCS_PENSAO = [
 // Estilo visual por produto (etiqueta/cor na lista)
 const PRODUTO_ESTILO = {
   'Maternidade': { cor: '#B0468E', fundo: '#FBEFF6', label: 'Maternidade' },
+  'Maternidade Mãe': { cor: '#C2410C', fundo: '#FFF0E6', label: 'Maternidade Mãe' },
   'Pensão por Morte': { cor: '#3F5A78', fundo: '#EDF1F6', label: 'Pensão por Morte' },
   'BPC': { cor: '#1E7A6F', fundo: '#E8F4F1', label: 'BPC' },
   'Auxilio Acidente': { cor: '#9A6A1F', fundo: '#F6EFE2', label: 'Auxílio Acidente' },
@@ -58,6 +72,7 @@ function estiloProduto(produto) {
 }
 // Lista de campos de anexo conforme o produto do cliente
 function docsDoProduto(produto) {
+  if (produto === 'Maternidade Mãe') return DOCS_MATERNIDADE_MAE
   if (produto === 'Pensão por Morte') return DOCS_PENSAO
   return DOCS_MATERNIDADE
 }
