@@ -38,6 +38,7 @@ const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','P
 
 const PRODUTOS = [
   { key: 'Maternidade', label: '🤰 Maternidade', cor: '#0F6E56' },
+  { key: 'Maternidade Mãe', label: '👶 Maternidade Mãe', cor: '#C2410C' },
   { key: 'BPC', label: '👴 BPC', cor: '#534AB7' },
   { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#854F0B' },
 ]
@@ -105,6 +106,9 @@ export default function NovoCliente({ onSucesso }) {
     observacao: '',
     // Campos extras (Maternidade)
     nis: '', data_prevista_parto: '', meses_gravidez: '',
+    // Campos extras (Maternidade Mãe) — mesmo schema dados_produto da Ana/B2C
+    data_nascimento_bebe: '', ja_trabalhou_clt: '', trabalhava_no_nascimento: '',
+    recebeu_seguro_desemprego: '', saida_emprego_mes_ano: '',
   })
 
   const [docs, setDocs] = useState({
@@ -236,13 +240,20 @@ export default function NovoCliente({ onSucesso }) {
     c.nis && c.data_prevista_parto && c.meses_gravidez.trim()
   )
 
+  // Campos extras Maternidade Mãe (bebê já nascido): data nascimento + vínculo CLT sempre;
+  // se já trabalhou CLT e NÃO trabalhava no nascimento, o mês/ano de saída é obrigatório.
+  const camposMaeOk = c.produto !== 'Maternidade Mãe' || (
+    c.data_nascimento_bebe && c.ja_trabalhou_clt !== '' && c.trabalhava_no_nascimento !== '' &&
+    (c.ja_trabalhou_clt !== 'sim' || c.trabalhava_no_nascimento === 'sim' || c.saida_emprego_mes_ano.trim())
+  )
+
   // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2
   const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
 
   // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
   const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
 
-  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && docsOk
+  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && docsOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
@@ -263,6 +274,20 @@ export default function NovoCliente({ onSucesso }) {
         payload.nis = c.nis
         payload.data_prevista_parto = c.data_prevista_parto
         payload.meses_gravidez = c.meses_gravidez
+      }
+
+      // Campos extras Maternidade Mãe -> dados_produto (mesmo schema da Ana/B2C)
+      if (c.produto === 'Maternidade Mãe') {
+        const jaClt = c.ja_trabalhou_clt === 'sim'
+        const trabNasc = c.trabalhava_no_nascimento === 'sim'
+        payload.dados_produto = {
+          data_nascimento_bebe: c.data_nascimento_bebe,
+          ja_trabalhou_clt: jaClt,
+          trabalhava_no_nascimento: trabNasc,
+          recebeu_seguro_desemprego: c.recebeu_seguro_desemprego === 'sim',
+          ...(jaClt && !trabNasc && c.saida_emprego_mes_ano.trim()
+            ? { saida_emprego_mes_ano: c.saida_emprego_mes_ano.trim() } : {}),
+        }
       }
 
       const { data, error } = await supabase.from('clientes').insert(payload).select().single()
@@ -287,7 +312,7 @@ export default function NovoCliente({ onSucesso }) {
   }
 
   function novoCadastro() {
-    setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'' })
+    setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'' })
     setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
@@ -342,6 +367,7 @@ export default function NovoCliente({ onSucesso }) {
                 <div style={{ color: p.cor, fontWeight: 600 }}>{p.label.split(' ').slice(1).join(' ')}</div>
                 <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
                   {p.key === 'Maternidade' ? 'Salário-maternidade — pede NIS, data do parto e meses de gravidez' :
+                   p.key === 'Maternidade Mãe' ? 'Bebê já nascido (retroativo) — pede data de nascimento e vínculo CLT' :
                    p.key === 'BPC' ? 'BPC/LOAS — Benefício de Prestação Continuada' :
                    'Auxílio acidente do INSS'}
                 </div>
@@ -546,6 +572,57 @@ export default function NovoCliente({ onSucesso }) {
                 )}
               </select>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* === CAMPOS EXTRAS MATERNIDADE MÃE === */}
+      {c.produto === 'Maternidade Mãe' && (
+        <div style={s.card}>
+          <div style={s.sectionTitle}>Informações da maternidade (bebê já nascido)</div>
+          <div style={s.grid3}>
+            <div>
+              <label style={s.label}>Data de nascimento do bebê *</label>
+              <input style={s.input} type="date" value={c.data_nascimento_bebe}
+                onChange={e => set('data_nascimento_bebe', e.target.value)} />
+            </div>
+            <div>
+              <label style={s.label}>Já trabalhou de carteira assinada (CLT)? *</label>
+              <select style={s.input} value={c.ja_trabalhou_clt}
+                onChange={e => set('ja_trabalhou_clt', e.target.value)}>
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+            <div>
+              <label style={s.label}>Estava trabalhando quando o bebê nasceu? *</label>
+              <select style={s.input} value={c.trabalhava_no_nascimento}
+                onChange={e => set('trabalhava_no_nascimento', e.target.value)}>
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+          </div>
+          <div style={s.grid2}>
+            <div>
+              <label style={s.label}>Recebeu seguro-desemprego?</label>
+              <select style={s.input} value={c.recebeu_seguro_desemprego}
+                onChange={e => set('recebeu_seguro_desemprego', e.target.value)}>
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+            {c.ja_trabalhou_clt === 'sim' && c.trabalhava_no_nascimento === 'nao' && (
+              <div>
+                <label style={s.label}>Mês/ano que saiu do último emprego *</label>
+                <input style={s.input} value={c.saida_emprego_mes_ano}
+                  onChange={e => set('saida_emprego_mes_ano', e.target.value.replace(/[^\d/]/g, '').slice(0, 7))}
+                  placeholder="MM/AAAA" inputMode="numeric" />
+              </div>
+            )}
           </div>
         </div>
       )}
