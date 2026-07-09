@@ -22,6 +22,21 @@ const s = {
   empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
   loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
   status: { fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500 },
+  // --- Painel do topo ---
+  painel: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
+  filtros: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
+  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', background: '#fff', color: '#666', cursor: 'pointer' },
+  fBtnOn: { background: '#185FA5', color: '#fff', borderColor: '#185FA5' },
+  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', color: '#333' },
+  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 },
+  kpi: { border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '10px 12px' },
+  kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6 },
+  kpiNum: { fontSize: 24, fontWeight: 500, lineHeight: 1 },
+  kpiSub: { fontSize: 11, color: '#888', marginTop: 4 },
+  reguaBox: { borderRadius: 10, padding: '12px 14px', border: '0.5px solid' },
+  barraBg: { height: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden', marginTop: 8, position: 'relative' },
+  barraFill: { height: '100%', borderRadius: 99, transition: 'width .3s' },
+  marca: { position: 'absolute', top: -3, width: 1.5, height: 14, background: 'rgba(0,0,0,0.35)' },
 }
 
 const STATUS_STYLE = {
@@ -42,6 +57,65 @@ export default function Reposicoes() {
   const [reposicoes, setReposicoes] = useState([])
   const [loading, setLoading] = useState(true)
   const [acaoEmCurso, setAcaoEmCurso] = useState(null)
+
+  // --- Painel do topo: período + resumo por status + régua de saúde ---
+  const [periodo, setPeriodo] = useState('mes') // dia | semana | mes | custom
+  const [dtIni, setDtIni] = useState('')
+  const [dtFim, setDtFim] = useState('')
+  const [resumo, setResumo] = useState(null)   // { pendente:{...}, aprovado:{...}, negado:{...} }
+  const [regua, setRegua] = useState(null)     // { clientes_fechados, repostos_aprovados, pct, teto_alerta, teto_bloqueio, situacao }
+  const [loadingPainel, setLoadingPainel] = useState(true)
+  const [refreshPainel, setRefreshPainel] = useState(0)
+
+  // Calcula o intervalo [inicio, fim) da janela escolhida
+  function intervalo() {
+    const agora = new Date()
+    if (periodo === 'dia') {
+      const i = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate())
+      const f = new Date(i); f.setDate(f.getDate() + 1)
+      return [i, f]
+    }
+    if (periodo === 'semana') {
+      const diaSem = agora.getDay() // 0=dom
+      const i = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - diaSem)
+      const f = new Date(i); f.setDate(f.getDate() + 7)
+      return [i, f]
+    }
+    if (periodo === 'custom' && dtIni && dtFim) {
+      const i = new Date(dtIni + 'T00:00:00')
+      const f = new Date(dtFim + 'T00:00:00'); f.setDate(f.getDate() + 1) // fim inclusivo
+      return [i, f]
+    }
+    // mes (default)
+    const i = new Date(agora.getFullYear(), agora.getMonth(), 1)
+    const f = new Date(agora.getFullYear(), agora.getMonth() + 1, 1)
+    return [i, f]
+  }
+
+  useEffect(() => {
+    let cancelado = false
+    async function carregaPainel() {
+      if (periodo === 'custom' && (!dtIni || !dtFim)) return
+      setLoadingPainel(true)
+      const [ini, fim] = intervalo()
+      const pIni = ini.toISOString()
+      const pFim = fim.toISOString()
+
+      const [{ data: resArr }, { data: regArr }] = await Promise.all([
+        supabase.rpc('reposicao_resumo_periodo', { p_inicio: pIni, p_fim: pFim }),
+        supabase.rpc('pct_reposicao_periodo', { p_inicio: pIni, p_fim: pFim, p_repostos_extra: 0 }),
+      ])
+      if (cancelado) return
+
+      const mapa = { pendente: null, aprovado: null, negado: null }
+      for (const r of (resArr || [])) mapa[r.status] = r
+      setResumo(mapa)
+      setRegua(Array.isArray(regArr) ? regArr[0] : regArr)
+      setLoadingPainel(false)
+    }
+    carregaPainel()
+    return () => { cancelado = true }
+  }, [periodo, dtIni, dtFim, refreshPainel])
 
   useEffect(() => {
     let cancelado = false
@@ -123,6 +197,7 @@ export default function Reposicoes() {
     }
     // Remove da lista atual
     setReposicoes(reposicoes.filter(r => r.id !== lote.id))
+    setRefreshPainel(v => v + 1)
   }
 
   async function negar(lote) {
@@ -136,12 +211,116 @@ export default function Reposicoes() {
     if (error) { alert('Erro: ' + error.message); return }
     
     setReposicoes(reposicoes.filter(r => r.id !== lote.id))
+    setRefreshPainel(v => v + 1)
   }
 
   return (
     <div>
       <div style={s.title}>🔄 Reposições</div>
       <div style={s.subtitle}>Solicitações de reposição feitas pelas vendedoras B2B. Aprovadas viram contratos grátis na fila de entrega.</div>
+
+      {/* ===== PAINEL: período + KPIs + régua ===== */}
+      <div style={s.painel}>
+        <div style={s.filtros}>
+          {[['dia','Hoje'], ['semana','Semana'], ['mes','Mês'], ['custom','Personalizado']].map(([k, label]) => (
+            <button key={k} onClick={() => setPeriodo(k)}
+              style={{ ...s.fBtn, ...(periodo === k ? s.fBtnOn : {}) }}>
+              {label}
+            </button>
+          ))}
+          {periodo === 'custom' && (
+            <>
+              <input type="date" style={s.dateInput} value={dtIni} onChange={e => setDtIni(e.target.value)} />
+              <span style={{ fontSize: 12, color: '#888' }}>até</span>
+              <input type="date" style={s.dateInput} value={dtFim} onChange={e => setDtFim(e.target.value)} />
+            </>
+          )}
+        </div>
+
+        {periodo === 'custom' && (!dtIni || !dtFim) && (
+          <div style={{ fontSize: 12, color: '#888' }}>Escolha as duas datas para ver os números.</div>
+        )}
+
+        {loadingPainel && !(periodo === 'custom' && (!dtIni || !dtFim)) && (
+          <div style={{ fontSize: 12, color: '#888' }}>Calculando...</div>
+        )}
+
+        {!loadingPainel && resumo && (
+          <>
+            <div style={s.kpis}>
+              {[
+                ['pendente', 'Pendentes', '#854F0B', '#FFF8E7'],
+                ['aprovado', 'Aprovadas', '#3B6D11', '#EAF3DE'],
+                ['negado', 'Negadas', '#A32D2D', '#FCEBEB'],
+              ].map(([k, label, cor, bg]) => {
+                const r = resumo[k]
+                const advs = r ? Number(r.advogados) : 0
+                const cts = r ? Number(r.contratos) : 0
+                const sols = r ? Number(r.solicitacoes) : 0
+                return (
+                  <div key={k} style={{ ...s.kpi, background: bg, borderColor: cor + '30' }}>
+                    <div style={{ ...s.kpiTop, color: cor }}>{label}</div>
+                    <div style={{ ...s.kpiNum, color: cor }}>{cts}</div>
+                    <div style={s.kpiSub}>
+                      contrato{cts !== 1 ? 's' : ''} · <strong>{advs}</strong> advogado{advs !== 1 ? 's' : ''} · {sols} solicitaç{sols !== 1 ? 'ões' : 'ão'}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Régua de saúde: mesma regra do sistema (15% alerta / 20% bloqueio sobre fechados) */}
+            {regua && (() => {
+              const sit = regua.situacao
+              const semBase = sit === 'sem_base'
+              const cor = semBase ? '#888' : sit === 'bloqueio' ? '#A32D2D' : sit === 'alerta' ? '#854F0B' : '#3B6D11'
+              const bg = semBase ? '#FAFAFA' : sit === 'bloqueio' ? '#FCEBEB' : sit === 'alerta' ? '#FFF8E7' : '#EAF3DE'
+              const rotulo = semBase ? 'Sem base' : sit === 'bloqueio' ? 'Bloqueio' : sit === 'alerta' ? 'Alerta' : 'Saudável'
+              const pct = Number(regua.pct || 0)
+              const fechados = Number(regua.clientes_fechados || 0)
+              const pendCt = resumo.pendente ? Number(resumo.pendente.contratos) : 0
+              const pctSeAprovarTudo = fechados > 0
+                ? Math.round(((Number(regua.repostos_aprovados || 0) + pendCt) / fechados) * 1000) / 10
+                : null
+              return (
+                <div style={{ ...s.reguaBox, background: bg, borderColor: cor + '40' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: cor }}>
+                      Taxa de reposição: {semBase ? '—' : `${pct}%`} · {rotulo}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#666' }}>
+                      {regua.repostos_aprovados} repostos sobre {fechados} fechados
+                    </div>
+                  </div>
+
+                  {!semBase && (
+                    <div style={s.barraBg}>
+                      <div style={{ ...s.barraFill, width: `${Math.min(pct / 25 * 100, 100)}%`, background: cor }} />
+                      <div style={{ ...s.marca, left: `${15 / 25 * 100}%` }} title="Alerta 15%" />
+                      <div style={{ ...s.marca, left: `${20 / 25 * 100}%` }} title="Bloqueio 20%" />
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 8 }}>
+                    Alerta ≥15% · bloqueio &gt;20% dos fechados. Tetos no período: {regua.teto_alerta} / {regua.teto_bloqueio} reposições.
+                    {periodo === 'dia' && ' Base diária é pequena — a % oscila muito.'}
+                  </div>
+
+                  {pctSeAprovarTudo != null && pendCt > 0 && (
+                    <div style={{
+                      fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.08)',
+                      color: pctSeAprovarTudo > 20 ? '#A32D2D' : pctSeAprovarTudo >= 15 ? '#854F0B' : '#3B6D11', fontWeight: 500,
+                    }}>
+                      {pctSeAprovarTudo > 20 ? '🚫' : pctSeAprovarTudo >= 15 ? '⚠️' : '✓'} Se aprovar as {pendCt} pendentes: <strong>{pctSeAprovarTudo}%</strong>
+                      {pctSeAprovarTudo > 20 && ' — o sistema vai bloquear parte delas.'}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </>
+        )}
+      </div>
 
       <div style={s.tabs}>
         {['pendente', 'aprovado', 'negado'].map(k => (
