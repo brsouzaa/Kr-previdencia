@@ -37,11 +37,16 @@ function tempoNaFila(dt) {
   return `${Math.floor(h/24)}d`
 }
 
-// lote tem vaga = (assinados + aguardando_assinatura) < total. Mesma regra do "advogado da vez".
+// Mesma lista de status "vivos" que a edge (gerar-contratos-zapsign) usa pra decidir vaga.
+// Antes a tela usava qtd_assinados (contador do card, que dessincroniza) + emitido — isso pintava
+// o lote de amarelo/"cheio" mesmo com vaga real. Agora conta os clientes vivos de verdade.
+const STATUS_VIVOS_LOTE = ['emitido','assinado','em_validacao','validado','aguardando_pos_venda','em_contato_pos_venda','aguardando_revisao_ia','entregue']
+function contarVivosLote(l) {
+  return (l.clientes || []).filter(c => STATUS_VIVOS_LOTE.includes(c.status)).length
+}
+// lote tem vaga = vivos < total. Mesma regra do "advogado da vez" (edge).
 function loteTemVaga(l) {
-  const aguardando = (l.clientes || []).filter(c => c.status === 'emitido').length
-  const assinados = l.qtd_assinados || 0
-  return (assinados + aguardando) < (l.total_contratos || 0)
+  return contarVivosLote(l) < (l.total_contratos || 0)
 }
 
 export default function FilaDigitacao() {
@@ -75,13 +80,8 @@ export default function FilaDigitacao() {
       .order('data_compra', { ascending: true })
       .limit(60)
 
-    // Regra v2: lote disponivel se (assinados + aguardando_assinatura) < total
-    // qtd_assinados = card (vem do banco). aguardando_assinatura = clientes com status='emitido'
-    const disponivel = (lotes || []).find(l => {
-      const aguardando = (l.clientes || []).filter(c => c.status === 'emitido').length
-      const assinados = l.qtd_assinados || 0
-      return (assinados + aguardando) < (l.total_contratos || 0)
-    })
+    // lote disponivel = vivos < total (mesma regra da edge, via contarVivosLote)
+    const disponivel = (lotes || []).find(l => loteTemVaga(l))
     setProximoLote(disponivel || null)
     setLotesFila(lotes || [])
     setClientes(cs || [])
@@ -195,8 +195,7 @@ export default function FilaDigitacao() {
           </div>
         ) : (
           ordemManual.map((l, i) => {
-            const emitidos = (l.clientes || []).filter(c => c.status === 'emitido').length
-            const ocupado = (l.qtd_assinados || 0) + emitidos
+            const ocupado = contarVivosLote(l)
             const cheio = ocupado >= (l.total_contratos || 0)
             return (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: i === 0 ? '#FEF3C7' : '#f8f8f6', borderRadius: 8, marginBottom: 6 }}>
@@ -224,8 +223,7 @@ export default function FilaDigitacao() {
               <div style={{ fontSize: 13, color: '#888' }}>Nenhum lote disponível com vaga.</div>
             ) : (
               disponiveis.map(l => {
-                const emitidos = (l.clientes || []).filter(c => c.status === 'emitido').length
-                const ocupado = (l.qtd_assinados || 0) + emitidos
+                const ocupado = contarVivosLote(l)
                 return (
                   <div key={l.id} onClick={() => adicionarNaOrdem(l.id)}
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8f8f6', borderRadius: 8, marginBottom: 6, cursor: 'pointer' }}>
@@ -252,7 +250,7 @@ export default function FilaDigitacao() {
           <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLote.advogados.nome_completo}</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLote.advogados.estado} {proximoLote.advogados.oab}</div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-            Lote: {(proximoLote.qtd_assinados || 0) + ((proximoLote.clientes || []).filter(c => c.status === 'emitido').length)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}
+            Lote: {contarVivosLote(proximoLote)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}
           </div>
         </div>
       ) : (
