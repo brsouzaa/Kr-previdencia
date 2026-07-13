@@ -74,6 +74,7 @@ function paginaInicial(role) {
   if (role === 'coordenador_b2c') return 'painel_coordenador'
   if (role === 'vendedor_operador') return 'meus_clientes'
   if (role === 'pos_venda') return 'pos_venda'
+  if (role === 'simulador_emprestimo') return 'simulacao_emprestimo'
   return 'dashboard'
 }
 
@@ -93,6 +94,7 @@ function paginaPermitida(profile, page) {
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
+  if (role === 'simulador_emprestimo') return ['simulacao_emprestimo'].includes(page)
   return false
 }
 
