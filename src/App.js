@@ -32,6 +32,7 @@ import DashboardProducao from './pages/DashboardProducao'
 import Metas from './pages/Metas'
 import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
+import SimulacaoEmprestimo from './pages/SimulacaoEmprestimo'
 import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
 import ParceriaPensao from './pages/ParceriaPensao'
 import Resgate from './pages/Resgate'
@@ -156,6 +157,7 @@ function AppInner() {
     metas: <Metas />,
     bi: <BIBruno />,
     reposicoes: <Reposicoes />,
+    simulacao_emprestimo: <SimulacaoEmprestimo />,
     resgate: <Resgate />,
     resgate_vendedor: <ResgateVendedor />,
     distribuicao_gabriela: <DistribuicaoGabriela />,
