@@ -89,6 +89,7 @@ const NAV_ADMIN = [
   { key: 'metas', label: '🎯 Metas' },
   { key: 'bi', label: '📊 BI Bruno' },
   { key: 'reposicoes', label: '🔄 Reposições' },
+  { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
   { key: 'fila', label: '📦 Fila de entregas' },
