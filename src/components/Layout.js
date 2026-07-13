@@ -47,6 +47,9 @@ const NAV_POS_VENDA = [
   { key: 'pos_venda', label: '📞 Fila de pós-venda' },
   { key: 'pos_venda_historico', label: '📚 Histórico' },
 ]
+const NAV_SIMULADOR_EMPRESTIMO = [
+  { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
+]
 const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
@@ -134,6 +137,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'financeiro' ? NAV_FINANCEIRO
     : profile?.role === 'rh' ? NAV_RH
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
+    : profile?.role === 'simulador_emprestimo' ? NAV_SIMULADOR_EMPRESTIMO
     : NAV_VENDEDOR
 
   // Coordenadora de autônomos não vê itens marcados como soCaptacao
