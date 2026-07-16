@@ -17,6 +17,7 @@ const TITULOS_CLASS = {
 }
 const PROD_CLASS = {
   'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
+  'Gestante até 5 meses': { bg: '#E0F2FE', color: '#0369A1' },
   'BPC': { bg: '#EEEDFE', color: '#534AB7' },
   'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
 }
@@ -103,6 +104,7 @@ export default function Advogados() {
         <select style={s.select} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos os produtos</option>
           <option value="Maternidade">Maternidade</option>
+          <option value="Gestante até 5 meses">Gestante até 5 meses</option>
           <option value="BPC">BPC</option>
           <option value="Auxilio Acidente">Auxílio Acidente</option>
         </select>
