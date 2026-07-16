@@ -38,6 +38,7 @@ const STATUS_LABELS = {
 
 export default function FilaEntregas() {
   const [lotes, setLotes] = useState([])
+  const [filtroProduto, setFiltroProduto] = useState('')
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState({})
   const [profile, setProfile] = useState(null)
@@ -259,22 +260,33 @@ export default function FilaEntregas() {
     setSalvandoEntrega(false)
   }
 
-  const totalContratos = lotes.reduce((s, l) => s + l.total_contratos, 0)
-  const totalEntregues = lotes.reduce((s, l) => s + (l.qtd_entregues || 0), 0)
-  const vencendoHoje = lotes.filter(l => { const r = diasRestantes(l.data_limite_entrega); return r !== null && r <= 1 }).length
+  // Filtro por produto (fila separada por produto)
+  const PRODUTOS_FILA = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'BPC', 'Auxilio Acidente']
+  const lotesFiltrados = filtroProduto ? lotes.filter(l => (l.produto || 'Maternidade') === filtroProduto) : lotes
+
+  const totalContratos = lotesFiltrados.reduce((s, l) => s + l.total_contratos, 0)
+  const totalEntregues = lotesFiltrados.reduce((s, l) => s + (l.qtd_entregues || 0), 0)
+  const vencendoHoje = lotesFiltrados.filter(l => { const r = diasRestantes(l.data_limite_entrega); return r !== null && r <= 1 }).length
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando fila...</div>
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📦 Fila de entregas</div>
-        <div style={{ fontSize: 13, color: '#888' }}>Confira docs e contratos · monte a pasta no Drive · entregue · {lotes.length} pedido{lotes.length !== 1 ? 's' : ''} na fila</div>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📦 Fila de entregas</div>
+          <div style={{ fontSize: 13, color: '#888' }}>Confira docs e contratos · monte a pasta no Drive · entregue · {lotesFiltrados.length} pedido{lotesFiltrados.length !== 1 ? 's' : ''} na fila{filtroProduto ? ` · ${filtroProduto}` : ''}</div>
+        </div>
+        <select value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}
+          style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none', cursor: 'pointer' }}>
+          <option value="">Todos os produtos</option>
+          {PRODUTOS_FILA.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: '1.5rem' }}>
         {[
-          ['Na fila', lotes.length, '#185FA5', '#E6F1FB'],
+          ['Na fila', lotesFiltrados.length, '#185FA5', '#E6F1FB'],
           ['Pendentes', totalContratos - totalEntregues, '#854F0B', '#FAEEDA'],
           ['Entregues', totalEntregues, '#3B6D11', '#EAF3DE'],
           ['Vencem hoje', vencendoHoje, '#A32D2D', '#FCEBEB'],
@@ -286,14 +298,14 @@ export default function FilaEntregas() {
         ))}
       </div>
 
-      {lotes.length === 0 && (
+      {lotesFiltrados.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.08)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#555' }}>Fila vazia — nenhum lote aguardando entrega</div>
         </div>
       )}
 
-      {lotes.map((lote, idx) => {
+      {lotesFiltrados.map((lote, idx) => {
         const restam = diasRestantes(lote.data_limite_entrega)
         const chegouHa = diasDesde(lote.data_compra)
         const u = urgencia(restam)
