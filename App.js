@@ -8,6 +8,7 @@ import Funil from './pages/Funil'
 import Compras from './pages/Compras'
 import Equipe from './pages/Equipe'
 import Dashboard from './pages/Dashboard'
+import PainelFinanceiro from './pages/PainelFinanceiro'
 import MeuLink from './pages/MeuLink'
 import FilaEntregas from './pages/FilaEntregas'
 import GerarContratos from './pages/GerarContratos'
@@ -31,7 +32,16 @@ import DashboardProducao from './pages/DashboardProducao'
 import Metas from './pages/Metas'
 import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
+import SimulacaoEmprestimo from './pages/SimulacaoEmprestimo'
+import AcompanhamentoMae from './pages/AcompanhamentoMae'
 import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
+import ParceriaPensao from './pages/ParceriaPensao'
+import Resgate from './pages/Resgate'
+import ResgateVendedor from './pages/ResgateVendedor'
+import Financeiro from './pages/Financeiro'
+import DespesasCustos from './pages/DespesasCustos'
+import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
+import MetasFinanceiras from './pages/MetasFinanceiras'
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -55,6 +65,9 @@ function PortalRoute() {
 
 function paginaInicial(role) {
   if (role === 'produtor') return 'contratos'
+  if (role === 'resgate') return 'resgate'
+  if (role === 'financeiro') return 'despesas'
+  if (role === 'rh') return 'financeiro'
   if (role === 'supervisor_producao') return 'fila_digitacao'
   if (role === 'supervisor_visualizacao') return 'supervisor_producao'
   if (role === 'analista') return 'entregas'
@@ -62,20 +75,29 @@ function paginaInicial(role) {
   if (role === 'coordenador_b2c') return 'painel_coordenador'
   if (role === 'vendedor_operador') return 'meus_clientes'
   if (role === 'pos_venda') return 'pos_venda'
+  if (role === 'simulador_emprestimo') return 'simulacao_emprestimo'
   return 'dashboard'
 }
 
-function paginaPermitida(role, page) {
+function paginaPermitida(profile, page) {
+  const role = profile.role
+  // Setor resgate vê a tela da ala
+  if (profile.setor === 'resgate' && page === 'resgate') return true
+  // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
+  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
   if (role === 'admin') return true
-  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes'].includes(page)
+  if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
+  if (role === 'financeiro') return ['financeiro','despesas','recebimentos'].includes(page)
+  if (role === 'rh') return ['financeiro'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
-  if (role === 'analista') return ['dashboard','advogados','entregas','fila','ranking','supervisor_producao','devolucoes'].includes(page)
+  if (role === 'analista') return ['dashboard','painel_financeiro','metas_financeiras','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
   if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
+  if (role === 'simulador_emprestimo') return ['simulacao_emprestimo'].includes(page)
   return false
 }
 
@@ -91,6 +113,9 @@ function AppInner() {
 
   const isPortal = window.location.pathname.startsWith('/cadastro/')
   if (isPortal) return <PortalRoute />
+
+  const isParceriaPensao = window.location.pathname.startsWith('/parceria-pensao')
+  if (isParceriaPensao) return <ParceriaPensao />
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6' }}>
@@ -111,6 +136,7 @@ function AppInner() {
 
   const pages = {
     dashboard: <Dashboard />,
+    painel_financeiro: <PainelFinanceiro />,
     advogados: <Advogados />,
     funil: <Funil />,
     compras: <Compras />,
@@ -136,10 +162,18 @@ function AppInner() {
     metas: <Metas />,
     bi: <BIBruno />,
     reposicoes: <Reposicoes />,
+    simulacao_emprestimo: <SimulacaoEmprestimo />,
+    acompanhamento_mae: <AcompanhamentoMae />,
+    resgate: <Resgate />,
+    resgate_vendedor: <ResgateVendedor />,
     distribuicao_gabriela: <DistribuicaoGabriela />,
+    financeiro: <Financeiro />,
+    despesas: <DespesasCustos />,
+    recebimentos: <RecebimentosAdvogados />,
+    metas_financeiras: <MetasFinanceiras />,
   }
 
-  const paginaSegura = paginaPermitida(profile.role, page) ? page : paginaInicial(profile.role)
+  const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
