@@ -63,6 +63,7 @@ const DOCS_PENSAO = [
 const PRODUTO_ESTILO = {
   'Maternidade': { cor: '#B0468E', fundo: '#FBEFF6', label: 'Maternidade' },
   'Maternidade Mãe': { cor: '#C2410C', fundo: '#FFF0E6', label: 'Maternidade Mãe' },
+  'Gestante até 5 meses': { cor: '#0369A1', fundo: '#E0F2FE', label: 'Gestante até 5 meses' },
   'Pensão por Morte': { cor: '#3F5A78', fundo: '#EDF1F6', label: 'Pensão por Morte' },
   'BPC': { cor: '#1E7A6F', fundo: '#E8F4F1', label: 'BPC' },
   'Auxilio Acidente': { cor: '#9A6A1F', fundo: '#F6EFE2', label: 'Auxílio Acidente' },
