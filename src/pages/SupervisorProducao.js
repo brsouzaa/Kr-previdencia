@@ -13,6 +13,7 @@ export default function SupervisorProducao() {
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('mes')
   const [filtroProd, setFiltroProd] = useState('')
+  const [filtroProduto, setFiltroProduto] = useState('')
   const [busca, setBusca] = useState('')
   const [sincronizando, setSincronizando] = useState(false)
   const [ultimaSync, setUltimaSync] = useState(null)
@@ -210,6 +211,7 @@ export default function SupervisorProducao() {
     return lista.filter(c => {
       const dentroP = true
       const prodOk = !filtroProd || getVendedorB2CId(c) === filtroProd
+      const produtoOk = !filtroProduto || getCliente(c)?.produto === filtroProduto
 
       let buscaOk = true
       if (buscaLower) {
@@ -225,11 +227,12 @@ export default function SupervisorProducao() {
         buscaOk = matchTexto || matchNumeros
       }
 
-      return dentroP && prodOk && buscaOk
+      return dentroP && prodOk && produtoOk && buscaOk
     })
   }
 
   const filtrados = filtrar(contratos)
+  const produtosDisponiveis = Array.from(new Set(contratos.map(c => getCliente(c)?.produto).filter(Boolean))).sort()
   const enviados = filtrados.length
   const assinados = filtrados.filter(c => c.status === 'assinado').length
   const pendentes = filtrados.filter(c => c.status === 'enviado').length
@@ -333,6 +336,10 @@ export default function SupervisorProducao() {
         <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
           <option value="">Todos os vendedores B2C</option>
           {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}{p.id === IA_ID ? ' 🤖' : ''}</option>)}
+        </select>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+          <option value="">Todos os produtos</option>
+          {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
