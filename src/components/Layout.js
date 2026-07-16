@@ -93,6 +93,7 @@ const NAV_ADMIN = [
   { key: 'bi', label: '📊 BI Bruno' },
   { key: 'reposicoes', label: '🔄 Reposições' },
   { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
+  { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
   { key: 'fila', label: '📦 Fila de entregas' },
@@ -148,6 +149,15 @@ export default function Layout({ children, page, setPage }) {
   // Setor resgate: garante o item da ala no meno (independente do role base)
   if (profile?.setor === 'resgate' && !nav.some(n => n.key === 'resgate')) {
     nav = [{ key: 'resgate', label: '🛟 Ala de resgate' }, ...nav]
+  }
+
+  // Karol (resgate) tambem valida os Maternidade Mae no pos-venda
+  if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'pos_venda')) {
+    nav = [...nav, { key: 'pos_venda', label: '📞 Pós-venda (Mãe)' }]
+  }
+  // Karol: setor de acompanhamento Maternidade Mae
+  if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'acompanhamento_mae')) {
+    nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
