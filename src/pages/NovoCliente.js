@@ -39,6 +39,7 @@ const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','P
 const PRODUTOS = [
   { key: 'Maternidade', label: '🤰 Maternidade', cor: '#0F6E56' },
   { key: 'Maternidade Mãe', label: '👶 Maternidade Mãe', cor: '#C2410C' },
+  { key: 'Gestante até 5 meses', label: '🤱 Gestante até 5 meses', cor: '#0369A1' },
   { key: 'BPC', label: '👴 BPC', cor: '#534AB7' },
   { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#854F0B' },
 ]
@@ -235,8 +236,8 @@ export default function NovoCliente({ onSucesso }) {
   const ufOk = UFS.includes(c.uf)
   const cidadeOk = cidadeStatus === 'ok'
 
-  // Campos extras Maternidade
-  const camposMatOk = c.produto !== 'Maternidade' || (
+  // Campos extras Maternidade (e Gestante até 5 meses — ambas são grávidas, mesmos campos)
+  const camposMatOk = (c.produto !== 'Maternidade' && c.produto !== 'Gestante até 5 meses') || (
     c.nis && c.data_prevista_parto && c.meses_gravidez.trim()
   )
 
@@ -269,8 +270,8 @@ export default function NovoCliente({ onSucesso }) {
         documentos: docs,
         status: 'aguardando_emissao',
       }
-      // Campos extras só pra Maternidade
-      if (c.produto === 'Maternidade') {
+      // Campos extras pra Maternidade e Gestante até 5 meses (ambas grávidas)
+      if (c.produto === 'Maternidade' || c.produto === 'Gestante até 5 meses') {
         payload.nis = c.nis
         payload.data_prevista_parto = c.data_prevista_parto
         payload.meses_gravidez = c.meses_gravidez
@@ -547,7 +548,7 @@ export default function NovoCliente({ onSucesso }) {
       </div>
 
       {/* === CAMPOS EXTRAS DO PRODUTO === */}
-      {c.produto === 'Maternidade' && (
+      {(c.produto === 'Maternidade' || c.produto === 'Gestante até 5 meses') && (
         <div style={s.card}>
           <div style={s.sectionTitle}>Informações do salário-maternidade</div>
           <div style={s.grid3}>
