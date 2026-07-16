@@ -55,7 +55,7 @@ export default function SupervisorProducao() {
           advogados(nome_completo, oab),
           clientes!clientes_contrato_producao_id_fkey(
             id, nome, cpf, rg, email, telefone, rua, numero, bairro, cidade, uf, cep,
-            status, origem, setor, data_prevista_parto, meses_gravidez, nis,
+            status, origem, setor, produto, data_prevista_parto, meses_gravidez, nis,
             vendedor_operador_id,
             vendedor_operador:profiles!clientes_vendedor_operador_id_fkey(id, nome, setor, supervisora_id)
           )
