@@ -66,6 +66,7 @@ export default function FilaDigitacao() {
   const [barrarCliente, setBarrarCliente] = useState(null)  // cliente a barrar
   const [motivoBarra, setMotivoBarra] = useState('')
   const [barrando, setBarrando] = useState(false)
+  const [filtroProduto, setFiltroProduto] = useState('Maternidade')  // fila por produto (default Maternidade)
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
@@ -141,11 +142,13 @@ export default function FilaDigitacao() {
   }
 
   // === Ordem manual da fila (lotes marcados pelo painel: motivo 'PAINEL:%') ===
-  const ordemManual = (lotesFila || [])
+  // filtrado pelo produto selecionado (fila separada por produto)
+  const lotesDoProduto = (lotesFila || []).filter(l => (l.produto || 'Maternidade') === filtroProduto)
+  const ordemManual = lotesDoProduto
     .filter(l => l.advogados && l.prioridade_congelada === true && (l.prioridade_congelada_motivo || '').startsWith('PAINEL:'))
     .sort((a, b) => new Date(a.data_prioridade || 0) - new Date(b.data_prioridade || 0))
   const idsOrdem = ordemManual.map(l => l.id)
-  const disponiveis = (lotesFila || []).filter(l => l.advogados && !idsOrdem.includes(l.id) && loteTemVaga(l))
+  const disponiveis = lotesDoProduto.filter(l => l.advogados && !idsOrdem.includes(l.id) && loteTemVaga(l))
 
   async function aplicarOrdem(novaLista) {
     if (salvandoOrdem) return
@@ -195,14 +198,25 @@ export default function FilaDigitacao() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando fila...</div>
 
+  // Fila separada por produto: clientes e proximo lote filtrados
+  const PRODUTOS_FILA = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'BPC', 'Auxilio Acidente']
+  const clientesFiltrados = clientes.filter(c => (c.produto || 'Maternidade') === filtroProduto)
+  const proximoLoteFiltrado = lotesDoProduto.find(l => loteTemVaga(l)) || null
+
   return (
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📥 Fila de digitação</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} aguardando emissão</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''} aguardando emissão · {filtroProduto}</div>
         </div>
-        <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>↻ Atualizar</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none', cursor: 'pointer' }}>
+            {PRODUTOS_FILA.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>↻ Atualizar</button>
+        </div>
       </div>
 
       {/* === Ordem manual da fila === */}
@@ -264,16 +278,16 @@ export default function FilaDigitacao() {
         </div>
       )}
 
-      {proximoLote && proximoLote.advogados ? (
-        <div style={{ ...s.card, background: proximoLote.prioridade_fila ? '#FEF3C7' : '#E6F1FB', border: proximoLote.prioridade_fila ? '1.5px solid #F59E0B' : '1.5px solid #185FA540' }}>
+      {proximoLoteFiltrado && proximoLoteFiltrado.advogados ? (
+        <div style={{ ...s.card, background: proximoLoteFiltrado.prioridade_fila ? '#FEF3C7' : '#E6F1FB', border: proximoLoteFiltrado.prioridade_fila ? '1.5px solid #F59E0B' : '1.5px solid #185FA540' }}>
           <div style={{ ...s.sectionTitle, marginBottom: 6 }}>
             ⚖️ Advogado da vez
-            {proximoLote.prioridade_fila && <span style={{ marginLeft: 8, padding: '2px 8px', background: '#F59E0B', color: '#fff', borderRadius: 10, fontSize: 10 }}>⚡ PRIORIDADE</span>}
+            {proximoLoteFiltrado.prioridade_fila && <span style={{ marginLeft: 8, padding: '2px 8px', background: '#F59E0B', color: '#fff', borderRadius: 10, fontSize: 10 }}>⚡ PRIORIDADE</span>}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLote.advogados.nome_completo}</div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLote.advogados.estado} {proximoLote.advogados.oab}</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>{proximoLoteFiltrado.advogados.nome_completo}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>OAB/{proximoLoteFiltrado.advogados.estado} {proximoLoteFiltrado.advogados.oab}</div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-            Lote: {contarVivosLote(proximoLote)}/{proximoLote.total_contratos} ocupados · Vendedor: {proximoLote.profiles?.nome}
+            Lote: {contarVivosLote(proximoLoteFiltrado)}/{proximoLoteFiltrado.total_contratos} ocupados · Vendedor: {proximoLoteFiltrado.profiles?.nome}
           </div>
         </div>
       ) : (
@@ -282,11 +296,11 @@ export default function FilaDigitacao() {
         </div>
       )}
 
-      {clientes.length === 0 ? (
+      {clientesFiltrados.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#888', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.06)' }}>
           ✅ Fila vazia — nenhum cliente aguardando.
         </div>
-      ) : clientes.map((c, idx) => {
+      ) : clientesFiltrados.map((c, idx) => {
         const docs = c.documentos || {}
         const docsAnexados = TIPOS_DOC.filter(t => docs[t.chave]).length
         const docsObrigatorios = ['rg_frente','rg_verso','comprovante_1','comprovante_2'].filter(k => docs[k]).length
@@ -378,7 +392,7 @@ export default function FilaDigitacao() {
                   s.btnSec}>
                 {copiadoWhatsId === c.id ? '✓ Copiado pra WhatsApp' : '📋 Copiar pra WhatsApp'}
               </button>
-              <button onClick={() => setModalAberto(c)} style={proximoLote ? s.btn : s.btnDisabled} disabled={!proximoLote}>
+              <button onClick={() => setModalAberto(c)} style={proximoLoteFiltrado ? s.btn : s.btnDisabled} disabled={!proximoLoteFiltrado}>
                 🚀 Emitir contrato
               </button>
               <button onClick={() => { setBarrarCliente(c); setMotivoBarra('') }}
@@ -434,8 +448,8 @@ export default function FilaDigitacao() {
 
                 <div style={{ background: '#E6F1FB', borderRadius: 8, padding: 12, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, color: '#185FA5', marginBottom: 4 }}>ADVOGADO DA VEZ</div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{proximoLote?.advogados?.nome_completo}</div>
-                  <div style={{ fontSize: 12, color: '#666' }}>OAB/{proximoLote?.advogados?.estado} {proximoLote?.advogados?.oab}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{proximoLoteFiltrado?.advogados?.nome_completo}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>OAB/{proximoLoteFiltrado?.advogados?.estado} {proximoLoteFiltrado?.advogados?.oab}</div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
