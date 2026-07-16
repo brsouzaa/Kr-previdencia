@@ -232,7 +232,12 @@ export default function SupervisorProducao() {
   }
 
   const filtrados = filtrar(contratos)
-  const produtosDisponiveis = Array.from(new Set(contratos.map(c => getCliente(c)?.produto).filter(Boolean))).sort()
+  // Produtos fixos do sistema (aparecem sempre, mesmo sem contrato ainda) + qualquer outro presente nos dados
+  const PRODUTOS_SISTEMA = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'BPC', 'Auxilio Acidente']
+  const produtosDisponiveis = Array.from(new Set([
+    ...PRODUTOS_SISTEMA,
+    ...contratos.map(c => getCliente(c)?.produto).filter(Boolean)
+  ]))
   const enviados = filtrados.length
   const assinados = filtrados.filter(c => c.status === 'assinado').length
   const pendentes = filtrados.filter(c => c.status === 'enviado').length
