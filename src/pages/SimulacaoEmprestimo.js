@@ -24,10 +24,12 @@ const s = {
   nome: { fontSize: 15, fontWeight: 500, color: '#111' },
   meta: { fontSize: 12, color: '#888', marginTop: 2 },
   matTag: { display: 'inline-block', fontSize: 11, color: '#3B6D11', background: '#EAF3DE', border: '0.5px solid #3B6D1130', borderRadius: 8, padding: '2px 8px', marginTop: 6 },
+  valorBig: { fontSize: 22, fontWeight: 600, color: '#3B6D11', lineHeight: 1 },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  btnPegar: { flex: 1, minWidth: 120, padding: '9px', background: '#E6F1FB', color: '#185FA5', border: '0.5px solid #185FA5', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnAprovar: { flex: 1, minWidth: 120, padding: '9px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnNegar: { flex: 1, minWidth: 120, padding: '9px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnVender: { flex: 1, minWidth: 150, padding: '10px', background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnWhats: { padding: '10px 14px', background: '#EAF3DE', color: '#25683b', border: '0.5px solid #3B6D1140', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  btnSec: { padding: '9px 12px', background: '#fff', color: '#888', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  linkCorrigir: { fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer', background: 'none', border: 'none', marginTop: 8, padding: 0 },
   formBox: { background: '#F8FAFC', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 12, marginTop: 10 },
   campoLinha: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 },
   campo: { flex: 1, minWidth: 130 },
@@ -35,140 +37,112 @@ const s = {
   input: { width: '100%', padding: '7px 9px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', boxSizing: 'border-box' },
   empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
   loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
+  robo: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, marginBottom: 16, flexWrap: 'wrap' },
+  roboOk: { background: '#EAF3DE', border: '0.5px solid #3B6D1130' },
+  roboAlerta: { background: '#FCEBEB', border: '0.5px solid #A32D2D40' },
+  luz: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
+  filaHeader: { fontSize: 12, color: '#666', background: '#F4F8FC', border: '0.5px solid #185FA520', borderRadius: 8, padding: '8px 12px', marginBottom: 12 },
 }
 
 const ABAS = [
-  ['novo', 'Novos'],
-  ['em_analise', 'Em análise'],
   ['pre_aprovado', 'Pré-aprovados'],
+  ['novo', 'Novos (fila do robô)'],
+  ['em_analise', 'Em análise'],
   ['negado', 'Negados'],
   ['sem_contato', 'Sem contato'],
 ]
 
 function fmtCpf(cpf) {
   const d = (cpf || '').replace(/\D/g, '')
-  if (d.length !== 11) return cpf
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`
+  return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : cpf
 }
-function fmtTel(t) {
-  const d = (t || '').replace(/\D/g, '')
-  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
-  if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  return t
+function fmtBRL(v) {
+  if (v == null) return 'R$ 0'
+  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
-function fmtBRL(n) {
-  if (n == null) return '—'
-  return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-}
-function tempoRelativo(iso) {
+function tempoDesde(iso) {
   if (!iso) return ''
-  const diff = Date.now() - new Date(iso).getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 60) return `há ${min}min`
+  const seg = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (seg < 60) return `há ${seg}s`
+  const min = Math.floor(seg / 60)
+  if (min < 60) return `há ${min} min`
   const h = Math.floor(min / 60)
   if (h < 24) return `há ${h}h`
   return `há ${Math.floor(h / 24)}d`
 }
+function soDigitos(t) { return (t || '').replace(/\D/g, '') }
 
 export default function SimulacaoEmprestimo() {
   const { profile } = useAuth()
-  const [aba, setAba] = useState('novo')
+  const [aba, setAba] = useState('pre_aprovado')
   const [itens, setItens] = useState([])
+  const [nomesProfiles, setNomesProfiles] = useState({})
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(null)
-
-  // painel
   const [periodo, setPeriodo] = useState('mes')
   const [dtIni, setDtIni] = useState('')
   const [dtFim, setDtFim] = useState('')
   const [resumo, setResumo] = useState(null)
-
-  // formulário de simulação por card aberto
-  const [formAberto, setFormAberto] = useState(null) // id do card
+  const [saude, setSaude] = useState(null)
+  const [formAberto, setFormAberto] = useState(null)
   const [valor, setValor] = useState('')
   const [margem, setMargem] = useState('')
   const [parcela, setParcela] = useState('')
   const [obs, setObs] = useState('')
 
-  const intervalo = useCallback(() => {
-    const agora = new Date()
-    if (periodo === 'dia') {
-      const i = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate())
-      const f = new Date(i); f.setDate(f.getDate() + 1); return [i, f]
-    }
-    if (periodo === 'semana') {
-      const i = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - agora.getDay())
-      const f = new Date(i); f.setDate(f.getDate() + 7); return [i, f]
-    }
-    if (periodo === 'custom' && dtIni && dtFim) {
-      const i = new Date(dtIni + 'T00:00:00')
-      const f = new Date(dtFim + 'T00:00:00'); f.setDate(f.getDate() + 1); return [i, f]
-    }
-    const i = new Date(agora.getFullYear(), agora.getMonth(), 1)
-    const f = new Date(agora.getFullYear(), agora.getMonth() + 1, 1); return [i, f]
-  }, [periodo, dtIni, dtFim])
-
   const carregar = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('simulacoes_emprestimo')
-      .select('*')
-      .eq('status', aba)
-      .order('criado_em', { ascending: aba === 'novo' })
+    let q = supabase.from('simulacoes_emprestimo').select('*').eq('status', aba)
+    if (aba === 'pre_aprovado') q = q.order('valor_simulado', { ascending: false, nullsFirst: false })
+    else q = q.order('criado_em', { ascending: aba === 'novo' })
+    const { data } = await q.limit(300)
     const lista = data || []
-    // resolve nome de quem pegou sem embed ambiguo (2 FKs -> profiles quebram o PostgREST)
     const ids = [...new Set(lista.map(i => i.atribuido_a).filter(Boolean))]
-    let nomes = {}
     if (ids.length) {
       const { data: profs } = await supabase.from('profiles').select('id, nome').in('id', ids)
-      nomes = Object.fromEntries((profs || []).map(p => [p.id, p.nome]))
+      const mapa = {}; (profs || []).forEach(p => { mapa[p.id] = p.nome })
+      setNomesProfiles(mapa)
     }
-    setItens(lista.map(i => ({ ...i, _atribuido_nome: nomes[i.atribuido_a] || null })))
+    setItens(lista)
     setLoading(false)
   }, [aba])
 
   const carregarResumo = useCallback(async () => {
-    if (periodo === 'custom' && (!dtIni || !dtFim)) return
-    const [ini, fim] = intervalo()
+    const fim = new Date(); let ini = new Date()
+    if (periodo === 'dia') ini.setHours(0, 0, 0, 0)
+    else if (periodo === 'semana') ini.setDate(ini.getDate() - 7)
+    else if (periodo === 'mes') ini.setMonth(ini.getMonth() - 1)
+    else if (periodo === 'custom') { if (dtIni) ini = new Date(dtIni); if (dtFim) fim.setTime(new Date(dtFim).getTime()) }
     const { data } = await supabase.rpc('simulacao_emprestimo_resumo', { p_inicio: ini.toISOString(), p_fim: fim.toISOString() })
     setResumo(data || null)
-  }, [periodo, dtIni, dtFim, intervalo])
+  }, [periodo, dtIni, dtFim])
+
+  const carregarSaude = useCallback(async () => {
+    const { data: log } = await supabase.from('crefisa_log').select('criado_em').order('criado_em', { ascending: false }).limit(1)
+    const { count: fila } = await supabase.from('simulacoes_emprestimo').select('id', { count: 'exact', head: true }).eq('status', 'novo')
+    const { count: proc } = await supabase.from('simulacoes_emprestimo').select('id', { count: 'exact', head: true }).eq('status', 'processando')
+    const umaHoraAtras = new Date(Date.now() - 3600000).toISOString()
+    const { count: ultimaHora } = await supabase.from('crefisa_log').select('id', { count: 'exact', head: true }).gte('criado_em', umaHoraAtras)
+    const ultima = log?.[0]?.criado_em || null
+    const minSemSim = ultima ? Math.floor((Date.now() - new Date(ultima).getTime()) / 60000) : 999
+    setSaude({ ultima, fila: fila || 0, processando: proc || 0, ultimaHora: ultimaHora || 0, parado: minSemSim >= 10 })
+  }, [])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { carregarResumo() }, [carregarResumo])
+  useEffect(() => {
+    carregarSaude()
+    const id = setInterval(carregarSaude, 30000)
+    return () => clearInterval(id)
+  }, [carregarSaude])
 
-  async function pegar(item) {
+  async function assumir(item) {
     setSalvando(item.id)
     await supabase.from('simulacoes_emprestimo').update({
-      status: 'em_analise', atribuido_a: profile?.id, atribuido_em: new Date().toISOString(), atualizado_em: new Date().toISOString()
+      atribuido_a: profile?.id, atribuido_em: new Date().toISOString(), atualizado_em: new Date().toISOString()
     }).eq('id', item.id)
     setSalvando(null)
-    carregar(); carregarResumo()
-  }
-
-  function abrirForm(id) {
-    setFormAberto(id); setValor(''); setMargem(''); setParcela(''); setObs('')
-  }
-
-  async function decidir(item, novoStatus) {
-    if (novoStatus === 'pre_aprovado' && !valor) { alert('Informe o valor pré-aprovado.'); return }
-    if (novoStatus === 'negado' && !obs.trim()) { alert('Informe o motivo da negação.'); return }
-    setSalvando(item.id)
-    const payload = {
-      status: novoStatus,
-      decidido_por: profile?.id, decidido_em: new Date().toISOString(), atualizado_em: new Date().toISOString(),
-    }
-    if (novoStatus === 'pre_aprovado') {
-      payload.valor_simulado = Number(valor)
-      payload.margem_disponivel = margem ? Number(margem) : null
-      payload.parcela_estimada = parcela ? Number(parcela) : null
-      payload.observacao = obs.trim() || null
-    } else {
-      payload.motivo_negado = obs.trim()
-    }
-    await supabase.from('simulacoes_emprestimo').update(payload).eq('id', item.id)
-    setSalvando(null); setFormAberto(null)
-    carregar(); carregarResumo()
+    carregar()
   }
 
   async function marcarSemContato(item) {
@@ -180,12 +154,48 @@ export default function SimulacaoEmprestimo() {
     carregar(); carregarResumo()
   }
 
+  function abrirCorrecao(id) { setFormAberto(id); setValor(''); setMargem(''); setParcela(''); setObs('') }
+  async function corrigirManual(item, novoStatus) {
+    if (novoStatus === 'pre_aprovado' && !valor) { alert('Informe o valor.'); return }
+    if (novoStatus === 'negado' && !obs.trim()) { alert('Informe o motivo.'); return }
+    setSalvando(item.id)
+    const payload = {
+      status: novoStatus, decidido_por: profile?.id, decidido_em: new Date().toISOString(),
+      observacao: '[correcao manual] ' + (obs.trim() || ''), atualizado_em: new Date().toISOString(),
+    }
+    if (novoStatus === 'pre_aprovado') {
+      payload.valor_simulado = Number(valor)
+      payload.margem_disponivel = margem ? Number(margem) : null
+      payload.parcela_estimada = parcela ? Number(parcela) : null
+    } else { payload.motivo_negado = obs.trim() }
+    await supabase.from('simulacoes_emprestimo').update(payload).eq('id', item.id)
+    setSalvando(null); setFormAberto(null)
+    carregar(); carregarResumo()
+  }
+
   return (
     <div>
       <div style={s.title}>💰 Simulação de Empréstimo</div>
-      <div style={s.subtitle}>Leads que enviaram o CPF pela Ana/Isis. Um especialista simula e marca pré-aprovado ou negado.</div>
+      <div style={s.subtitle}>
+        A simulação é automática — os CPFs são simulados na Crefisa sozinhos.
+        Sua função: contatar os <strong>pré-aprovados</strong> e fechar o empréstimo.
+      </div>
 
-      {/* Painel */}
+      {saude && (
+        <div style={{ ...s.robo, ...(saude.parado ? s.roboAlerta : s.roboOk) }}>
+          <span style={{ ...s.luz, background: saude.parado ? '#A32D2D' : '#3B6D11' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: saude.parado ? '#A32D2D' : '#25683b' }}>
+            {saude.parado ? '⚠️ Robô parado — avisar o Bruno' : '🤖 Robô ativo'}
+          </span>
+          <span style={{ fontSize: 12, color: '#666' }}>
+            última simulação {tempoDesde(saude.ultima)} · {saude.ultimaHora}/h
+          </span>
+          <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>
+            fila: <strong>{saude.fila}</strong> aguardando · {saude.processando} simulando agora
+          </span>
+        </div>
+      )}
+
       <div style={s.painel}>
         <div style={s.filtros}>
           {[['dia', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['custom', 'Personalizado']].map(([k, label]) => (
@@ -201,31 +211,30 @@ export default function SimulacaoEmprestimo() {
         </div>
         {resumo && (
           <div style={s.kpis}>
+            <div style={{ ...s.kpi, background: '#EAF3DE', borderColor: '#3B6D1130' }}>
+              <div style={{ ...s.kpiTop, color: '#3B6D11' }}>Pré-aprovados · aguardando contato</div>
+              <div style={{ ...s.kpiNum, color: '#3B6D11' }}>{resumo.pre_aprovado}</div>
+              <div style={s.kpiSub}>{resumo.taxa_pre_aprovacao != null ? `${resumo.taxa_pre_aprovacao}% dos decididos` : '—'}</div>
+            </div>
+            <div style={{ ...s.kpi, background: '#FFF8E7', borderColor: '#85500B30' }}>
+              <div style={{ ...s.kpiTop, color: '#854F0B' }}>Potencial em pré-aprovados</div>
+              <div style={{ ...s.kpiNum, color: '#854F0B', fontSize: 20 }}>{fmtBRL(resumo.valor_potencial)}</div>
+              <div style={s.kpiSub}>ticket médio {fmtBRL(resumo.ticket_medio)}</div>
+            </div>
             <div style={{ ...s.kpi, background: '#F4F8FC', borderColor: '#185FA520' }}>
               <div style={{ ...s.kpiTop, color: '#185FA5' }}>Recebidos</div>
               <div style={{ ...s.kpiNum, color: '#185FA5' }}>{resumo.total}</div>
-              <div style={s.kpiSub}>{resumo.novo} novo(s) · {resumo.em_analise} em análise</div>
-            </div>
-            <div style={{ ...s.kpi, background: '#EAF3DE', borderColor: '#3B6D1130' }}>
-              <div style={{ ...s.kpiTop, color: '#3B6D11' }}>Pré-aprovados</div>
-              <div style={{ ...s.kpiNum, color: '#3B6D11' }}>{resumo.pre_aprovado}</div>
-              <div style={s.kpiSub}>{resumo.taxa_pre_aprovacao != null ? `${resumo.taxa_pre_aprovacao}% dos decididos` : 'aguardando decisões'}</div>
+              <div style={s.kpiSub}>{resumo.novo} na fila do robô</div>
             </div>
             <div style={{ ...s.kpi, background: '#FCEBEB', borderColor: '#A32D2D30' }}>
               <div style={{ ...s.kpiTop, color: '#A32D2D' }}>Negados</div>
               <div style={{ ...s.kpiNum, color: '#A32D2D' }}>{resumo.negado}</div>
               <div style={s.kpiSub}>{resumo.sem_contato} sem contato</div>
             </div>
-            <div style={{ ...s.kpi, background: '#FFF8E7', borderColor: '#85500B30' }}>
-              <div style={{ ...s.kpiTop, color: '#854F0B' }}>Potencial pré-aprovado</div>
-              <div style={{ ...s.kpiNum, color: '#854F0B', fontSize: 20 }}>{fmtBRL(resumo.valor_potencial)}</div>
-              <div style={s.kpiSub}>ticket médio {fmtBRL(resumo.ticket_medio)}</div>
-            </div>
           </div>
         )}
       </div>
 
-      {/* Abas por status */}
       <div style={s.tabs}>
         {ABAS.map(([k, label]) => (
           <button key={k} onClick={() => { setAba(k); setFormAberto(null) }} style={{ ...s.tab, ...(aba === k ? s.tabActive : {}) }}>
@@ -235,82 +244,102 @@ export default function SimulacaoEmprestimo() {
         ))}
       </div>
 
+      {aba === 'novo' && (
+        <div style={s.filaHeader}>
+          🔄 Estes CPFs estão na fila do robô — ele simula sozinho a cada ~2 min. Nada a fazer manualmente aqui (só descartar se necessário).
+        </div>
+      )}
+
       {loading ? (
         <div style={s.loading}>Carregando...</div>
       ) : itens.length === 0 ? (
-        <div style={s.empty}>Nenhum lead {ABAS.find(a => a[0] === aba)?.[1].toLowerCase()} neste momento.</div>
+        <div style={s.empty}>
+          {aba === 'pre_aprovado' ? 'Nenhum pré-aprovado aguardando contato.' : 'Nada aqui.'}
+        </div>
       ) : (
-        itens.map(item => (
-          <div key={item.id} style={s.card}>
-            <div style={s.cardHeader}>
-              <div>
-                <div style={s.nome}>{item.nome}</div>
-                <div style={s.meta}>
-                  {fmtCpf(item.cpf)} · {fmtTel(item.telefone)} · {tempoRelativo(item.criado_em)}
-                  {item.origem_ia ? ` · via ${item.origem_ia}` : ''}
+        itens.map(item => {
+          const ehMat = !!item.cliente_maternidade_id
+          const jaAssumido = !!item.atribuido_a
+          const tel = soDigitos(item.telefone)
+          return (
+            <div key={item.id} style={s.card}>
+              <div style={s.cardHeader}>
+                <div>
+                  <div style={s.nome}>{item.nome || 'Sem nome'}</div>
+                  <div style={s.meta}>CPF {fmtCpf(item.cpf)} · {item.telefone || 'sem telefone'} · {item.origem_ia || 'IA'}</div>
+                  {ehMat && <span style={s.matTag}>já é cliente maternidade</span>}
                 </div>
-                {item.cliente_maternidade_id && <div style={s.matTag}>Já é cliente de maternidade</div>}
-                {item.status === 'pre_aprovado' && (
-                  <div style={{ ...s.meta, color: '#3B6D11', marginTop: 6 }}>
-                    Pré-aprovado: <strong>{fmtBRL(item.valor_simulado)}</strong>
-                    {item.margem_disponivel ? ` · margem ${fmtBRL(item.margem_disponivel)}` : ''}
-                    {item.parcela_estimada ? ` · parcela ${fmtBRL(item.parcela_estimada)}` : ''}
-                    {item.observacao ? ` · ${item.observacao}` : ''}
+                {aba === 'pre_aprovado' && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={s.valorBig}>{fmtBRL(item.valor_simulado)}</div>
+                    <div style={s.meta}>aprovado {tempoDesde(item.decidido_em || item.atualizado_em)}</div>
+                    {item.parcela_estimada && <div style={s.meta}>parcela ~{fmtBRL(item.parcela_estimada)}</div>}
                   </div>
                 )}
-                {item.status === 'negado' && item.motivo_negado && (
-                  <div style={{ ...s.meta, color: '#A32D2D', marginTop: 6 }}>Negado: {item.motivo_negado}</div>
-                )}
-                {item.status === 'em_analise' && item._atribuido_nome && (
-                  <div style={{ ...s.meta, marginTop: 6 }}>Com {item._atribuido_nome}</div>
-                )}
               </div>
-            </div>
 
-            {/* Ações por status */}
-            {item.status === 'novo' && (
-              <div style={s.actions}>
-                <button style={s.btnPegar} disabled={salvando === item.id} onClick={() => pegar(item)}>Pegar para simular</button>
-                <button style={{ ...s.fBtn, padding: '9px 12px' }} disabled={salvando === item.id} onClick={() => marcarSemContato(item)}>Sem contato</button>
-              </div>
-            )}
+              {aba === 'pre_aprovado' && (
+                <>
+                  {jaAssumido ? (
+                    <div style={{ fontSize: 12, color: '#3B6D11', marginBottom: 8 }}>
+                      ✓ Em contato por <strong>{nomesProfiles[item.atribuido_a] || 'alguém'}</strong> {tempoDesde(item.atribuido_em)}
+                    </div>
+                  ) : null}
+                  <div style={s.actions}>
+                    {!jaAssumido && (
+                      <button style={s.btnVender} onClick={() => assumir(item)} disabled={salvando === item.id}>
+                        {salvando === item.id ? '...' : '📞 Assumir e contatar'}
+                      </button>
+                    )}
+                    {tel && (
+                      <a style={s.btnWhats} href={`https://wa.me/55${tel}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+                    )}
+                    <button style={s.btnSec} onClick={() => marcarSemContato(item)} disabled={salvando === item.id}>Sem contato</button>
+                  </div>
+                </>
+              )}
 
-            {item.status === 'em_analise' && formAberto !== item.id && (
-              <div style={s.actions}>
-                <button style={s.btnAprovar} onClick={() => abrirForm(item.id)}>Registrar resultado</button>
-                <button style={{ ...s.fBtn, padding: '9px 12px' }} disabled={salvando === item.id} onClick={() => marcarSemContato(item)}>Sem contato</button>
-              </div>
-            )}
-
-            {item.status === 'em_analise' && formAberto === item.id && (
-              <div style={s.formBox}>
-                <div style={s.campoLinha}>
-                  <div style={s.campo}>
-                    <label style={s.label}>Valor pré-aprovado (R$)</label>
-                    <input style={s.input} type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" />
-                  </div>
-                  <div style={s.campo}>
-                    <label style={s.label}>Margem disponível (R$)</label>
-                    <input style={s.input} type="number" value={margem} onChange={e => setMargem(e.target.value)} placeholder="opcional" />
-                  </div>
-                  <div style={s.campo}>
-                    <label style={s.label}>Parcela estimada (R$)</label>
-                    <input style={s.input} type="number" value={parcela} onChange={e => setParcela(e.target.value)} placeholder="opcional" />
-                  </div>
-                </div>
-                <div style={{ marginBottom: 10 }}>
-                  <label style={s.label}>Observação / motivo</label>
-                  <input style={s.input} value={obs} onChange={e => setObs(e.target.value)} placeholder="Obs. (obrigatório se negar)" />
-                </div>
+              {aba === 'novo' && (
                 <div style={s.actions}>
-                  <button style={s.btnAprovar} disabled={salvando === item.id} onClick={() => decidir(item, 'pre_aprovado')}>✓ Pré-aprovado</button>
-                  <button style={s.btnNegar} disabled={salvando === item.id} onClick={() => decidir(item, 'negado')}>✕ Negado</button>
-                  <button style={{ ...s.fBtn, padding: '9px 12px' }} onClick={() => setFormAberto(null)}>Cancelar</button>
+                  <div style={{ flex: 1, fontSize: 13, color: '#185FA5', fontWeight: 500, padding: '8px 0' }}>
+                    ⏳ Na fila do robô — aguardando simulação automática
+                  </div>
+                  <button style={s.btnSec} onClick={() => marcarSemContato(item)} disabled={salvando === item.id}>Descartar</button>
                 </div>
-              </div>
-            )}
-          </div>
-        ))
+              )}
+
+              {aba === 'negado' && item.motivo_negado && (
+                <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', borderRadius: 8, padding: '8px 10px' }}>
+                  Motivo: {item.motivo_negado}
+                </div>
+              )}
+
+              {(aba === 'novo' || aba === 'negado' || aba === 'em_analise') && (
+                formAberto === item.id ? (
+                  <div style={s.formBox}>
+                    <div style={s.campoLinha}>
+                      <div style={s.campo}>
+                        <label style={s.label}>Valor (se pré-aprovar)</label>
+                        <input style={s.input} value={valor} onChange={e => setValor(e.target.value)} placeholder="R$" />
+                      </div>
+                      <div style={s.campo}>
+                        <label style={s.label}>Motivo (se negar)</label>
+                        <input style={s.input} value={obs} onChange={e => setObs(e.target.value)} placeholder="motivo" />
+                      </div>
+                    </div>
+                    <div style={s.actions}>
+                      <button style={{ ...s.btnSec, color: '#3B6D11', borderColor: '#3B6D1140' }} onClick={() => corrigirManual(item, 'pre_aprovado')}>Pré-aprovar</button>
+                      <button style={{ ...s.btnSec, color: '#A32D2D', borderColor: '#A32D2D40' }} onClick={() => corrigirManual(item, 'negado')}>Negar</button>
+                      <button style={s.btnSec} onClick={() => setFormAberto(null)}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={s.linkCorrigir} onClick={() => abrirCorrecao(item.id)}>corrigir manualmente</button>
+                )
+              )}
+            </div>
+          )
+        })
       )}
     </div>
   )
