@@ -58,6 +58,16 @@ function corPrazo(nivel) {
 
 export default function PosVenda() {
   const { profile } = useAuth()
+
+  // Maternidade Mae: produto separado, so a Karol (resgate) valida/barra.
+  const KAROL_ID = '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9'
+  const ehMaternidadeMae = (c) => c.produto === 'Maternidade Mãe'
+  // pode agir num card: se for Mat. Mae, so a Karol (ou admin); se for outro produto, so quem NAO e a Karol
+  const podeAgir = (c) => {
+    if (ehMaternidadeMae(c)) return profile?.id === KAROL_ID || profile?.role === 'admin'
+    return profile?.id !== KAROL_ID // Karol so cuida dos Mat. Mae
+  }
+
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todos')
@@ -272,8 +282,9 @@ export default function PosVenda() {
 
         return (
           <div key={c.id} style={{
-            background: '#fff',
-            border: prazo?.nivel === 'vencido' ? `1.5px solid ${corPz.borda}`
+            background: ehMaternidadeMae(c) ? '#F6ECFB' : '#fff',
+            border: ehMaternidadeMae(c) ? '2px solid #7B1FA2'
+                  : prazo?.nivel === 'vencido' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'critico' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'urgente' ? `1px solid ${corPz.borda}80`
                   : '0.5px solid rgba(0,0,0,0.1)',
@@ -285,6 +296,11 @@ export default function PosVenda() {
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>{c.nome}</div>
+                  {ehMaternidadeMae(c) && (
+                    <span style={{ fontSize: 10, padding: '3px 8px', background: '#7B1FA2', color: '#fff', borderRadius: 6, fontWeight: 700, letterSpacing: 0.3 }}>
+                      👶 MATERNIDADE MÃE
+                    </span>
+                  )}
                   <span style={{ fontSize: 10, padding: '2px 6px', background: info.bg, color: info.cor, borderRadius: 6, fontWeight: 500 }}>
                     {info.icon} {info.label}
                   </span>
@@ -339,15 +355,20 @@ export default function PosVenda() {
               <a href={whatsappLink(c.telefone, c.nome)} target="_blank" rel="noreferrer" style={btnAcao('#3B6D11', '#EAF3DE', { flex: 1, textDecoration: 'none', textAlign: 'center', minWidth: 120 })}>
                 💬 Abrir WhatsApp
               </a>
-              <button onClick={() => { setAcaoCliente({ tipo: 'contato', cliente: c }); setObs(c.pos_venda_observacao || '') }} style={btnAcao('#854F0B', '#FAEEDA', { flex: 1, minWidth: 120 })}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'contato', cliente: c }); setObs(c.pos_venda_observacao || '') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#854F0B', '#FAEEDA', { flex: 1, minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 📞 Marcar contato realizado
               </button>
-              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} style={btnAcao('#3B6D11', '#3B6D11', { flex: 1, color: '#fff', minWidth: 120 })}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#3B6D11', '#3B6D11', { flex: 1, color: '#fff', minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 ✅ Validar venda
               </button>
-              <button onClick={() => { setAcaoCliente({ tipo: 'barrar', cliente: c }); setObs(''); setMotivoBarrado('') }} style={btnAcao('#A32D2D', '#FCEBEB', { minWidth: 100 })}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'barrar', cliente: c }); setObs(''); setMotivoBarrado('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#A32D2D', '#FCEBEB', { minWidth: 100 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 ❌ Barrar
               </button>
+              {!podeAgir(c) && (
+                <div style={{ fontSize: 11, color: ehMaternidadeMae(c) ? '#7B1FA2' : '#888', fontWeight: 500, alignSelf: 'center', paddingLeft: 4 }}>
+                  {ehMaternidadeMae(c) ? '👶 Só a Karol valida Maternidade Mãe' : 'Cliente de outro produto'}
+                </div>
+              )}
             </div>
           </div>
         )
