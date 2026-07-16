@@ -63,6 +63,9 @@ export default function FilaDigitacao() {
   const [lotesFila, setLotesFila] = useState([])
   const [salvandoOrdem, setSalvandoOrdem] = useState(false)
   const [addAberto, setAddAberto] = useState(false)
+  const [barrarCliente, setBarrarCliente] = useState(null)  // cliente a barrar
+  const [motivoBarra, setMotivoBarra] = useState('')
+  const [barrando, setBarrando] = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
@@ -115,6 +118,26 @@ export default function FilaDigitacao() {
       alert('Erro: ' + (err.message || err.toString()))
     }
     setEmitindo(false)
+  }
+
+  // Barra (cancela) um cliente parado na fila, com motivo obrigatorio
+  async function barrar() {
+    if (barrando || !barrarCliente) return
+    if (!motivoBarra.trim()) { alert('Informe o motivo'); return }
+    setBarrando(true)
+    try {
+      const { error } = await supabase.from('clientes')
+        .update({ status: 'cancelado', cancelado_motivo: 'Barrado na fila: ' + motivoBarra.trim(), updated_at: new Date().toISOString() })
+        .eq('id', barrarCliente.id)
+        .eq('status', 'aguardando_emissao')  // trava: so barra se ainda estiver aguardando (evita barrar algo que ja emitiu)
+      if (error) throw new Error(error.message)
+      setBarrarCliente(null)
+      setMotivoBarra('')
+      fetchTudo()
+    } catch (err) {
+      alert('Erro ao barrar: ' + (err.message || err))
+    }
+    setBarrando(false)
   }
 
   // === Ordem manual da fila (lotes marcados pelo painel: motivo 'PAINEL:%') ===
@@ -358,10 +381,40 @@ export default function FilaDigitacao() {
               <button onClick={() => setModalAberto(c)} style={proximoLote ? s.btn : s.btnDisabled} disabled={!proximoLote}>
                 🚀 Emitir contrato
               </button>
+              <button onClick={() => { setBarrarCliente(c); setMotivoBarra('') }}
+                style={{ padding: '8px 14px', background: '#fff', color: '#B42318', border: '1px solid #FDA29B', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                🚫 Barrar
+              </button>
             </div>
           </div>
         )
       })}
+
+      {barrarCliente && (
+        <div style={s.modalBg} onClick={() => setBarrarCliente(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: '#B42318', marginBottom: 8 }}>🚫 Barrar cliente</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+              O cliente sai da fila e é cancelado. Informe o motivo.
+            </div>
+            <div style={{ background: '#f8f8f6', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>CLIENTE</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{barrarCliente.nome}</div>
+              <div style={{ fontSize: 12, color: '#666' }}>{barrarCliente.cpf}</div>
+            </div>
+            <textarea value={motivoBarra} onChange={e => setMotivoBarra(e.target.value)}
+              placeholder="Motivo (ex: cliente desistiu, dados inválidos, duplicado...)"
+              style={{ width: '100%', minHeight: 70, padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)', fontSize: 13, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setBarrarCliente(null)} style={{ flex: 1, padding: '10px', background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={barrar} disabled={barrando}
+                style={{ flex: 2, padding: '10px', background: barrando ? '#aaa' : '#B42318', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: barrando ? 'not-allowed' : 'pointer' }}>
+                {barrando ? '⏳ Barrando...' : '🚫 Confirmar e barrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalAberto && (
         <div style={s.modalBg} onClick={fecharModal}>
