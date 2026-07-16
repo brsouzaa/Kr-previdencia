@@ -33,6 +33,7 @@ import Metas from './pages/Metas'
 import BIBruno from './pages/BIBruno'
 import Reposicoes from './pages/Reposicoes'
 import SimulacaoEmprestimo from './pages/SimulacaoEmprestimo'
+import AcompanhamentoMae from './pages/AcompanhamentoMae'
 import DistribuicaoGabriela from './pages/DistribuicaoGabriela'
 import ParceriaPensao from './pages/ParceriaPensao'
 import Resgate from './pages/Resgate'
@@ -82,6 +83,8 @@ function paginaPermitida(profile, page) {
   const role = profile.role
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
+  // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
+  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
@@ -160,6 +163,7 @@ function AppInner() {
     bi: <BIBruno />,
     reposicoes: <Reposicoes />,
     simulacao_emprestimo: <SimulacaoEmprestimo />,
+    acompanhamento_mae: <AcompanhamentoMae />,
     resgate: <Resgate />,
     resgate_vendedor: <ResgateVendedor />,
     distribuicao_gabriela: <DistribuicaoGabriela />,
