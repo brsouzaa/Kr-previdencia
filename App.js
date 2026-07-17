@@ -85,6 +85,8 @@ function paginaPermitida(profile, page) {
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
+  // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
+  if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
