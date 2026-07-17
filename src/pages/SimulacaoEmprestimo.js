@@ -97,7 +97,12 @@ export default function SimulacaoEmprestimo() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
+    const ehAdmin = profile?.role === 'admin'
     let q = supabase.from('simulacoes_emprestimo').select('*').eq('status', aba)
+    // Na fila "A contatar": vendedor ve so os LIVRES + os que ELE pegou. Admin ve tudo.
+    if (aba === 'pre_aprovado' && !ehAdmin && profile?.id) {
+      q = q.or(`atribuido_a.is.null,atribuido_a.eq.${profile.id}`)
+    }
     if (aba === 'pre_aprovado') q = q.order('prazo_resolucao', { ascending: true, nullsFirst: false })
     else if (aba === 'vendido') q = q.order('vendido_em', { ascending: false, nullsFirst: false })
     else q = q.order('atualizado_em', { ascending: false })
@@ -272,6 +277,12 @@ export default function SimulacaoEmprestimo() {
 
       {aba === 'novo' && (
         <div style={s.filaHeader}>🔄 CPFs na fila do robô — ele simula sozinho a cada ~2 min. Nada a fazer aqui.</div>
+      )}
+
+      {aba === 'pre_aprovado' && profile?.role !== 'admin' && (
+        <div style={s.filaHeader}>
+          👤 Você vê os leads livres + os que você pegou. Depois de assumir, o lead é seu até registrar o desfecho — não volta pro pool.
+        </div>
       )}
 
       {loading ? (
