@@ -143,6 +143,10 @@ export default function SimulacaoEmprestimo() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
+    // Guarda: abas do vendedor filtram por profile.id. Se o profile ainda nao carregou,
+    // nao roda a query (evita filtrar por undefined e voltar vazio). Re-roda quando profile chega.
+    const precisaProfile = (aba === 'meus') || (!ehAdmin && ['vendido', 'nao_vendido', 'sem_contato'].includes(aba))
+    if (precisaProfile && !profile?.id) { setItens([]); setLoading(false); return }
     let q = supabase.from('simulacoes_emprestimo').select('*')
     if (aba === 'pool') {
       q = q.eq('status', 'pre_aprovado').is('atribuido_a', null).order('decidido_em', { ascending: true, nullsFirst: false })
