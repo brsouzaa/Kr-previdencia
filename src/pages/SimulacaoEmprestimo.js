@@ -43,15 +43,16 @@ const s = {
   empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
   loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
   filaHeader: { fontSize: 12, color: '#666', background: '#F4F8FC', border: '0.5px solid #185FA520', borderRadius: 8, padding: '8px 12px', marginBottom: 12 },
-  // distribuicao
   distribBox: { background: '#F4F8FC', border: '0.5px solid #185FA525', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
   distribTitulo: { fontSize: 13, fontWeight: 600, color: '#185FA5', marginBottom: 10 },
   distribRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
   distribCampo: { display: 'flex', flexDirection: 'column', gap: 4 },
   distribLabel: { fontSize: 11, color: '#666' },
   distribInput: { padding: '9px 10px', fontSize: 14, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', width: 90 },
-  distribSelect: { padding: '9px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', minWidth: 200 },
+  distribSelect: { padding: '9px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', minWidth: 180 },
   btnEnviar: { padding: '10px 18px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  diaChip: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', background: '#fff', color: '#666', cursor: 'pointer' },
+  diaChipOn: { background: '#185FA5', color: '#fff', borderColor: '#185FA5' },
 }
 
 const MOTIVOS_NAO_VENDA = ['Cliente desistiu', 'Sem interesse', 'Valor baixo', 'Já tem empréstimo', 'Não atende', 'Dados errados', 'Outro']
@@ -69,6 +70,10 @@ function fmtData(iso) {
   const d = new Date(iso)
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
+function fmtDiaLabel(diaStr) {
+  const [y, m, d] = diaStr.split('-')
+  return `${d}/${m}`
+}
 function tempoDesde(iso) {
   if (!iso) return ''
   const seg = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -83,9 +88,9 @@ function soDigitos(t) { return (t || '').replace(/\D/g, '') }
 
 export default function SimulacaoEmprestimo() {
   const { profile } = useAuth()
-  const ehGestor = profile?.role === 'admin' || profile?.role === 'coordenador_b2c' || profile?.role === 'simulador_emprestimo'
+  const ehAdmin = profile?.role === 'admin'
 
-  const [aba, setAba] = useState('meus') // vendedor: meus | gestor: pool
+  const [aba, setAba] = useState(ehAdmin ? 'pool' : 'meus')
   const [itens, setItens] = useState([])
   const [nomesProfiles, setNomesProfiles] = useState({})
   const [loading, setLoading] = useState(true)
@@ -103,33 +108,36 @@ export default function SimulacaoEmprestimo() {
   const [distVendedor, setDistVendedor] = useState('')
   const [distQtd, setDistQtd] = useState('')
   const [distribuindo, setDistribuindo] = useState(false)
-  const [poolLivre, setPoolLivre] = useState(0)
+  const [poolPorDia, setPoolPorDia] = useState([])
+  const [diaSelecionado, setDiaSelecionado] = useState('') // '' = todos os dias
 
-  // abas dependem do papel
-  const ABAS = ehGestor
+  const ABAS = ehAdmin
     ? [['pool', 'Pool (distribuir)'], ['meus', 'Meus leads'], ['vendido', 'Vendidos'], ['nao_vendido', 'Não fecharam'], ['sem_contato', 'Sem contato'], ['negado', 'Negados']]
     : [['meus', 'Meus leads'], ['vendido', 'Vendidos'], ['nao_vendido', 'Não fecharam'], ['sem_contato', 'Sem contato']]
+
+  const poolTotal = poolPorDia.reduce((acc, d) => acc + Number(d.qtd), 0)
+  const poolDoDia = diaSelecionado ? Number(poolPorDia.find(d => d.dia === diaSelecionado)?.qtd || 0) : poolTotal
 
   const carregar = useCallback(async () => {
     setLoading(true)
     let q = supabase.from('simulacoes_emprestimo').select('*')
     if (aba === 'pool') {
-      // so gestor: leads pre_aprovado LIVRES no pool
       q = q.eq('status', 'pre_aprovado').is('atribuido_a', null).order('decidido_em', { ascending: true, nullsFirst: false })
     } else if (aba === 'meus') {
-      // leads pre_aprovado atribuidos a mim (o que "chegou pra mim")
       q = q.eq('status', 'pre_aprovado').eq('atribuido_a', profile?.id).order('prazo_resolucao', { ascending: true, nullsFirst: false })
     } else if (aba === 'vendido') {
       q = q.eq('status', 'vendido').order('vendido_em', { ascending: false, nullsFirst: false })
-      if (!ehGestor) q = q.eq('atribuido_a', profile?.id)
-    } else if (aba === 'nao_vendido' || aba === 'sem_contato') {
-      q = q.eq('status', aba).order('atualizado_em', { ascending: false })
-      if (!ehGestor) q = q.eq('atribuido_a', profile?.id)
+      if (!ehAdmin) q = q.eq('atribuido_a', profile?.id)
     } else {
       q = q.eq('status', aba).order('atualizado_em', { ascending: false })
+      if (!ehAdmin && (aba === 'nao_vendido' || aba === 'sem_contato')) q = q.eq('atribuido_a', profile?.id)
     }
-    const { data } = await q.limit(300)
-    const lista = data || []
+    const { data } = await q.limit(400)
+    let lista = data || []
+    // filtro por dia no pool (client-side, sobre o dia de simulacao)
+    if (aba === 'pool' && diaSelecionado) {
+      lista = lista.filter(i => (i.decidido_em || i.criado_em || '').slice(0, 10) === diaSelecionado)
+    }
     const ids = [...new Set(lista.map(i => i.atribuido_a).filter(Boolean))]
     if (ids.length) {
       const { data: profs } = await supabase.from('profiles').select('id, nome').in('id', ids)
@@ -138,10 +146,10 @@ export default function SimulacaoEmprestimo() {
     }
     setItens(lista)
     setLoading(false)
-  }, [aba, profile, ehGestor])
+  }, [aba, profile, ehAdmin, diaSelecionado])
 
   const carregarDash = useCallback(async () => {
-    if (!ehGestor) return
+    if (!ehAdmin) return
     const fim = new Date(); let ini = new Date()
     if (periodo === 'dia') ini.setHours(0, 0, 0, 0)
     else if (periodo === 'semana') ini.setDate(ini.getDate() - 7)
@@ -149,26 +157,31 @@ export default function SimulacaoEmprestimo() {
     else if (periodo === 'custom') { if (dtIni) ini = new Date(dtIni); if (dtFim) fim.setTime(new Date(dtFim).getTime()) }
     const { data } = await supabase.rpc('emprestimo_dashboard', { p_inicio: ini.toISOString(), p_fim: fim.toISOString() })
     setDash(data || null)
-  }, [periodo, dtIni, dtFim, ehGestor])
+  }, [periodo, dtIni, dtFim, ehAdmin])
+
+  const carregarPool = useCallback(async () => {
+    if (!ehAdmin) return
+    const { data } = await supabase.rpc('emprestimo_pool_por_dia')
+    setPoolPorDia(data || [])
+  }, [ehAdmin])
 
   const carregarSaude = useCallback(async () => {
     const { data: log } = await supabase.from('crefisa_log').select('criado_em').order('criado_em', { ascending: false }).limit(1)
-    const { count: livre } = await supabase.from('simulacoes_emprestimo').select('id', { count: 'exact', head: true }).eq('status', 'pre_aprovado').is('atribuido_a', null)
-    setPoolLivre(livre || 0)
     const ultima = log?.[0]?.criado_em || null
     const minSemSim = ultima ? Math.floor((Date.now() - new Date(ultima).getTime()) / 60000) : 999
     setSaude({ ultima, parado: minSemSim >= 10 })
   }, [])
 
   const carregarVendedores = useCallback(async () => {
-    if (!ehGestor) return
+    if (!ehAdmin) return
     const { data } = await supabase.from('profiles').select('id, nome, role').eq('ativo', true)
       .in('role', ['vendedor', 'simulador_emprestimo', 'coordenador_b2c']).order('nome')
     setVendedores(data || [])
-  }, [ehGestor])
+  }, [ehAdmin])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { carregarDash() }, [carregarDash])
+  useEffect(() => { carregarPool() }, [carregarPool])
   useEffect(() => { carregarVendedores() }, [carregarVendedores])
   useEffect(() => { carregarSaude(); const id = setInterval(carregarSaude, 30000); return () => clearInterval(id) }, [carregarSaude])
 
@@ -177,20 +190,20 @@ export default function SimulacaoEmprestimo() {
     const qtd = parseInt(distQtd, 10)
     if (!qtd || qtd < 1) { alert('Digite uma quantidade válida.'); return }
     setDistribuindo(true)
-    const { data, error } = await supabase.rpc('emprestimo_distribuir_leads', {
-      p_vendedor_id: distVendedor, p_quantidade: qtd, p_gestor_id: profile?.id
-    })
+    const params = { p_vendedor_id: distVendedor, p_quantidade: qtd, p_gestor_id: profile?.id }
+    if (diaSelecionado) params.p_dia = diaSelecionado
+    const { data, error } = await supabase.rpc('emprestimo_distribuir_leads', params)
     setDistribuindo(false)
     if (error) { alert('Erro: ' + error.message); return }
     if (!data?.ok) { alert(data?.erro || 'Erro ao distribuir'); return }
     const nome = vendedores.find(v => v.id === distVendedor)?.nome || 'vendedor'
-    alert(`✅ ${data.distribuidos} leads enviados para ${nome}` + (data.faltou > 0 ? ` (faltaram ${data.faltou}, pool esvaziou)` : ''))
+    const doDia = diaSelecionado ? ` do dia ${fmtDiaLabel(diaSelecionado)}` : ''
+    alert(`✅ ${data.distribuidos} leads${doDia} enviados para ${nome}` + (data.faltou > 0 ? ` (faltaram ${data.faltou})` : ''))
     setDistQtd('')
-    carregar(); carregarSaude(); carregarDash()
+    carregar(); carregarPool(); carregarDash()
   }
 
   function abrirDesfecho(id) { setDesfechoAberto(id); setValorVenda(''); setMotivoNao('') }
-
   async function marcarVendido(item) {
     const v = Number(String(valorVenda).replace(/[^\d]/g, ''))
     if (!v) { alert('Informe o valor vendido.'); return }
@@ -214,28 +227,41 @@ export default function SimulacaoEmprestimo() {
 
   return (
     <div>
-      <div style={s.title}>💰 Empréstimo Crefisa {ehGestor ? '— Gestão' : ''}</div>
+      <div style={s.title}>💰 Empréstimo Crefisa {ehAdmin ? '— Distribuição' : ''}</div>
       <div style={s.subtitle}>
-        {ehGestor
-          ? 'Distribua os leads pré-aprovados para os vendedores. Cada vendedor vê só o que você enviou.'
+        {ehAdmin
+          ? 'Distribua os pré-aprovados para os vendedores. Filtre por dia e envie a quantidade que quiser.'
           : 'Estes são os leads enviados pra você. Contate, feche e registre o desfecho.'}
       </div>
 
-      {saude && ehGestor && (
+      {saude && ehAdmin && (
         <div style={{ ...s.robo, ...(saude.parado ? s.roboAlerta : s.roboOk) }}>
           <span style={{ ...s.luz, background: saude.parado ? '#A32D2D' : '#3B6D11' }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: saude.parado ? '#A32D2D' : '#25683b' }}>
             {saude.parado ? '⚠️ Robô parado — verificar' : '🤖 Robô ativo'}
           </span>
           <span style={{ fontSize: 12, color: '#666' }}>última simulação {tempoDesde(saude.ultima)}</span>
-          <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>pool livre: <strong>{poolLivre}</strong> pré-aprovados</span>
+          <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>pool total livre: <strong>{poolTotal}</strong></span>
         </div>
       )}
 
-      {/* PAINEL DE DISTRIBUIÇÃO — só gestor */}
-      {ehGestor && (
+      {/* PAINEL DE DISTRIBUIÇÃO — só admin */}
+      {ehAdmin && (
         <div style={s.distribBox}>
-          <div style={s.distribTitulo}>📤 Distribuir leads do pool ({poolLivre} disponíveis)</div>
+          <div style={s.distribTitulo}>📤 Distribuir leads {diaSelecionado ? `do dia ${fmtDiaLabel(diaSelecionado)}` : '(todos os dias)'} — {poolDoDia} disponíveis</div>
+
+          {/* Filtro por dia */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            <button style={{ ...s.diaChip, ...(diaSelecionado === '' ? s.diaChipOn : {}) }} onClick={() => setDiaSelecionado('')}>
+              Todos ({poolTotal})
+            </button>
+            {poolPorDia.map(d => (
+              <button key={d.dia} style={{ ...s.diaChip, ...(diaSelecionado === d.dia ? s.diaChipOn : {}) }} onClick={() => setDiaSelecionado(d.dia)}>
+                {fmtDiaLabel(d.dia)} ({d.qtd})
+              </button>
+            ))}
+          </div>
+
           <div style={s.distribRow}>
             <div style={s.distribCampo}>
               <label style={s.distribLabel}>Quantidade</label>
@@ -252,12 +278,14 @@ export default function SimulacaoEmprestimo() {
               {distribuindo ? 'Enviando...' : 'Enviar leads'}
             </button>
           </div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>Pega os mais antigos do pool. Depois de enviado, o lead é do vendedor até ele registrar o desfecho.</div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+            Pega os mais antigos {diaSelecionado ? `do dia ${fmtDiaLabel(diaSelecionado)}` : 'do pool'}. Depois de enviado, o lead é do vendedor até ele registrar o desfecho.
+          </div>
         </div>
       )}
 
-      {/* DASHBOARD — só gestor */}
-      {ehGestor && (
+      {/* DASHBOARD — só admin */}
+      {ehAdmin && (
         <div style={s.painel}>
           <div style={s.filtros}>
             {[['dia', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['custom', 'Personalizado']].map(([k, label]) => (
@@ -286,7 +314,7 @@ export default function SimulacaoEmprestimo() {
               <div style={{ ...s.kpi, background: '#FFF8E7', borderColor: '#85500B30' }}>
                 <div style={{ ...s.kpiTop, color: '#854F0B' }}>Distribuídos sem desfecho</div>
                 <div style={{ ...s.kpiNum, color: '#854F0B' }}>{t.assumidos_sem_desfecho}</div>
-                <div style={s.kpiSub}>{poolLivre} ainda no pool</div>
+                <div style={s.kpiSub}>{poolTotal} ainda no pool</div>
               </div>
               <div style={{ ...s.kpi, background: t.vencidos_cobranca > 0 ? '#FCEBEB' : '#F7F7F7', borderColor: t.vencidos_cobranca > 0 ? '#A32D2D30' : 'rgba(0,0,0,0.08)' }}>
                 <div style={{ ...s.kpiTop, color: t.vencidos_cobranca > 0 ? '#A32D2D' : '#888' }}>⏰ Vencidos (cobrar)</div>
@@ -332,25 +360,24 @@ export default function SimulacaoEmprestimo() {
         ))}
       </div>
 
-      {aba === 'meus' && !ehGestor && (
+      {aba === 'meus' && !ehAdmin && (
         <div style={s.filaHeader}>👤 Estes são os leads que a gestão enviou pra você. Contate e registre o desfecho de cada um.</div>
       )}
       {aba === 'pool' && (
-        <div style={s.filaHeader}>📥 Leads pré-aprovados aguardando distribuição. Use o painel acima para enviar aos vendedores.</div>
+        <div style={s.filaHeader}>📥 Pré-aprovados aguardando distribuição{diaSelecionado ? ` — dia ${fmtDiaLabel(diaSelecionado)}` : ''}. Use o painel acima para enviar aos vendedores.</div>
       )}
 
       {loading ? (
         <div style={s.loading}>Carregando...</div>
       ) : itens.length === 0 ? (
         <div style={s.empty}>
-          {aba === 'meus' ? 'Nenhum lead com você no momento.' : aba === 'pool' ? 'Pool vazio — nada a distribuir.' : 'Nada aqui.'}
+          {aba === 'meus' ? 'Nenhum lead com você no momento.' : aba === 'pool' ? 'Pool vazio — nada a distribuir aqui.' : 'Nada aqui.'}
         </div>
       ) : (
         itens.map(item => {
           const meuLead = item.atribuido_a === profile?.id
           const tel = soDigitos(item.telefone)
           const vencido = aba === 'meus' && item.prazo_resolucao && new Date(item.prazo_resolucao) < new Date()
-          const podeResolver = aba === 'meus' // so na aba meus registra desfecho
           return (
             <div key={item.id} style={{ ...s.card, ...(vencido ? s.cardVencido : {}) }}>
               <div style={s.cardHeader}>
@@ -367,23 +394,17 @@ export default function SimulacaoEmprestimo() {
                 </div>
               </div>
 
-              {/* GESTOR vendo o pool: mostra so info, sem acao de venda */}
-              {aba === 'pool' && (
-                <div style={{ fontSize: 12, color: '#888' }}>No pool · aguardando distribuição</div>
-              )}
+              {aba === 'pool' && <div style={{ fontSize: 12, color: '#888' }}>No pool · aguardando distribuição</div>}
 
-              {/* MEUS LEADS: dono + desfecho */}
               {aba === 'meus' && (
                 <>
-                  {ehGestor && !meuLead && (
+                  {ehAdmin && !meuLead && (
                     <div style={{ ...s.donoTag, ...(vencido ? s.donoVencido : s.donoOk) }}>
                       {vencido ? '⏰ ' : '✓ '}{nomesProfiles[item.atribuido_a] || 'Vendedor'} · enviado {tempoDesde(item.atribuido_em)}{vencido && ' · VENCIDO'}
                     </div>
                   )}
-                  {meuLead && vencido && (
-                    <div style={{ ...s.donoTag, ...s.donoVencido }}>⏰ Prazo vencido — resolva este lead</div>
-                  )}
-                  {podeResolver && (desfechoAberto === item.id ? (
+                  {meuLead && vencido && <div style={{ ...s.donoTag, ...s.donoVencido }}>⏰ Prazo vencido — resolva este lead</div>}
+                  {desfechoAberto === item.id ? (
                     <div style={s.desfechoBox}>
                       <div style={s.desfechoTitulo}>Qual foi o desfecho?</div>
                       <input style={s.input} placeholder="Valor fechado (R$)" value={valorVenda} onChange={e => setValorVenda(e.target.value)} />
@@ -405,7 +426,7 @@ export default function SimulacaoEmprestimo() {
                       <button style={s.btnVender} onClick={() => abrirDesfecho(item.id)}>✍️ Registrar desfecho</button>
                       {tel && <a style={s.btnWhats} href={`https://wa.me/55${tel}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>}
                     </div>
-                  ))}
+                  )}
                 </>
               )}
 
