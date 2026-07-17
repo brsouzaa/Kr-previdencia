@@ -174,8 +174,11 @@ export default function SimulacaoEmprestimo() {
 
   const carregarVendedores = useCallback(async () => {
     if (!ehAdmin) return
+    // vendedores de emprestimo por role + Nadia Cajado e Ju Ferreira (B2C que tambem vendem emprestimo, por ID)
+    const IDS_EMPRESTIMO_EXTRA = ['a3e94f8b-7e64-479b-9d72-1414afb83d1c', '7ad37a1d-e5be-438c-9afd-982646d507d4']
     const { data } = await supabase.from('profiles').select('id, nome, role').eq('ativo', true)
-      .in('role', ['vendedor', 'simulador_emprestimo', 'coordenador_b2c']).order('nome')
+      .or(`role.in.(vendedor,simulador_emprestimo,coordenador_b2c),id.in.(${IDS_EMPRESTIMO_EXTRA.join(',')})`)
+      .order('nome')
     setVendedores(data || [])
   }, [ehAdmin])
 
