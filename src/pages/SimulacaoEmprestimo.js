@@ -74,6 +74,15 @@ function fmtDiaLabel(diaStr) {
   const [y, m, d] = diaStr.split('-')
   return `${d}/${m}`
 }
+function rotuloDia(diaStr) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1)
+  const [y, m, d] = diaStr.split('-')
+  const data = new Date(Number(y), Number(m) - 1, Number(d))
+  if (data.getTime() === hoje.getTime()) return 'Hoje'
+  if (data.getTime() === ontem.getTime()) return 'Ontem'
+  return `${d}/${m}`
+}
 function tempoDesde(iso) {
   if (!iso) return ''
   const seg = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -117,6 +126,20 @@ export default function SimulacaoEmprestimo() {
 
   const poolTotal = poolPorDia.reduce((acc, d) => acc + Number(d.qtd), 0)
   const poolDoDia = diaSelecionado ? Number(poolPorDia.find(d => d.dia === diaSelecionado)?.qtd || 0) : poolTotal
+
+  // Aba "Meus leads": resumo por DIA DE ENVIO (atribuido_em). Recebidos e pendentes de cada dia.
+  const resumoPorDiaEnvio = (() => {
+    if (aba !== 'meus') return []
+    const mapa = {}
+    for (const it of itens) {
+      const dia = (it.atribuido_em || '').slice(0, 10)
+      if (!dia) continue
+      if (!mapa[dia]) mapa[dia] = { dia, recebidos: 0, pendentes: 0 }
+      mapa[dia].recebidos++
+      if (it.status === 'pre_aprovado') mapa[dia].pendentes++
+    }
+    return Object.values(mapa).sort((a, b) => b.dia.localeCompare(a.dia))
+  })()
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -366,6 +389,19 @@ export default function SimulacaoEmprestimo() {
       {aba === 'meus' && !ehAdmin && (
         <div style={s.filaHeader}>👤 Estes são os leads que a gestão enviou pra você. Contate e registre o desfecho de cada um.</div>
       )}
+      {aba === 'meus' && resumoPorDiaEnvio.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          {resumoPorDiaEnvio.map(g => (
+            <div key={g.dia} style={{ background: rotuloDia(g.dia) === 'Hoje' ? '#EAF3DE' : '#fff', border: `0.5px solid ${rotuloDia(g.dia) === 'Hoje' ? '#3B6D1130' : 'rgba(0,0,0,0.1)'}`, borderRadius: 10, padding: '10px 14px', minWidth: 130 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: rotuloDia(g.dia) === 'Hoje' ? '#3B6D11' : '#555', marginBottom: 4 }}>
+                📅 {rotuloDia(g.dia)}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: '#111', lineHeight: 1 }}>{g.pendentes}</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>a chamar · {g.recebidos} recebidos</div>
+            </div>
+          ))}
+        </div>
+      )}
       {aba === 'pool' && (
         <div style={s.filaHeader}>📥 Pré-aprovados aguardando distribuição{diaSelecionado ? ` — dia ${fmtDiaLabel(diaSelecionado)}` : ''}. Use o painel acima para enviar aos vendedores.</div>
       )}
@@ -387,7 +423,7 @@ export default function SimulacaoEmprestimo() {
                 <div>
                   <div style={s.nome}>{item.nome || 'Sem nome'}</div>
                   <div style={s.meta}>CPF {fmtCpf(item.cpf)} · {item.telefone || 'sem telefone'} · {item.origem_ia || 'IA'}</div>
-                  <div style={s.meta}>📅 Simulado em {fmtData(item.decidido_em || item.criado_em)}</div>
+                  <div style={s.meta}>📅 {aba === 'meus' ? `Enviado ${fmtData(item.atribuido_em)}` : `Simulado em ${fmtData(item.decidido_em || item.criado_em)}`}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   {aba === 'vendido'
