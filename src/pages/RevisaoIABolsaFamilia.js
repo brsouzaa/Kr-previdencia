@@ -10,6 +10,11 @@ export const IDS_AGENTES_BF = [
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
 ]
 
+// Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
+const IDS_SUPERVISOR_BOARD = [
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+]
+
 const COLUNAS = [
   ['OFERTA', '📢 Oferta'],
   ['COLETA_RG_FRENTE', '🪪 RG Frente'],
@@ -79,7 +84,7 @@ const s = {
 
 export default function RevisaoIABolsaFamilia() {
   const { profile } = useAuth()
-  const ehAdmin = profile?.role === 'admin'
+  const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
