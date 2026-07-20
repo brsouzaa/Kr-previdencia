@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const COLUNAS = [
-const COLUNAS = [
   ['PEDIU_CNIS', '📄 Pediu CNIS'],
   ['FILA_GERID', '🗂️ Fila GERID'],
   ['A_ANALISAR', '🔍 A analisar'],
