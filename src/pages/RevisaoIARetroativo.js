@@ -69,6 +69,11 @@ const s = {
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
   destaque: { gridColumn: '1 / -1', background: '#FFF7E6', border: '1px solid #C88A0040', borderRadius: 8, padding: '8px 10px', fontSize: 13, fontWeight: 600 },
+  anexoBox: { marginBottom: 12 },
+  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 },
+  anexoRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' },
+  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#F4F8FC', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, fontSize: 12, color: '#185FA5', textDecoration: 'none', fontWeight: 500 },
   msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
   msgCliente: { alignSelf: 'flex-start', background: '#F1F1F1', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgAna: { alignSelf: 'flex-end', background: '#EAF3DE', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
@@ -88,6 +93,8 @@ export default function RevisaoIARetroativo() {
   const [filtroAgente, setFiltroAgente] = useState('')
   const [lead, setLead] = useState(null)
   const [mensagens, setMensagens] = useState([])
+  const [anexos, setAnexos] = useState([])
+  const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -119,11 +126,21 @@ export default function RevisaoIARetroativo() {
     setLead(l)
     setTexto(sugestaoPara(l))
     setMensagens([])
+    setAnexos([])
     const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
     setMensagens(data || [])
+    if (l.chatwoot_conversation_id) {
+      setCarregandoAnexos(true)
+      try {
+        const { data: res } = await supabase.functions.invoke('bf-anexos', {
+          body: { conversation_id: l.chatwoot_conversation_id },
+        })
+        setAnexos(res?.anexos || [])
+      } finally { setCarregandoAnexos(false) }
+    }
   }
 
-  const fechar = () => { setLead(null); setMensagens([]); setTexto('') }
+  const fechar = () => { setLead(null); setMensagens([]); setTexto(''); setAnexos([]) }
 
   const enviarComoAna = async () => {
     if (!lead || !texto.trim() || enviando) return
@@ -233,6 +250,28 @@ export default function RevisaoIARetroativo() {
               {lead.cnis_aprovado === 'true' && <div>✅ CNIS aprovado</div>}
               {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
               {ehAdmin && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
+            </div>
+
+            <div style={s.anexoBox}>
+              <div style={s.anexoLabel}>
+                📎 Anexos {carregandoAnexos ? '(carregando...)' : `(${anexos.length})`}
+              </div>
+              {!carregandoAnexos && anexos.length === 0 && (
+                <div style={{ fontSize: 12, color: '#aaa' }}>Nenhum anexo nesta conversa.</div>
+              )}
+              <div style={s.anexoRow}>
+                {anexos.map((a, i) => (
+                  a.tipo === 'image' ? (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" title="Abrir imagem">
+                      <img src={a.thumb || a.url} alt="anexo" style={s.anexoImg} />
+                    </a>
+                  ) : (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" style={s.anexoFile}>
+                      📄 {a.ext ? a.ext.toUpperCase() : 'Arquivo'} · abrir/baixar
+                    </a>
+                  )
+                ))}
+              </div>
             </div>
 
             <div style={s.msgs}>
