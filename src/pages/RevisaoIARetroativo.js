@@ -7,13 +7,10 @@ const COLUNAS = [
   ['FILA_GERID', '🗂️ Fila GERID'],
   ['A_ANALISAR', '🔍 A analisar'],
   ['PITCH_LIBERADO', '🚀 Pitch liberado'],
-  ['CAD_NOME', '📛 Nome completo'],
-  ['CAD_RG_FRENTE', '🪪 RG frente'],
-  ['CAD_RG_VERSO', '🪪 RG verso'],
-  ['CAD_RG_NUMERO', '🔢 Nº do RG'],
-  ['CAD_COMPROVANTE', '📜 Comprovante'],
   ['CAD_ENDERECO', '📍 Endereço'],
-  ['CAD_OUTROS', '📋 Cadastro (outros)'],
+  ['CAD_RG', '🪪 RG frente/verso'],
+  ['CAD_COMPROVANTE', '📜 Doc. do filho'],
+  ['CAD_FINAL', '🏁 CPF / Nº RG / Nome'],
   ['AGUARDANDO_ASSINATURA', '✍️ Aguard. assinatura'],
   ['FINALIZADO', '🎉 Finalizado'],
   ['REPROVADO', '⛔ Reprovado'],
@@ -30,16 +27,12 @@ function fmtParado(min) {
 function sugestaoPara(lead) {
   const nome = primeiroNome(lead.nome)
   const map = {
-    QUALIFICANDO: `Oi ${nome}! 💗 Vi que a gente parou no meio da sua análise do retroativo. Posso continuar? É rapidinho e pode valer mais de R$ 6 mil pra você!`,
     PEDIU_CNIS: `${nome}, pra eu confirmar o seu direito só falta o seu extrato CNIS 📄 Você consegue me mandar? Se tiver dúvida de como tirar, eu te ajudo passo a passo 💗`,
     PITCH_LIBERADO: `${nome}, boa notícia! ✅ Analisamos o seu CNIS e está tudo certo pra seguir. Posso te explicar os próximos passos?`,
-   CAD_NOME: `${nome}, pra eu montar seu cadastro certinho, me manda seu nome completo? 💗`,
-    CAD_RG_FRENTE: `${nome}, falta só a foto da FRENTE do seu RG 🪪 Me manda aqui que eu já adianto tudo!`,
-    CAD_RG_VERSO: `${nome}, agora me manda a foto do VERSO do seu RG 🪪 É o último documento, tá acabando! 💗`,
-    CAD_RG_NUMERO: `${nome}, me confirma o número do seu RG? Só isso e seguimos! 💗`,
-    CAD_COMPROVANTE: `${nome}, me manda o comprovante que falta pra finalizar seu cadastro? 📜 Falta pouquinho! 💗`,
-    CAD_ENDERECO: `${nome}, me passa seu CEP e o número da sua casa? 📍 Aí fecho seu cadastro agorinha 💗`,
-    CAD_OUTROS: `${nome}, falta pouquinho pra finalizar seu cadastro! 💗 Me manda o que falta que eu já deixo tudo pronto pra você.`,
+    CAD_ENDERECO: `${nome}, me passa seu CEP e o número da sua casa? 📍 É o primeiro passo do cadastro, rapidinho! 💗`,
+    CAD_RG: `${nome}, me manda as fotos do seu RG? Primeiro a FRENTE, depois o VERSO 🪪 Falta pouquinho! 💗`,
+    CAD_COMPROVANTE: `${nome}, agora me manda o documento do seu bebê (certidão de nascimento) 📜 Tá quase! 💗`,
+    CAD_FINAL: `${nome}, última etapa! 🎉 Me confirma seu CPF, o número do seu RG e seu nome completo (igualzinho ao documento) que eu finalizo seu cadastro 💗`,
     AGUARDANDO_ASSINATURA: `${nome}, seu contrato já está prontinho esperando sua assinatura ✍️ É só clicar no link que te mandei. Qualquer dúvida me chama! 💗`,
   }
   return map[lead.coluna] || `Oi ${nome}! 💗 Tudo bem? Vi que a gente parou no meio — posso te ajudar a continuar?`
@@ -87,12 +80,10 @@ export default function RevisaoIARetroativo() {
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
-  const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
   const [lead, setLead] = useState(null)
   const [mensagens, setMensagens] = useState([])
   const [texto, setTexto] = useState('')
-  const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -100,82 +91,89 @@ export default function RevisaoIARetroativo() {
     const p_agente = ehAdmin ? (filtroAgente || null) : profile.id
     const { data } = await supabase.rpc('mae_board', { p_agente })
     setBoard(data || [])
-  }, [profile, ehAdmin, filtroAgente])
-
-  useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
+  }, [profile?.id, ehAdmin, filtroAgente])
 
   useEffect(() => {
-    if (ehAdmin) {
-      supabase.from('profiles').select('id, nome').eq('role', 'agente_bf').then(() => {})
-      supabase.rpc('mae_board', { p_agente: null }).then(() => {})
-      supabase.from('profiles').select('id, nome')
-        .in('id', ['758a33f7-e5a2-4ef7-943a-dfe0ac72a387', '64ced61d-fdae-4399-97c9-900c59120fff', '7ad37a1d-e5be-438c-9afd-982646d507d4', 'a3e94f8b-7e64-479b-9d72-1414afb83d1c'])
-        .order('nome')
-        .then(({ data }) => setAgentes(data || []))
-    }
-  }, [ehAdmin])
+    carregar()
+    const timer = setInterval(carregar, 45000)
+    return () => clearInterval(timer)
+  }, [carregar])
 
-  async function abrirCard(l) {
+  const agentes = []
+  board.forEach(l => {
+    if (l.bf_agente_id && l.agente_nome && !agentes.some(a => a.id === l.bf_agente_id)) {
+      agentes.push({ id: l.bf_agente_id, nome: l.agente_nome })
+    }
+  })
+
+  const totalVermelhos = board.filter(l => l.cor === 'vermelho').length
+  const filaAnalista = board.filter(l => l.coluna === 'A_ANALISAR').length
+  const finalizadas = board.filter(l => l.coluna === 'FINALIZADO').length
+
+  const abrirLead = async (l) => {
     setLead(l)
-    const sug = sugestaoPara(l)
-    setSugestao(sug); setTexto(sug)
-    const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 12 })
+    setTexto(sugestaoPara(l))
+    setMensagens([])
+    const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
     setMensagens(data || [])
   }
 
-  async function enviarComoAna() {
-    if (!lead) return
+  const fechar = () => { setLead(null); setMensagens([]); setTexto('') }
+
+  const enviarComoAna = async () => {
+    if (!lead || !texto.trim() || enviando) return
     setEnviando(true)
-    const { data, error } = await supabase.functions.invoke('bf-disparar-mensagem', {
-      body: {
-        lead_id: lead.id,
-        texto: texto && texto.trim() ? texto.trim() : null,
-        agente_id: profile?.id,
-        sugestao_ia: sugestao,
-        editado: texto.trim() !== sugestao.trim(),
-      },
-    })
-    setEnviando(false)
-    if (error || !data?.ok) { alert('Erro: ' + (error?.message || data?.erro || 'falhou')); return }
-    setLead(null); setTexto(''); carregar()
+    try {
+      const sugestaoOriginal = sugestaoPara(lead)
+      const { error } = await supabase.functions.invoke('bf-disparar-mensagem', {
+        body: {
+          lead_id: lead.id,
+          texto: texto.trim(),
+          agente_id: profile.id,
+          sugestao_ia: sugestaoOriginal,
+          editado: texto.trim() !== sugestaoOriginal,
+        },
+      })
+      if (error) { alert('Erro ao enviar: ' + (error.message || 'tente de novo')) }
+      else { fechar(); carregar() }
+    } finally { setEnviando(false) }
   }
 
-  async function decidirCnis(aprovado) {
-    if (!lead) return
+  const decidirCnis = async (aprovado) => {
+    if (!lead || enviando) return
     let motivo = null
     if (!aprovado) {
-      motivo = window.prompt('Motivo da reprovação:')
-      if (motivo === null) return
+      motivo = window.prompt('Motivo da reprovação do CNIS:')
+      if (!motivo) return
     }
     setEnviando(true)
-    const { data, error } = await supabase.rpc('mae_aprovar_cnis', {
-      p_lead_id: lead.id, p_aprovado: aprovado, p_analista: profile?.id, p_motivo: motivo,
-    })
-    setEnviando(false)
-    if (error || !data?.ok) { alert('Erro: ' + (error?.message || data?.erro || 'falhou')); return }
-    setLead(null); carregar()
+    try {
+      const { error } = await supabase.rpc('mae_aprovar_cnis', {
+        p_lead_id: lead.id, p_aprovado: aprovado, p_analista: profile.id, p_motivo: motivo,
+      })
+      if (error) { alert('Erro: ' + (error.message || 'tente de novo')) }
+      else { fechar(); carregar() }
+    } finally { setEnviando(false) }
   }
 
-  const visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
-  const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
-  const filaAnalista = board.filter(c => c.coluna === 'A_ANALISAR').length
+  const cardsDe = (col) => board.filter(l =>
+    l.coluna === col && (!soVermelhos || l.cor === 'vermelho')
+  ).slice(0, 60)
 
   return (
     <div>
       <div style={s.title}>🤱 Revisão IA — Retroativo</div>
-      <div style={s.sub}>
-        {ehAdmin ? 'Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.' : 'Suas mães do funil. Vermelho = travou, entre e destrave. Na coluna "CNIS a analisar", aprove ou reprove.'}
-      </div>
+      <div style={s.sub}>Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.</div>
 
       <div style={s.topo}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
-        <span style={s.kpi}>🔍 Fila do analista: <strong>{filaAnalista}</strong></span>
-        <span style={s.kpi}>Total: <strong>{board.length}</strong></span>
-        <span style={s.kpi}>Finalizadas: <strong>{board.filter(c => c.coluna === 'FINALIZADO').length}</strong></span>
+        <span style={s.kpi}>🔍 Fila do analista: <b>{filaAnalista}</b></span>
+        <span style={s.kpi}>Total: <b>{board.length}</b></span>
+        <span style={s.kpi}>Finalizadas: <b>{finalizadas}</b></span>
         {ehAdmin && (
-          <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
+          <select style={s.chip} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
             <option value="">Todos os agentes</option>
             {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
           </select>
@@ -184,71 +182,72 @@ export default function RevisaoIARetroativo() {
       </div>
 
       <div style={s.board}>
-        {COLUNAS.map(([key, label]) => {
-          const cards = visiveis.filter(c => c.coluna === key)
+        {COLUNAS.map(([col, titulo]) => {
+          const cards = cardsDe(col)
           return (
-            <div key={key} style={s.col}>
-              <div style={s.colTitulo}><span>{label}</span><span>{cards.length}</span></div>
-              {cards.slice(0, 60).map(c => (
-                <div key={c.id} style={{ ...s.card, ...(CORES[c.cor] || CORES.normal) }} onClick={() => abrirCard(c)}>
-                  <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
+            <div key={col} style={s.col}>
+              <div style={s.colTitulo}><span>{titulo}</span><span>{board.filter(l => l.coluna === col).length}</span></div>
+              {cards.map(l => (
+                <div key={l.id} style={{ ...s.card, ...(CORES[l.cor] || CORES.normal) }} onClick={() => abrirLead(l)}>
+                  <div style={s.cardNome}>{l.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
-                    {c.cor === 'vermelho' ? `🔴 parada há ${fmtParado(c.minutos_parado)}` : c.cor === 'amarelo' ? `🟡 ${fmtParado(c.minutos_parado)}` : `${fmtParado(c.minutos_parado)}`}
-                    {c.idade_bebe ? ` · 👶 ${c.idade_bebe}` : ''}
+                    {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
+                    {ehAdmin && l.agente_nome ? ` · ${l.agente_nome}` : ''}
                   </div>
-                  {ehAdmin && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
-                  {c.motivo_desqualificacao && key === 'DESQUALIFICADO' && <div style={s.cardMeta}>❌ {String(c.motivo_desqualificacao).slice(0, 40)}</div>}
-                  {c.bf_em_tratamento && <span style={s.tagTrat}>em tratamento</span>}
+                  {l.coluna === 'REPROVADO' && l.cnis_reprovado_motivo && (
+                    <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
+                  )}
+                  {l.bf_em_tratamento && <span style={s.tagTrat}>em tratamento</span>}
                 </div>
               ))}
-              {cards.length > 60 && <div style={{ fontSize: 11, color: '#999', padding: 6 }}>+{cards.length - 60} mais…</div>}
             </div>
           )
         })}
       </div>
 
       {lead && (
-        <div style={s.overlay} onClick={() => setLead(null)}>
+        <div style={s.overlay} onClick={fechar}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome}</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
-              {(COLUNAS.find(c => c[0] === lead.coluna) || [])[1] || lead.coluna} · parada há {fmtParado(lead.minutos_parado)}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{lead.nome || 'Sem nome'}</div>
+              <button style={s.btnFechar} onClick={fechar}>Fechar ✕</button>
             </div>
 
             <div style={s.ficha}>
-              <div style={s.destaque}>👶 Nascimento do filho: {lead.data_nascimento_filho || '—'} {lead.idade_bebe ? `(${lead.idade_bebe})` : ''}</div>
-              <div>📞 {lead.tel || '—'}</div>
+              {lead.data_nascimento_filho && (
+                <div style={s.destaque}>👶 Nascimento do filho: {lead.data_nascimento_filho}{lead.idade_bebe ? ` (${lead.idade_bebe})` : ''}</div>
+              )}
+              <div>📱 {lead.tel || '—'}</div>
               <div>🪪 CPF: {lead.cpf || '—'}</div>
               <div>💼 Trabalhava no nascimento: {lead.trabalhava_no_nascimento || '—'}</div>
-              <div>📇 Já trabalhou CLT: {lead.ja_trabalhou_clt || '—'}</div>
-              <div>🪪 RG: {lead.doc_rg_frente ? '✅' : '❌'} frente · {lead.doc_rg_verso ? '✅' : '❌'} verso</div>
-              <div>📜 Certidão: {lead.certidao ? '✅' : '❌'}</div>
-              {lead.cnis_reprovado_motivo && <div style={{ gridColumn: '1 / -1', color: '#A32D2D' }}>⛔ Reprovado: {lead.cnis_reprovado_motivo}</div>}
+              <div>📋 Já trabalhou CLT: {lead.ja_trabalhou_clt || '—'}</div>
+              <div>🪪 RG frente: {lead.doc_rg_frente ? '✅' : '—'}</div>
+              <div>🪪 RG verso: {lead.doc_rg_verso ? '✅' : '—'}</div>
+              <div>📜 Certidão: {lead.certidao ? '✅' : '—'}</div>
+              <div>📌 Etapa: {lead.estado}{lead.sub_estado ? ` / ${lead.sub_estado}` : ''}</div>
+              {lead.cnis_aprovado === 'true' && <div>✅ CNIS aprovado</div>}
+              {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
+              {ehAdmin && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
+            </div>
+
+            <div style={s.msgs}>
+              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>Sem mensagens.</div>}
+              {mensagens.map((m, i) => (
+                <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content || '—'}</div>
+              ))}
             </div>
 
             {lead.coluna === 'A_ANALISAR' && (
-              <div style={{ background: '#FFF7E6', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 13 }}>
-                🔍 <strong>Análise do CNIS:</strong> baixe o CNIS na conversa da Vendeai, cruze com a data de nascimento do filho acima e decida:
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button style={s.btnAprovar} onClick={() => decidirCnis(true)} disabled={enviando}>✅ APROVAR CNIS</button>
-                  <button style={s.btnReprovar} onClick={() => decidirCnis(false)} disabled={enviando}>⛔ REPROVAR</button>
-                </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <button style={s.btnAprovar} disabled={enviando} onClick={() => decidirCnis(true)}>✅ APROVAR CNIS</button>
+                <button style={s.btnReprovar} disabled={enviando} onClick={() => decidirCnis(false)}>⛔ REPROVAR CNIS</button>
               </div>
             )}
 
-            <div style={s.msgs}>
-              {mensagens.map((m, i) => (
-                <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content}</div>
-              ))}
-              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>Sem mensagens.</div>}
-            </div>
-
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>💬 Mensagem de destrave (sugerida pela IA — edite à vontade):</div>
-            <textarea style={s.textarea} value={texto} onChange={e => setTexto(e.target.value)} />
-            <button style={s.btnEnviar} onClick={enviarComoAna} disabled={enviando}>
-              {enviando ? 'Enviando...' : '💗 Enviar como Ana'}
+            <textarea style={s.textarea} value={texto} onChange={e => setTexto(e.target.value)} placeholder="Mensagem que a Ana vai enviar..." />
+            <button style={s.btnEnviar} disabled={enviando || !texto.trim()} onClick={enviarComoAna}>
+              {enviando ? 'Enviando...' : '💬 Enviar como Ana'}
             </button>
-            <button style={s.btnFechar} onClick={() => setLead(null)}>Fechar</button>
           </div>
         </div>
       )}
