@@ -84,6 +84,8 @@ const s = {
   btnEnviar: { width: '100%', padding: 12, background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
   btnAprovar: { flex: 1, padding: 12, background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnReprovar: { flex: 1, padding: 12, background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnAvancar: { flex: 1, padding: 12, background: '#185FA5', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnVoltar: { flex: 1, padding: 12, background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnFechar: { padding: '9px 12px', background: '#fff', color: '#888', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
 }
 
@@ -236,6 +238,19 @@ export default function RevisaoIARetroativo() {
     } finally { setEnviando(false) }
   }
 
+  // Move o lead de coluna do cadastro na mao (sem acionar a IA). Ja marca em tratamento + loga.
+  const avancarEtapa = async (direcao) => {
+    if (!lead || enviando) return
+    setEnviando(true)
+    try {
+      const { data, error } = await supabase.rpc('mae_avancar_etapa', {
+        p_lead_id: lead.id, p_agente_id: profile.id, p_direcao: direcao,
+      })
+      if (error || !data?.ok) { alert('Nao deu pra mover: ' + (error?.message || data?.erro || 'erro')); return }
+      fechar(); carregar()
+    } finally { setEnviando(false) }
+  }
+
   const cardsDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho')
   ).slice(0, 60)
@@ -373,6 +388,16 @@ export default function RevisaoIARetroativo() {
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <button style={s.btnAprovar} disabled={enviando} onClick={() => decidirCnis(true)}>✅ APROVAR CNIS</button>
                 <button style={s.btnReprovar} disabled={enviando} onClick={() => decidirCnis(false)}>⛔ REPROVAR CNIS</button>
+              </div>
+            )}
+
+            {lead.estado === 'COLETANDO_CADASTRO' && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Mover etapa do cadastro na mão (não aciona a IA):</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={s.btnVoltar} disabled={enviando} onClick={() => avancarEtapa('voltar')}>← Voltar</button>
+                  <button style={s.btnAvancar} disabled={enviando} onClick={() => avancarEtapa('proximo')}>Próxima etapa →</button>
+                </div>
               </div>
             )}
 
