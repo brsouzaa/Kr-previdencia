@@ -72,6 +72,11 @@ const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
+  anexoBox: { marginBottom: 12 },
+  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 },
+  anexoRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' },
+  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#F4F8FC', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, fontSize: 12, color: '#185FA5', textDecoration: 'none', fontWeight: 500 },
   msgs: { maxHeight: 220, overflowY: 'auto', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
   msgCliente: { alignSelf: 'flex-start', background: '#F1F1F1', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgAna: { alignSelf: 'flex-end', background: '#EAF3DE', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
@@ -93,6 +98,8 @@ export default function RevisaoIABolsaFamilia() {
   const [linkCrefisa, setLinkCrefisa] = useState('')
   const [lead, setLead] = useState(null)
   const [mensagens, setMensagens] = useState([])
+  const [anexos, setAnexos] = useState([])
+  const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [texto, setTexto] = useState('')
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -119,8 +126,19 @@ export default function RevisaoIABolsaFamilia() {
     setLead(l)
     const sug = sugestaoPara(l, linkCrefisa)
     setSugestao(sug); setTexto(sug)
+    setMensagens([])
+    setAnexos([])
     const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 12 })
     setMensagens(data || [])
+    if (l.chatwoot_conversation_id) {
+      setCarregandoAnexos(true)
+      try {
+        const { data: res } = await supabase.functions.invoke('bf-anexos', {
+          body: { conversation_id: l.chatwoot_conversation_id },
+        })
+        setAnexos(res?.anexos || [])
+      } finally { setCarregandoAnexos(false) }
+    }
   }
 
   async function disparar(acao, textoForcado) {
@@ -139,7 +157,7 @@ export default function RevisaoIABolsaFamilia() {
     })
     setEnviando(false)
     if (error || !data?.ok) { alert('Erro: ' + (error?.message || data?.erro || 'falhou')); return }
-    setLead(null); setTexto(''); carregar()
+    setLead(null); setTexto(''); setAnexos([]); carregar()
   }
 
   async function distribuir() {
@@ -212,6 +230,28 @@ export default function RevisaoIABolsaFamilia() {
               <div>💵 Renda: {lead.renda || '—'}</div>
               <div>🪪 RG: {lead.doc_rg_frente ? '✅' : '❌'} frente · {lead.doc_rg_verso ? '✅' : '❌'} verso</div>
               <div>📄 Extrato: {lead.doc_extrato ? '✅' : '❌'}</div>
+            </div>
+
+            <div style={s.anexoBox}>
+              <div style={s.anexoLabel}>
+                📎 Anexos {carregandoAnexos ? '(carregando...)' : `(${anexos.length})`}
+              </div>
+              {!carregandoAnexos && anexos.length === 0 && (
+                <div style={{ fontSize: 12, color: '#aaa' }}>Nenhum anexo nesta conversa.</div>
+              )}
+              <div style={s.anexoRow}>
+                {anexos.map((a, i) => (
+                  a.tipo === 'image' ? (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" title="Abrir imagem">
+                      <img src={a.thumb || a.url} alt="anexo" style={s.anexoImg} />
+                    </a>
+                  ) : (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" style={s.anexoFile}>
+                      📄 {a.ext ? a.ext.toUpperCase() : 'Arquivo'} · abrir/baixar
+                    </a>
+                  )
+                ))}
+              </div>
             </div>
 
             <div style={s.msgs}>
