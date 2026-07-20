@@ -19,6 +19,7 @@ const COLUNAS = [
   ['AGUARDANDO_ASSINATURA', '✍️ Aguard. assinatura'],
   ['FINALIZADO', '🎉 Finalizado'],
   ['REPROVADO', '⛔ Reprovado'],
+  ['OUTROS', '❓ Outros'],
 ]
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
