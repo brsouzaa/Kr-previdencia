@@ -64,7 +64,9 @@ const s = {
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#111' },
   cardMeta: { fontSize: 11, color: '#888', marginTop: 2 },
-  tagTrat: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '1px 6px', display: 'inline-block', marginTop: 4 },
+  tagTrat: { fontSize: 10, background: '#DFF3E0', color: '#256B2E', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagTratSup: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagNinguem: { fontSize: 10, background: '#F3E6E6', color: '#A32D2D', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
@@ -121,6 +123,7 @@ export default function RevisaoIARetroativo() {
   const totalVermelhos = board.filter(l => l.cor === 'vermelho').length
   const filaAnalista = board.filter(l => l.coluna === 'A_ANALISAR').length
   const finalizadas = board.filter(l => l.coluna === 'FINALIZADO').length
+  const semDono = board.filter(l => !l.bf_em_tratamento && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO').length
 
   const abrirLead = async (l) => {
     setLead(l)
@@ -178,6 +181,20 @@ export default function RevisaoIARetroativo() {
     } finally { setEnviando(false) }
   }
 
+  // Selo de tratamento no card, respeitando quem está olhando
+  function seloTratamento(l) {
+    if (l.bf_em_tratamento) {
+      if (ehAdmin) {
+        return <span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span>
+      }
+      return <span style={s.tagTrat}>🟢 Você está tratando</span>
+    }
+    if (ehAdmin && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
+      return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
+    }
+    return null
+  }
+
   const cardsDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho')
   ).slice(0, 60)
@@ -194,6 +211,7 @@ export default function RevisaoIARetroativo() {
         <span style={s.kpi}>🔍 Fila do analista: <b>{filaAnalista}</b></span>
         <span style={s.kpi}>Total: <b>{board.length}</b></span>
         <span style={s.kpi}>Finalizadas: <b>{finalizadas}</b></span>
+        {ehAdmin && <span style={s.kpi}>⚪ Sem ninguém: <b>{semDono}</b></span>}
         {ehAdmin && (
           <select style={s.chip} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
             <option value="">Todos os agentes</option>
@@ -219,7 +237,7 @@ export default function RevisaoIARetroativo() {
                   {l.coluna === 'REPROVADO' && l.cnis_reprovado_motivo && (
                     <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
                   )}
-                  {l.bf_em_tratamento && <span style={s.tagTrat}>em tratamento</span>}
+                  {seloTratamento(l)}
                 </div>
               ))}
             </div>
