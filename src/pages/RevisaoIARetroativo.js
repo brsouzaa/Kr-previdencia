@@ -97,6 +97,7 @@ export default function RevisaoIARetroativo() {
   const [mensagens, setMensagens] = useState([])
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
+  const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -125,23 +126,51 @@ export default function RevisaoIARetroativo() {
   const finalizadas = board.filter(l => l.coluna === 'FINALIZADO').length
   const semDono = board.filter(l => !l.bf_em_tratamento && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO').length
 
+  // Selo de tratamento no card, respeitando quem está olhando
+  function seloTratamento(l) {
+    if (l.bf_em_tratamento) {
+      if (ehAdmin) {
+        return <span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span>
+      }
+      return <span style={s.tagTrat}>🟢 Você está tratando</span>
+    }
+    if (ehAdmin && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
+      return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
+    }
+    return null
+  }
+
+  // Recarrega mensagens + anexos de um lead (usado ao abrir, no auto-refresh e no botão)
+  const recarregarConversa = useCallback(async (l, comLoading) => {
+    if (!l) return
+    if (comLoading) setAtualizandoConversa(true)
+    try {
+      const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
+      setMensagens(data || [])
+      if (l.chatwoot_conversation_id) {
+        const { data: res } = await supabase.functions.invoke('bf-anexos', {
+          body: { conversation_id: l.chatwoot_conversation_id },
+        })
+        setAnexos(res?.anexos || [])
+      }
+    } finally { if (comLoading) setAtualizandoConversa(false) }
+  }, [])
+
   const abrirLead = async (l) => {
     setLead(l)
     setTexto(sugestaoPara(l))
     setMensagens([])
     setAnexos([])
-    const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
-    setMensagens(data || [])
-    if (l.chatwoot_conversation_id) {
-      setCarregandoAnexos(true)
-      try {
-        const { data: res } = await supabase.functions.invoke('bf-anexos', {
-          body: { conversation_id: l.chatwoot_conversation_id },
-        })
-        setAnexos(res?.anexos || [])
-      } finally { setCarregandoAnexos(false) }
-    }
+    setCarregandoAnexos(true)
+    try { await recarregarConversa(l, false) } finally { setCarregandoAnexos(false) }
   }
+
+  // Auto-refresh da conversa aberta: recarrega a cada 8s enquanto o modal estiver aberto
+  useEffect(() => {
+    if (!lead) return
+    const t = setInterval(() => { recarregarConversa(lead, false) }, 8000)
+    return () => clearInterval(t)
+  }, [lead, recarregarConversa])
 
   const fechar = () => { setLead(null); setMensagens([]); setTexto(''); setAnexos([]) }
 
@@ -179,20 +208,6 @@ export default function RevisaoIARetroativo() {
       if (error) { alert('Erro: ' + (error.message || 'tente de novo')) }
       else { fechar(); carregar() }
     } finally { setEnviando(false) }
-  }
-
-  // Selo de tratamento no card, respeitando quem está olhando
-  function seloTratamento(l) {
-    if (l.bf_em_tratamento) {
-      if (ehAdmin) {
-        return <span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span>
-      }
-      return <span style={s.tagTrat}>🟢 Você está tratando</span>
-    }
-    if (ehAdmin && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
-      return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
-    }
-    return null
   }
 
   const cardsDe = (col) => board.filter(l =>
@@ -292,6 +307,18 @@ export default function RevisaoIARetroativo() {
               </div>
             </div>
 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>
+                💬 Conversa <span style={{ color: '#3B6D11', fontWeight: 500 }}>· atualiza sozinha</span>
+              </span>
+              <button
+                style={{ fontSize: 11, padding: '4px 10px', background: '#F4F8FC', color: '#185FA5', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => recarregarConversa(lead, true)}
+                disabled={atualizandoConversa}
+              >
+                {atualizandoConversa ? 'Atualizando...' : '🔄 Atualizar conversa'}
+              </button>
+            </div>
             <div style={s.msgs}>
               {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>Sem mensagens.</div>}
               {mensagens.map((m, i) => (
