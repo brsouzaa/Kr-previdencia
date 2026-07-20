@@ -67,6 +67,7 @@ const s = {
   tagTrat: { fontSize: 10, background: '#DFF3E0', color: '#256B2E', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagTratSup: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: '#F3E6E6', color: '#A32D2D', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagRespondeu: { fontSize: 10, background: '#FFF3DC', color: '#B26B00', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
@@ -129,10 +130,11 @@ export default function RevisaoIARetroativo() {
   // Selo de tratamento no card, respeitando quem está olhando
   function seloTratamento(l) {
     if (l.bf_em_tratamento) {
+      const aviso = l.cliente_respondeu ? <span style={s.tagRespondeu}>💬 cliente respondeu</span> : null
       if (ehAdmin) {
-        return <span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span>
+        return <>{aviso}<span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span></>
       }
-      return <span style={s.tagTrat}>🟢 Você está tratando</span>
+      return <>{aviso}<span style={s.tagTrat}>🟢 Você está tratando</span></>
     }
     if (ehAdmin && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
       return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
@@ -191,6 +193,21 @@ export default function RevisaoIARetroativo() {
       if (error) { alert('Erro ao enviar: ' + (error.message || 'tente de novo')) }
       else { fechar(); carregar() }
     } finally { setEnviando(false) }
+  }
+
+  // Pega o card (marca selo) sem mandar mensagem
+  const marcarTratando = async (l) => {
+    if (!l) return
+    await supabase.rpc('bf_marcar_tratando', { p_lead_id: l.id, p_agente_id: profile.id })
+    setLead({ ...l, bf_em_tratamento: true, cliente_respondeu: false })
+    carregar()
+  }
+  // Solta o card (tira o selo)
+  const soltarTratamento = async (l) => {
+    if (!l) return
+    await supabase.rpc('bf_soltar_tratamento', { p_lead_id: l.id })
+    setLead({ ...l, bf_em_tratamento: false, cliente_respondeu: false })
+    carregar()
   }
 
   const decidirCnis = async (aprovado) => {
@@ -305,6 +322,23 @@ export default function RevisaoIARetroativo() {
                   )
                 ))}
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              {lead.bf_em_tratamento ? (
+                <button
+                  style={{ fontSize: 12, padding: '6px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+                  onClick={() => soltarTratamento(lead)}
+                >✋ Soltar (não estou mais nesse)</button>
+              ) : (
+                <button
+                  style={{ fontSize: 12, padding: '6px 12px', background: '#EAF5E1', color: '#3B6D11', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+                  onClick={() => marcarTratando(lead)}
+                >🙋 Estou nesse</button>
+              )}
+              {lead.bf_em_tratamento && lead.cliente_respondeu && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#B26B00', background: '#FFF3DC', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
