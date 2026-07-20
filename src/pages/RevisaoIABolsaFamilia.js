@@ -102,6 +102,7 @@ export default function RevisaoIABolsaFamilia() {
   const [mensagens, setMensagens] = useState([])
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
+  const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [texto, setTexto] = useState('')
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -124,24 +125,38 @@ export default function RevisaoIABolsaFamilia() {
     }
   }, [ehAdmin])
 
+  // Recarrega mensagens + anexos de um lead (usado ao abrir, no auto-refresh e no botão)
+  const recarregarConversa = useCallback(async (l, comLoading) => {
+    if (!l) return
+    if (comLoading) setAtualizandoConversa(true)
+    try {
+      const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 12 })
+      setMensagens(data || [])
+      if (l.chatwoot_conversation_id) {
+        const { data: res } = await supabase.functions.invoke('bf-anexos', {
+          body: { conversation_id: l.chatwoot_conversation_id },
+        })
+        setAnexos(res?.anexos || [])
+      }
+    } finally { if (comLoading) setAtualizandoConversa(false) }
+  }, [])
+
   async function abrirCard(l) {
     setLead(l)
     const sug = sugestaoPara(l, linkCrefisa)
     setSugestao(sug); setTexto(sug)
     setMensagens([])
     setAnexos([])
-    const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 12 })
-    setMensagens(data || [])
-    if (l.chatwoot_conversation_id) {
-      setCarregandoAnexos(true)
-      try {
-        const { data: res } = await supabase.functions.invoke('bf-anexos', {
-          body: { conversation_id: l.chatwoot_conversation_id },
-        })
-        setAnexos(res?.anexos || [])
-      } finally { setCarregandoAnexos(false) }
-    }
+    setCarregandoAnexos(true)
+    try { await recarregarConversa(l, false) } finally { setCarregandoAnexos(false) }
   }
+
+  // Auto-refresh da conversa aberta: recarrega a cada 8s enquanto o modal estiver aberto
+  useEffect(() => {
+    if (!lead) return
+    const t = setInterval(() => { recarregarConversa(lead, false) }, 8000)
+    return () => clearInterval(t)
+  }, [lead, recarregarConversa])
 
   async function disparar(acao, textoForcado) {
     if (!lead) return
@@ -176,7 +191,6 @@ export default function RevisaoIABolsaFamilia() {
       }
       return <span style={s.tagTrat}>🟢 Você está tratando</span>
     }
-    // Só supervisor/admin vê o alerta de "ninguém pegou" nos parados (vermelho/amarelo)
     if (ehAdmin && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO') {
       return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
     }
@@ -273,6 +287,18 @@ export default function RevisaoIABolsaFamilia() {
               </div>
             </div>
 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>
+                💬 Conversa <span style={{ color: '#3B6D11', fontWeight: 500 }}>· atualiza sozinha</span>
+              </span>
+              <button
+                style={{ fontSize: 11, padding: '4px 10px', background: '#F4F8FC', color: '#185FA5', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => recarregarConversa(lead, true)}
+                disabled={atualizandoConversa}
+              >
+                {atualizandoConversa ? 'Atualizando...' : '🔄 Atualizar conversa'}
+              </button>
+            </div>
             <div style={s.msgs}>
               {mensagens.map((m, i) => (
                 <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content}</div>
