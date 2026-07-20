@@ -11,6 +11,16 @@ const IDS_AGENTES_BF = [
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
 ]
 
+// Agente Retroativo (Duda): item Revisao IA Retroativo no menu por ID
+const IDS_AGENTES_RETROATIVO = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
+]
+
+// Supervisores de board (Egle): itens Revisao IA (BF + Retroativo) no menu por ID
+const IDS_SUPERVISOR_BOARD = [
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+]
+
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
@@ -183,6 +193,17 @@ export default function Layout({ children, page, setPage }) {
     nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
   }
   if (IDS_AGENTES_BF.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
+    nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
+  }
+  // Duda (retroativo): item Revisao IA Retroativo por ID
+  if (IDS_AGENTES_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
+    nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
+  }
+  // Egle (supervisora de board): itens Revisao IA (Bolsa Familia + Retroativo) por ID
+  if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_bf')) {
+    nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
+  }
+  if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
   }
 
