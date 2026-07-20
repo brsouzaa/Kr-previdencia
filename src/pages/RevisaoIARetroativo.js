@@ -2,6 +2,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
+// Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
+const IDS_SUPERVISOR_BOARD = [
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+]
+
 const COLUNAS = [
   ['PEDIU_CNIS', '📄 Pediu CNIS'],
   ['FILA_GERID', '🗂️ Fila GERID'],
@@ -76,7 +81,7 @@ const s = {
 
 export default function RevisaoIARetroativo() {
   const { profile } = useAuth()
-  const ehAdmin = profile?.role === 'admin'
+  const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
