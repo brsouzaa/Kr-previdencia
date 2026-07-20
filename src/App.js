@@ -53,6 +53,11 @@ const IDS_AGENTES_BF = [
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
 ]
 
+// Agentes Retroativo (Duda): acesso por ID a tela Revisao IA Retroativo, sem perder role atual
+const IDS_AGENTES_RETROATIVO = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
+]
+
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -98,8 +103,10 @@ function paginaPermitida(profile, page) {
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
-  // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso as telas Revisao IA (Bolsa Familia + Retroativo) por ID, sem perder roles atuais
-  if (IDS_AGENTES_BF.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)) return true
+  // Agentes BF (Joana, Pamela, Ju, Nadia): acesso a tela Revisao IA Bolsa Familia por ID, sem perder roles
+  if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
+  // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
+  if (IDS_AGENTES_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
