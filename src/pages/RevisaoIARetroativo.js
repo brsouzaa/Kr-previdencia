@@ -3,17 +3,21 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const COLUNAS = [
-  ['QUALIFICANDO', '💬 Qualificando'],
+const COLUNAS = [
   ['PEDIU_CNIS', '📄 Pediu CNIS'],
   ['FILA_GERID', '🗂️ Fila GERID'],
-  ['A_ANALISAR', '🔍 CNIS a analisar'],
-  ['PRECISA_HUMANO', '🙋 Precisa humano'],
+  ['A_ANALISAR', '🔍 A analisar'],
   ['PITCH_LIBERADO', '🚀 Pitch liberado'],
-  ['COLETANDO', '📋 Coletando cadastro'],
+  ['CAD_NOME', '📛 Nome completo'],
+  ['CAD_RG_FRENTE', '🪪 RG frente'],
+  ['CAD_RG_VERSO', '🪪 RG verso'],
+  ['CAD_RG_NUMERO', '🔢 Nº do RG'],
+  ['CAD_COMPROVANTE', '📜 Comprovante'],
+  ['CAD_ENDERECO', '📍 Endereço'],
+  ['CAD_OUTROS', '📋 Cadastro (outros)'],
   ['AGUARDANDO_ASSINATURA', '✍️ Aguard. assinatura'],
   ['FINALIZADO', '🎉 Finalizado'],
   ['REPROVADO', '⛔ Reprovado'],
-  ['DESQUALIFICADO', '🚫 Desqualificado'],
 ]
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
@@ -30,7 +34,13 @@ function sugestaoPara(lead) {
     QUALIFICANDO: `Oi ${nome}! 💗 Vi que a gente parou no meio da sua análise do retroativo. Posso continuar? É rapidinho e pode valer mais de R$ 6 mil pra você!`,
     PEDIU_CNIS: `${nome}, pra eu confirmar o seu direito só falta o seu extrato CNIS 📄 Você consegue me mandar? Se tiver dúvida de como tirar, eu te ajudo passo a passo 💗`,
     PITCH_LIBERADO: `${nome}, boa notícia! ✅ Analisamos o seu CNIS e está tudo certo pra seguir. Posso te explicar os próximos passos?`,
-    COLETANDO: `${nome}, falta pouquinho pra finalizar seu cadastro! 💗 Me manda o que falta que eu já deixo tudo pronto pra você.`,
+   CAD_NOME: `${nome}, pra eu montar seu cadastro certinho, me manda seu nome completo? 💗`,
+    CAD_RG_FRENTE: `${nome}, falta só a foto da FRENTE do seu RG 🪪 Me manda aqui que eu já adianto tudo!`,
+    CAD_RG_VERSO: `${nome}, agora me manda a foto do VERSO do seu RG 🪪 É o último documento, tá acabando! 💗`,
+    CAD_RG_NUMERO: `${nome}, me confirma o número do seu RG? Só isso e seguimos! 💗`,
+    CAD_COMPROVANTE: `${nome}, me manda o comprovante que falta pra finalizar seu cadastro? 📜 Falta pouquinho! 💗`,
+    CAD_ENDERECO: `${nome}, me passa seu CEP e o número da sua casa? 📍 Aí fecho seu cadastro agorinha 💗`,
+    CAD_OUTROS: `${nome}, falta pouquinho pra finalizar seu cadastro! 💗 Me manda o que falta que eu já deixo tudo pronto pra você.`,
     AGUARDANDO_ASSINATURA: `${nome}, seu contrato já está prontinho esperando sua assinatura ✍️ É só clicar no link que te mandei. Qualquer dúvida me chama! 💗`,
   }
   return map[lead.coluna] || `Oi ${nome}! 💗 Tudo bem? Vi que a gente parou no meio — posso te ajudar a continuar?`
