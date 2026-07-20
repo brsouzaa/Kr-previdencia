@@ -58,6 +58,12 @@ const IDS_AGENTES_RETROATIVO = [
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
 ]
 
+// Supervisores de board (Egle): veem as telas Revisao IA (BF + Retroativo) em modo supervisor
+// (todos os atendentes + filtro por atendente + cores), sem ser admin do resto do sistema
+const IDS_SUPERVISOR_BOARD = [
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+]
+
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -107,6 +113,8 @@ function paginaPermitida(profile, page) {
   if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
   if (IDS_AGENTES_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
+  // Egle (supervisora de board): acesso as DUAS telas Revisao IA
+  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)) return true
   if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
