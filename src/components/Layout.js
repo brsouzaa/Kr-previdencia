@@ -3,6 +3,14 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
 import NotificacoesBell from './NotificacoesBell'
 
+// Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): item no menu por ID, sem perder os roles atuais
+const IDS_AGENTES_BF = [
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Pamela
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // Juliana (Ju Ferreira)
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
+]
+
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
@@ -50,6 +58,9 @@ const NAV_POS_VENDA = [
 const NAV_SIMULADOR_EMPRESTIMO = [
   { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
 ]
+const NAV_AGENTE_BF = [
+  { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
+]
 const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
@@ -93,6 +104,7 @@ const NAV_ADMIN = [
   { key: 'bi', label: '📊 BI Bruno' },
   { key: 'reposicoes', label: '🔄 Reposições' },
   { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
+  { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
@@ -139,6 +151,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'rh' ? NAV_RH
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : profile?.role === 'simulador_emprestimo' ? NAV_SIMULADOR_EMPRESTIMO
+    : profile?.role === 'agente_bf' ? NAV_AGENTE_BF
     : NAV_VENDEDOR
 
   // Coordenadora de autônomos não vê itens marcados como soCaptacao
@@ -162,6 +175,10 @@ export default function Layout({ children, page, setPage }) {
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que tambem vendem emprestimo
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
     nav = [...nav, { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' }]
+  }
+  // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): item Revisao IA Bolsa Familia por ID
+  if (IDS_AGENTES_BF.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_bf')) {
+    nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
@@ -239,6 +256,7 @@ export default function Layout({ children, page, setPage }) {
                 : profile?.role === 'financeiro' ? 'Financeiro / Pagador'
                 : profile?.role === 'rh' ? 'RH'
                 : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
+                : profile?.role === 'agente_bf' ? 'Agente Bolsa Família'
                 : 'Vendedor'}
             </div>
             <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Sair</button>
