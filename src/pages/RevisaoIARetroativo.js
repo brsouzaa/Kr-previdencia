@@ -147,13 +147,22 @@ export default function RevisaoIARetroativo() {
     if (!l) return
     if (comLoading) setAtualizandoConversa(true)
     try {
-      const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
-      setMensagens(data || [])
+      // Fonte primaria: espelho ao vivo do Chatwoot (inclui msgs digitadas pela supervisora na mao)
+      let usouChatwoot = false
       if (l.chatwoot_conversation_id) {
-        const { data: res } = await supabase.functions.invoke('bf-anexos', {
-          body: { conversation_id: l.chatwoot_conversation_id },
+        const { data: res } = await supabase.functions.invoke('bf-conversa', {
+          body: { conversation_id: l.chatwoot_conversation_id, limit: 30 },
         })
-        setAnexos(res?.anexos || [])
+        if (res?.ok) {
+          setMensagens(res.mensagens || [])
+          setAnexos(res.anexos || [])
+          usouChatwoot = true
+        }
+      }
+      // Fallback: Chatwoot fora do ar ou lead sem conversation_id -> usa o banco
+      if (!usouChatwoot) {
+        const { data } = await supabase.rpc('bf_mensagens', { p_lead_id: l.id, p_limit: 30 })
+        setMensagens(data || [])
       }
     } finally { if (comLoading) setAtualizandoConversa(false) }
   }, [])
