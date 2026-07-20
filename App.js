@@ -42,6 +42,15 @@ import Financeiro from './pages/Financeiro'
 import DespesasCustos from './pages/DespesasCustos'
 import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
+import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
+
+// Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
+const IDS_AGENTES_BF = [
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Pamela
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // Juliana (Ju Ferreira)
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
+]
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -76,6 +85,7 @@ function paginaInicial(role) {
   if (role === 'vendedor_operador') return 'meus_clientes'
   if (role === 'pos_venda') return 'pos_venda'
   if (role === 'simulador_emprestimo') return 'simulacao_emprestimo'
+  if (role === 'agente_bf') return 'revisao_ia_bf'
   return 'dashboard'
 }
 
@@ -87,6 +97,8 @@ function paginaPermitida(profile, page) {
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
+  // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso a Revisao IA Bolsa Familia por ID, sem perder roles atuais
+  if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
@@ -100,6 +112,7 @@ function paginaPermitida(profile, page) {
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   if (role === 'simulador_emprestimo') return ['simulacao_emprestimo'].includes(page)
+  if (role === 'agente_bf') return ['revisao_ia_bf'].includes(page)
   return false
 }
 
@@ -173,6 +186,7 @@ function AppInner() {
     despesas: <DespesasCustos />,
     recebimentos: <RecebimentosAdvogados />,
     metas_financeiras: <MetasFinanceiras />,
+    revisao_ia_bf: <RevisaoIABolsaFamilia />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
