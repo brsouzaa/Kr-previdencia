@@ -17,6 +17,7 @@ const IDS_SUPERVISOR_BOARD = [
 
 const COLUNAS = [
   ['OFERTA', '📢 Oferta'],
+  ['CONFIRMA_CAIXA_TEM', '💬 Confirma Caixa'],
   ['COLETA_RG_FRENTE', '🪪 RG Frente'],
   ['COLETA_RG_VERSO', '🪪 RG Verso'],
   ['COLETA_EXTRATO', '📄 Extrato'],
@@ -27,10 +28,17 @@ const COLUNAS = [
   ['BF_ASSINADO', '💰 Assinado'],
   ['BF_CONCLUIDO', '🎉 Concluído'],
   ['NEGADO', '❌ Negados'],
+  ['OUTROS', '❓ Outros'],
 ]
 
 // sub_estados que caem na coluna Negados (o BF_NEGADO manual + os que a Ana ja cria sozinha)
-const SUB_ESTADOS_NEGADO = ['BF_NEGADO', 'DESQUALIFICADO_CAIXA_TEM', 'DESQUALIFICADO_SEM_BF', 'DESQUALIFICADO_SEM_BOLSA', 'RECUSOU_OFERTA', 'RECUSOU_VALOR', 'RECUSA_TEMPORARIA', 'DESISTIU', 'CANCELADO', 'RECUSOU']
+const SUB_ESTADOS_NEGADO = ['BF_NEGADO', 'DESQUALIFICADO_CAIXA_TEM', 'DESQUALIFICADO_SEM_BF', 'DESQUALIFICADO_SEM_BOLSA', 'RECUSOU_OFERTA', 'RECUSOU_VALOR', 'RECUSA_TEMPORARIA', 'DESISTIU', 'CANCELADO', 'CANCELADO_CLIENTE', 'RECUSOU']
+
+// Todo sub_estado com coluna propria + os de Negados. O que NAO estiver aqui cai em "Outros" — rede de seguranca pra card nunca mais sumir do board.
+const CHAVES_CONHECIDAS = new Set([
+  ...COLUNAS.map(([k]) => k).filter(k => k !== 'NEGADO' && k !== 'OUTROS'),
+  ...SUB_ESTADOS_NEGADO,
+])
 
 // Motivos do botao Negar: [codigo estavel, label]. O codigo vai pro banco (bf_motivo_perda), o label a atendente ve.
 const MOTIVOS_NEGADO = [
@@ -310,6 +318,8 @@ export default function RevisaoIABolsaFamilia() {
         {COLUNAS.map(([key, label]) => {
           const cards = key === 'NEGADO'
             ? visiveis.filter(c => SUB_ESTADOS_NEGADO.includes(c.sub_estado))
+            : key === 'OUTROS'
+            ? visiveis.filter(c => !CHAVES_CONHECIDAS.has(c.sub_estado))
             : visiveis.filter(c => c.sub_estado === key)
           return (
             <div key={key} style={s.col}>
