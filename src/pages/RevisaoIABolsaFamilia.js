@@ -26,7 +26,41 @@ const COLUNAS = [
   ['BF_AGUARDANDO_ASSINATURA', '✍️ Aguard. assinatura'],
   ['BF_ASSINADO', '💰 Assinado'],
   ['BF_CONCLUIDO', '🎉 Concluído'],
+  ['NEGADO', '❌ Negados'],
 ]
+
+// sub_estados que caem na coluna Negados (o BF_NEGADO manual + os que a Ana ja cria sozinha)
+const SUB_ESTADOS_NEGADO = ['BF_NEGADO', 'DESQUALIFICADO_CAIXA_TEM', 'DESQUALIFICADO_SEM_BF', 'DESQUALIFICADO_SEM_BOLSA', 'RECUSOU_OFERTA', 'RECUSOU_VALOR', 'RECUSA_TEMPORARIA', 'DESISTIU', 'CANCELADO', 'RECUSOU']
+
+// Motivos do botao Negar: [codigo estavel, label]. O codigo vai pro banco (bf_motivo_perda), o label a atendente ve.
+const MOTIVOS_NEGADO = [
+  ['recebe_menos_400', 'Recebe menos de 400'],
+  ['caixa_tem', 'No caixa tem / já pegou'],
+  ['sem_bolsa_familia', 'Não recebe Bolsa Família'],
+  ['sem_foto_rg', 'Sem foto do RG'],
+  ['sem_resposta', 'Sem resposta'],
+  ['juros_alto', 'Juros alto'],
+  ['recusou_oferta', 'Recusou a oferta'],
+  ['desistiu', 'Desistiu'],
+  ['cancelou', 'Cancelou'],
+]
+// Traduz o que estiver gravado (codigo novo OU sub_estado antigo da Ana) para texto legivel no card
+function labelMotivo(c) {
+  const m = c.bf_motivo_perda
+  if (m) { const achou = MOTIVOS_NEGADO.find(x => x[0] === m); return achou ? achou[1] : m }
+  const porSub = {
+    DESQUALIFICADO_CAIXA_TEM: 'No caixa tem / já pegou',
+    DESQUALIFICADO_SEM_BF: 'Não recebe Bolsa Família',
+    DESQUALIFICADO_SEM_BOLSA: 'Não recebe Bolsa Família',
+    RECUSOU_OFERTA: 'Recusou a oferta',
+    RECUSOU_VALOR: 'Recusou o valor',
+    RECUSA_TEMPORARIA: 'Recusa temporária',
+    DESISTIU: 'Desistiu',
+    CANCELADO: 'Cancelou',
+    RECUSOU: 'Recusou',
+  }
+  return porSub[c.sub_estado] || 'Negado'
+}
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
@@ -72,6 +106,11 @@ const s = {
   tagTratSup: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: '#F3E6E6', color: '#A32D2D', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagRespondeu: { fontSize: 10, background: '#FFF3DC', color: '#B26B00', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
+  tagMotivo: { fontSize: 10, background: '#EDEDED', color: '#666', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  btnNegar: { padding: '9px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  painelMotivos: { marginTop: 10, padding: 12, background: '#FAFAFA', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10 },
+  motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
+  btnMotivo: { padding: '9px 10px', background: '#fff', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
@@ -104,6 +143,7 @@ export default function RevisaoIABolsaFamilia() {
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
+  const [mostrarMotivos, setMostrarMotivos] = useState(false)
   const [texto, setTexto] = useState('')
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -144,6 +184,7 @@ export default function RevisaoIABolsaFamilia() {
 
   async function abrirCard(l) {
     setLead(l)
+    setMostrarMotivos(false)
     const sug = sugestaoPara(l, linkCrefisa)
     setSugestao(sug); setTexto(sug)
     setMensagens([])
@@ -191,6 +232,18 @@ export default function RevisaoIABolsaFamilia() {
     await supabase.rpc('bf_soltar_tratamento', { p_lead_id: c.id })
     setLead({ ...c, bf_em_tratamento: false, cliente_respondeu: false })
     carregar()
+  }
+
+  // Nega o lead com um motivo (codigo estavel de MOTIVOS_NEGADO)
+  async function negar(c, motivoCodigo) {
+    if (!c || !motivoCodigo) return
+    setEnviando(true)
+    try {
+      await supabase.rpc('bf_negar', { p_lead_id: c.id, p_agente_id: profile?.id, p_motivo: motivoCodigo })
+      setMostrarMotivos(false)
+      setLead(null)
+      carregar()
+    } finally { setEnviando(false) }
   }
 
   async function distribuir() {
@@ -246,7 +299,9 @@ export default function RevisaoIABolsaFamilia() {
 
       <div style={s.board}>
         {COLUNAS.map(([key, label]) => {
-          const cards = visiveis.filter(c => c.sub_estado === key)
+          const cards = key === 'NEGADO'
+            ? visiveis.filter(c => SUB_ESTADOS_NEGADO.includes(c.sub_estado))
+            : visiveis.filter(c => c.sub_estado === key)
           return (
             <div key={key} style={s.col}>
               <div style={s.colTitulo}><span>{label}</span><span>{cards.length}</span></div>
@@ -257,7 +312,8 @@ export default function RevisaoIABolsaFamilia() {
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
                   </div>
                   {ehAdmin && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
-                  {seloTratamento(c)}
+                  {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
+                  {key !== 'NEGADO' && seloTratamento(c)}
                 </div>
               ))}
             </div>
@@ -353,8 +409,21 @@ export default function RevisaoIABolsaFamilia() {
               {lead.sub_estado === 'BF_LINK_ENVIADO' && <button style={s.btnAcao} onClick={() => disparar('cliente_chamou', '')} disabled={enviando}>📲 Cliente chamou</button>}
               {lead.sub_estado === 'BF_AGUARDANDO_ASSINATURA' && <button style={s.btnAcao} onClick={() => disparar('assinou', sugestaoPara({ ...lead, sub_estado: 'BF_ASSINADO' }, linkCrefisa))} disabled={enviando}>✍️ Assinou</button>}
               {lead.sub_estado === 'BF_ASSINADO' && <button style={s.btnAcao} onClick={() => disparar('concluido', sugestaoPara({ ...lead, sub_estado: 'BF_CONCLUIDO' }, linkCrefisa))} disabled={enviando}>🎉 Dinheiro caiu</button>}
+              <button style={s.btnNegar} onClick={() => setMostrarMotivos(v => !v)} disabled={enviando}>❌ Negar / Não quis</button>
               <button style={s.btnFechar} onClick={() => setLead(null)}>Fechar</button>
             </div>
+
+            {mostrarMotivos && (
+              <div style={s.painelMotivos}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8 }}>Por que está negando?</div>
+                <div style={s.motivosGrid}>
+                  {MOTIVOS_NEGADO.map(([codigo, texto]) => (
+                    <button key={codigo} style={s.btnMotivo} disabled={enviando} onClick={() => negar(lead, codigo)}>{texto}</button>
+                  ))}
+                </div>
+                <button style={{ ...s.btnFechar, marginTop: 8 }} onClick={() => setMostrarMotivos(false)}>Cancelar</button>
+              </div>
+            )}
           </div>
         </div>
       )}
