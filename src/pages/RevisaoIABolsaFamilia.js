@@ -68,7 +68,9 @@ const s = {
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#111' },
   cardMeta: { fontSize: 11, color: '#888', marginTop: 2 },
-  tagTrat: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '1px 6px', display: 'inline-block', marginTop: 4 },
+  tagTrat: { fontSize: 10, background: '#DFF3E0', color: '#256B2E', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagTratSup: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagNinguem: { fontSize: 10, background: '#F3E6E6', color: '#A32D2D', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
   ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
@@ -166,8 +168,24 @@ export default function RevisaoIABolsaFamilia() {
     carregar()
   }
 
+  // Selo de tratamento no card, respeitando quem está olhando
+  function seloTratamento(c) {
+    if (c.bf_em_tratamento) {
+      if (ehAdmin) {
+        return <span style={s.tagTratSup}>🟢 {c.agente_nome ? `${primeiroNome(c.agente_nome)} tratando` : 'em tratamento'}</span>
+      }
+      return <span style={s.tagTrat}>🟢 Você está tratando</span>
+    }
+    // Só supervisor/admin vê o alerta de "ninguém pegou" nos parados (vermelho/amarelo)
+    if (ehAdmin && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO') {
+      return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
+    }
+    return null
+  }
+
   const visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
+  const semDono = board.filter(c => !c.bf_em_tratamento && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO').length
 
   return (
     <div>
@@ -182,6 +200,7 @@ export default function RevisaoIABolsaFamilia() {
         </button>
         <span style={s.kpi}>Total no funil: <strong>{board.length}</strong></span>
         <span style={s.kpi}>Concluídos: <strong>{board.filter(c => c.sub_estado === 'BF_CONCLUIDO').length}</strong></span>
+        {ehAdmin && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
         {ehAdmin && (
           <>
             <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
@@ -207,7 +226,7 @@ export default function RevisaoIABolsaFamilia() {
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
                   </div>
                   {ehAdmin && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
-                  {c.bf_em_tratamento && <span style={s.tagTrat}>em tratamento</span>}
+                  {seloTratamento(c)}
                 </div>
               ))}
             </div>
