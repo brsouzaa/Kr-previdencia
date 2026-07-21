@@ -40,6 +40,11 @@ const CHAVES_CONHECIDAS = new Set([
   ...SUB_ESTADOS_NEGADO,
 ])
 
+// Vendedor (nao-admin) ve so do extrato pra frente; admin/supervisora veem o funil inteiro.
+const COLUNAS_VENDEDOR = ['COLETA_EXTRATO', 'DOCS_COMPLETOS', 'BF_AGUARDANDO_LINK', 'BF_LINK_ENVIADO', 'BF_AGUARDANDO_ASSINATURA', 'BF_ASSINADO', 'BF_CONCLUIDO']
+// Colunas do humano: a Ana ja esta desligada aqui, entao da pra arrastar o card na mao.
+const COLUNAS_HUMANO = ['DOCS_COMPLETOS', 'BF_AGUARDANDO_LINK', 'BF_LINK_ENVIADO', 'BF_AGUARDANDO_ASSINATURA', 'BF_ASSINADO', 'BF_CONCLUIDO']
+
 // Motivos do botao Negar: [codigo estavel, label]. O codigo vai pro banco (bf_motivo_perda), o label a atendente ve.
 const MOTIVOS_NEGADO = [
   ['recebe_menos_400', 'Recebe menos de 400'],
@@ -162,6 +167,7 @@ export default function RevisaoIABolsaFamilia() {
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
+  const [arrastando, setArrastando] = useState(null)
   const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
   const [filtroEntrada, setFiltroEntrada] = useState('tudo')
@@ -316,6 +322,14 @@ export default function RevisaoIABolsaFamilia() {
     return null
   }
 
+  const ehVendedorBF = !ehAdmin
+  const colunasVisiveis = ehVendedorBF ? COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k)) : COLUNAS
+  const moverEtapa = async (leadId, colunaDestino) => {
+    const { data, error } = await supabase.rpc('bf_mover_etapa', { p_lead_id: leadId, p_agente_id: profile?.id, p_coluna_destino: colunaDestino })
+    if (error || !data?.ok) { alert('Não moveu: ' + (error?.message || data?.erro || 'erro')); return }
+    carregar()
+  }
+
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
   if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
   else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
@@ -368,17 +382,32 @@ export default function RevisaoIABolsaFamilia() {
       </div>
 
       <div style={s.board}>
-        {COLUNAS.map(([key, label]) => {
-          const cards = key === 'NEGADO'
+        {colunasVisiveis.map(([key, label]) => {
+          let cards = key === 'NEGADO'
             ? visiveis.filter(c => SUB_ESTADOS_NEGADO.includes(c.sub_estado))
             : key === 'OUTROS'
             ? visiveis.filter(c => !CHAVES_CONHECIDAS.has(c.sub_estado))
             : visiveis.filter(c => c.sub_estado === key)
+          // Vendedor so ve os TRAVADOS (vermelhos) no extrato — o resto a Ana resolve
+          if (ehVendedorBF && key === 'COLETA_EXTRATO') cards = cards.filter(c => c.cor === 'vermelho')
+          const ehDestino = COLUNAS_HUMANO.includes(key)
+          const destaque = key === 'DOCS_COMPLETOS'
           return (
-            <div key={key} style={s.col}>
-              <div style={s.colTitulo}><span>{label}</span><span>{cards.length}</span></div>
-              {cards.map(c => (
-                <div key={c.id} style={{ ...s.card, ...(CORES[c.cor] || CORES.normal) }} onClick={() => abrirCard(c)}>
+            <div key={key}
+              style={{ ...s.col, ...(destaque ? { background: '#EAF5E1', border: '2px solid #3B6D11' } : {}), ...(ehDestino && arrastando ? { outline: '2px dashed #185FA5' } : {}) }}
+              onDragOver={ehDestino ? (e => e.preventDefault()) : undefined}
+              onDrop={ehDestino ? (e => { e.preventDefault(); if (arrastando) moverEtapa(arrastando, key); setArrastando(null) }) : undefined}>
+              <div style={{ ...s.colTitulo, ...(destaque ? { color: '#2B5010', fontWeight: 700 } : {}) }}>
+                <span>{destaque ? '⭐ ' : ''}{label}</span><span>{cards.length}</span>
+              </div>
+              {cards.map(c => {
+                const podeArrastar = COLUNAS_HUMANO.includes(key)
+                return (
+                <div key={c.id} draggable={podeArrastar}
+                  onDragStart={podeArrastar ? (() => setArrastando(c.id)) : undefined}
+                  onDragEnd={() => setArrastando(null)}
+                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), ...(podeArrastar ? { cursor: 'grab' } : {}) }}
+                  onClick={() => abrirCard(c)}>
                   <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
@@ -387,7 +416,8 @@ export default function RevisaoIABolsaFamilia() {
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
                   {key !== 'NEGADO' && seloTratamento(c)}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )
         })}
