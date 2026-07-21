@@ -114,7 +114,7 @@ function paginaPermitida(profile, page) {
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
   if (IDS_AGENTES_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Egle (supervisora de board): acesso as DUAS telas Revisao IA
-  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)) return true
+  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','fila_digitacao'].includes(page)) return true
   if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
