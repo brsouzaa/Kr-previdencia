@@ -19,7 +19,20 @@ const COLUNAS = [
   ['AGUARDANDO_ASSINATURA', '✍️ Aguard. assinatura'],
   ['FINALIZADO', '🎉 Finalizado'],
   ['REPROVADO', '⛔ Reprovado'],
+  ['NEGADO', '❌ Negados'],
   ['OUTROS', '❓ Outros'],
+]
+
+// Motivos pra negar / não quis (perda comercial — NÃO mexe no cnis_aprovado, protege a auditoria)
+const MOTIVOS_NEGAR = [
+  ['ja_recebeu', 'Já recebeu SM'],
+  ['empregada', 'Empregada no parto'],
+  ['sem_contribuicao', 'Sem contribuição/carência'],
+  ['fora_graca', 'Fora do período de graça'],
+  ['nao_quis', 'Não quis / desistiu'],
+  ['sem_resposta', 'Sem resposta'],
+  ['duplicado', 'Duplicado'],
+  ['outro', 'Outro'],
 ]
 
 // Faixa de datas a partir do preset (base: fuso do navegador = BRT do usuario)
@@ -107,6 +120,10 @@ const s = {
   btnAvancar: { flex: 1, padding: 12, background: '#185FA5', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnVoltar: { flex: 1, padding: 12, background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnFechar: { padding: '9px 12px', background: '#fff', color: '#888', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+  btnNegar: { padding: '9px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  painelMotivos: { marginTop: 8, padding: 12, background: '#FAFAFA', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10 },
+  motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
+  btnMotivo: { padding: '9px 10px', background: '#fff', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
 }
 
 export default function RevisaoIARetroativo() {
@@ -122,6 +139,8 @@ export default function RevisaoIARetroativo() {
   const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
   const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
   const [lead, setLead] = useState(null)
+  const [arrastando, setArrastando] = useState(null)
+  const [mostrarMotivosNegar, setMostrarMotivosNegar] = useState(false)
   const [mensagens, setMensagens] = useState([])
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
@@ -284,6 +303,27 @@ export default function RevisaoIARetroativo() {
     } finally { setEnviando(false) }
   }
 
+  const negarLead = async (id, motivo) => {
+    const { data, error } = await supabase.rpc('mae_negar', { p_lead_id: id, p_agente_id: profile?.id, p_motivo: motivo })
+    if (error || !data?.ok) { alert('Erro ao negar: ' + (error?.message || data?.erro || 'erro')); return }
+    setMostrarMotivosNegar(false); fechar(); carregar()
+  }
+  // Arrastar card pra qualquer coluna. Reprovado/Negados pedem motivo; Outros não recebe.
+  const soltarNaColuna = async (col) => {
+    const id = arrastando; setArrastando(null)
+    if (!id || col === 'OUTROS') return
+    if (col === 'NEGADO') { const m = window.prompt('Motivo pra negar / não quis:'); if (m) negarLead(id, m); return }
+    if (col === 'REPROVADO') {
+      const m = window.prompt('Motivo da reprovação do CNIS:'); if (!m) return
+      const { error } = await supabase.rpc('mae_aprovar_cnis', { p_lead_id: id, p_aprovado: false, p_analista: profile?.id, p_motivo: m })
+      if (error) alert('Erro: ' + error.message); else carregar()
+      return
+    }
+    const { data, error } = await supabase.rpc('mae_mover_coluna', { p_lead_id: id, p_agente_id: profile?.id, p_coluna: col })
+    if (error || !data?.ok) { alert('Não moveu: ' + (error?.message || data?.erro || 'erro')); return }
+    carregar()
+  }
+
   const passaAtend = (l) => filtroAtendimento === 'todos' || (filtroAtendimento === 'respondido' ? l.humano_respondeu : !l.humano_respondeu)
   const cardsDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
@@ -333,17 +373,25 @@ export default function RevisaoIARetroativo() {
       <div style={s.board}>
         {COLUNAS.map(([col, titulo]) => {
           const cards = cardsDe(col)
+          const podeSoltar = col !== 'OUTROS'
           return (
-            <div key={col} style={s.col}>
+            <div key={col}
+              style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #185FA5' } : {}) }}
+              onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
+              onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
               <div style={s.colTitulo}><span>{titulo}</span><span>{board.filter(l => l.coluna === col).length}</span></div>
               {cards.map(l => (
-                <div key={l.id} style={{ ...s.card, ...(CORES[l.cor] || CORES.normal) }} onClick={() => abrirLead(l)}>
+                <div key={l.id} draggable
+                  onDragStart={() => setArrastando(l.id)}
+                  onDragEnd={() => setArrastando(null)}
+                  style={{ ...s.card, ...(CORES[l.cor] || CORES.normal), cursor: 'grab' }}
+                  onClick={() => abrirLead(l)}>
                   <div style={s.cardNome}>{l.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
                     {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
                     {ehAdmin && l.agente_nome ? ` · ${l.agente_nome}` : ''}
                   </div>
-                  {l.coluna === 'REPROVADO' && l.cnis_reprovado_motivo && (
+                  {(l.coluna === 'REPROVADO' || l.coluna === 'NEGADO') && l.cnis_reprovado_motivo && (
                     <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
                   )}
                   {seloTratamento(l)}
@@ -415,6 +463,20 @@ export default function RevisaoIARetroativo() {
               )}
               {lead.bf_em_tratamento && lead.cliente_respondeu && (
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#B26B00', background: '#FFF3DC', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Negar / Não quis</button>
+              {mostrarMotivosNegar && (
+                <div style={s.painelMotivos}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8 }}>Por que está negando? (não mexe no CNIS)</div>
+                  <div style={s.motivosGrid}>
+                    {MOTIVOS_NEGAR.map(([codigo, texto]) => (
+                      <button key={codigo} style={s.btnMotivo} onClick={() => negarLead(lead.id, texto)}>{texto}</button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
