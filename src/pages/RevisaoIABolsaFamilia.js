@@ -70,6 +70,25 @@ function labelMotivo(c) {
   return porSub[c.sub_estado] || 'Negado'
 }
 
+// Faixa de datas a partir do preset (base: fuso do navegador = BRT do usuario)
+function faixaData(preset, cDe, cAte) {
+  const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+  const hoje = ini(new Date())
+  const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1)
+  if (preset === 'hoje') return { de: hoje, ate: amanha }
+  if (preset === 'ontem') { const o = new Date(hoje); o.setDate(o.getDate() - 1); return { de: o, ate: hoje } }
+  if (preset === '7d') { const d = new Date(hoje); d.setDate(d.getDate() - 6); return { de: d, ate: amanha } }
+  if (preset === 'mes') { const d = new Date(hoje); d.setDate(d.getDate() - 29); return { de: d, ate: amanha } }
+  if (preset === 'custom') {
+    const de = cDe ? ini(cDe + 'T00:00:00') : null
+    let ate = null
+    if (cAte) { ate = ini(cAte + 'T00:00:00'); ate.setDate(ate.getDate() + 1) }
+    return { de, ate }
+  }
+  return { de: null, ate: null }
+}
+const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
+
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
 function sugestaoPara(lead, linkCrefisa) {
@@ -145,6 +164,11 @@ export default function RevisaoIABolsaFamilia() {
   const [soVermelhos, setSoVermelhos] = useState(false)
   const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
+  const [filtroEntrada, setFiltroEntrada] = useState('tudo')
+  const [filtroAtividade, setFiltroAtividade] = useState('mes')
+  const [filtroAtendimento, setFiltroAtendimento] = useState('todos')
+  const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
+  const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
   const [linkCrefisa, setLinkCrefisa] = useState('')
   const [lead, setLead] = useState(null)
   const [mensagens, setMensagens] = useState([])
@@ -159,9 +183,17 @@ export default function RevisaoIABolsaFamilia() {
   const carregar = useCallback(async () => {
     if (!profile?.id) return
     const p_agente = ehAdmin ? (filtroAgente || null) : profile.id
-    const { data } = await supabase.rpc('bf_board', { p_agente })
+    const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
+    const fa = faixaData(filtroAtividade, ativDe, ativAte)
+    const { data } = await supabase.rpc('bf_board', {
+      p_agente,
+      p_entrada_de: fe.de ? fe.de.toISOString() : null,
+      p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
+      p_ativ_de: fa.de ? fa.de.toISOString() : null,
+      p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
+    })
     setBoard(data || [])
-  }, [profile, ehAdmin, filtroAgente])
+  }, [profile, ehAdmin, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
 
@@ -284,7 +316,9 @@ export default function RevisaoIABolsaFamilia() {
     return null
   }
 
-  const visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
+  else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
   const semDono = board.filter(c => !c.bf_em_tratamento && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO').length
 
@@ -299,6 +333,25 @@ export default function RevisaoIABolsaFamilia() {
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
+        <select style={s.chip} value={filtroEntrada} onChange={e => setFiltroEntrada(e.target.value)} title="Data de entrada do lead">
+          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
+        </select>
+        {filtroEntrada === 'custom' && (<>
+          <input type="date" style={s.chip} value={entradaDe} onChange={e => setEntradaDe(e.target.value)} />
+          <input type="date" style={s.chip} value={entradaAte} onChange={e => setEntradaAte(e.target.value)} />
+        </>)}
+        <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
+          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
+        </select>
+        {filtroAtividade === 'custom' && (<>
+          <input type="date" style={s.chip} value={ativDe} onChange={e => setAtivDe(e.target.value)} />
+          <input type="date" style={s.chip} value={ativAte} onChange={e => setAtivAte(e.target.value)} />
+        </>)}
+        <select style={s.chip} value={filtroAtendimento} onChange={e => setFiltroAtendimento(e.target.value)} title="Atendimento humano">
+          <option value="todos">Atendimento: todos</option>
+          <option value="respondido">✅ Já respondido</option>
+          <option value="sem">⚠️ Sem resposta</option>
+        </select>
         <span style={s.kpi}>Total no funil: <strong>{board.length}</strong></span>
         <span style={s.kpi}>Concluídos: <strong>{board.filter(c => c.sub_estado === 'BF_CONCLUIDO').length}</strong></span>
         {ehAdmin && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
