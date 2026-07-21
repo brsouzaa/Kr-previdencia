@@ -206,6 +206,9 @@ export default function Layout({ children, page, setPage }) {
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
   }
+  if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'fila_digitacao')) {
+    nav = [...nav, { key: 'fila_digitacao', label: '📥 Fila de digitação' }]
+  }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
   useEffect(() => {
