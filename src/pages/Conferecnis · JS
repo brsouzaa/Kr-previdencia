@@ -1,95 +1,110 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/AuthContext'
 
 // Tela TEMPORARIA de auditoria: compara o veredito da maquina (auto-analise CNIS, modo sombra)
-// com a conclusao da atendente, pra validar se da pra ligar o corte automatico no futuro.
+// com a DECISAO REAL do humano — cnis_aprovado, o botao Aprovar/Reprovar CNIS do board retroativo.
+// Sem remarcacao: o historico se constroi sozinho do trabalho normal da atendente.
+// Quando a concordancia estiver alta e os erros perigosos zerados por um periodo, liga-se o corte automatico.
 
 const CHATWOOT_BASE = 'https://crm.vendeaitecnologia.com.br'
 const ACCOUNT = '8918'
 
-// [valor, label, cor_texto, cor_fundo]
-const VEREDITOS = [
-  ['APTA', 'Apta', '#256B2E', '#DFF3E0'],
-  ['NAO_CLIENTE', 'Não cliente', '#A32D2D', '#FEECEC'],
-  ['APTA_CONFERIR_GERID', 'Apta · conferir GERID', '#8A6100', '#FFF3D6'],
-  ['HUMANO', 'Humano', '#555555', '#ECECEC'],
-]
-const MAP_V = Object.fromEntries(VEREDITOS.map(([k, label, cor, bg]) => [k, { label, cor, bg }]))
-const APTAS = ['APTA', 'APTA_CONFERIR_GERID']
+const MAP_V = {
+  APTA: { label: 'Apta', cor: '#256B2E', bg: '#DFF3E0' },
+  NAO_CLIENTE: { label: 'Não cliente', cor: '#A32D2D', bg: '#FEECEC' },
+  APTA_CONFERIR_GERID: { label: 'Apta · conferir GERID', cor: '#8A6100', bg: '#FFF3D6' },
+  HUMANO: { label: 'Humano', cor: '#555555', bg: '#ECECEC' },
+}
+const MAQUINA_PASSA = ['APTA', 'APTA_CONFERIR_GERID'] // maquina deixaria seguir como cliente
 
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 },
   sub: { fontSize: 13, color: '#888', marginBottom: 16 },
   resumo: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 },
-  kpi: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '12px 16px', minWidth: 130 },
+  kpi: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
   kpiNum: { fontSize: 22, fontWeight: 700, color: '#111' },
   kpiLbl: { fontSize: 11, color: '#888', marginTop: 2 },
-  kpiPerigo: { background: '#FEECEC', border: '1.5px solid #A32D2D', borderRadius: 12, padding: '12px 16px', minWidth: 130 },
+  kpiPerigo: { background: '#FEECEC', border: '1.5px solid #A32D2D', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
   tabela: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(0,0,0,0.1)' },
   th: { textAlign: 'left', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(0,0,0,0.08)', background: '#F8FAFC' },
   td: { fontSize: 13, color: '#222', padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', verticalAlign: 'middle' },
   badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#555', background: (MAP_V[v] || {}).bg || '#eee' }),
-  sel: { padding: '6px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.2)', background: '#fff', cursor: 'pointer' },
+  badgeH: (bg, cor) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: cor, background: bg }),
   link: { fontSize: 12, color: '#185FA5', textDecoration: 'none', fontWeight: 500 },
   linhaPerigo: { background: '#FEF6F6' },
 }
 
 export default function ConfereCNIS() {
-  const { profile } = useAuth()
   const [linhas, setLinhas] = useState([])
   const [loading, setLoading] = useState(true)
-  const [soPendentes, setSoPendentes] = useState(false)
+  const [soComparaveis, setSoComparaveis] = useState(false)
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.rpc('cnis_auditoria')
     setLinhas(data || [])
     setLoading(false)
   }, [])
-
   useEffect(() => {
     carregar()
     const t = setInterval(carregar, 60000)
     return () => clearInterval(t)
   }, [carregar])
 
-  const decidir = async (id, decisao) => {
-    if (!decisao) return
-    setLinhas(ls => ls.map(l => (l.id === id ? { ...l, decisao_atendente: decisao } : l)))
-    const { data, error } = await supabase.rpc('cnis_registrar_decisao', { p_lead_id: id, p_decisao: decisao, p_atendente: profile?.id })
-    if (error || !data?.ok) { alert('Não salvou: ' + (error?.message || data?.erro || 'erro')); carregar() }
+  // Classifica cada linha comparando maquina x decisao real do humano (cnis_aprovado)
+  const classificar = (l) => {
+    if (!l.decisao_humana) return { estado: 'pendente' }
+    if (l.veredito_maquina === 'HUMANO') return { estado: 'deferiu' } // maquina pediu humano, sem corte a validar
+    const humanoCliente = l.decisao_humana === 'true'
+    const maquinaPassa = MAQUINA_PASSA.includes(l.veredito_maquina)
+    const concorda = (maquinaPassa && humanoCliente) || (l.veredito_maquina === 'NAO_CLIENTE' && !humanoCliente)
+    const perigoso = maquinaPassa && !humanoCliente          // maquina deixaria passar quem nao e cliente
+    const inverso = l.veredito_maquina === 'NAO_CLIENTE' && humanoCliente
+    return { estado: concorda ? 'bateu' : 'divergiu', concorda, perigoso, inverso }
   }
 
-  // ---- Resumo (o coração da tela) ----
+  // ---- Resumo (o coracao da tela) ----
   const total = linhas.length
-  const revisados = linhas.filter(l => l.decisao_atendente)
-  const bateram = revisados.filter(l => l.decisao_atendente === l.veredito_maquina).length
-  const taxa = revisados.length ? Math.round((bateram / revisados.length) * 100) : 0
-  const ehPerigoso = (l) => l.decisao_atendente && APTAS.includes(l.veredito_maquina) && l.decisao_atendente === 'NAO_CLIENTE'
-  const ehInverso = (l) => l.decisao_atendente && l.veredito_maquina === 'NAO_CLIENTE' && APTAS.includes(l.decisao_atendente)
-  const perigosos = revisados.filter(ehPerigoso).length
-  const inversos = revisados.filter(ehInverso).length
+  const revisados = linhas.filter(l => l.decisao_humana)
+  const comparaveis = revisados.filter(l => l.veredito_maquina !== 'HUMANO')
+  const concordaram = comparaveis.filter(l => classificar(l).concorda).length
+  const taxa = comparaveis.length ? Math.round((concordaram / comparaveis.length) * 100) : 0
+  const perigosos = comparaveis.filter(l => classificar(l).perigoso).length
+  const inversos = comparaveis.filter(l => classificar(l).inverso).length
+  const pediuHumano = linhas.filter(l => l.veredito_maquina === 'HUMANO').length
 
-  const visiveis = soPendentes ? linhas.filter(l => !l.decisao_atendente) : linhas
-
+  const visiveis = soComparaveis ? comparaveis : linhas
   const fmt = (dt) => { if (!dt) return '—'; try { return new Date(dt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return dt } }
+
+  const decisaoHumanaCel = (l) => {
+    if (!l.decisao_humana) return <span style={{ color: '#bbb' }}>⏳ aguardando análise</span>
+    if (l.decisao_humana === 'true') return <span style={s.badgeH('#DFF3E0', '#256B2E')}>✅ Apta (cliente)</span>
+    return <span style={s.badgeH('#FEECEC', '#A32D2D')}>⛔ Não cliente{l.motivo_reprovacao ? ` · ${l.motivo_reprovacao}` : ''}</span>
+  }
+  const bateuCel = (l) => {
+    const c = classificar(l)
+    if (c.estado === 'pendente') return <span style={{ color: '#bbb' }}>—</span>
+    if (c.estado === 'deferiu') return <span title="máquina pediu análise humana — sem corte automático" style={{ color: '#888' }}>🔁 pediu humano</span>
+    if (c.concorda) return <span title="máquina = humano">✅</span>
+    return <span title={c.perigoso ? 'ERRO PERIGOSO: máquina deixaria passar não-cliente' : 'divergiu (inverso)'}>{c.perigoso ? '❌⚠️' : '❌'}</span>
+  }
 
   return (
     <div>
       <div style={s.title}>🔬 Confere CNIS — máquina vs atendente</div>
-      <div style={s.sub}>Auditoria temporária da auto-análise (modo sombra). Quando a concordância estiver alta e os erros perigosos zerados por um período, liga-se o corte automático.</div>
+      <div style={s.sub}>Auditoria da auto-análise (modo sombra). A decisão do humano vem do botão Aprovar/Reprovar CNIS do board — não precisa remarcar aqui. Quando a concordância estiver alta e os erros perigosos zerados por um período, liga-se o corte automático.</div>
 
       <div style={s.resumo}>
         <div style={s.kpi}><div style={s.kpiNum}>{total}</div><div style={s.kpiLbl}>Analisados pela máquina</div></div>
-        <div style={s.kpi}><div style={s.kpiNum}>{revisados.length}</div><div style={s.kpiLbl}>Revisados pela atendente</div></div>
-        <div style={s.kpi}><div style={{ ...s.kpiNum, color: taxa >= 90 ? '#256B2E' : taxa >= 70 ? '#8A6100' : '#A32D2D' }}>{revisados.length ? `${taxa}%` : '—'}</div><div style={s.kpiLbl}>Concordância (máq = atend.)</div></div>
+        <div style={s.kpi}><div style={s.kpiNum}>{revisados.length}</div><div style={s.kpiLbl}>Já decididos pelo humano</div></div>
+        <div style={s.kpi}><div style={{ ...s.kpiNum, color: !comparaveis.length ? '#111' : taxa >= 90 ? '#256B2E' : taxa >= 70 ? '#8A6100' : '#A32D2D' }}>{comparaveis.length ? `${taxa}%` : '—'}</div><div style={s.kpiLbl}>Concordância ({comparaveis.length} comparáveis)</div></div>
         <div style={s.kpiPerigo}><div style={{ ...s.kpiNum, color: '#A32D2D' }}>{perigosos}</div><div style={{ ...s.kpiLbl, color: '#A32D2D', fontWeight: 600 }}>⚠️ ERROS PERIGOSOS<br />(máq. deixaria passar não-cliente)</div></div>
         <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#8A6100' }}>{inversos}</div><div style={s.kpiLbl}>Erros inversos (menos grave)</div></div>
+        <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#555' }}>{pediuHumano}</div><div style={s.kpiLbl}>Máquina pediu humano</div></div>
       </div>
 
       <div style={{ marginBottom: 10 }}>
         <label style={{ fontSize: 12, color: '#666', cursor: 'pointer' }}>
-          <input type="checkbox" checked={soPendentes} onChange={e => setSoPendentes(e.target.checked)} /> só os que a atendente ainda não revisou
+          <input type="checkbox" checked={soComparaveis} onChange={e => setSoComparaveis(e.target.checked)} /> só os comparáveis (humano já decidiu e máquina não pediu humano)
         </label>
       </div>
 
@@ -101,33 +116,23 @@ export default function ConfereCNIS() {
               <th style={s.th}>Nasc. bebê</th>
               <th style={s.th}>Veredito máquina</th>
               <th style={s.th}>Motivo da máquina</th>
-              <th style={s.th}>Decisão atendente</th>
+              <th style={s.th}>Decisão do humano</th>
               <th style={s.th}>Bateu?</th>
               <th style={s.th}>CNIS</th>
             </tr>
           </thead>
           <tbody>
-            {visiveis.length === 0 && <tr><td style={s.td} colSpan={7}>Nenhum CNIS analisado ainda.</td></tr>}
+            {visiveis.length === 0 && <tr><td style={s.td} colSpan={7}>Nada por aqui ainda.</td></tr>}
             {visiveis.map(l => {
-              const perigo = ehPerigoso(l)
-              const bateu = l.decisao_atendente ? l.decisao_atendente === l.veredito_maquina : null
+              const c = classificar(l)
               return (
-                <tr key={l.id} style={perigo ? s.linhaPerigo : undefined}>
+                <tr key={l.id} style={c.perigoso ? s.linhaPerigo : undefined}>
                   <td style={s.td}>{l.nome || 'Sem nome'}</td>
                   <td style={s.td}>{l.nasc_bebe || '—'}</td>
                   <td style={s.td}><span style={s.badge(l.veredito_maquina)}>{(MAP_V[l.veredito_maquina] || {}).label || l.veredito_maquina}</span></td>
-                  <td style={{ ...s.td, maxWidth: 320, color: '#555' }}>{l.motivo_maquina || '—'}</td>
-                  <td style={s.td}>
-                    <select style={s.sel} value={l.decisao_atendente || ''} onChange={e => decidir(l.id, e.target.value)}>
-                      <option value="" disabled>— escolher —</option>
-                      {VEREDITOS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                    </select>
-                  </td>
-                  <td style={s.td}>
-                    {bateu === null ? <span style={{ color: '#bbb' }}>—</span>
-                      : bateu ? <span title="máquina = atendente">✅</span>
-                        : <span title={perigo ? 'ERRO PERIGOSO' : 'divergiu'}>{perigo ? '❌⚠️' : '❌'}</span>}
-                  </td>
+                  <td style={{ ...s.td, maxWidth: 300, color: '#555' }}>{l.motivo_maquina || '—'}</td>
+                  <td style={s.td}>{decisaoHumanaCel(l)}</td>
+                  <td style={s.td}>{bateuCel(l)}</td>
                   <td style={s.td}>
                     {l.chatwoot_conversation_id
                       ? <a style={s.link} href={`${CHATWOOT_BASE}/app/accounts/${ACCOUNT}/conversations/${l.chatwoot_conversation_id}`} target="_blank" rel="noreferrer">abrir 💬</a>
@@ -139,7 +144,7 @@ export default function ConfereCNIS() {
           </tbody>
         </table>
       )}
-      <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Atualiza sozinha a cada 60s. Última análise no topo.</div>
+      <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Atualiza sozinha a cada 60s. Mais recente no topo. Decisão do humano puxada do board (Aprovar/Reprovar CNIS).</div>
     </div>
   )
 }
