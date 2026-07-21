@@ -44,6 +44,7 @@ import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
+import ConfereCNIS from './pages/ConfereCNIS'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -112,9 +113,9 @@ function paginaPermitida(profile, page) {
   // Agentes BF (Joana, Pamela, Ju, Nadia): acesso a tela Revisao IA Bolsa Familia por ID, sem perder roles
   if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
-  if (IDS_AGENTES_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
+  if (IDS_AGENTES_RETROATIVO.includes(profile.id) && ['revisao_ia_retroativo','confere_cnis'].includes(page)) return true
   // Egle (supervisora de board): acesso as DUAS telas Revisao IA
-  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','fila_digitacao'].includes(page)) return true
+  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','fila_digitacao','confere_cnis'].includes(page)) return true
   if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
@@ -177,6 +178,7 @@ function AppInner() {
     contratos: <GerarContratos />,
     supervisor_producao: <SupervisorProducao />,
     fila_digitacao: <FilaDigitacao />,
+    confere_cnis: <ConfereCNIS />,
     ranking: <RankingProducao />,
     entregas: <Entregas />,
     lotes_entregues: <LotesEntregues />,
