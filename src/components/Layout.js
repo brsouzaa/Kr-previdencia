@@ -117,6 +117,7 @@ const NAV_ADMIN = [
   { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
+  { key: 'confere_cnis', label: '🔬 Confere CNIS' },
   { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
@@ -208,6 +209,10 @@ export default function Layout({ children, page, setPage }) {
   }
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'fila_digitacao')) {
     nav = [...nav, { key: 'fila_digitacao', label: '📥 Fila de digitação' }]
+  }
+  // Confere CNIS (auditoria temporaria): Egle + Duda por ID
+  if ((IDS_SUPERVISOR_BOARD.includes(profile?.id) || IDS_AGENTES_RETROATIVO.includes(profile?.id)) && !nav.some(n => n.key === 'confere_cnis')) {
+    nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
