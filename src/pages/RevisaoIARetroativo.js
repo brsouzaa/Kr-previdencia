@@ -23,6 +23,10 @@ const COLUNAS = [
   ['OUTROS', '❓ Outros'],
 ]
 
+// Visão da VENDEDORA (não-admin): só CNIS enviado em diante + pré-aprovado da máquina.
+// Em "A analisar" ela vê SÓ os vermelhos (quem travou e precisa de ajuda).
+const COLUNAS_VENDEDOR = ['A_ANALISAR', 'PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
+
 // Motivos pra negar / não quis (perda comercial — NÃO mexe no cnis_aprovado, protege a auditoria)
 const MOTIVOS_NEGAR = [
   ['ja_recebeu', 'Já recebeu SM'],
@@ -121,6 +125,7 @@ const s = {
   btnVoltar: { flex: 1, padding: 12, background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnFechar: { padding: '9px 12px', background: '#fff', color: '#888', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
   btnNegar: { padding: '9px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  seloMaquina: { marginTop: 6, display: 'inline-block', padding: '2px 8px', background: '#EAF2FB', color: '#185FA5', border: '0.5px solid rgba(24,95,165,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600 },
   painelMotivos: { marginTop: 8, padding: 12, background: '#FAFAFA', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#fff', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
@@ -129,6 +134,7 @@ const s = {
 export default function RevisaoIARetroativo() {
   const { profile } = useAuth()
   const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
+  const ehVendedor = !ehAdmin
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -327,12 +333,17 @@ export default function RevisaoIARetroativo() {
   const passaAtend = (l) => filtroAtendimento === 'todos' || (filtroAtendimento === 'respondido' ? l.humano_respondeu : !l.humano_respondeu)
   const cardsDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
+    // vendedora: em "A analisar" só vê os que travaram (precisa de ajuda)
+    && (!(ehVendedor && col === 'A_ANALISAR') || l.cor === 'vermelho')
   ).slice(0, 60)
+  const colunasVisiveis = ehVendedor ? COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k)) : COLUNAS
 
   return (
     <div>
       <div style={s.title}>🤱 Revisão IA — Retroativo</div>
-      <div style={s.sub}>Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.</div>
+      <div style={s.sub}>{ehVendedor
+        ? 'Seus clientes: CNIS já enviado em diante. 🤖 = pré-aprovada pela máquina (confira de perto). Em "A analisar" aparecem só os que travaram e precisam de você.'
+        : 'Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.'}</div>
 
       <div style={s.topo}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
@@ -371,7 +382,7 @@ export default function RevisaoIARetroativo() {
       </div>
 
       <div style={s.board}>
-        {COLUNAS.map(([col, titulo]) => {
+        {colunasVisiveis.map(([col, titulo]) => {
           const cards = cardsDe(col)
           const podeSoltar = col !== 'OUTROS'
           return (
@@ -379,7 +390,7 @@ export default function RevisaoIARetroativo() {
               style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #185FA5' } : {}) }}
               onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
               onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
-              <div style={s.colTitulo}><span>{titulo}</span><span>{board.filter(l => l.coluna === col).length}</span></div>
+              <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
               {cards.map(l => (
                 <div key={l.id} draggable
                   onDragStart={() => setArrastando(l.id)}
@@ -387,6 +398,9 @@ export default function RevisaoIARetroativo() {
                   style={{ ...s.card, ...(CORES[l.cor] || CORES.normal), cursor: 'grab' }}
                   onClick={() => abrirLead(l)}>
                   <div style={s.cardNome}>{l.nome || 'Sem nome'}</div>
+                  {l.coluna === 'PITCH_LIBERADO' && l.cnis_aprovado !== 'true' && (
+                    <div style={s.seloMaquina}>🤖 pré-aprovada máquina</div>
+                  )}
                   <div style={s.cardMeta}>
                     {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
                     {ehAdmin && l.agente_nome ? ` · ${l.agente_nome}` : ''}
