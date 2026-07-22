@@ -17,6 +17,35 @@ const MAP_V = {
 }
 const MAQUINA_PASSA = ['APTA', 'APTA_CONFERIR_GERID'] // maquina deixaria seguir como cliente
 
+// Faixa de datas a partir do preset (base: fuso do navegador = BRT do usuario)
+function faixaData(preset, cDe, cAte) {
+  const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+  const hoje = ini(new Date())
+  const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1)
+  if (preset === 'hoje') return { de: hoje, ate: amanha }
+  if (preset === 'ontem') { const o = new Date(hoje); o.setDate(o.getDate() - 1); return { de: o, ate: hoje } }
+  if (preset === '7d') { const d = new Date(hoje); d.setDate(d.getDate() - 6); return { de: d, ate: amanha } }
+  if (preset === 'mes') { const d = new Date(hoje); d.setDate(d.getDate() - 29); return { de: d, ate: amanha } }
+  if (preset === 'custom') {
+    const de = cDe ? ini(cDe + 'T00:00:00') : null
+    let ate = null
+    if (cAte) { ate = ini(cAte + 'T00:00:00'); ate.setDate(ate.getDate() + 1) }
+    return { de, ate }
+  }
+  return { de: null, ate: null }
+}
+const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
+// true se a data (texto ISO) cai dentro da faixa. Sem faixa = tudo. Data inválida = fora de janela específica.
+function dentroFaixa(dtStr, faixa) {
+  if (!faixa.de && !faixa.ate) return true
+  if (!dtStr) return false
+  const d = new Date(dtStr)
+  if (isNaN(d.getTime())) return false
+  if (faixa.de && d < faixa.de) return false
+  if (faixa.ate && d >= faixa.ate) return false
+  return true
+}
+
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 },
   sub: { fontSize: 13, color: '#888', marginBottom: 16 },
@@ -38,6 +67,8 @@ export default function ConfereCNIS() {
   const [linhas, setLinhas] = useState([])
   const [loading, setLoading] = useState(true)
   const [soComparaveis, setSoComparaveis] = useState(false)
+  const [filtroData, setFiltroData] = useState('tudo')
+  const [dtDe, setDtDe] = useState(''); const [dtAte, setDtAte] = useState('')
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.rpc('cnis_auditoria')
@@ -62,17 +93,21 @@ export default function ConfereCNIS() {
     return { estado: concorda ? 'bateu' : 'divergiu', concorda, perigoso, inverso }
   }
 
-  // ---- Resumo (o coracao da tela) ----
-  const total = linhas.length
-  const revisados = linhas.filter(l => l.decisao_humana)
+  // ---- Filtro por período (data da análise da máquina) ----
+  const faixa = faixaData(filtroData, dtDe, dtAte)
+  const noPeriodo = linhas.filter(l => dentroFaixa(l.analisado_em, faixa))
+
+  // ---- Resumo (o coracao da tela) — sempre dentro do período escolhido ----
+  const total = noPeriodo.length
+  const revisados = noPeriodo.filter(l => l.decisao_humana)
   const comparaveis = revisados.filter(l => l.veredito_maquina !== 'HUMANO')
   const concordaram = comparaveis.filter(l => classificar(l).concorda).length
   const taxa = comparaveis.length ? Math.round((concordaram / comparaveis.length) * 100) : 0
   const perigosos = comparaveis.filter(l => classificar(l).perigoso).length
   const inversos = comparaveis.filter(l => classificar(l).inverso).length
-  const pediuHumano = linhas.filter(l => l.veredito_maquina === 'HUMANO').length
+  const pediuHumano = noPeriodo.filter(l => l.veredito_maquina === 'HUMANO').length
 
-  const visiveis = soComparaveis ? comparaveis : linhas
+  const visiveis = soComparaveis ? comparaveis : noPeriodo
   const fmt = (dt) => { if (!dt) return '—'; try { return new Date(dt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return dt } }
 
   const decisaoHumanaCel = (l) => {
@@ -92,6 +127,20 @@ export default function ConfereCNIS() {
     <div>
       <div style={s.title}>🔬 Confere CNIS — máquina vs atendente</div>
       <div style={s.sub}>Auditoria da auto-análise (modo sombra). A decisão do humano vem do botão Aprovar/Reprovar CNIS do board — não precisa remarcar aqui. Quando a concordância estiver alta e os erros perigosos zerados por um período, liga-se o corte automático.</div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, color: '#888' }}>Analisados em:</span>
+        {OPCOES_DATA.map(([v, lbl]) => (
+          <button key={v} onClick={() => setFiltroData(v)}
+            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: filtroData === v ? '0.5px solid #185FA5' : '0.5px solid rgba(0,0,0,0.15)', background: filtroData === v ? '#185FA5' : '#fff', color: filtroData === v ? '#fff' : '#666' }}>
+            {lbl}
+          </button>
+        ))}
+        {filtroData === 'custom' && (<>
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' }} />
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' }} />
+        </>)}
+      </div>
 
       <div style={s.resumo}>
         <div style={s.kpi}><div style={s.kpiNum}>{total}</div><div style={s.kpiLbl}>Analisados pela máquina</div></div>
@@ -144,7 +193,7 @@ export default function ConfereCNIS() {
           </tbody>
         </table>
       )}
-      <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Atualiza sozinha a cada 60s. Mais recente no topo. Decisão do humano puxada do board (Aprovar/Reprovar CNIS).</div>
+      <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Atualiza sozinha a cada 60s. Mais recente no topo. Números e lista respeitam o período selecionado acima. Decisão do humano puxada do board (Aprovar/Reprovar CNIS).</div>
     </div>
   )
 }
