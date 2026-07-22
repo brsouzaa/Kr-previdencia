@@ -156,7 +156,11 @@ export default function RevisaoIARetroativo() {
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
-    const p_agente = ehAdmin ? (filtroAgente || null) : profile.id
+    // Funil retroativo é 100% automático e SEM DONO por lead. Se a vendedora filtrar
+    // pelo próprio id, ela só enxerga A analisar/Pitch (sempre visíveis) e perde cadastro/
+    // assinatura/finalizado (que são gated por dono). Ela vê o funil compartilhado inteiro,
+    // já fatiado nas colunas dela pelo COLUNAS_VENDEDOR. Corte continua valendo.
+    const p_agente = ehAdmin ? (filtroAgente || null) : null
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
     const { data } = await supabase.rpc('mae_board', {
