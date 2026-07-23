@@ -40,10 +40,8 @@ const CHAVES_CONHECIDAS = new Set([
   ...SUB_ESTADOS_NEGADO,
 ])
 
-// Vendedor (nao-admin) ve so do extrato pra frente; admin/supervisora veem o funil inteiro.
-const COLUNAS_VENDEDOR = ['COLETA_EXTRATO', 'DOCS_COMPLETOS', 'BF_AGUARDANDO_LINK', 'BF_LINK_ENVIADO', 'BF_AGUARDANDO_ASSINATURA', 'BF_ASSINADO', 'BF_CONCLUIDO']
-// Colunas do humano: a Ana ja esta desligada aqui, entao da pra arrastar o card na mao.
-const COLUNAS_HUMANO = ['DOCS_COMPLETOS', 'BF_AGUARDANDO_LINK', 'BF_LINK_ENVIADO', 'BF_AGUARDANDO_ASSINATURA', 'BF_ASSINADO', 'BF_CONCLUIDO']
+// Liberado (23/07): TODO o time BF ve todas as colunas e arrasta em todas.
+// NEGADO continua so pelo botao Negar (precisa de motivo); OUTROS nao recebe card (catch-all).
 
 // Motivos do botao Negar: [codigo estavel, label]. O codigo vai pro banco (bf_motivo_perda), o label a atendente ve.
 const MOTIVOS_NEGADO = [
@@ -322,8 +320,8 @@ export default function RevisaoIABolsaFamilia() {
     return null
   }
 
-  const ehVendedorBF = !ehAdmin
-  const colunasVisiveis = ehVendedorBF ? COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k)) : COLUNAS
+  // Todo mundo (vendedora e admin) ve o funil inteiro
+  const colunasVisiveis = COLUNAS
   const moverEtapa = async (leadId, colunaDestino) => {
     const { data, error } = await supabase.rpc('bf_mover_etapa', { p_lead_id: leadId, p_agente_id: profile?.id, p_coluna_destino: colunaDestino })
     if (error || !data?.ok) { alert('Não moveu: ' + (error?.message || data?.erro || 'erro')); return }
@@ -388,9 +386,8 @@ export default function RevisaoIABolsaFamilia() {
             : key === 'OUTROS'
             ? visiveis.filter(c => !CHAVES_CONHECIDAS.has(c.sub_estado))
             : visiveis.filter(c => c.sub_estado === key)
-          // Vendedor so ve os TRAVADOS (vermelhos) no extrato — o resto a Ana resolve
-          if (ehVendedorBF && key === 'COLETA_EXTRATO') cards = cards.filter(c => c.cor === 'vermelho')
-          const ehDestino = COLUNAS_HUMANO.includes(key)
+          // Solta em qualquer coluna do funil; Negados so pelo botao Negar (motivo), Outros nao recebe
+          const ehDestino = key !== 'NEGADO' && key !== 'OUTROS'
           const destaque = key === 'DOCS_COMPLETOS'
           return (
             <div key={key}
@@ -401,12 +398,11 @@ export default function RevisaoIABolsaFamilia() {
                 <span>{destaque ? '⭐ ' : ''}{label}</span><span>{cards.length}</span>
               </div>
               {cards.map(c => {
-                const podeArrastar = COLUNAS_HUMANO.includes(key)
                 return (
-                <div key={c.id} draggable={podeArrastar}
-                  onDragStart={podeArrastar ? (() => setArrastando(c.id)) : undefined}
+                <div key={c.id} draggable
+                  onDragStart={() => setArrastando(c.id)}
                   onDragEnd={() => setArrastando(null)}
-                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), ...(podeArrastar ? { cursor: 'grab' } : {}) }}
+                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab' }}
                   onClick={() => abrirCard(c)}>
                   <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
