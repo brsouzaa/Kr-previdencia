@@ -154,7 +154,7 @@ export default function FilaDigitacao() {
     if (salvandoOrdem) return
     setSalvandoOrdem(true)
     try {
-      const { error } = await supabase.rpc('fila_definir_ordem_manual', { p_lote_ids: novaLista })
+      const { error } = await supabase.rpc('fila_definir_ordem_manual', { p_lote_ids: novaLista, p_produto: filtroProduto })
       if (error) throw new Error(error.message || JSON.stringify(error))
       await fetchTudo()
     } catch (err) {
