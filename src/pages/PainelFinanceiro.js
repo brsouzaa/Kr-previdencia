@@ -194,6 +194,7 @@ export default function PainelFinanceiro() {
     const h = new Date(); h.setHours(0, 0, 0, 0)
     let ini, fim
     if (periodo === 'hoje') { ini = ymd(h); fim = ymd(h) }
+    else if (periodo === 'ontem') { const o = new Date(h); o.setDate(o.getDate() - 1); ini = ymd(o); fim = ymd(o) }
     else if (periodo === 'semana') { const s = new Date(h); s.setDate(s.getDate() - ((s.getDay() + 6) % 7)); ini = ymd(s); fim = ymd(h) }
     else if (periodo === 'mes') { ini = ymd(new Date(h.getFullYear(), h.getMonth(), 1)); fim = ymd(h) }
     else { ini = persoIni; fim = persoFim }
@@ -536,25 +537,59 @@ export default function PainelFinanceiro() {
             O coração da operação — receita, custo, CAC e caixa num lugar só.
           </p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 11, color: '#9a9a96', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
-          <select value={produtoSel} onChange={e => setProdutoSel(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.2)', color: '#111', fontWeight: 600, background: '#fff', cursor: 'pointer', minWidth: 180 }}>
-            <option value="Todos">Todos os produtos</option>
-            {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, color: '#9a9a96', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Período</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {[['hoje', 'Hoje'], ['ontem', 'Ontem'], ['semana', 'Semana'], ['mes', 'Mês'], ['perso', 'Período']].map(([k, l]) => (
+                <button key={k} style={pill(periodo === k)} onClick={() => setPeriodo(k)}>{l}</button>
+              ))}
+              {periodo === 'perso' && (
+                <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
+                  <input type="date" value={persoIni} max={persoFim} onChange={e => setPersoIni(e.target.value)}
+                    style={{ border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                  <span>até</span>
+                  <input type="date" value={persoFim} min={persoIni} onChange={e => setPersoFim(e.target.value)}
+                    style={{ border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, color: '#9a9a96', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
+            <select value={produtoSel} onChange={e => setProdutoSel(e.target.value)}
+              style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.2)', color: '#111', fontWeight: 600, background: '#fff', cursor: 'pointer', minWidth: 180 }}>
+              <option value="Todos">Todos os produtos</option>
+              {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* KPIs DO MÊS — clique pra detalhar */}
+      {/* KPIs — seguem o filtro de período do topo.
+          Mês = DRE (competência). Outros períodos = CAIXA realizado (lotes pagos / contas pagas).
+          Marketing e CAC são SEMPRE do mês: o gasto da Meta só existe no banco por mês. */}
+      {(() => {
+        const filtrado = periodo !== 'mes'
+        const lblP = { hoje: 'hoje', ontem: 'ontem', semana: 'semana', perso: 'período' }[periodo] || 'mês'
+        const saldoP = pulso ? pulso.entrou - pulso.saiu : 0
+        return (
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: 10 }}>
-        {kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`, 'receita')}
-        {kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · detalhes em Despesas & Custos', null)}
-        {kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita', 'mkt')}
-        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos`, 'cac')}
+        {filtrado
+          ? kpi(`Receita (${lblP})`, pulso ? fmtK(pulso.entrou) : '…', COR.verde, pulso ? `${pulso.qtdEnt} lote(s) pago(s) · caixa do período` : '…', 'receita')
+          : kpi('Receita (mês)', fmtK(dreAtual.receita), COR.verde, `${MES_CURTO[hoje.getMonth()]} até hoje`, 'receita')}
+        {filtrado
+          ? kpi(`Despesa paga (${lblP})`, pulso ? fmtK(pulso.saiu) : '…', COR.vermelho, pulso ? `${pulso.qtdSai} conta(s) paga(s) no período` : '…', null)
+          : kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · detalhes em Despesas & Custos', null)}
+        {kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita' + (filtrado ? ' · sempre mês' : ''), 'mkt')}
+        {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos` + (filtrado ? ' · sempre mês' : ''), 'cac')}
         {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`, 'agenda')}
-        {kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'desconta tudo, incl. mkt', 'resultado')}
+        {filtrado
+          ? kpi(`Saldo (${lblP})`, pulso ? fmtK(saldoP) : '…', saldoP >= 0 ? COR.verde : COR.vermelho, 'entrou − saiu no período (caixa)', 'resultado')
+          : kpi('Resultado', fmtK(dreAtual.resultado), Number(dreAtual.resultado || 0) >= 0 ? COR.verde : COR.vermelho, folhaMes === 0 ? '⚠ sem folha ainda' : 'desconta tudo, incl. mkt', 'resultado')}
       </div>
+        )
+      })()}
 
       {/* PAINEL DE DETALHE do KPI clicado */}
       {detalhe && (
@@ -757,7 +792,7 @@ export default function PainelFinanceiro() {
       {/* PULSO DE CAIXA POR PERÍODO */}
       {secao('💓 Pulso de caixa', (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['perso', 'Personalizado']].map(([k, l]) => (
+          {[['hoje', 'Hoje'], ['ontem', 'Ontem'], ['semana', 'Semana'], ['mes', 'Mês'], ['perso', 'Personalizado']].map(([k, l]) => (
             <button key={k} style={pill(periodo === k)} onClick={() => setPeriodo(k)}>{l}</button>
           ))}
           {periodo === 'perso' && (
