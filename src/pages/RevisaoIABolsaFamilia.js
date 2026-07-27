@@ -15,6 +15,27 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// ===== OPERAÇÕES LICENCIADAS (Ronaldo / Leandro) =====
+// Cada usuário licenciado só enxerga leads da PRÓPRIA operação (l.operacao, marcada pelo sync via inbox).
+export const OPERACAO_USUARIOS = {
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd': 'ronaldo', // Thamires (supervisora)
+  '8bff997b-e43f-4b65-bafc-b4e7e704b14b': 'ronaldo', // Brenda
+  '3a9c1779-2008-4aaa-9cfb-e64336b9207a': 'ronaldo', // Tamy
+  'ed181784-484b-4ad9-9e8c-4f35b1279940': 'ronaldo', // Kisse
+  '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6': 'ronaldo', // Kayllaine
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a': 'leandro', // Isabelle (supervisora)
+  '5d8cf47f-47e8-4d15-a4b8-48308d4b0840': 'leandro', // Rafaelle
+  '977a4664-eb04-4a51-84ab-b61449720dc2': 'leandro', // Sara
+}
+export const SUPERVISORAS_OPERACAO = [
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (Ronaldo)
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (Leandro)
+]
+const OPERACAO_VENDEDORAS = {
+  ronaldo: ['8bff997b-e43f-4b65-bafc-b4e7e704b14b', '3a9c1779-2008-4aaa-9cfb-e64336b9207a', 'ed181784-484b-4ad9-9e8c-4f35b1279940', '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6'],
+  leandro: ['5d8cf47f-47e8-4d15-a4b8-48308d4b0840', '977a4664-eb04-4a51-84ab-b61449720dc2'],
+}
+
 const COLUNAS = [
   ['OFERTA', '📢 Oferta'],
   ['CONFIRMA_CAIXA_TEM', '💬 Confirma Caixa'],
@@ -162,6 +183,9 @@ const s = {
 export default function RevisaoIABolsaFamilia() {
   const { profile } = useAuth()
   const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
+  const minhaOp = OPERACAO_USUARIOS[profile?.id] || null            // operação licenciada do usuário (null = KR)
+  const ehSupervisorOp = SUPERVISORAS_OPERACAO.includes(profile?.id) // supervisora licenciada: vê TODA a operação dela
+  const ehSupervisor = ehAdmin || ehSupervisorOp
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -186,7 +210,7 @@ export default function RevisaoIABolsaFamilia() {
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
-    const p_agente = ehAdmin ? (filtroAgente || null) : profile.id
+    const p_agente = ehSupervisor ? (filtroAgente || null) : profile.id
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
     const { data } = await supabase.rpc('bf_board', {
@@ -196,19 +220,22 @@ export default function RevisaoIABolsaFamilia() {
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
     })
-    setBoard(data || [])
-  }, [profile, ehAdmin, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
+    // Operação licenciada só enxerga os leads da própria operação
+    const rows = (data || []).filter(l => !minhaOp || (l.operacao || 'kr') === minhaOp)
+    setBoard(rows)
+  }, [profile, ehSupervisor, minhaOp, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
 
   useEffect(() => {
     supabase.from('app_config').select('valor').eq('chave', 'bf_link_crefisa').single()
       .then(({ data }) => setLinkCrefisa(data?.valor || ''))
-    if (ehAdmin) {
-      supabase.from('profiles').select('id, nome').in('id', IDS_AGENTES_BF).order('nome')
+    const idsAgentes = ehAdmin ? IDS_AGENTES_BF : (ehSupervisorOp ? (OPERACAO_VENDEDORAS[minhaOp] || []) : [])
+    if (idsAgentes.length) {
+      supabase.from('profiles').select('id, nome').in('id', idsAgentes).order('nome')
         .then(({ data }) => setAgentes(data || []))
     }
-  }, [ehAdmin])
+  }, [ehAdmin, ehSupervisorOp, minhaOp])
 
   // Recarrega mensagens + anexos de um lead (usado ao abrir, no auto-refresh e no botão)
   const recarregarConversa = useCallback(async (l, comLoading) => {
@@ -309,12 +336,12 @@ export default function RevisaoIABolsaFamilia() {
   function seloTratamento(c) {
     if (c.bf_em_tratamento) {
       const aviso = c.cliente_respondeu ? <span style={s.tagRespondeu}>💬 cliente respondeu</span> : null
-      if (ehAdmin) {
+      if (ehSupervisor) {
         return <>{aviso}<span style={s.tagTratSup}>🟢 {c.agente_nome ? `${primeiroNome(c.agente_nome)} tratando` : 'em tratamento'}</span></>
       }
       return <>{aviso}<span style={s.tagTrat}>🟢 Você está tratando</span></>
     }
-    if (ehAdmin && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO') {
+    if (ehSupervisor && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO') {
       return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
     }
     return null
@@ -338,7 +365,7 @@ export default function RevisaoIABolsaFamilia() {
     <div>
       <div style={s.title}>🩷 Revisão IA — Bolsa Família</div>
       <div style={s.sub}>
-        {ehAdmin ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Seus clientes do funil. Vermelho = travou, entre e destrave.'}
+        {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Seus clientes do funil. Vermelho = travou, entre e destrave.'}
       </div>
 
       <div style={s.topo}>
@@ -366,8 +393,8 @@ export default function RevisaoIABolsaFamilia() {
         </select>
         <span style={s.kpi}>Total no funil: <strong>{board.length}</strong></span>
         <span style={s.kpi}>Concluídos: <strong>{board.filter(c => c.sub_estado === 'BF_CONCLUIDO').length}</strong></span>
-        {ehAdmin && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
-        {ehAdmin && (
+        {ehSupervisor && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
+        {ehSupervisor && (
           <>
             <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
               <option value="">Todos os agentes</option>
@@ -408,7 +435,7 @@ export default function RevisaoIABolsaFamilia() {
                   <div style={s.cardMeta}>
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
                   </div>
-                  {ehAdmin && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
+                  {ehSupervisor && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
                   {key !== 'NEGADO' && seloTratamento(c)}
                 </div>
