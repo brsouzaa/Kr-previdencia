@@ -214,6 +214,20 @@ export default function Layout({ children, page, setPage }) {
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'fila_digitacao')) {
     nav = [...nav, { key: 'fila_digitacao', label: '📥 Fila de digitação' }]
   }
+  // Time Maryana Kodos: itens Revisao IA no menu por ID (mantendo o menu do role)
+  const IDS_TIME_MARYANA = [
+    'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
+    'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+    'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  ]
+  if (IDS_TIME_MARYANA.includes(profile?.id)) {
+    if (!nav.some(n => n.key === 'revisao_ia_bf')) nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
+    if (!nav.some(n => n.key === 'revisao_ia_retroativo')) nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
+    if (!nav.some(n => n.key === 'revisao_ia_clt')) nav = [...nav, { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' }]
+  }
+
   // Operações LICENCIADAS (Ronaldo/Leandro): menu EXCLUSIVO — só as revisões, nada do sistema KR
   const IDS_OPERACAO_LICENCIADA = [
     '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
