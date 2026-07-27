@@ -7,6 +7,23 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// ===== OPERAÇÕES LICENCIADAS (Ronaldo / Leandro) =====
+// Usuário licenciado só enxerga leads da PRÓPRIA operação (l.operacao, marcada pelo sync via inbox).
+const OPERACAO_USUARIOS = {
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd': 'ronaldo', // Thamires (supervisora)
+  '8bff997b-e43f-4b65-bafc-b4e7e704b14b': 'ronaldo', // Brenda
+  '3a9c1779-2008-4aaa-9cfb-e64336b9207a': 'ronaldo', // Tamy
+  'ed181784-484b-4ad9-9e8c-4f35b1279940': 'ronaldo', // Kisse
+  '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6': 'ronaldo', // Kayllaine
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a': 'leandro', // Isabelle (supervisora)
+  '5d8cf47f-47e8-4d15-a4b8-48308d4b0840': 'leandro', // Rafaelle
+  '977a4664-eb04-4a51-84ab-b61449720dc2': 'leandro', // Sara
+}
+const SUPERVISORAS_OPERACAO = [
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (Ronaldo)
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (Leandro)
+]
+
 const COLUNAS = [
   ['PEDIU_CNIS', '📄 Pediu CNIS'],
   ['FILA_GERID', '🗂️ Fila GERID'],
@@ -134,7 +151,10 @@ const s = {
 export default function RevisaoIARetroativo() {
   const { profile } = useAuth()
   const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
-  const ehVendedor = !ehAdmin
+  const minhaOp = OPERACAO_USUARIOS[profile?.id] || null            // operação licenciada (null = KR)
+  const ehSupervisorOp = SUPERVISORAS_OPERACAO.includes(profile?.id)
+  const ehSupervisor = ehAdmin || ehSupervisorOp
+  const ehVendedor = !ehSupervisor
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -170,8 +190,9 @@ export default function RevisaoIARetroativo() {
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
     })
-    setBoard(data || [])
-  }, [profile?.id, ehAdmin, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
+    // Operação licenciada só enxerga os leads da própria operação
+    setBoard((data || []).filter(l => !minhaOp || (l.operacao || 'kr') === minhaOp))
+  }, [profile?.id, ehAdmin, minhaOp, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => {
     carregar()
@@ -195,12 +216,12 @@ export default function RevisaoIARetroativo() {
   function seloTratamento(l) {
     if (l.bf_em_tratamento) {
       const aviso = l.cliente_respondeu ? <span style={s.tagRespondeu}>💬 cliente respondeu</span> : null
-      if (ehAdmin) {
+      if (ehSupervisor) {
         return <>{aviso}<span style={s.tagTratSup}>🟢 {l.agente_nome ? `${primeiroNome(l.agente_nome)} tratando` : 'em tratamento'}</span></>
       }
       return <>{aviso}<span style={s.tagTrat}>🟢 Você está tratando</span></>
     }
-    if (ehAdmin && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
+    if (ehSupervisor && (l.cor === 'vermelho' || l.cor === 'amarelo') && l.coluna !== 'FINALIZADO' && l.coluna !== 'REPROVADO') {
       return <span style={s.tagNinguem}>⚪ ninguém pegou</span>
     }
     return null
@@ -375,7 +396,7 @@ export default function RevisaoIARetroativo() {
         <span style={s.kpi}>🔍 Fila do analista: <b>{filaAnalista}</b></span>
         <span style={s.kpi}>Total: <b>{board.length}</b></span>
         <span style={s.kpi}>Finalizadas: <b>{finalizadas}</b></span>
-        {ehAdmin && <span style={s.kpi}>⚪ Sem ninguém: <b>{semDono}</b></span>}
+        {ehSupervisor && <span style={s.kpi}>⚪ Sem ninguém: <b>{semDono}</b></span>}
         {ehAdmin && (
           <select style={s.chip} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
             <option value="">Todos os agentes</option>
@@ -407,7 +428,7 @@ export default function RevisaoIARetroativo() {
                   )}
                   <div style={s.cardMeta}>
                     {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
-                    {ehAdmin && l.agente_nome ? ` · ${l.agente_nome}` : ''}
+                    {ehSupervisor && l.agente_nome ? ` · ${l.agente_nome}` : ''}
                   </div>
                   {(l.coluna === 'REPROVADO' || l.coluna === 'NEGADO') && l.cnis_reprovado_motivo && (
                     <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
@@ -442,7 +463,7 @@ export default function RevisaoIARetroativo() {
               <div>📌 Etapa: {lead.estado}{lead.sub_estado ? ` / ${lead.sub_estado}` : ''}</div>
               {lead.cnis_aprovado === 'true' && <div>✅ CNIS aprovado</div>}
               {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
-              {ehAdmin && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
+              {ehSupervisor && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
             </div>
 
             <div style={s.anexoBox}>
