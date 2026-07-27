@@ -210,6 +210,24 @@ export default function Layout({ children, page, setPage }) {
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'fila_digitacao')) {
     nav = [...nav, { key: 'fila_digitacao', label: '📥 Fila de digitação' }]
   }
+  // Operações LICENCIADAS (Ronaldo/Leandro): menu EXCLUSIVO — só as revisões, nada do sistema KR
+  const IDS_OPERACAO_LICENCIADA = [
+    '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
+    '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda
+    '3a9c1779-2008-4aaa-9cfb-e64336b9207a', // Tamy
+    'ed181784-484b-4ad9-9e8c-4f35b1279940', // Kisse
+    '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6', // Kayllaine
+    'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (sup. Leandro)
+    '5d8cf47f-47e8-4d15-a4b8-48308d4b0840', // Rafaelle
+    '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara
+  ]
+  if (IDS_OPERACAO_LICENCIADA.includes(profile?.id)) {
+    nav = [
+      { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
+      { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
+    ]
+  }
+
   // Confere CNIS (auditoria temporaria): Egle + Duda por ID
   if ((IDS_SUPERVISOR_BOARD.includes(profile?.id) || IDS_AGENTES_RETROATIVO.includes(profile?.id)) && !nav.some(n => n.key === 'confere_cnis')) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
