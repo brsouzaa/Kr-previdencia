@@ -44,6 +44,7 @@ import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
+import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
@@ -118,7 +119,7 @@ function paginaInicial(role) {
 function paginaPermitida(profile, page) {
   const role = profile.role
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
-  if (IDS_OPERACAO_LICENCIADA.includes(profile.id)) return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
+  if (IDS_OPERACAO_LICENCIADA.includes(profile.id)) return ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt'].includes(page)
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
@@ -130,7 +131,7 @@ function paginaPermitida(profile, page) {
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
   if (IDS_AGENTES_RETROATIVO.includes(profile.id) && ['revisao_ia_retroativo','confere_cnis'].includes(page)) return true
   // Egle (supervisora de board): acesso as DUAS telas Revisao IA
-  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','fila_digitacao','confere_cnis'].includes(page)) return true
+  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt','fila_digitacao','confere_cnis'].includes(page)) return true
   if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
@@ -221,6 +222,7 @@ function AppInner() {
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
     revisao_ia_retroativo: <RevisaoIARetroativo />,
+    revisao_ia_clt: <RevisaoIACLT />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
