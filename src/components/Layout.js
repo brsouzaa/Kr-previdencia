@@ -117,6 +117,7 @@ const NAV_ADMIN = [
   { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
+  { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
   { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
@@ -207,6 +208,9 @@ export default function Layout({ children, page, setPage }) {
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
   }
+  if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_clt')) {
+    nav = [...nav, { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' }]
+  }
   if (IDS_SUPERVISOR_BOARD.includes(profile?.id) && !nav.some(n => n.key === 'fila_digitacao')) {
     nav = [...nav, { key: 'fila_digitacao', label: '📥 Fila de digitação' }]
   }
@@ -225,6 +229,7 @@ export default function Layout({ children, page, setPage }) {
     nav = [
       { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
       { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
+      { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
     ]
   }
 
