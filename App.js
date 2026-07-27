@@ -43,6 +43,8 @@ import DespesasCustos from './pages/DespesasCustos'
 import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
+import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
+import ConfereCNIS from './pages/ConfereCNIS'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -50,6 +52,30 @@ const IDS_AGENTES_BF = [
   '64ced61d-fdae-4399-97c9-900c59120fff', // Pamela
   '7ad37a1d-e5be-438c-9afd-982646d507d4', // Juliana (Ju Ferreira)
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
+]
+
+// Agentes Retroativo (Duda): acesso por ID a tela Revisao IA Retroativo, sem perder role atual
+const IDS_AGENTES_RETROATIVO = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
+]
+
+// Supervisores de board (Egle): veem as telas Revisao IA (BF + Retroativo) em modo supervisor
+// (todos os atendentes + filtro por atendente + cores), sem ser admin do resto do sistema
+const IDS_SUPERVISOR_BOARD = [
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+]
+
+// Operações LICENCIADAS (Ronaldo/Leandro): acesso EXCLUSIVO às telas Revisão IA (BF + Retroativo).
+// Nada do resto do sistema KR — dashboard, financeiro, funil etc. ficam bloqueados.
+const IDS_OPERACAO_LICENCIADA = [
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
+  '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda (Ronaldo)
+  '3a9c1779-2008-4aaa-9cfb-e64336b9207a', // Tamy (Ronaldo)
+  'ed181784-484b-4ad9-9e8c-4f35b1279940', // Kisse (Ronaldo)
+  '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6', // Kayllaine (Ronaldo)
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (sup. Leandro)
+  '5d8cf47f-47e8-4d15-a4b8-48308d4b0840', // Rafaelle (Leandro)
+  '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
 ]
 
 function PortalRoute() {
@@ -91,14 +117,21 @@ function paginaInicial(role) {
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
+  if (IDS_OPERACAO_LICENCIADA.includes(profile.id)) return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae'].includes(page)) return true
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
-  // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso a Revisao IA Bolsa Familia por ID, sem perder roles atuais
+  // Agentes BF (Joana, Pamela, Ju, Nadia): acesso a tela Revisao IA Bolsa Familia por ID, sem perder roles
   if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
+  // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
+  if (IDS_AGENTES_RETROATIVO.includes(profile.id) && ['revisao_ia_retroativo','confere_cnis'].includes(page)) return true
+  // Egle (supervisora de board): acesso as DUAS telas Revisao IA
+  if (IDS_SUPERVISOR_BOARD.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','fila_digitacao','confere_cnis'].includes(page)) return true
+  if (profile.role === 'agente_bf') return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
@@ -112,7 +145,6 @@ function paginaPermitida(profile, page) {
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   if (role === 'simulador_emprestimo') return ['simulacao_emprestimo'].includes(page)
-  if (role === 'agente_bf') return ['revisao_ia_bf'].includes(page)
   return false
 }
 
@@ -122,7 +154,7 @@ function AppInner() {
 
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(paginaInicial(profile.role))
+      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
     }
   }, [profile, page])
 
@@ -161,6 +193,7 @@ function AppInner() {
     contratos: <GerarContratos />,
     supervisor_producao: <SupervisorProducao />,
     fila_digitacao: <FilaDigitacao />,
+    confere_cnis: <ConfereCNIS />,
     ranking: <RankingProducao />,
     entregas: <Entregas />,
     lotes_entregues: <LotesEntregues />,
@@ -187,9 +220,10 @@ function AppInner() {
     recebimentos: <RecebimentosAdvogados />,
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
+    revisao_ia_retroativo: <RevisaoIARetroativo />,
   }
 
-  const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
+  const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
