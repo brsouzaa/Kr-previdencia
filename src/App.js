@@ -65,6 +65,19 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// Operações LICENCIADAS (Ronaldo/Leandro): acesso EXCLUSIVO às telas Revisão IA (BF + Retroativo).
+// Nada do resto do sistema KR — dashboard, financeiro, funil etc. ficam bloqueados.
+const IDS_OPERACAO_LICENCIADA = [
+  '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
+  '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda (Ronaldo)
+  '3a9c1779-2008-4aaa-9cfb-e64336b9207a', // Tamy (Ronaldo)
+  'ed181784-484b-4ad9-9e8c-4f35b1279940', // Kisse (Ronaldo)
+  '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6', // Kayllaine (Ronaldo)
+  'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (sup. Leandro)
+  '5d8cf47f-47e8-4d15-a4b8-48308d4b0840', // Rafaelle (Leandro)
+  '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
+]
+
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -104,6 +117,8 @@ function paginaInicial(role) {
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
+  if (IDS_OPERACAO_LICENCIADA.includes(profile.id)) return ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
@@ -139,7 +154,7 @@ function AppInner() {
 
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(paginaInicial(profile.role))
+      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
     }
   }, [profile, page])
 
@@ -208,7 +223,7 @@ function AppInner() {
     revisao_ia_retroativo: <RevisaoIARetroativo />,
   }
 
-  const paginaSegura = paginaPermitida(profile, page) ? page : paginaInicial(profile.role)
+  const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
