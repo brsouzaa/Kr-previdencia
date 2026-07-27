@@ -36,6 +36,16 @@ const OPERACAO_VENDEDORAS = {
   leandro: ['5d8cf47f-47e8-4d15-a4b8-48308d4b0840', '977a4664-eb04-4a51-84ab-b61449720dc2'],
 }
 
+// Supervisoras de TIME interno (KR): veem o board filtrado pelos leads das PROPRIAS vendedoras
+const SUPERVISORAS_TIME = {
+  'be98f268-314f-4114-acc3-7bb9ce7635fd': [ // Maryana Kodos -> time dela
+    '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
+    'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+    'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  ],
+}
+
 const COLUNAS = [
   ['OFERTA', '📢 Oferta'],
   ['CONFIRMA_CAIXA_TEM', '💬 Confirma Caixa'],
@@ -185,7 +195,9 @@ export default function RevisaoIABolsaFamilia() {
   const ehAdmin = profile?.role === 'admin' || IDS_SUPERVISOR_BOARD.includes(profile?.id)
   const minhaOp = OPERACAO_USUARIOS[profile?.id] || null            // operação licenciada do usuário (null = KR)
   const ehSupervisorOp = SUPERVISORAS_OPERACAO.includes(profile?.id) // supervisora licenciada: vê TODA a operação dela
-  const ehSupervisor = ehAdmin || ehSupervisorOp
+  const meuTime = SUPERVISORAS_TIME[profile?.id] || null              // supervisora de time interno: vê só os leads das vendedoras dela
+  const ehSupervisorTime = !!meuTime
+  const ehSupervisor = ehAdmin || ehSupervisorOp || ehSupervisorTime
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -221,7 +233,9 @@ export default function RevisaoIABolsaFamilia() {
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
     })
     // Operação licenciada só enxerga os leads da própria operação
-    const rows = (data || []).filter(l => !minhaOp || (l.operacao || 'kr') === minhaOp)
+    const rows = (data || []).filter(l =>
+      (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
+      (!meuTime || meuTime.includes(l.bf_agente_id)))
     setBoard(rows)
   }, [profile, ehSupervisor, minhaOp, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
@@ -230,7 +244,7 @@ export default function RevisaoIABolsaFamilia() {
   useEffect(() => {
     supabase.from('app_config').select('valor').eq('chave', 'bf_link_crefisa').single()
       .then(({ data }) => setLinkCrefisa(data?.valor || ''))
-    const idsAgentes = ehAdmin ? IDS_AGENTES_BF : (ehSupervisorOp ? (OPERACAO_VENDEDORAS[minhaOp] || []) : [])
+    const idsAgentes = ehAdmin ? IDS_AGENTES_BF : (ehSupervisorOp ? (OPERACAO_VENDEDORAS[minhaOp] || []) : (meuTime || []))
     if (idsAgentes.length) {
       supabase.from('profiles').select('id, nome').in('id', idsAgentes).order('nome')
         .then(({ data }) => setAgentes(data || []))
