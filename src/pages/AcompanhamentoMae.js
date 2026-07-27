@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const KAROL_ID = '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9'
+const STHEFANY_ID = '88929e81-7223-4754-a17b-1cd08f46195d'
 
 const s = {
   wrap: { padding: 16, maxWidth: 1100, margin: '0 auto' },
@@ -31,8 +32,10 @@ const s = {
   finBox: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 10, marginBottom: 18, padding: 14, background: 'linear-gradient(135deg,#f5f3ff,#faf9ff)', borderRadius: 12, border: '1px solid #ece9fb' },
 }
 
-// as 8 etapas confirmadas (ordem do fluxo)
+// etapas do fluxo (ordem): assinou → coleta → análise → protocolo → ...
 const ETAPAS = [
+  { key: 'coleta_docs', label: 'Coleta/Entrega', cor: '#9333ea' },
+  { key: 'analise_direito', label: 'Análise (Sthefany)', cor: '#c026d3' },
   { key: 'aguardando_protocolo', label: 'Aguard. protocolo', cor: '#6b7280' },
   { key: 'protocolado', label: 'Protocolado', cor: '#2563eb' },
   { key: 'em_analise_inss', label: 'Análise INSS', cor: '#0891b2' },
@@ -43,6 +46,7 @@ const ETAPAS = [
   { key: 'barrado', label: 'Barrado', cor: '#991b1b' },
 ]
 const etapaInfo = (k) => ETAPAS.find(e => e.key === k) || ETAPAS[0]
+const URL_STORAGE = 'https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/comprovantes-mae/'
 
 const brl = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const diasDesde = (iso) => {
@@ -54,6 +58,7 @@ const fmtData = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 export default function AcompanhamentoMae() {
   const { profile } = useAuth()
   const ehKarolOuAdmin = profile?.id === KAROL_ID || profile?.role === 'admin'
+  const ehSthefanyOuAdmin = profile?.id === STHEFANY_ID || profile?.role === 'admin'
 
   const [aba, setAba] = useState('ativos')       // ativos | aguardando_protocolo | protocolado | ... | na_sthefany | cadastrar
   const [itens, setItens] = useState([])
@@ -70,6 +75,51 @@ export default function AcompanhamentoMae() {
   const [busca, setBusca] = useState('')
   const [achados, setAchados] = useState([])
   const [buscando, setBuscando] = useState(false)
+
+  // coleta: upload de print (gerid | cnis) direto no card
+  const subirPrint = async (item, tipo, file) => {
+    if (!file) return
+    setUploadando(true)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase()
+      const nome = `${item.cliente_id}/${tipo}_${Date.now()}.${ext}`
+      const { error: eUp } = await supabase.storage.from('comprovantes-mae').upload(nome, file)
+      if (eUp) throw new Error(eUp.message)
+      const campo = tipo === 'gerid' ? 'print_gerid_url' : 'print_cnis_url'
+      const { error } = await supabase.from('acompanhamento_mae').update({ [campo]: nome }).eq('id', item.id)
+      if (error) throw new Error(error.message)
+      carregar()
+    } catch (e) {
+      alert('Erro ao subir print: ' + (e.message || e))
+    }
+    setUploadando(false)
+  }
+
+  const marcarLinkEnviado = async (item, valor) => {
+    const { error } = await supabase.from('acompanhamento_mae').update({ link_acomp_enviado: valor }).eq('id', item.id)
+    if (error) { alert('Erro: ' + error.message); return }
+    carregar()
+  }
+
+  // coleta completa → manda pra análise da advogada
+  const enviarParaAnalise = async (item) => {
+    if (!item.link_acomp_enviado || !item.print_gerid_url || !item.print_cnis_url) {
+      alert('Complete o checklist antes: link enviado + print GERID + CNIS.'); return
+    }
+    await salvarEtapa(item, 'analise_direito')
+  }
+
+  // veredito da análise (Sthefany/admin)
+  const analiseTemDireito = async (item) => {
+    await salvarEtapa(item, 'aguardando_protocolo', { analise_por: profile.id, analise_em: new Date().toISOString() })
+  }
+  const analiseSemDireito = async (item) => {
+    if (!f.motivo_barrado) { alert('Informe o motivo (por que não tem direito)'); return }
+    await salvarEtapa(item, 'barrado', { motivo_barrado: f.motivo_barrado, analise_por: profile.id, analise_em: new Date().toISOString() })
+    // barra o cliente no CRM também (sai dos outros funis)
+    await supabase.from('clientes').update({ status: 'barrado_pos_venda' }).eq('id', item.cliente_id)
+    carregar()
+  }
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -104,6 +154,7 @@ export default function AcompanhamentoMae() {
       data_concessao: item.data_concessao || '',
       data_cai_conta: item.data_cai_conta || '',
       motivo_negado: item.motivo_negado || '',
+      motivo_barrado: item.motivo_barrado || '',
       ticket_valor: item.ticket_valor || 2400,
       data_pagamento: item.data_pagamento || '',
       observacao: item.observacao || '',
@@ -179,7 +230,7 @@ export default function AcompanhamentoMae() {
   const adicionarManual = async (cliente) => {
     setSalvando(cliente.id)
     const { error } = await supabase.from('acompanhamento_mae')
-      .insert({ cliente_id: cliente.id, etapa: 'aguardando_protocolo', responsavel_id: KAROL_ID })
+      .insert({ cliente_id: cliente.id, etapa: 'coleta_docs', responsavel_id: KAROL_ID })
     setSalvando(null)
     if (error) { alert(error.message.includes('duplicate') ? 'Cliente já está no acompanhamento' : 'Erro: ' + error.message); return }
     setAchados(achados.filter(c => c.id !== cliente.id))
@@ -198,7 +249,7 @@ export default function AcompanhamentoMae() {
   return (
     <div style={s.wrap}>
       <div style={s.h1}>🍼 Acompanhamento Maternidade Mãe</div>
-      <div style={s.sub}>Protocolo → concessão → pagamento. Ticket padrão {brl(2400)} (editável).</div>
+      <div style={s.sub}>Assinou → coleta docs → análise do direito → protocolo → concessão → pagamento. Ticket padrão {brl(2400)} (editável).</div>
 
       {/* PAINEL FINANCEIRO PROJETADO */}
       <div style={s.finBox}>
@@ -221,7 +272,7 @@ export default function AcompanhamentoMae() {
         {ETAPAS.map(e => (
           <div key={e.key} style={s.aba(aba === e.key)} onClick={() => setAba(e.key)}>{e.label} ({porEtapa[e.key] || 0})</div>
         ))}
-        <div style={s.aba(aba === 'na_sthefany')} onClick={() => setAba('na_sthefany')}>Em validação (Sthefany) ({naSthefany.length})</div>
+        <div style={s.aba(aba === 'na_sthefany')} onClick={() => setAba('na_sthefany')}>No pós-venda ({naSthefany.length})</div>
         {ehKarolOuAdmin && <div style={s.aba(aba === 'cadastrar')} onClick={() => setAba('cadastrar')}>+ Cadastrar</div>}
       </div>
 
@@ -286,10 +337,68 @@ export default function AcompanhamentoMae() {
                       {item.data_concessao && ` · concedido ${fmtData(item.data_concessao)}`}
                       {item.data_cai_conta && ` · cai na conta ${fmtData(item.data_cai_conta)}`}
                       {item.motivo_negado && ` · negado: ${item.motivo_negado}`}
+                      {item.motivo_barrado && ` · barrado: ${item.motivo_barrado}`}
                     </div>
                   </div>
                   <div style={s.dias(dias >= 30)}>{dias}d nesta etapa</div>
                 </div>
+
+                {/* ETAPA 1: COLETA/ENTREGA — checklist de documentação (Karol/admin) */}
+                {item.etapa === 'coleta_docs' && (
+                  <div style={s.form}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Checklist da entrega</div>
+                    <div style={{ fontSize: 13, marginBottom: 4 }}>
+                      <label style={{ cursor: podeAgir ? 'pointer' : 'default' }}>
+                        <input type="checkbox" checked={!!item.link_acomp_enviado} disabled={!podeAgir}
+                          onChange={e => marcarLinkEnviado(item, e.target.checked)} />{' '}
+                        Link de acompanhamento (Canva/GERID) enviado à cliente
+                      </label>
+                    </div>
+                    <div style={{ fontSize: 13, marginBottom: 4 }}>
+                      {item.print_gerid_url
+                        ? <>✅ Print GERID · <a href={URL_STORAGE + item.print_gerid_url} target="_blank" rel="noreferrer">ver</a></>
+                        : podeAgir && <>☐ Print GERID: <input type="file" accept="image/*,application/pdf" onChange={e => subirPrint(item, 'gerid', e.target.files[0])} disabled={uploadando} /></>}
+                    </div>
+                    <div style={{ fontSize: 13, marginBottom: 8 }}>
+                      {item.print_cnis_url
+                        ? <>✅ CNIS · <a href={URL_STORAGE + item.print_cnis_url} target="_blank" rel="noreferrer">ver</a></>
+                        : podeAgir && <>☐ CNIS: <input type="file" accept="image/*,application/pdf" onChange={e => subirPrint(item, 'cnis', e.target.files[0])} disabled={uploadando} /></>}
+                    </div>
+                    {podeAgir && (
+                      <button style={{ ...s.btn, opacity: (item.link_acomp_enviado && item.print_gerid_url && item.print_cnis_url) ? 1 : 0.4 }}
+                        onClick={() => enviarParaAnalise(item)} disabled={salvando === item.id || uploadando}>
+                        → Enviar para análise (Sthefany)
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ETAPA 2: ANÁLISE DO DIREITO — veredito (Sthefany/admin) */}
+                {item.etapa === 'analise_direito' && (
+                  <div style={s.form}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Documentos coletados</div>
+                    <div style={{ fontSize: 13, marginBottom: 8 }}>
+                      {item.print_gerid_url ? <a href={URL_STORAGE + item.print_gerid_url} target="_blank" rel="noreferrer">📄 GERID</a> : '⚠️ sem GERID'}
+                      {' · '}
+                      {item.print_cnis_url ? <a href={URL_STORAGE + item.print_cnis_url} target="_blank" rel="noreferrer">📄 CNIS</a> : '⚠️ sem CNIS'}
+                    </div>
+                    {ehSthefanyOuAdmin ? (
+                      <div>
+                        <button style={s.btn} onClick={() => analiseTemDireito(item)} disabled={salvando === item.id}>✓ Tem direito → protocolo</button>
+                        <button style={{ ...s.btnG, color: '#b91c1c' }} onClick={() => abrirForm(item, 'semdir')}>✗ Sem direito (barrar)</button>
+                        {formAberto === item.id + 'semdir' && (
+                          <div style={{ marginTop: 8 }}>
+                            <label style={s.label}>Por que a cliente não tem direito?</label>
+                            <input style={s.input} value={f.motivo_barrado} onChange={e => setF({ ...f, motivo_barrado: e.target.value })} />
+                            <button style={{ ...s.btn, background: '#b91c1c' }} onClick={() => analiseSemDireito(item)} disabled={salvando === item.id}>Confirmar: sem direito</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={s.meta}>Aguardando veredito da Sthefany.</div>
+                    )}
+                  </div>
+                )}
 
                 {/* ACOES por etapa (so Karol/admin) */}
                 {podeAgir && item.etapa === 'aguardando_protocolo' && (
