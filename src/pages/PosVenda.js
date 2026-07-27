@@ -71,6 +71,7 @@ export default function PosVenda() {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todos')
+  const [filtroProduto, setFiltroProduto] = useState('todos')
   const [busca, setBusca] = useState('')
   const [acaoCliente, setAcaoCliente] = useState(null) // { tipo: 'contato'|'validar'|'barrar', cliente }
   const [obs, setObs] = useState('')
@@ -117,8 +118,12 @@ export default function PosVenda() {
     }).length,
   }
 
+  // Produtos presentes na fila (pra montar o select sem hardcode)
+  const produtos = [...new Set(clientes.map(c => c.produto).filter(Boolean))].sort()
+
   // Filtros
   const filtrados = clientes.filter(c => {
+    if (filtroProduto !== 'todos' && c.produto !== filtroProduto) return false
     if (filtro === 'novos' && c.status !== 'aguardando_pos_venda') return false
     if (filtro === 'em_contato' && c.status !== 'em_contato_pos_venda') return false
     if (filtro === 'criticos') {
@@ -255,15 +260,25 @@ export default function PosVenda() {
         </button>
       </div>
 
-      {/* Busca */}
-      <div style={{ marginBottom: 14 }}>
+      {/* Busca + filtro por produto */}
+      <div style={{ marginBottom: 14, display: 'flex', gap: 8 }}>
         <input
           type="text"
           placeholder="🔍 Buscar por nome, CPF ou telefone..."
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', outline: 'none' }}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', outline: 'none' }}
         />
+        {produtos.length > 1 && (
+          <select
+            value={filtroProduto}
+            onChange={e => setFiltroProduto(e.target.value)}
+            style={{ padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="todos">📦 Todos os produtos</option>
+            {produtos.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Lista */}
