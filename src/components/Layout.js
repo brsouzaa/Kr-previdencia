@@ -186,6 +186,14 @@ export default function Layout({ children, page, setPage }) {
   if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'acompanhamento_mae')) {
     nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
   }
+  // Karol: acesso ao Confere CNIS (conferir CNIS das clientes Maternidade Mae)
+  if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'confere_cnis')) {
+    nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
+  }
+  // Sthefany: valida direito na etapa de analise do Acompanhamento Mae
+  if (profile?.id === '88929e81-7223-4754-a17b-1cd08f46195d' && !nav.some(n => n.key === 'acompanhamento_mae')) {
+    nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
+  }
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que tambem vendem emprestimo
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
     nav = [...nav, { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' }]
