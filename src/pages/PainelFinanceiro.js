@@ -199,13 +199,16 @@ export default function PainelFinanceiro() {
     else if (periodo === 'mes') { ini = ymd(new Date(h.getFullYear(), h.getMonth(), 1)); fim = ymd(h) }
     else { ini = persoIni; fim = persoFim }
     ;(async () => {
-      const [{ data: ent }, { data: sai }] = await Promise.all([
+      const [{ data: ent }, { data: sai }, { data: mktDia }] = await Promise.all([
         supabase.from('lotes').select('valor_total').eq('status_pagamento', 'pago').gte('data_pagamento', ini).lte('data_pagamento', fim + 'T23:59:59'),
         supabase.from('finance_requests').select('valor').eq('status', 'pago').gte('pago_em', ini).lte('pago_em', fim + 'T23:59:59'),
+        supabase.from('gastos_anuncios_diario').select('gasto_total, data').gte('data', ini).lte('data', fim),
       ])
       const entrou = (ent || []).reduce((s, l) => s + Number(l.valor_total || 0), 0)
       const saiu = (sai || []).reduce((s, r) => s + Number(r.valor || 0), 0)
-      setPulso({ ini, fim, entrou, saiu, qtdEnt: (ent || []).length, qtdSai: (sai || []).length })
+      const mkt = (mktDia || []).reduce((s, g) => s + Number(g.gasto_total || 0), 0)
+      const mktDias = new Set((mktDia || []).map(g => g.data)).size
+      setPulso({ ini, fim, entrou, saiu, qtdEnt: (ent || []).length, qtdSai: (sai || []).length, mkt, mktDias })
     })()
   }, [periodo, persoIni, persoFim, podeVer])
 
@@ -581,7 +584,11 @@ export default function PainelFinanceiro() {
         {filtrado
           ? kpi(`Despesa paga (${lblP})`, pulso ? fmtK(pulso.saiu) : '…', COR.vermelho, pulso ? `${pulso.qtdSai} conta(s) paga(s) no período` : '…', null)
           : kpi('Despesa oper. (mês)', fmtK(dreAtual.despesa_operacional), COR.vermelho, fmtPct(dreAtual.pct_operacional) + ' da receita · detalhes em Despesas & Custos', null)}
-        {kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita' + (filtrado ? ' · sempre mês' : ''), 'mkt')}
+        {filtrado
+          ? (pulso && pulso.mktDias > 0
+              ? kpi(`Marketing (${lblP})`, fmtK(pulso.mkt), COR.azul, `gasto Meta c/ imposto · ${pulso.mktDias} dia(s) sincronizado(s)`, 'mkt')
+              : kpi(`Marketing (${lblP})`, '—', COR.azul, 'clique em Sincronizar Meta (CAC) pra baixar o gasto diário', 'mkt'))
+          : kpi('Marketing (invest.)', fmtK(dreAtual.marketing_total), pctMkt > 50 ? COR.vermelho : pctMkt >= 35 ? COR.laranja : COR.azul, fmtPct(dreAtual.pct_marketing) + ' da receita', 'mkt')}
         {kpi('CAC (mês sel.)', cac > 0 ? fmt(cac) : '—', COR.azul, `${fmtNum(baseAquisicao)} adquiridos` + (filtrado ? ' · sempre mês' : ''), 'cac')}
         {kpi('A sair (7 dias)', fmtK(somaV(prox7)), atrasadas.length ? COR.vermelho : COR.laranja, atrasadas.length ? `${atrasadas.length} ATRASADA(S)!` : `${prox7.length} conta(s)`, 'agenda')}
         {filtrado
