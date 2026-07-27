@@ -116,8 +116,19 @@ function paginaInicial(role) {
   return 'dashboard'
 }
 
+// Time Maryana Kodos (supervisora + vendedoras B2C): acesso extra as telas Revisao IA, sem perder roles
+const IDS_TIME_MARYANA = [
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
+  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+]
+
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
+  if (IDS_TIME_MARYANA.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt'].includes(page)) return true
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
   if (IDS_OPERACAO_LICENCIADA.includes(profile.id)) return ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt'].includes(page)
   // Setor resgate vê a tela da ala
