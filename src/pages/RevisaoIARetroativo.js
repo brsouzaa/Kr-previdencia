@@ -54,6 +54,12 @@ const COLUNAS = [
 // Em "A analisar" ela vê SÓ os vermelhos (quem travou e precisa de ajuda).
 const COLUNAS_VENDEDOR = ['A_ANALISAR', 'PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
+// Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
+// sem virar supervisora do resto (selos, filtros e nomes continuam de vendedora)
+const IDS_VE_TODAS_COLUNAS = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
+]
+
 // Motivos pra negar / não quis (perda comercial — NÃO mexe no cnis_aprovado, protege a auditoria)
 const MOTIVOS_NEGAR = [
   ['ja_recebeu', 'Já recebeu SM'],
@@ -167,6 +173,8 @@ export default function RevisaoIARetroativo() {
   const ehSupervisorTime = !!meuTime
   const ehSupervisor = ehAdmin || ehSupervisorOp || ehSupervisorTime
   const ehVendedor = !ehSupervisor
+  // visão completa das colunas (não muda selos/filtros/nomes, só as colunas visíveis)
+  const veTodasColunas = ehSupervisor || IDS_VE_TODAS_COLUNAS.includes(profile?.id)
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -373,14 +381,14 @@ export default function RevisaoIARetroativo() {
   const cardsDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
     // vendedora: em "A analisar" só vê os que travaram (precisa de ajuda)
-    && (!(ehVendedor && col === 'A_ANALISAR') || l.cor === 'vermelho')
+    && (!(ehVendedor && !veTodasColunas && col === 'A_ANALISAR') || l.cor === 'vermelho')
   ).slice(0, 60)
-  const colunasVisiveis = ehVendedor ? COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k)) : COLUNAS
+  const colunasVisiveis = veTodasColunas ? COLUNAS : COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k))
 
   return (
     <div>
       <div style={s.title}>🤱 Revisão IA — Retroativo</div>
-      <div style={s.sub}>{ehVendedor
+      <div style={s.sub}>{ehVendedor && !veTodasColunas
         ? 'Seus clientes: CNIS já enviado em diante. 🤖 = pré-aprovada pela máquina (confira de perto). Em "A analisar" aparecem só os que travaram e precisam de você.'
         : 'Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.'}</div>
 
@@ -429,7 +437,7 @@ export default function RevisaoIARetroativo() {
               style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #185FA5' } : {}) }}
               onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
               onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
-              <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
+              <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && !veTodasColunas && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
               {cards.map(l => (
                 <div key={l.id} draggable
                   onDragStart={() => setArrastando(l.id)}
