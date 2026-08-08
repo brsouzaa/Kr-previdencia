@@ -46,6 +46,7 @@ import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
 import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
+import PainelDigitador from './pages/PainelDigitador'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -208,6 +209,7 @@ function AppInner() {
     supervisor_producao: <SupervisorProducao />,
     fila_digitacao: <FilaDigitacao />,
     confere_cnis: <ConfereCNIS />,
+    painel_digitador: <PainelDigitador />,
     ranking: <RankingProducao />,
     entregas: <Entregas />,
     lotes_entregues: <LotesEntregues />,
