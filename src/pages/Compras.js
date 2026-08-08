@@ -3,22 +3,22 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const PROD_STYLE = {
-  'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
-  'BPC': { bg: '#EEEDFE', color: '#534AB7' },
-  'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
+  'Maternidade': { bg: 'rgba(52,211,153,.14)', color: '#34d399' },
+  'BPC': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
+  'Auxilio Acidente': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' },
-  metric: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: '12px 14px' },
-  metricLabel: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
-  metricValue: { fontSize: 24, fontWeight: 500, color: '#111' },
-  tableWrap: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' },
-  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#f8f8f6', borderBottom: '0.5px solid rgba(0,0,0,0.08)' },
-  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 13, color: '#111' },
-  tag: (p) => ({ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500, background: PROD_STYLE[p]?.bg || '#eee', color: PROD_STYLE[p]?.color || '#555', display: 'inline-block' }),
-  loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
+  metric: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: '12px 14px' },
+  metricLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
+  metricValue: { fontSize: 24, fontWeight: 500, color: '#e6edf7' },
+  tableWrap: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden' },
+  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#0d1526', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
+  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', fontSize: 13, color: '#e6edf7' },
+  tag: (p) => ({ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500, background: PROD_STYLE[p]?.bg || '#1a2742', color: PROD_STYLE[p]?.color || '#8b9bb4', display: 'inline-block' }),
+  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
 }
 
 export default function Compras() {
@@ -49,8 +49,8 @@ export default function Compras() {
       <div style={s.title}>Histórico de compras</div>
       <div style={s.metrics}>
         <div style={s.metric}><div style={s.metricLabel}>Total</div><div style={s.metricValue}>{counts.total}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#0F6E56' }}>Maternidade</div><div style={{ ...s.metricValue, color: '#0F6E56' }}>{counts.mat}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#534AB7' }}>BPC</div><div style={{ ...s.metricValue, color: '#534AB7' }}>{counts.bpc}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#34d399' }}>Maternidade</div><div style={{ ...s.metricValue, color: '#34d399' }}>{counts.mat}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#a78bfa' }}>BPC</div><div style={{ ...s.metricValue, color: '#a78bfa' }}>{counts.bpc}</div></div>
       </div>
 
       <div style={s.tableWrap}>
@@ -69,14 +69,14 @@ export default function Compras() {
                 <tr key={c.id}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 500 }}>{c.advogados?.nome_completo}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>{c.advogados?.oab}</div>
+                    <div style={{ fontSize: 11, color: '#8b9bb4' }}>{c.advogados?.oab}</div>
                   </td>
-                  {profile?.role === 'admin' && <td style={{ ...s.td, fontSize: 12, color: '#888' }}>{c.profiles?.nome}</td>}
+                  {profile?.role === 'admin' && <td style={{ ...s.td, fontSize: 12, color: '#8b9bb4' }}>{c.profiles?.nome}</td>}
                   <td style={s.td}><span style={s.tag(c.produto)}>{c.produto}</span></td>
-                  <td style={{ ...s.td, color: '#888', fontSize: 12 }}>{c.data_compra}</td>
+                  <td style={{ ...s.td, color: '#8b9bb4', fontSize: 12 }}>{c.data_compra}</td>
                 </tr>
               ))}
-              {compras.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 4 : 3} style={{ ...s.td, textAlign: 'center', color: '#aaa', padding: '2rem' }}>Nenhuma compra registrada</td></tr>}
+              {compras.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 4 : 3} style={{ ...s.td, textAlign: 'center', color: '#64748b', padding: '2rem' }}>Nenhuma compra registrada</td></tr>}
             </tbody>
           </table>
         )}

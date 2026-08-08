@@ -254,26 +254,26 @@ export default function SupervisorProducao() {
   }, {})
   const ranking = Object.entries(rankingMap).sort((a,b) => b[1].enviados - a[1].enviados)
 
-  const card = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }
+  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '14px 16px' }
 
   const titulo = isSupAutonomo ? '📊 Supervisão Autônomos' : '📊 Supervisão de Produção'
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>{titulo}</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7' }}>{titulo}</div>
         <button onClick={sincronizarAgora} disabled={sincronizando}
-          style={{ padding: '8px 14px', background: sincronizando ? '#aaa' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: sincronizando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 14px', background: sincronizando ? '#64748b' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: sincronizando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           {sincronizando ? '⏳ Sincronizando...' : '🔄 Sincronizar agora'}
         </button>
       </div>
 
       {ultimaSync && (
-        <div style={{ ...card, marginBottom: 14, background: '#EAF3DE', border: '0.5px solid #3B6D1130' }}>
-          <div style={{ fontSize: 13, color: '#3B6D11', fontWeight: 500 }}>✓ Sincronização concluída às {ultimaSync.horario}</div>
-          <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+        <div style={{ ...card, marginBottom: 14, background: 'rgba(52,211,153,.14)', border: '0.5px solid #3B6D1130' }}>
+          <div style={{ fontSize: 13, color: '#34d399', fontWeight: 500 }}>✓ Sincronização concluída às {ultimaSync.horario}</div>
+          <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 4 }}>
             {ultimaSync.assinados} contrato{ultimaSync.assinados !== 1 ? 's' : ''} marcado{ultimaSync.assinados !== 1 ? 's' : ''} como assinado · {ultimaSync.expirados} contrato{ultimaSync.expirados !== 1 ? 's' : ''} expirado{ultimaSync.expirados !== 1 ? 's' : ''} (voltaram para a fila com prioridade)
           </div>
         </div>
@@ -281,11 +281,11 @@ export default function SupervisorProducao() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
-          ['Enviados', enviados, '#185FA5', '#E6F1FB'],
-          ['Assinados', assinados, '#3B6D11', '#EAF3DE'],
-          ['Pendentes', pendentes, '#854F0B', '#FAEEDA'],
-          ['Expirados', expirados, '#A32D2D', '#FCEBEB'],
-          ['Conversão', `${conversao}%`, conversao >= 70 ? '#3B6D11' : conversao >= 40 ? '#854F0B' : '#A32D2D', conversao >= 70 ? '#EAF3DE' : conversao >= 40 ? '#FAEEDA' : '#FCEBEB'],
+          ['Enviados', enviados, '#60a5fa', 'rgba(96,165,250,.12)'],
+          ['Assinados', assinados, '#34d399', 'rgba(52,211,153,.14)'],
+          ['Pendentes', pendentes, '#fbbf24', 'rgba(251,191,36,.12)'],
+          ['Expirados', expirados, '#f87171', 'rgba(248,113,113,.14)'],
+          ['Conversão', `${conversao}%`, conversao >= 70 ? '#34d399' : conversao >= 40 ? '#fbbf24' : '#f87171', conversao >= 70 ? 'rgba(52,211,153,.14)' : conversao >= 40 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.14)'],
         ].map(([l, v, c, bg]) => (
           <div key={l} style={{ ...card, background: bg, border: `0.5px solid ${c}30` }}>
             <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>{l}</div>
@@ -296,8 +296,8 @@ export default function SupervisorProducao() {
 
       {/* Card especial: ranking de supervisoras autônomas (só pra sup autônoma e admin) */}
       {(isSupAutonomo || isAdmin) && rankingSupervisoras.length > 0 && (
-        <div style={{ ...card, marginBottom: '1.25rem', background: '#F0F7FF', border: '0.5px solid #185FA540' }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#185FA5', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ ...card, marginBottom: '1.25rem', background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA540' }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
             🏅 Ranking entre supervisoras autônomas (este mês)
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -307,10 +307,10 @@ export default function SupervisorProducao() {
                 <div key={s.supervisora_id} style={{
                   flex: '1 1 200px',
                   padding: '12px',
-                  background: ehVoce ? '#185FA5' : '#fff',
-                  color: ehVoce ? '#fff' : '#111',
+                  background: ehVoce ? '#60a5fa' : '#131e33',
+                  color: ehVoce ? '#131e33' : '#e6edf7',
                   borderRadius: 8,
-                  border: ehVoce ? 'none' : '0.5px solid rgba(0,0,0,0.1)'
+                  border: ehVoce ? 'none' : '0.5px solid rgba(148,163,184,0.14)'
                 }}>
                   <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>
                     {['🥇','🥈','🥉'][s.posicao - 1] || `${s.posicao}º`} {ehVoce && '· VOCÊ'}
@@ -332,17 +332,17 @@ export default function SupervisorProducao() {
       {/* Bloco "Lotes em prioridade na fila" removido a pedido do Bruno (29/05/2026) */}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
           <option value="total">Todo período</option>
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
           <option value="">Todos os vendedores B2C</option>
           {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}{p.id === IA_ID ? ' 🤖' : ''}</option>)}
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos os produtos</option>
           {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -350,40 +350,40 @@ export default function SupervisorProducao() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
         <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Ranking de vendedores B2C</div>
-          {ranking.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhum dado no período</div>}
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>Ranking de vendedores B2C</div>
+          {ranking.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhum dado no período</div>}
           {ranking.map(([nome, dados], i) => {
             const conv = dados.enviados > 0 ? Math.round((dados.assinados / dados.enviados) * 100) : 0
             return (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: dados.is_ia ? '#FFF6E6' : (i === 0 ? '#E6F1FB' : '#f8f8f6'), borderRadius: 8, border: dados.is_ia ? '0.5px dashed #F59E0B60' : 'none' }}>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: dados.is_ia ? 'rgba(251,191,36,.12)' : (i === 0 ? 'rgba(96,165,250,.12)' : '#0d1526'), borderRadius: 8, border: dados.is_ia ? '0.5px dashed #F59E0B60' : 'none' }}>
                 <div style={{ width: 24, fontSize: 16, textAlign: 'center' }}>{dados.is_ia ? '🤖' : (['🥇','🥈','🥉'][i] || `${i+1}º`)}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
-                    {nome} {dados.is_ia && <span style={{ fontSize: 10, color: '#854F0B', background: '#FAEEDA', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>observador</span>}
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
+                    {nome} {dados.is_ia && <span style={{ fontSize: 10, color: '#fbbf24', background: 'rgba(251,191,36,.12)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>observador</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{dados.enviados} enviados · {dados.assinados} assinados · {conv}% conversão</div>
+                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>{dados.enviados} enviados · {dados.assinados} assinados · {conv}% conversão</div>
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 500, color: '#185FA5' }}>{dados.enviados}</div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#60a5fa' }}>{dados.enviados}</div>
               </div>
             )
           })}
         </div>
 
         <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12 }}>Status dos contratos</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>Status dos contratos</div>
           {[
-            ['Assinados', assinados, '#3B6D11'],
-            ['Aguardando assinatura', pendentes, '#854F0B'],
-            ['Expirados', expirados, '#A32D2D'],
+            ['Assinados', assinados, '#34d399'],
+            ['Aguardando assinatura', pendentes, '#fbbf24'],
+            ['Expirados', expirados, '#f87171'],
           ].map(([l, v, c]) => {
             const pct = enviados > 0 ? Math.round((v/enviados)*100) : 0
             return (
               <div key={l} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
                   <span style={{ color: c, fontWeight: 500 }}>{l}</span>
-                  <span style={{ fontWeight: 500 }}>{v} <span style={{ color: '#aaa', fontWeight: 400 }}>({pct}%)</span></span>
+                  <span style={{ fontWeight: 500 }}>{v} <span style={{ color: '#64748b', fontWeight: 400 }}>({pct}%)</span></span>
                 </div>
-                <div style={{ background: '#f0f0ee', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                <div style={{ background: '#1a2742', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 4, transition: 'width 0.4s' }} />
                 </div>
               </div>
@@ -394,38 +394,38 @@ export default function SupervisorProducao() {
 
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Contratos gerados ({filtrados.length})</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>Contratos gerados ({filtrados.length})</div>
           <input type="text" placeholder="🔍 Buscar por nome, CPF, telefone ou advogado..." value={busca} onChange={e => setBusca(e.target.value)}
-            style={{ flex: 1, minWidth: 240, maxWidth: 400, padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', outline: 'none' }} />
+            style={{ flex: 1, minWidth: 240, maxWidth: 400, padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} />
         </div>
 
-        {filtrados.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>Nenhum contrato encontrado</div>}
+        {filtrados.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhum contrato encontrado</div>}
         {filtrados.map(c => {
           const statusConfig = c.status === 'assinado'
-            ? { bg: '#EAF3DE', cor: '#3B6D11', label: '✓ Assinado' }
+            ? { bg: 'rgba(52,211,153,.14)', cor: '#34d399', label: '✓ Assinado' }
             : c.status === 'expirado'
-            ? { bg: '#FCEBEB', cor: '#A32D2D', label: '✗ Expirado' }
-            : { bg: '#FAEEDA', cor: '#854F0B', label: 'Aguardando' }
+            ? { bg: 'rgba(248,113,113,.14)', cor: '#f87171', label: '✗ Expirado' }
+            : { bg: 'rgba(251,191,36,.12)', cor: '#fbbf24', label: 'Aguardando' }
           const cli = getCliente(c)
           const ehIA = isIA(c)
           return (
             <div key={c.id} onClick={() => abrirCliente(c)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s', background: ehIA ? '#FFFBF0' : 'transparent' }}
-              onMouseEnter={e => { if (cli) e.currentTarget.style.background = ehIA ? '#FFF6E0' : '#f8f8f6' }}
-              onMouseLeave={e => { e.currentTarget.style.background = ehIA ? '#FFFBF0' : 'transparent' }}>
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s', background: ehIA ? 'rgba(251,191,36,.12)' : 'transparent' }}
+              onMouseEnter={e => { if (cli) e.currentTarget.style.background = ehIA ? 'rgba(251,191,36,.12)' : '#0d1526' }}
+              onMouseLeave={e => { e.currentTarget.style.background = ehIA ? 'rgba(251,191,36,.12)' : 'transparent' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
                   {c.cliente_nome}
-                  {cli && <span style={{ fontSize: 11, color: '#185FA5', marginLeft: 8 }}>✏️ clicar para editar</span>}
+                  {cli && <span style={{ fontSize: 11, color: '#60a5fa', marginLeft: 8 }}>✏️ clicar para editar</span>}
                 </div>
-                <div style={{ fontSize: 11, color: '#888' }}>
+                <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                   Advogado: {c.advogados?.nome_completo} · Vendedor B2C: <strong>{getVendedorB2C(c)}</strong>
-                  {ehIA && <span style={{ marginLeft: 6, padding: '1px 5px', background: '#FAEEDA', color: '#854F0B', borderRadius: 4, fontSize: 10 }}>🤖 IA</span>}
+                  {ehIA && <span style={{ marginLeft: 6, padding: '1px 5px', background: 'rgba(251,191,36,.12)', color: '#fbbf24', borderRadius: 4, fontSize: 10 }}>🤖 IA</span>}
                   {c.profiles?.nome && getVendedorB2C(c) !== c.profiles?.nome && (
-                    <span style={{ color: '#aaa' }}> · Digitado por: {c.profiles?.nome}</span>
+                    <span style={{ color: '#64748b' }}> · Digitado por: {c.profiles?.nome}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: '#aaa' }}>
+                <div style={{ fontSize: 11, color: '#64748b' }}>
                   {cli?.telefone && `📱 ${cli.telefone} · `}
                   {new Date(c.created_at).toLocaleDateString('pt-BR')} às {new Date(c.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -434,7 +434,7 @@ export default function SupervisorProducao() {
                 <span style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: statusConfig.bg, color: statusConfig.cor }}>{statusConfig.label}</span>
                 {c.link_assinatura && c.status !== 'expirado' && (
                   <div style={{ marginTop: 4 }}>
-                    <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: '#185FA5', textDecoration: 'none' }}>Ver link ↗</a>
+                    <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: '#60a5fa', textDecoration: 'none' }}>Ver link ↗</a>
                   </div>
                 )}
               </div>
@@ -444,20 +444,20 @@ export default function SupervisorProducao() {
       </div>
 
       {clienteAberto && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setClienteAberto(null)}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 12, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setClienteAberto(null)}>
+          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: 18, color: '#111' }}>✏️ Editar cliente</h2>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                <h2 style={{ margin: 0, fontSize: 18, color: '#e6edf7' }}>✏️ Editar cliente</h2>
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>
                   Status: <strong>{clienteAberto.status}</strong> · Origem: <strong>{clienteAberto.origem === 'ia' ? '🤖 IA' : '👤 Vendedora'}</strong>
                   {clienteAberto.setor && <> · Setor: <strong>{clienteAberto.setor}</strong></>}
                 </div>
-                <div style={{ fontSize: 11, color: '#888' }}>
+                <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                   Advogado: {clienteAberto._advogado?.nome_completo} · Vendedor: {clienteAberto._vendedor}
                 </div>
               </div>
-              <button onClick={() => setClienteAberto(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 0, lineHeight: 1 }}>✕</button>
+              <button onClick={() => setClienteAberto(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#8b9bb4', padding: 0, lineHeight: 1 }}>✕</button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -478,14 +478,14 @@ export default function SupervisorProducao() {
             </div>
 
             {msgSalvo && (
-              <div style={{ marginTop: 12, padding: 10, fontSize: 13, borderRadius: 6, background: msgSalvo.startsWith('✅') ? '#EAF3DE' : '#FCEBEB', color: msgSalvo.startsWith('✅') ? '#3B6D11' : '#A32D2D' }}>
+              <div style={{ marginTop: 12, padding: 10, fontSize: 13, borderRadius: 6, background: msgSalvo.startsWith('✅') ? 'rgba(52,211,153,.14)' : 'rgba(248,113,113,.14)', color: msgSalvo.startsWith('✅') ? '#34d399' : '#f87171' }}>
                 {msgSalvo}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#f0f0ee', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
-              <button onClick={salvarCliente} disabled={salvando} style={{ flex: 2, padding: 10, background: salvando ? '#aaa' : '#185FA5', color: '#fff', border: 'none', borderRadius: 6, cursor: salvando ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid rgba(148,163,184,0.12)' }}>
+              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#1a2742', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+              <button onClick={salvarCliente} disabled={salvando} style={{ flex: 2, padding: 10, background: salvando ? '#64748b' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 6, cursor: salvando ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}>
                 {salvando ? '⏳ Salvando...' : '💾 Salvar alterações'}
               </button>
             </div>
@@ -499,9 +499,9 @@ export default function SupervisorProducao() {
 function Campo({ label, valor, onChange, colSpan = 1 }) {
   return (
     <div style={{ gridColumn: colSpan === 2 ? 'span 2' : 'span 1' }}>
-      <label style={{ display: 'block', fontSize: 11, color: '#666', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, color: '#8b9bb4', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</label>
       <input type="text" value={valor || ''} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }} />
+        style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }} />
     </div>
   )
 }

@@ -22,13 +22,13 @@ function faltamProxFaixa(qtd) {
 
 const s = {
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 },
-  cardMetric: { background: '#fff', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(0,0,0,0.08)' },
+  cardMetric: { background: '#131e33', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(148,163,184,0.12)' },
   cardLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, fontWeight: 500 },
   cardValue: { fontSize: 28, fontWeight: 500 },
-  cardSub: { fontSize: 11, color: '#888', marginTop: 4 },
-  block: { background: '#fff', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(0,0,0,0.08)', marginBottom: 16 },
-  blockTitle: { fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 14 },
-  bonusBig: { background: 'linear-gradient(135deg, #185FA5 0%, #2680C2 100%)', borderRadius: 16, padding: '1.5rem', color: '#fff', marginBottom: 16, boxShadow: '0 4px 14px rgba(24,95,165,0.25)' },
+  cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
+  block: { background: '#131e33', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 16 },
+  blockTitle: { fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 14 },
+  bonusBig: { background: 'linear-gradient(135deg, #60a5fa 0%, #60a5fa 100%)', borderRadius: 16, padding: '1.5rem', color: '#131e33', marginBottom: 16, boxShadow: '0 4px 14px rgba(96,165,250,0.25)' },
   bonusBigLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9, marginBottom: 6 },
   bonusBigValue: { fontSize: 36, fontWeight: 600, marginBottom: 8 },
   bonusBigSub: { fontSize: 13, opacity: 0.9 },
@@ -37,21 +37,21 @@ const s = {
   rankRow: (destacado) => ({
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 12px', borderRadius: 8, marginBottom: 4,
-    background: destacado ? '#E6F1FB' : 'transparent',
-    border: destacado ? '1.5px solid #185FA5' : '0.5px solid transparent',
+    background: destacado ? 'rgba(96,165,250,.12)' : 'transparent',
+    border: destacado ? '1.5px solid #60a5fa' : '0.5px solid transparent',
   }),
   rankPos: (top, destacado) => ({
     width: 32, height: 32, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 13, fontWeight: 600, flexShrink: 0,
-    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#185FA5' : '#f0f0ee'),
-    color: top <= 3 || destacado ? '#fff' : '#666',
+    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#60a5fa' : '#1a2742'),
+    color: top <= 3 || destacado ? '#131e33' : '#8b9bb4',
   }),
   toast: {
     position: 'fixed', top: 20, right: 20, zIndex: 9999,
-    background: '#3B6D11', color: '#fff', padding: '12px 18px',
+    background: '#34d399', color: '#131e33', padding: '12px 18px',
     borderRadius: 10, fontSize: 13, fontWeight: 500,
-    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
     animation: 'slideIn 0.4s ease-out',
   },
 }
@@ -112,7 +112,7 @@ export default function MeuDesempenho() {
     return () => clearInterval(id)
   }, [fetchTudo])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
   const minha = ranking.find(r => r.vendedor_id === profile.id)
   const assinadosMes = minha?.assinados_mes || 0
@@ -143,8 +143,8 @@ export default function MeuDesempenho() {
       {toast && <div style={s.toast}>{toast.msg}</div>}
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📊 Meu desempenho</div>
-        <div style={{ fontSize: 13, color: '#888' }}>Acompanhe seu bônus do mês e o ranking — atualiza automaticamente</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>📊 Meu desempenho</div>
+        <div style={{ fontSize: 13, color: '#8b9bb4' }}>Acompanhe seu bônus do mês e o ranking — atualiza automaticamente</div>
       </div>
 
       {/* === BÔNUS DESTAQUE === */}
@@ -178,23 +178,23 @@ export default function MeuDesempenho() {
       {/* === MÉTRICAS PESSOAIS === */}
       <div style={s.cards}>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#185FA5' }}>Cadastrados (total)</div>
-          <div style={{ ...s.cardValue, color: '#185FA5' }}>{totalCadastrados}</div>
+          <div style={{ ...s.cardLabel, color: '#60a5fa' }}>Cadastrados (total)</div>
+          <div style={{ ...s.cardValue, color: '#60a5fa' }}>{totalCadastrados}</div>
           <div style={s.cardSub}>desde sempre</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#854F0B' }}>Pendentes</div>
-          <div style={{ ...s.cardValue, color: '#854F0B' }}>{aguardando + emitidos}</div>
+          <div style={{ ...s.cardLabel, color: '#fbbf24' }}>Pendentes</div>
+          <div style={{ ...s.cardValue, color: '#fbbf24' }}>{aguardando + emitidos}</div>
           <div style={s.cardSub}>{aguardando} aguardando · {emitidos} emitidos</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#3B6D11' }}>Assinados (mês)</div>
-          <div style={{ ...s.cardValue, color: '#3B6D11' }}>{assinadosMes}</div>
+          <div style={{ ...s.cardLabel, color: '#34d399' }}>Assinados (mês)</div>
+          <div style={{ ...s.cardValue, color: '#34d399' }}>{assinadosMes}</div>
           <div style={s.cardSub}>contam pro bônus</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#A32D2D' }}>🔥 Streak</div>
-          <div style={{ ...s.cardValue, color: streak > 0 ? '#A32D2D' : '#aaa' }}>{streak}</div>
+          <div style={{ ...s.cardLabel, color: '#f87171' }}>🔥 Streak</div>
+          <div style={{ ...s.cardValue, color: streak > 0 ? '#f87171' : '#64748b' }}>{streak}</div>
           <div style={s.cardSub}>{streak === 0 ? 'venda hoje pra começar' : `dia${streak !== 1 ? 's' : ''} consecutivo${streak !== 1 ? 's' : ''}`}</div>
         </div>
       </div>
@@ -208,12 +208,12 @@ export default function MeuDesempenho() {
             ['Semana', minhaPosicaoSem, ranking.length],
             ['Mês', minhaPosicaoMes, ranking.length],
           ].map(([label, pos, total]) => (
-            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#f8f8f6', borderRadius: 10 }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-              <div style={{ fontSize: 22, fontWeight: 600, color: pos === 1 ? '#FFD700' : pos === 2 ? '#999' : pos === 3 ? '#CD7F32' : '#185FA5' }}>
+            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#0d1526', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: pos === 1 ? '#FFD700' : pos === 2 ? '#8b9bb4' : pos === 3 ? '#CD7F32' : '#60a5fa' }}>
                 {pos}º
               </div>
-              <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>de {total}</div>
+              <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 2 }}>de {total}</div>
             </div>
           ))}
         </div>
@@ -222,16 +222,16 @@ export default function MeuDesempenho() {
       {/* === RANKING === */}
       <div style={s.block}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>🏆 Top 4 vendedores</div>
-          <div style={{ display: 'flex', gap: 4, background: '#f8f8f6', borderRadius: 8, padding: 3 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>🏆 Top 4 vendedores</div>
+          <div style={{ display: 'flex', gap: 4, background: '#0d1526', borderRadius: 8, padding: 3 }}>
             {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([k, label]) => (
               <button key={k} onClick={() => setPeriodoRanking(k)}
                 style={{
                   padding: '6px 12px', fontSize: 12, fontWeight: 500,
                   border: 'none', cursor: 'pointer', borderRadius: 6,
-                  background: periodoRanking === k ? '#fff' : 'transparent',
-                  color: periodoRanking === k ? '#185FA5' : '#888',
-                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                  background: periodoRanking === k ? '#131e33' : 'transparent',
+                  color: periodoRanking === k ? '#60a5fa' : '#8b9bb4',
+                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(148,163,184,0.10)' : 'none',
                 }}>{label}</button>
             ))}
           </div>
@@ -243,11 +243,11 @@ export default function MeuDesempenho() {
             <div key={r.vendedor_id} style={s.rankRow(destacado)}>
               <div style={s.rankPos(r[campoPos], destacado)}>{r[campoPos]}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: destacado ? 600 : 500, color: destacado ? '#185FA5' : '#111' }}>
+                <div style={{ fontSize: 13, fontWeight: destacado ? 600 : 500, color: destacado ? '#60a5fa' : '#e6edf7' }}>
                   {destacado ? `${r.vendedor_nome} (você)` : r.vendedor_nome}
                 </div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#185FA5' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa' }}>
                 {r[campoQtd]} contrato{r[campoQtd] !== 1 ? 's' : ''}
               </div>
             </div>
@@ -256,13 +256,13 @@ export default function MeuDesempenho() {
 
         {minhaForaTop4 && minha && (
           <>
-            <div style={{ textAlign: 'center', color: '#aaa', fontSize: 12, margin: '8px 0' }}>· · ·</div>
+            <div style={{ textAlign: 'center', color: '#64748b', fontSize: 12, margin: '8px 0' }}>· · ·</div>
             <div style={s.rankRow(true)}>
               <div style={s.rankPos(minha[campoPos], true)}>{minha[campoPos]}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#185FA5' }}>{minha.vendedor_nome} (você)</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#60a5fa' }}>{minha.vendedor_nome} (você)</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#185FA5' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa' }}>
                 {minha[campoQtd]} contrato{minha[campoQtd] !== 1 ? 's' : ''}
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function MeuDesempenho() {
         )}
       </div>
 
-      <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 16 }}>
+      <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', marginTop: 16 }}>
         Bônus zera todo dia 1 do mês · Conta automaticamente quando o cliente assina · Se a analista devolver, desconta · Atualiza a cada 60s
       </div>
     </div>

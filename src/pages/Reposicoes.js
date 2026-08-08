@@ -3,46 +3,46 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4, letterSpacing: '-0.3px' },
-  subtitle: { fontSize: 13, color: '#888', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(0,0,0,0.1)' },
-  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
-  tabActive: { color: '#185FA5', borderBottomColor: '#185FA5' },
-  badge: { fontSize: 11, color: '#fff', padding: '2px 8px', borderRadius: 10, marginLeft: 6, background: '#A32D2D' },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
+  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)' },
+  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
+  tabActive: { color: '#60a5fa', borderBottomColor: '#60a5fa' },
+  badge: { fontSize: 11, color: '#131e33', padding: '2px 8px', borderRadius: 10, marginLeft: 6, background: '#f87171' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 8 },
-  advNome: { fontSize: 15, fontWeight: 500, color: '#111' },
-  metaInfo: { fontSize: 12, color: '#888', marginTop: 2 },
-  qtd: { fontSize: 22, fontWeight: 500, color: '#854F0B' },
-  qtdLabel: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px' },
-  motivoBox: { background: '#FFF8E7', border: '0.5px solid #B7892530', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 13, color: '#555' },
+  advNome: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
+  metaInfo: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
+  qtd: { fontSize: 22, fontWeight: 500, color: '#fbbf24' },
+  qtdLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  motivoBox: { background: 'rgba(251,191,36,.12)', border: '0.5px solid #B7892530', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 13, color: '#8b9bb4' },
   actions: { display: 'flex', gap: 8 },
-  btnAprovar: { flex: 1, padding: '9px', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #3B6D11', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnNegar: { flex: 1, padding: '9px', background: '#FCEBEB', color: '#A32D2D', border: '0.5px solid #A32D2D', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
-  loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
+  btnAprovar: { flex: 1, padding: '9px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnNegar: { flex: 1, padding: '9px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid #f87171', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: 13 },
+  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
   status: { fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500 },
   // --- Painel do topo ---
-  painel: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
+  painel: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
   filtros: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', background: '#fff', color: '#666', cursor: 'pointer' },
-  fBtnOn: { background: '#185FA5', color: '#fff', borderColor: '#185FA5' },
-  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', color: '#333' },
+  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
+  fBtnOn: { background: '#60a5fa', color: '#131e33', borderColor: '#60a5fa' },
+  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', color: '#c6d2e4' },
   kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 },
-  kpi: { border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '10px 12px' },
+  kpi: { border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 10, padding: '10px 12px' },
   kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6 },
   kpiNum: { fontSize: 24, fontWeight: 500, lineHeight: 1 },
-  kpiSub: { fontSize: 11, color: '#888', marginTop: 4 },
+  kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
   reguaBox: { borderRadius: 10, padding: '12px 14px', border: '0.5px solid' },
-  barraBg: { height: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden', marginTop: 8, position: 'relative' },
+  barraBg: { height: 8, background: 'rgba(148,163,184,0.10)', borderRadius: 99, overflow: 'hidden', marginTop: 8, position: 'relative' },
   barraFill: { height: '100%', borderRadius: 99, transition: 'width .3s' },
   marca: { position: 'absolute', top: -3, width: 1.5, height: 14, background: 'rgba(0,0,0,0.35)' },
 }
 
 const STATUS_STYLE = {
-  pendente: { background: '#FFF8E7', color: '#854F0B' },
-  aprovado: { background: '#EAF3DE', color: '#3B6D11' },
-  negado: { background: '#FCEBEB', color: '#A32D2D' },
+  pendente: { background: 'rgba(251,191,36,.12)', color: '#fbbf24' },
+  aprovado: { background: 'rgba(52,211,153,.14)', color: '#34d399' },
+  negado: { background: 'rgba(248,113,113,.14)', color: '#f87171' },
 }
 
 function formatData(d) {
@@ -231,27 +231,27 @@ export default function Reposicoes() {
           {periodo === 'custom' && (
             <>
               <input type="date" style={s.dateInput} value={dtIni} onChange={e => setDtIni(e.target.value)} />
-              <span style={{ fontSize: 12, color: '#888' }}>até</span>
+              <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
               <input type="date" style={s.dateInput} value={dtFim} onChange={e => setDtFim(e.target.value)} />
             </>
           )}
         </div>
 
         {periodo === 'custom' && (!dtIni || !dtFim) && (
-          <div style={{ fontSize: 12, color: '#888' }}>Escolha as duas datas para ver os números.</div>
+          <div style={{ fontSize: 12, color: '#8b9bb4' }}>Escolha as duas datas para ver os números.</div>
         )}
 
         {loadingPainel && !(periodo === 'custom' && (!dtIni || !dtFim)) && (
-          <div style={{ fontSize: 12, color: '#888' }}>Calculando...</div>
+          <div style={{ fontSize: 12, color: '#8b9bb4' }}>Calculando...</div>
         )}
 
         {!loadingPainel && resumo && (
           <>
             <div style={s.kpis}>
               {[
-                ['pendente', 'Pendentes', '#854F0B', '#FFF8E7'],
-                ['aprovado', 'Aprovadas', '#3B6D11', '#EAF3DE'],
-                ['negado', 'Negadas', '#A32D2D', '#FCEBEB'],
+                ['pendente', 'Pendentes', '#fbbf24', 'rgba(251,191,36,.12)'],
+                ['aprovado', 'Aprovadas', '#34d399', 'rgba(52,211,153,.14)'],
+                ['negado', 'Negadas', '#f87171', 'rgba(248,113,113,.14)'],
               ].map(([k, label, cor, bg]) => {
                 const r = resumo[k]
                 const advs = r ? Number(r.advogados) : 0
@@ -273,8 +273,8 @@ export default function Reposicoes() {
             {regua && (() => {
               const sit = regua.situacao
               const semBase = sit === 'sem_base'
-              const cor = semBase ? '#888' : sit === 'bloqueio' ? '#A32D2D' : sit === 'alerta' ? '#854F0B' : '#3B6D11'
-              const bg = semBase ? '#FAFAFA' : sit === 'bloqueio' ? '#FCEBEB' : sit === 'alerta' ? '#FFF8E7' : '#EAF3DE'
+              const cor = semBase ? '#8b9bb4' : sit === 'bloqueio' ? '#f87171' : sit === 'alerta' ? '#fbbf24' : '#34d399'
+              const bg = semBase ? '#0f1930' : sit === 'bloqueio' ? 'rgba(248,113,113,.14)' : sit === 'alerta' ? 'rgba(251,191,36,.12)' : 'rgba(52,211,153,.14)'
               const rotulo = semBase ? 'Sem base' : sit === 'bloqueio' ? 'Bloqueio' : sit === 'alerta' ? 'Alerta' : 'Saudável'
               const pct = Number(regua.pct || 0)
               const fechados = Number(regua.clientes_fechados || 0)
@@ -288,7 +288,7 @@ export default function Reposicoes() {
                     <div style={{ fontSize: 13, fontWeight: 500, color: cor }}>
                       Taxa de reposição: {semBase ? '—' : `${pct}%`} · {rotulo}
                     </div>
-                    <div style={{ fontSize: 11, color: '#666' }}>
+                    <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                       {regua.repostos_aprovados} repostos sobre {fechados} fechados
                     </div>
                   </div>
@@ -301,15 +301,15 @@ export default function Reposicoes() {
                     </div>
                   )}
 
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8 }}>
                     Alerta ≥15% · bloqueio &gt;20% dos fechados. Tetos no período: {regua.teto_alerta} / {regua.teto_bloqueio} reposições.
                     {periodo === 'dia' && ' Base diária é pequena — a % oscila muito.'}
                   </div>
 
                   {pctSeAprovarTudo != null && pendCt > 0 && (
                     <div style={{
-                      fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.08)',
-                      color: pctSeAprovarTudo > 20 ? '#A32D2D' : pctSeAprovarTudo >= 15 ? '#854F0B' : '#3B6D11', fontWeight: 500,
+                      fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '0.5px solid rgba(148,163,184,0.12)',
+                      color: pctSeAprovarTudo > 20 ? '#f87171' : pctSeAprovarTudo >= 15 ? '#fbbf24' : '#34d399', fontWeight: 500,
                     }}>
                       {pctSeAprovarTudo > 20 ? '🚫' : pctSeAprovarTudo >= 15 ? '⚠️' : '✓'} Se aprovar as {pendCt} pendentes: <strong>{pctSeAprovarTudo}%</strong>
                       {pctSeAprovarTudo > 20 && ' — o sistema vai bloquear parte delas.'}
@@ -354,7 +354,7 @@ export default function Reposicoes() {
               <div style={s.metaInfo}>
                 {lote.advogados?.oab} · {lote.advogados?.estado} · Solicitado por {lote.profiles?.nome || 'desconhecido'}
               </div>
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                 {formatData(lote.created_at)}
               </div>
             </div>
@@ -366,17 +366,17 @@ export default function Reposicoes() {
 
           {lote.motivo_reposicao && (
             <div style={s.motivoBox}>
-              <strong style={{ color: '#854F0B' }}>Motivo:</strong> {lote.motivo_reposicao}
+              <strong style={{ color: '#fbbf24' }}>Motivo:</strong> {lote.motivo_reposicao}
             </div>
           )}
 
           {(lote.clientes_repostos || []).length > 0 && (
-            <div style={{ background: '#FCEBEB', border: '0.5px solid #A32D2D20', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#A32D2D', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ background: 'rgba(248,113,113,.14)', border: '0.5px solid #A32D2D20', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#f87171', fontWeight: 600, marginBottom: 4 }}>
                 {aba === 'pendente' ? '🚫 Serão cancelados ao aprovar:' : '🚫 Clientes repostos:'}
               </div>
               {lote.clientes_repostos.map(c => (
-                <div key={c.id} style={{ fontSize: 12, color: '#555' }}>• {c.nome} · {c.cpf}{c.status === 'cancelado' ? ' — ✓ cancelado' : ''}</div>
+                <div key={c.id} style={{ fontSize: 12, color: '#8b9bb4' }}>• {c.nome} · {c.cpf}{c.status === 'cancelado' ? ' — ✓ cancelado' : ''}</div>
               ))}
             </div>
           )}
@@ -401,7 +401,7 @@ export default function Reposicoes() {
           )}
 
           {aba === 'aprovado' && lote.aprovado_em && (
-            <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8 }}>
               ✓ Aprovado em {formatData(lote.aprovado_em)}
             </div>
           )}
@@ -409,12 +409,12 @@ export default function Reposicoes() {
           {aba === 'negado' && (
             <div>
               {lote.motivo_negacao && (
-                <div style={{ background: '#FCEBEB', border: '0.5px solid #A32D2D30', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#A32D2D', marginTop: 8 }}>
+                <div style={{ background: 'rgba(248,113,113,.14)', border: '0.5px solid #A32D2D30', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#f87171', marginTop: 8 }}>
                   <strong>Motivo da negação:</strong> {lote.motivo_negacao}
                 </div>
               )}
               {lote.aprovado_em && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>
                   Negado em {formatData(lote.aprovado_em)}
                 </div>
               )}

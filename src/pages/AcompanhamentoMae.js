@@ -8,42 +8,42 @@ const STHEFANY_ID = '88929e81-7223-4754-a17b-1cd08f46195d'
 const s = {
   wrap: { padding: 16, maxWidth: 1100, margin: '0 auto' },
   h1: { fontSize: 20, fontWeight: 600, marginBottom: 4 },
-  sub: { fontSize: 13, color: '#666', marginBottom: 16 },
+  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 16 },
   kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 },
-  kpi: { border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '10px 12px', background: '#fff' },
-  kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6, color: '#888' },
+  kpi: { border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 10, padding: '10px 12px', background: '#131e33' },
+  kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6, color: '#8b9bb4' },
   kpiNum: { fontSize: 24, fontWeight: 600, lineHeight: 1 },
-  kpiSub: { fontSize: 11, color: '#888', marginTop: 4 },
+  kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
   abas: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 },
-  aba: (on) => ({ padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid ' + (on ? '#7c3aed' : 'rgba(0,0,0,0.12)'), background: on ? '#7c3aed' : '#fff', color: on ? '#fff' : '#444' }),
-  card: { border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 14, marginBottom: 10, background: '#fff' },
+  aba: (on) => ({ padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid ' + (on ? '#a78bfa' : 'rgba(148,163,184,0.16)'), background: on ? '#a78bfa' : '#131e33', color: on ? '#131e33' : '#c6d2e4' }),
+  card: { border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14, marginBottom: 10, background: '#131e33' },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
   nome: { fontSize: 15, fontWeight: 600 },
-  meta: { fontSize: 12, color: '#666', marginTop: 2 },
-  selo: { display: 'inline-block', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', color: '#fff', background: '#7c3aed', borderRadius: 6, padding: '2px 8px', marginBottom: 6 },
-  dias: (alto) => ({ fontSize: 12, fontWeight: 600, color: alto ? '#b91c1c' : '#555', background: alto ? '#fee2e2' : '#f3f4f6', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }),
-  btn: { padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#7c3aed', color: '#fff', marginRight: 6, marginTop: 8 },
-  btnG: { padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(0,0,0,0.15)', background: '#fff', color: '#444', marginRight: 6, marginTop: 8 },
-  form: { marginTop: 10, padding: 12, background: '#faf9ff', borderRadius: 8, border: '1px solid #ece9fb' },
-  label: { fontSize: 12, fontWeight: 500, color: '#555', display: 'block', marginBottom: 3, marginTop: 8 },
-  input: { width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid rgba(0,0,0,0.15)', fontSize: 13, boxSizing: 'border-box' },
+  meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
+  selo: { display: 'inline-block', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', color: '#131e33', background: '#a78bfa', borderRadius: 6, padding: '2px 8px', marginBottom: 6 },
+  dias: (alto) => ({ fontSize: 12, fontWeight: 600, color: alto ? '#f87171' : '#8b9bb4', background: alto ? 'rgba(248,113,113,.14)' : '#1a2742', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }),
+  btn: { padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#a78bfa', color: '#131e33', marginRight: 6, marginTop: 8 },
+  btnG: { padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#c6d2e4', marginRight: 6, marginTop: 8 },
+  form: { marginTop: 10, padding: 12, background: 'rgba(167,139,250,.14)', borderRadius: 8, border: '1px solid rgba(167,139,250,.14)' },
+  label: { fontSize: 12, fontWeight: 500, color: '#8b9bb4', display: 'block', marginBottom: 3, marginTop: 8 },
+  input: { width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.20)', fontSize: 13, boxSizing: 'border-box' },
   row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  empty: { textAlign: 'center', color: '#999', padding: 30, fontSize: 14 },
-  finBox: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 10, marginBottom: 18, padding: 14, background: 'linear-gradient(135deg,#f5f3ff,#faf9ff)', borderRadius: 12, border: '1px solid #ece9fb' },
+  empty: { textAlign: 'center', color: '#8b9bb4', padding: 30, fontSize: 14 },
+  finBox: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 10, marginBottom: 18, padding: 14, background: 'linear-gradient(135deg,rgba(167,139,250,.14),rgba(167,139,250,.14))', borderRadius: 12, border: '1px solid rgba(167,139,250,.14)' },
 }
 
 // etapas do fluxo (ordem): assinou → coleta → análise → protocolo → ...
 const ETAPAS = [
-  { key: 'coleta_docs', label: 'Coleta/Entrega', cor: '#9333ea' },
-  { key: 'analise_direito', label: 'Análise (Sthefany)', cor: '#c026d3' },
-  { key: 'aguardando_protocolo', label: 'Aguard. protocolo', cor: '#6b7280' },
-  { key: 'protocolado', label: 'Protocolado', cor: '#2563eb' },
-  { key: 'em_analise_inss', label: 'Análise INSS', cor: '#0891b2' },
-  { key: 'concedido', label: 'Concedido', cor: '#16a34a' },
-  { key: 'negado', label: 'Negado', cor: '#dc2626' },
-  { key: 'aguardando_pagamento', label: 'Aguard. pagamento', cor: '#d97706' },
-  { key: 'pago', label: 'Pago', cor: '#059669' },
-  { key: 'barrado', label: 'Barrado', cor: '#991b1b' },
+  { key: 'coleta_docs', label: 'Coleta/Entrega', cor: '#a78bfa' },
+  { key: 'analise_direito', label: 'Análise (Sthefany)', cor: '#a78bfa' },
+  { key: 'aguardando_protocolo', label: 'Aguard. protocolo', cor: '#8b9bb4' },
+  { key: 'protocolado', label: 'Protocolado', cor: '#60a5fa' },
+  { key: 'em_analise_inss', label: 'Análise INSS', cor: '#22d3ee' },
+  { key: 'concedido', label: 'Concedido', cor: '#34d399' },
+  { key: 'negado', label: 'Negado', cor: '#f87171' },
+  { key: 'aguardando_pagamento', label: 'Aguard. pagamento', cor: '#fbbf24' },
+  { key: 'pago', label: 'Pago', cor: '#34d399' },
+  { key: 'barrado', label: 'Barrado', cor: '#f87171' },
 ]
 const etapaInfo = (k) => ETAPAS.find(e => e.key === k) || ETAPAS[0]
 const URL_STORAGE = 'https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/comprovantes-mae/'
@@ -253,9 +253,9 @@ export default function AcompanhamentoMae() {
 
       {/* PAINEL FINANCEIRO PROJETADO */}
       <div style={s.finBox}>
-        <div><div style={s.kpiTop}>Já recebido</div><div style={{ ...s.kpiNum, color: '#059669' }}>{brl(fin.ja_recebido)}</div><div style={s.kpiSub}>pagos + comprovante</div></div>
-        <div><div style={s.kpiTop}>A receber (concedidos)</div><div style={{ ...s.kpiNum, color: '#d97706' }}>{brl(fin.a_receber_concedidos)}</div><div style={s.kpiSub}>concedido, não pago</div></div>
-        <div><div style={s.kpiTop}>Potencial em análise</div><div style={{ ...s.kpiNum, color: '#6b7280' }}>{brl(fin.potencial_em_analise)}</div><div style={s.kpiSub}>ainda no INSS</div></div>
+        <div><div style={s.kpiTop}>Já recebido</div><div style={{ ...s.kpiNum, color: '#34d399' }}>{brl(fin.ja_recebido)}</div><div style={s.kpiSub}>pagos + comprovante</div></div>
+        <div><div style={s.kpiTop}>A receber (concedidos)</div><div style={{ ...s.kpiNum, color: '#fbbf24' }}>{brl(fin.a_receber_concedidos)}</div><div style={s.kpiSub}>concedido, não pago</div></div>
+        <div><div style={s.kpiTop}>Potencial em análise</div><div style={{ ...s.kpiNum, color: '#8b9bb4' }}>{brl(fin.potencial_em_analise)}</div><div style={s.kpiSub}>ainda no INSS</div></div>
       </div>
 
       {/* KPIs OPERACIONAIS */}
@@ -346,7 +346,7 @@ export default function AcompanhamentoMae() {
                 {/* ETAPA 1: COLETA/ENTREGA — checklist de documentação (Karol/admin) */}
                 {item.etapa === 'coleta_docs' && (
                   <div style={s.form}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Checklist da entrega</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>Checklist da entrega</div>
                     <div style={{ fontSize: 13, marginBottom: 4 }}>
                       <label style={{ cursor: podeAgir ? 'pointer' : 'default' }}>
                         <input type="checkbox" checked={!!item.link_acomp_enviado} disabled={!podeAgir}
@@ -376,7 +376,7 @@ export default function AcompanhamentoMae() {
                 {/* ETAPA 2: ANÁLISE DO DIREITO — veredito (Sthefany/admin) */}
                 {item.etapa === 'analise_direito' && (
                   <div style={s.form}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Documentos coletados</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>Documentos coletados</div>
                     <div style={{ fontSize: 13, marginBottom: 8 }}>
                       {item.print_gerid_url ? <a href={URL_STORAGE + item.print_gerid_url} target="_blank" rel="noreferrer">📄 GERID</a> : '⚠️ sem GERID'}
                       {' · '}
@@ -385,12 +385,12 @@ export default function AcompanhamentoMae() {
                     {ehSthefanyOuAdmin ? (
                       <div>
                         <button style={s.btn} onClick={() => analiseTemDireito(item)} disabled={salvando === item.id}>✓ Tem direito → protocolo</button>
-                        <button style={{ ...s.btnG, color: '#b91c1c' }} onClick={() => abrirForm(item, 'semdir')}>✗ Sem direito (barrar)</button>
+                        <button style={{ ...s.btnG, color: '#f87171' }} onClick={() => abrirForm(item, 'semdir')}>✗ Sem direito (barrar)</button>
                         {formAberto === item.id + 'semdir' && (
                           <div style={{ marginTop: 8 }}>
                             <label style={s.label}>Por que a cliente não tem direito?</label>
                             <input style={s.input} value={f.motivo_barrado} onChange={e => setF({ ...f, motivo_barrado: e.target.value })} />
-                            <button style={{ ...s.btn, background: '#b91c1c' }} onClick={() => analiseSemDireito(item)} disabled={salvando === item.id}>Confirmar: sem direito</button>
+                            <button style={{ ...s.btn, background: '#f87171' }} onClick={() => analiseSemDireito(item)} disabled={salvando === item.id}>Confirmar: sem direito</button>
                           </div>
                         )}
                       </div>

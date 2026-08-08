@@ -64,17 +64,17 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 6 }}>
-        {label} {obrigatorio && <span style={{ color: '#A32D2D' }}>*</span>}
+      <label style={{ display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 6 }}>
+        {label} {obrigatorio && <span style={{ color: '#f87171' }}>*</span>}
       </label>
 
       {!tem ? (
         <label style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '14px', border: `1.5px dashed ${erro ? '#A32D2D' : 'rgba(0,0,0,0.2)'}`,
+          padding: '14px', border: `1.5px dashed ${erro ? '#f87171' : 'rgba(0,0,0,0.45)'}`,
           borderRadius: 8, cursor: enviando ? 'wait' : 'pointer',
-          background: erro ? '#FCEBEB' : '#fafaf8',
-          fontSize: 13, color: erro ? '#A32D2D' : '#666',
+          background: erro ? 'rgba(248,113,113,.14)' : '#0f1930',
+          fontSize: 13, color: erro ? '#f87171' : '#8b9bb4',
           minHeight: 50,
         }}>
           {enviando ? (
@@ -92,20 +92,20 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 12px', border: '0.5px solid #3B6D1140',
-          background: '#EAF3DE', borderRadius: 8,
+          background: 'rgba(52,211,153,.14)', borderRadius: 8,
         }}>
           <a href={url} target="_blank" rel="noreferrer"
-            style={{ flex: 1, fontSize: 12, color: '#3B6D11', textDecoration: 'underline', wordBreak: 'break-all' }}>
+            style={{ flex: 1, fontSize: 12, color: '#34d399', textDecoration: 'underline', wordBreak: 'break-all' }}>
             ✓ Anexado — clique pra ver
           </a>
           <button onClick={remover} type="button"
-            style={{ background: 'none', border: 'none', color: '#A32D2D', cursor: 'pointer', fontSize: 12, padding: '4px 8px', textDecoration: 'underline' }}>
+            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 12, padding: '4px 8px', textDecoration: 'underline' }}>
             trocar
           </button>
         </div>
       )}
 
-      {erro && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{erro}</div>}
+      {erro && <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>{erro}</div>}
     </div>
   )
 }

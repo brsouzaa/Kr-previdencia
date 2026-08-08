@@ -12,15 +12,15 @@ const TIPOS_DOC = [
 ]
 
 const s = {
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
-  loteCard: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem', marginBottom: 10, cursor: 'pointer' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
+  loteCard: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem', marginBottom: 10, cursor: 'pointer' },
   badge: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
-  btn: { padding: '8px 14px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  btnGreen: { padding: '8px 14px', background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  btnRed: { padding: '8px 14px', background: '#fff', color: '#A32D2D', border: '1px solid #A32D2D', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  btnSec: { padding: '8px 14px', background: '#fff', color: '#185FA5', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  modalBg: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
-  modal: { background: '#fff', borderRadius: 14, padding: '1.5rem', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
+  btn: { padding: '8px 14px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  btnGreen: { padding: '8px 14px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  btnRed: { padding: '8px 14px', background: '#131e33', color: '#f87171', border: '1px solid #f87171', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  btnSec: { padding: '8px 14px', background: '#131e33', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  modalBg: { position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
+  modal: { background: '#131e33', borderRadius: 14, padding: '1.5rem', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
 }
 
 export default function Entregas() {
@@ -207,7 +207,7 @@ export default function Entregas() {
     setProcessando(false)
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
   // === Tela de detalhe do lote ===
   if (loteAberto) {
@@ -220,29 +220,29 @@ export default function Entregas() {
     return (
       <div>
         <div style={{ marginBottom: '1.5rem' }}>
-          <button onClick={() => setLoteAberto(null)} style={{ marginBottom: 8, background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: 13 }}>← voltar</button>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 2 }}>Lote — {loteAberto.advogados?.nome_completo}</div>
-          <div style={{ fontSize: 12, color: '#888' }}>
+          <button onClick={() => setLoteAberto(null)} style={{ marginBottom: 8, background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13 }}>← voltar</button>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 2 }}>Lote — {loteAberto.advogados?.nome_completo}</div>
+          <div style={{ fontSize: 12, color: '#8b9bb4' }}>
             OAB/{loteAberto.advogados?.estado} {loteAberto.advogados?.oab} · Vendedor: {loteAberto.profiles?.nome}
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 16 }}>
-          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#FAEEDA' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#854F0B' }}>{emValidacao.length}</div>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#854F0B' }}>Em validação</div>
+          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: 'rgba(251,191,36,.12)' }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#fbbf24' }}>{emValidacao.length}</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fbbf24' }}>Em validação</div>
           </div>
-          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#EAF3DE' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#3B6D11' }}>{validados.length}</div>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#3B6D11' }}>Validados</div>
+          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: 'rgba(52,211,153,.14)' }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#34d399' }}>{validados.length}</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#34d399' }}>Validados</div>
           </div>
-          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#FCEBEB' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#A32D2D' }}>{devolvidos.length}</div>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#A32D2D' }}>Devolvidos</div>
+          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: 'rgba(248,113,113,.14)' }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#f87171' }}>{devolvidos.length}</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#f87171' }}>Devolvidos</div>
           </div>
-          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: '#E6F1FB' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#185FA5' }}>{entregues.length}/{totalLote}</div>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#185FA5' }}>Entregues</div>
+          <div style={{ ...s.card, padding: 12, marginBottom: 0, textAlign: 'center', background: 'rgba(96,165,250,.12)' }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#60a5fa' }}>{entregues.length}/{totalLote}</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#60a5fa' }}>Entregues</div>
           </div>
         </div>
 
@@ -261,14 +261,14 @@ export default function Entregas() {
         {clientesLote.map(c => {
           const docs = c.documentos || {}
           const verDocs = verDocsId === c.id
-          const cor = c.status === 'validado' ? '#3B6D11' :
-                      c.status === 'em_validacao' ? '#854F0B' :
-                      c.status === 'devolvido_correcao_doc' ? '#A32D2D' :
-                      c.status === 'entregue' ? '#185FA5' : '#666'
-          const bg = c.status === 'validado' ? '#EAF3DE' :
-                     c.status === 'em_validacao' ? '#FAEEDA' :
-                     c.status === 'devolvido_correcao_doc' ? '#FCEBEB' :
-                     c.status === 'entregue' ? '#E6F1FB' : '#f0f0ee'
+          const cor = c.status === 'validado' ? '#34d399' :
+                      c.status === 'em_validacao' ? '#fbbf24' :
+                      c.status === 'devolvido_correcao_doc' ? '#f87171' :
+                      c.status === 'entregue' ? '#60a5fa' : '#8b9bb4'
+          const bg = c.status === 'validado' ? 'rgba(52,211,153,.14)' :
+                     c.status === 'em_validacao' ? 'rgba(251,191,36,.12)' :
+                     c.status === 'devolvido_correcao_doc' ? 'rgba(248,113,113,.14)' :
+                     c.status === 'entregue' ? 'rgba(96,165,250,.12)' : '#1a2742'
           const labelStatus = c.status === 'validado' ? '✓ Validado' :
                               c.status === 'em_validacao' ? '⏳ Aguardando você validar' :
                               c.status === 'devolvido_correcao_doc' ? '⚠️ Devolvido — aguarda correção' :
@@ -277,37 +277,37 @@ export default function Entregas() {
             <div key={c.id} style={{ ...s.card, borderLeft: `3px solid ${cor}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{c.nome}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{c.cpf} · {c.telefone} · Vendedor: {c.profiles?.nome}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{c.nome}</div>
+                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>{c.cpf} · {c.telefone} · Vendedor: {c.profiles?.nome}</div>
                 </div>
                 <span style={s.badge(cor, bg)}>{labelStatus}</span>
               </div>
 
               {c.motivo_devolucao && c.status === 'devolvido_correcao_doc' && (
-                <div style={{ fontSize: 12, color: '#A32D2D', padding: 8, background: '#FCEBEB', borderRadius: 6, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: '#f87171', padding: 8, background: 'rgba(248,113,113,.14)', borderRadius: 6, marginBottom: 8 }}>
                   💬 <strong>Motivo da devolução:</strong> {c.motivo_devolucao}
                 </div>
               )}
 
-              <div style={{ fontSize: 11, color: '#aaa', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
                 {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto}
                 {c.produto === 'Maternidade' && c.nis && ` · NIS: ${c.nis}`}
               </div>
 
               <button onClick={() => setVerDocsId(verDocs ? null : c.id)}
-                style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
+                style={{ fontSize: 12, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
                 📎 {verDocs ? 'Esconder documentos' : 'Ver documentos'}
               </button>
 
               {verDocs && (
-                <div style={{ background: '#fafaf8', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                <div style={{ background: '#0f1930', borderRadius: 6, padding: 10, marginBottom: 8 }}>
                   {TIPOS_DOC.map(tipo => (
                     <div key={tipo.chave} style={{ marginBottom: 4, fontSize: 12 }}>
-                      <span style={{ color: '#555' }}>{tipo.label}: </span>
+                      <span style={{ color: '#8b9bb4' }}>{tipo.label}: </span>
                       {docs[tipo.chave] ? (
-                        <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#185FA5', textDecoration: 'underline' }}>✓ abrir</a>
+                        <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>✓ abrir</a>
                       ) : (
-                        <span style={{ color: '#aaa' }}>— não anexado</span>
+                        <span style={{ color: '#64748b' }}>— não anexado</span>
                       )}
                     </div>
                   ))}
@@ -340,50 +340,50 @@ export default function Entregas() {
           <div style={s.modalBg} onClick={() => !processando && setModalDevolucao(null)}>
             <div style={s.modal} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>Devolver: {modalDevolucao.nome}</div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Escolha o tipo de devolução e descreva o problema</div>
+              <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 16 }}>Escolha o tipo de devolução e descreva o problema</div>
 
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 8, fontWeight: 500 }}>Tipo:</div>
+                <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 8, fontWeight: 500 }}>Tipo:</div>
                 <button onClick={() => setTipoDevolucao('correcao_doc')}
                   style={{
                     width: '100%', padding: 12, marginBottom: 8, textAlign: 'left',
-                    border: tipoDevolucao === 'correcao_doc' ? '1.5px solid #854F0B' : '0.5px solid rgba(0,0,0,0.15)',
-                    background: tipoDevolucao === 'correcao_doc' ? '#FAEEDA' : '#fff',
+                    border: tipoDevolucao === 'correcao_doc' ? '1.5px solid #fbbf24' : '0.5px solid rgba(148,163,184,0.20)',
+                    background: tipoDevolucao === 'correcao_doc' ? 'rgba(251,191,36,.12)' : '#131e33',
                     borderRadius: 8, cursor: 'pointer', fontSize: 13,
                   }}>
-                  <div style={{ fontWeight: 500, color: '#854F0B' }}>🔁 Correção de documentos</div>
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                  <div style={{ fontWeight: 500, color: '#fbbf24' }}>🔁 Correção de documentos</div>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>
                     Mantém o contrato. Vendedor só re-anexa o documento problemático. Mais rápido.
                   </div>
                 </button>
                 <button onClick={() => setTipoDevolucao('reemissao')}
                   style={{
                     width: '100%', padding: 12, textAlign: 'left',
-                    border: tipoDevolucao === 'reemissao' ? '1.5px solid #A32D2D' : '0.5px solid rgba(0,0,0,0.15)',
-                    background: tipoDevolucao === 'reemissao' ? '#FCEBEB' : '#fff',
+                    border: tipoDevolucao === 'reemissao' ? '1.5px solid #f87171' : '0.5px solid rgba(148,163,184,0.20)',
+                    background: tipoDevolucao === 'reemissao' ? 'rgba(248,113,113,.14)' : '#131e33',
                     borderRadius: 8, cursor: 'pointer', fontSize: 13,
                   }}>
-                  <div style={{ fontWeight: 500, color: '#A32D2D' }}>🔄 Reemissão de contrato</div>
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                  <div style={{ fontWeight: 500, color: '#f87171' }}>🔄 Reemissão de contrato</div>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>
                     Cancela contrato no ZapSign. Vendedor corrige dados, supervisão emite de novo, cliente assina novo. Use pra erros graves (CPF errado, nome errado).
                   </div>
                 </button>
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 6, fontWeight: 500 }}>Motivo da devolução *</div>
+                <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 6, fontWeight: 500 }}>Motivo da devolução *</div>
                 <textarea value={motivoDevolucao} onChange={e => setMotivoDevolucao(e.target.value)}
                   placeholder="Ex: foto do RG borrada, comprovante 1 ilegível..."
-                  style={{ width: '100%', minHeight: 80, padding: 10, fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
+                  style={{ width: '100%', minHeight: 80, padding: 10, fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
               </div>
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setModalDevolucao(null)} disabled={processando}
-                  style={{ flex: 1, padding: 10, background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                  style={{ flex: 1, padding: 10, background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
                   Cancelar
                 </button>
                 <button onClick={devolver} disabled={processando || !motivoDevolucao.trim()}
-                  style={{ flex: 2, padding: 10, background: motivoDevolucao.trim() && !processando ? '#A32D2D' : '#aaa', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: motivoDevolucao.trim() && !processando ? 'pointer' : 'not-allowed' }}>
+                  style={{ flex: 2, padding: 10, background: motivoDevolucao.trim() && !processando ? '#f87171' : '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: motivoDevolucao.trim() && !processando ? 'pointer' : 'not-allowed' }}>
                   {processando ? '⏳ Processando...' : 'Confirmar devolução'}
                 </button>
               </div>
@@ -399,30 +399,30 @@ export default function Entregas() {
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>📥 Validação e Entregas</div>
-          <div style={{ fontSize: 13, color: '#888' }}>{lotes.length} lote{lotes.length !== 1 ? 's' : ''} com clientes pra validar/entregar</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>📥 Validação e Entregas</div>
+          <div style={{ fontSize: 13, color: '#8b9bb4' }}>{lotes.length} lote{lotes.length !== 1 ? 's' : ''} com clientes pra validar/entregar</div>
         </div>
-        <button onClick={fetchLotes} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
+        <button onClick={fetchLotes} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
           ↻ Atualizar
         </button>
       </div>
 
       {lotes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#888', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
           ✅ Sem lotes pendentes no momento.
         </div>
       ) : lotes.map(l => (
         <div key={l.id} style={s.loteCard} onClick={() => abrirLote(l)}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{l.advogados?.nome_completo}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Vendedor: {l.profiles?.nome}</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{l.advogados?.nome_completo}</div>
+              <div style={{ fontSize: 11, color: '#8b9bb4' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Vendedor: {l.profiles?.nome}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-            {l.em_validacao > 0 && <span style={s.badge('#854F0B', '#FAEEDA')}>⏳ {l.em_validacao} pra validar</span>}
-            {l.validados > 0 && <span style={s.badge('#3B6D11', '#EAF3DE')}>✓ {l.validados} validado{l.validados !== 1 ? 's' : ''}</span>}
-            {l.devolvidos > 0 && <span style={s.badge('#A32D2D', '#FCEBEB')}>⚠️ {l.devolvidos} devolvido{l.devolvidos !== 1 ? 's' : ''}</span>}
+            {l.em_validacao > 0 && <span style={s.badge('#fbbf24', 'rgba(251,191,36,.12)')}>⏳ {l.em_validacao} pra validar</span>}
+            {l.validados > 0 && <span style={s.badge('#34d399', 'rgba(52,211,153,.14)')}>✓ {l.validados} validado{l.validados !== 1 ? 's' : ''}</span>}
+            {l.devolvidos > 0 && <span style={s.badge('#f87171', 'rgba(248,113,113,.14)')}>⚠️ {l.devolvidos} devolvido{l.devolvidos !== 1 ? 's' : ''}</span>}
           </div>
         </div>
       ))}

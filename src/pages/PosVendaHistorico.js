@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
-const VERDE = '#3B6D11', VERMELHO = '#A32D2D', LARANJA = '#854F0B', AZUL = '#185FA5'
+const VERDE = '#34d399', VERMELHO = '#f87171', LARANJA = '#fbbf24', AZUL = '#60a5fa'
 
 // ---------- helpers de data (YYYY-MM-DD, horário local) ----------
 function ymd(d) {
@@ -105,8 +105,8 @@ export default function PosVendaHistorico() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111', marginBottom: 4 }}>📚 Histórico do Pós-Venda</h2>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 600, color: '#e6edf7', marginBottom: 4 }}>📚 Histórico do Pós-Venda</h2>
+      <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 14 }}>
         Período por <b>data de assinatura</b> (dia da venda). {fmtData(p.inicio)} → {fmtData(p.fim)}
       </div>
 
@@ -116,7 +116,7 @@ export default function PosVendaHistorico() {
           <button key={k} onClick={() => setPeriodo(k)} style={pill(periodo === k)}>{lbl}</button>
         ))}
         {periodo === 'personalizado' && (
-          <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#555' }}>
+          <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#8b9bb4' }}>
             <input type="date" value={custIni} max={custFim} onChange={e => setCustIni(e.target.value)} style={dateInput} />
             <span>até</span>
             <input type="date" value={custFim} min={custIni} max={ymd(hojeLocal())} onChange={e => setCustFim(e.target.value)} style={dateInput} />
@@ -128,17 +128,17 @@ export default function PosVendaHistorico() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
         <button onClick={() => setFiltro('todos')} style={statCard(filtro === 'todos')}>
           <div style={cap}>Total no período</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#111' }}>{mAtual.total}</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#e6edf7' }}>{mAtual.total}</div>
         </button>
-        <button onClick={() => setFiltro('validados')} style={statCard(filtro === 'validados', VERDE, '#EAF3DE')}>
+        <button onClick={() => setFiltro('validados')} style={statCard(filtro === 'validados', VERDE, 'rgba(52,211,153,.14)')}>
           <div style={{ ...cap, color: VERDE }}>✅ Validados</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: VERDE }}>{mAtual.validados}</div>
         </button>
-        <button onClick={() => setFiltro('barrados')} style={statCard(filtro === 'barrados', VERMELHO, '#FCEBEB')}>
+        <button onClick={() => setFiltro('barrados')} style={statCard(filtro === 'barrados', VERMELHO, 'rgba(248,113,113,.14)')}>
           <div style={{ ...cap, color: VERMELHO }}>❌ Barrados</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: VERMELHO }}>{mAtual.barrados}</div>
         </button>
-        <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 14 }}>
+        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14 }}>
           <div style={cap}>Taxa de aprovação</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: mAtual.taxa >= 80 ? VERDE : mAtual.taxa >= 60 ? LARANJA : VERMELHO }}>
             {mAtual.taxa}%
@@ -164,7 +164,7 @@ export default function PosVendaHistorico() {
           {motivos.length === 0 ? <div style={vazio}>Nenhum barrado no período</div> :
             motivos.slice(0, 6).map(([m, n]) => (
               <div key={m} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}>
-                <span style={{ color: '#444', maxWidth: '80%' }}>{m}</span>
+                <span style={{ color: '#c6d2e4', maxWidth: '80%' }}>{m}</span>
                 <b style={{ color: VERMELHO }}>{n} ({Math.round((n / barradosAtuais.length) * 100)}%)</b>
               </div>
             ))}
@@ -175,7 +175,7 @@ export default function PosVendaHistorico() {
           {porVendedora.length === 0 ? <div style={vazio}>Nenhum barrado no período</div> :
             porVendedora.slice(0, 6).map(v => (
               <div key={v.nome} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}>
-                <span style={{ color: '#444', maxWidth: '70%' }}>{v.nome}</span>
+                <span style={{ color: '#c6d2e4', maxWidth: '70%' }}>{v.nome}</span>
                 <b style={{ color: VERMELHO }}>{v.barrados}/{v.total} · {v.taxaBarr}%</b>
               </div>
             ))}
@@ -183,40 +183,40 @@ export default function PosVendaHistorico() {
       </div>
 
       {/* Lista */}
-      {loading ? <div style={{ padding: 30, textAlign: 'center', color: '#888' }}>Carregando...</div>
+      {loading ? <div style={{ padding: 30, textAlign: 'center', color: '#8b9bb4' }}>Carregando...</div>
         : listaFiltrada.length === 0 ? <div style={vazio}>Nenhum cliente nesse filtro/período</div>
           : listaFiltrada.map(c => {
             const barrado = c.resultado === 'barrado'
             return (
-              <div key={c.id} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div key={c.id} style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 240 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{c.nome}</div>
-                      <span style={{ fontSize: 10, padding: '2px 6px', background: barrado ? '#FCEBEB' : '#EAF3DE', color: barrado ? VERMELHO : VERDE, borderRadius: 6, fontWeight: 500 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{c.nome}</div>
+                      <span style={{ fontSize: 10, padding: '2px 6px', background: barrado ? 'rgba(248,113,113,.14)' : 'rgba(52,211,153,.14)', color: barrado ? VERMELHO : VERDE, borderRadius: 6, fontWeight: 500 }}>
                         {barrado ? '❌ Barrado' : '✅ Validado'}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: '#888' }}>
+                    <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                       {c.cpf} · {c.telefone || '—'} · Vendedora: {c.vendedora || '—'}
                       {c.nis ? ` · NIS: ${c.nis}` : ' · sem NIS'}
                     </div>
                     {barrado && c.motivo_barrado && (
-                      <div style={{ fontSize: 11, color: VERMELHO, marginTop: 4, background: '#FCEBEB', padding: '4px 8px', borderRadius: 4, display: 'inline-block' }}>
+                      <div style={{ fontSize: 11, color: VERMELHO, marginTop: 4, background: 'rgba(248,113,113,.14)', padding: '4px 8px', borderRadius: 4, display: 'inline-block' }}>
                         Motivo: {c.motivo_barrado}
                       </div>
                     )}
                     {c.observacao && (
-                      <div style={{ fontSize: 11, color: '#666', marginTop: 4, fontStyle: 'italic' }}>💬 {c.observacao}</div>
+                      <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4, fontStyle: 'italic' }}>💬 {c.observacao}</div>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: '#666', textAlign: 'right', minWidth: 150 }}>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', textAlign: 'right', minWidth: 150 }}>
                     <div>📝 Assinou: <b>{fmtData(c.data_venda)}</b></div>
                     <div style={{ color: barrado ? VERMELHO : VERDE }}>
                       {barrado ? '❌ Barrado' : '✅ Validado'}: {fmtData(barrado ? c.barrado_em : c.validado_em)}
                     </div>
                     {c.tentativas > 0 && <div style={{ marginTop: 2 }}>📞 {c.tentativas} tentativa(s)</div>}
-                    {c.analista && <div style={{ marginTop: 2, color: '#999' }}>Analista: {c.analista}</div>}
+                    {c.analista && <div style={{ marginTop: 2, color: '#8b9bb4' }}>Analista: {c.analista}</div>}
                   </div>
                 </div>
               </div>
@@ -231,11 +231,11 @@ function RowBI({ label, a, b, suf = '', invert = false }) {
   const bom = invert ? delta <= 0 : delta >= 0
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '3px 0' }}>
-      <span style={{ color: '#444' }}>{label}</span>
+      <span style={{ color: '#c6d2e4' }}>{label}</span>
       <span>
-        <span style={{ color: '#999' }}>{a}{suf}</span>
-        <span style={{ color: '#bbb', margin: '0 5px' }}>→</span>
-        <b style={{ color: '#111' }}>{b}{suf}</b>
+        <span style={{ color: '#8b9bb4' }}>{a}{suf}</span>
+        <span style={{ color: '#64748b', margin: '0 5px' }}>→</span>
+        <b style={{ color: '#e6edf7' }}>{b}{suf}</b>
         <span style={{ color: bom ? VERDE : VERMELHO, marginLeft: 6, fontSize: 11 }}>
           {delta === 0 ? '=' : (delta > 0 ? '▲' : '▼') + Math.abs(delta) + suf}
         </span>
@@ -244,22 +244,22 @@ function RowBI({ label, a, b, suf = '', invert = false }) {
   )
 }
 
-const cap = { fontSize: 11, color: '#888', textTransform: 'uppercase' }
-const vazio = { background: '#fff', padding: 24, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.08)', color: '#888', fontSize: 13 }
-const bi = { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 14 }
-const biTitle = { fontSize: 12, fontWeight: 600, color: '#333', marginBottom: 8 }
-const dateInput = { border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }
+const cap = { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase' }
+const vazio = { background: '#131e33', padding: 24, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(148,163,184,0.12)', color: '#8b9bb4', fontSize: 13 }
+const bi = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14 }
+const biTitle = { fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }
+const dateInput = { border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }
 
 function pill(ativo) {
   return {
-    background: ativo ? AZUL : '#fff', color: ativo ? '#fff' : '#555',
-    border: `1px solid ${ativo ? AZUL : 'rgba(0,0,0,0.15)'}`, borderRadius: 20,
+    background: ativo ? AZUL : '#131e33', color: ativo ? '#131e33' : '#8b9bb4',
+    border: `1px solid ${ativo ? AZUL : 'rgba(148,163,184,0.20)'}`, borderRadius: 20,
     padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
   }
 }
-function statCard(ativo, cor = AZUL, bg = '#fff') {
+function statCard(ativo, cor = AZUL, bg = '#131e33') {
   return {
-    background: ativo ? bg : '#fff', border: `1px solid ${ativo ? cor : 'rgba(0,0,0,0.1)'}`,
+    background: ativo ? bg : '#131e33', border: `1px solid ${ativo ? cor : 'rgba(148,163,184,0.14)'}`,
     borderRadius: 12, padding: 14, cursor: 'pointer', textAlign: 'left',
   }
 }

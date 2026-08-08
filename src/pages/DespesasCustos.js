@@ -9,27 +9,27 @@ import { Lancar, Recorrentes, Estilos } from './Financeiro'
 //   Painel Financeiro = análise. Aqui = operação.
 // ============================================================
 
-const VERDE = '#3B6D11', VERMELHO = '#A32D2D', LARANJA = '#854F0B', AZUL = '#185FA5', ROXO = '#5B21B6'
+const VERDE = '#34d399', VERMELHO = '#f87171', LARANJA = '#fbbf24', AZUL = '#60a5fa', ROXO = '#a78bfa'
 
 const GRUPO_INFO = {
   folha: { label: 'Folha', cor: ROXO },
   comissao: { label: 'Comissão', cor: ROXO },
   fixo: { label: 'Fixo', cor: LARANJA },
-  variavel: { label: 'Variável', cor: '#0F6E56' },
+  variavel: { label: 'Variável', cor: '#34d399' },
   marketing: { label: 'Marketing', cor: AZUL },
-  imposto: { label: 'Imposto', cor: '#6b7280' },
+  imposto: { label: 'Imposto', cor: '#8b9bb4' },
   divida: { label: 'Dívida', cor: VERMELHO },
 }
 const STATUS_INFO = {
-  aguardando_aprovacao: { label: 'Aguard. aprovação', bg: '#FAEEDA', cor: LARANJA },
-  incompleto: { label: 'Incompleto (c/ solicitante)', bg: '#f3f4f6', cor: '#6b7280' },
-  ajuste_solicitado: { label: 'Ajuste solicitado', bg: '#FAEEDA', cor: LARANJA },
-  vencido: { label: 'Vencido', bg: '#FCEBEB', cor: VERMELHO },
-  aprovado: { label: 'Aprovado (a pagar)', bg: '#E6F1FB', cor: AZUL },
-  aguardando_pagamento: { label: 'Aguard. pagamento', bg: '#E6F1FB', cor: AZUL },
-  pago: { label: 'Pago', bg: '#EAF3DE', cor: VERDE },
-  recusado: { label: 'Recusado', bg: '#FCEBEB', cor: VERMELHO },
-  cancelado: { label: 'Cancelado', bg: '#f3f4f6', cor: '#6b7280' },
+  aguardando_aprovacao: { label: 'Aguard. aprovação', bg: 'rgba(251,191,36,.12)', cor: LARANJA },
+  incompleto: { label: 'Incompleto (c/ solicitante)', bg: '#1a2742', cor: '#8b9bb4' },
+  ajuste_solicitado: { label: 'Ajuste solicitado', bg: 'rgba(251,191,36,.12)', cor: LARANJA },
+  vencido: { label: 'Vencido', bg: 'rgba(248,113,113,.14)', cor: VERMELHO },
+  aprovado: { label: 'Aprovado (a pagar)', bg: 'rgba(96,165,250,.12)', cor: AZUL },
+  aguardando_pagamento: { label: 'Aguard. pagamento', bg: 'rgba(96,165,250,.12)', cor: AZUL },
+  pago: { label: 'Pago', bg: 'rgba(52,211,153,.14)', cor: VERDE },
+  recusado: { label: 'Recusado', bg: 'rgba(248,113,113,.14)', cor: VERMELHO },
+  cancelado: { label: 'Cancelado', bg: '#1a2742', cor: '#8b9bb4' },
 }
 
 const fmt = v => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -42,21 +42,21 @@ export default function DespesasCustos() {
   const podeVer = profile && ['admin', 'financeiro'].includes(profile.role)
 
   if (!podeVer) {
-    return <div style={{ padding: '3rem', textAlign: 'center', color: '#5F5E5A' }}>Acesso restrito à administração e ao financeiro.</div>
+    return <div style={{ padding: '3rem', textAlign: 'center', color: '#8b9bb4' }}>Acesso restrito à administração e ao financeiro.</div>
   }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 0 40px' }}>
       <style>{css}</style>
       <Estilos />
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 2px' }}>📋 Despesas & Custos</h2>
-      <div style={{ fontSize: 13, color: '#5F5E5A', marginBottom: 12 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e6edf7', margin: '0 0 2px' }}>📋 Despesas & Custos</h2>
+      <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 12 }}>
         Toda a saída num lugar: aprovar, pagar, excluir, lançar e gerir recorrentes.
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {[['contas', '📑 Contas'], ['nova', '➕ Nova despesa'], ['recorrentes', '🔁 Fixas & Recorrentes']].map(([k, l]) => (
-          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#111', color: '#fff', borderColor: '#111' } : undefined}>{l}</button>
+          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#e6edf7', color: '#131e33', borderColor: '#e6edf7' } : undefined}>{l}</button>
         ))}
       </div>
 
@@ -203,7 +203,7 @@ function Contas({ profile }) {
         <div className="dc-kpi" style={{ borderTopColor: AZUL }}>
           <span className="dc-kpi-t">A pagar</span><b>{fmt(kpis.aPagar)}</b><span className="dc-kpi-s">{kpis.qA} conta(s)</span>
         </div>
-        <div className="dc-kpi" style={{ borderTopColor: VERMELHO, background: kpis.qAtr ? '#FFF5F5' : '#fff' }}>
+        <div className="dc-kpi" style={{ borderTopColor: VERMELHO, background: kpis.qAtr ? 'rgba(248,113,113,.14)' : '#131e33' }}>
           <span className="dc-kpi-t" style={{ color: VERMELHO }}>Atrasado</span>
           <b style={{ color: VERMELHO }}>{fmt(kpis.atrasado)}</b><span className="dc-kpi-s">{kpis.qAtr} conta(s)</span>
         </div>
@@ -247,7 +247,7 @@ function Contas({ profile }) {
           value={busca} onChange={e => setBusca(e.target.value)} />
       </div>
 
-      {erro && <div style={{ background: '#FCEBEB', color: VERMELHO, padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 10 }}>{erro}</div>}
+      {erro && <div style={{ background: 'rgba(248,113,113,.14)', color: VERMELHO, padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 10 }}>{erro}</div>}
 
       {linhas === null ? <div className="dc-vazio">Carregando…</div>
         : filtradas.length === 0 ? <div className="dc-vazio">Nenhuma despesa nesse filtro. Use "➕ Nova despesa" pra lançar.</div>
@@ -263,7 +263,7 @@ function Contas({ profile }) {
               <tbody>
                 {filtradas.map(r => {
                   const atrasada = r.vencimento && r.vencimento < hojeStr && !['pago', 'cancelado', 'recusado'].includes(r.status)
-                  const st = STATUS_INFO[r.status] || { label: r.status, bg: '#f3f4f6', cor: '#6b7280' }
+                  const st = STATUS_INFO[r.status] || { label: r.status, bg: '#1a2742', cor: '#8b9bb4' }
                   const g = GRUPO_INFO[r.tipo_gasto]
                   const emAprovacao = r.status === 'aguardando_aprovacao'
                   const podePagar = ['aprovado', 'aguardando_pagamento', 'vencido'].includes(r.status)
@@ -272,20 +272,20 @@ function Contas({ profile }) {
                   const temLuna = r.analise_luna || r.risco_luna || r.recomendacao_luna
                   return (
                     <Frag key={r.id}>
-                      <tr style={atrasada ? { background: '#FFF5F5' } : undefined}>
+                      <tr style={atrasada ? { background: 'rgba(248,113,113,.14)' } : undefined}>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <b style={{ color: atrasada ? VERMELHO : '#111' }}>{dataBR(r.vencimento)}</b>
+                          <b style={{ color: atrasada ? VERMELHO : '#e6edf7' }}>{dataBR(r.vencimento)}</b>
                           {atrasada && <div style={{ fontSize: 10, color: VERMELHO, fontWeight: 700 }}>ATRASADA</div>}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 600, color: '#111' }}>{(r.motivo || '—').slice(0, 70)}</div>
-                          <div style={{ fontSize: 11.5, color: '#6b7280' }}>
+                          <div style={{ fontWeight: 600, color: '#e6edf7' }}>{(r.motivo || '—').slice(0, 70)}</div>
+                          <div style={{ fontSize: 11.5, color: '#8b9bb4' }}>
                             {r.fornecedor_nome || 'sem fornecedor'}
                             {r.recorrente_id ? ' · 🔁 recorrente' : ''}
                             {!r.possui_nota_fiscal && r.status !== 'pago' ? ' · sem NF' : ''}
                           </div>
                         </td>
-                        <td style={{ fontSize: 12.5, color: '#374151' }}>{r.solicitante_nome || '—'}</td>
+                        <td style={{ fontSize: 12.5, color: '#c6d2e4' }}>{r.solicitante_nome || '—'}</td>
                         <td>
                           {g && (
                             <span className="dc-badge" style={{ background: `${g.cor}14`, color: g.cor }}>
@@ -310,7 +310,7 @@ function Contas({ profile }) {
                       </tr>
                       {exp && (
                         <tr>
-                          <td colSpan={7} style={{ background: '#FAFAF8', fontSize: 12.5, color: '#374151', padding: '10px 16px' }}>
+                          <td colSpan={7} style={{ background: '#0f1930', fontSize: 12.5, color: '#c6d2e4', padding: '10px 16px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '6px 18px' }}>
                               <span><b>Competência:</b> {r.competencia ? MESES[Number(String(r.competencia).slice(5, 7)) - 1] + '/' + String(r.competencia).slice(0, 4) : '—'}</span>
                               <span><b>Forma de pagamento:</b> {r.forma_pagamento || '—'}</span>
@@ -328,7 +328,7 @@ function Contas({ profile }) {
                                   <b>👤 Funcionário vinculado:</b> {funcionarios.find(x => x.id === r.funcionario_id)?.nome || r.fornecedor_nome || 'vinculado'}
                                 </div>
                               ) : (
-                                <div style={{ marginTop: 10, background: '#FFF8EB', border: '1px solid #854F0B30', borderRadius: 8, padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <div style={{ marginTop: 10, background: 'rgba(251,191,36,.12)', border: '1px solid #854F0B30', borderRadius: 8, padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                                   <b style={{ color: LARANJA, fontSize: 12.5 }}>👤 Sem funcionário vinculado</b>
                                   <select className="dc-in" style={{ padding: '5px 8px', fontSize: 12 }} value={vinculoSel} onChange={e => setVinculoSel(e.target.value)}>
                                     <option value="">Escolher funcionário…</option>
@@ -341,7 +341,7 @@ function Contas({ profile }) {
                             {r.recusa_motivo && <div style={{ marginTop: 8, color: VERMELHO }}><b>Motivo da recusa:</b> {r.recusa_motivo}</div>}
                             {r.ajuste_motivo && <div style={{ marginTop: 8, color: LARANJA }}><b>Ajuste solicitado:</b> {r.ajuste_motivo}</div>}
                             {temLuna && (
-                              <div style={{ marginTop: 10, background: '#F3F0FF', border: '1px solid #5B21B630', borderRadius: 8, padding: '8px 12px' }}>
+                              <div style={{ marginTop: 10, background: 'rgba(167,139,250,.14)', border: '1px solid #5B21B630', borderRadius: 8, padding: '8px 12px' }}>
                                 <b style={{ color: ROXO }}>🤖 Análise da Luna</b>
                                 {r.risco_luna && <span style={{ marginLeft: 8 }} className="dc-badge" >risco: {r.risco_luna}</span>}
                                 {r.prioridade_luna && <span style={{ marginLeft: 6 }} className="dc-badge">prioridade: {r.prioridade_luna}</span>}
@@ -359,7 +359,7 @@ function Contas({ profile }) {
             </table>
           </div>
         )}
-      <div style={{ fontSize: 11, color: '#9a9a96', marginTop: 10 }}>
+      <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 10 }}>
         Despesa paga não pode ser excluída (histórico protegido). Recorrentes (🔁) são geradas automaticamente — pra parar uma, use a aba Fixas & Recorrentes.
       </div>
     </>
@@ -369,24 +369,24 @@ function Contas({ profile }) {
 function Frag({ children }) { return <>{children}</> }
 
 const css = `
-  .dc-aba{border:0.5px solid rgba(0,0,0,0.18);background:#fff;color:#374151;border-radius:20px;padding:7px 15px;font-size:13px;font-weight:600;cursor:pointer}
+  .dc-aba{border:0.5px solid rgba(148,163,184,0.22);background:#131e33;color:#c6d2e4;border-radius:20px;padding:7px 15px;font-size:13px;font-weight:600;cursor:pointer}
   .dc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
-  .dc-kpi{background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-top:3px solid #ccc;border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
-  .dc-kpi-t{font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:700;letter-spacing:0.4px}
-  .dc-kpi b{font-size:19px;font-variant-numeric:tabular-nums;color:#111}
-  .dc-kpi-s{font-size:11px;color:#9ca3af}
+  .dc-kpi{background:#131e33;border:0.5px solid rgba(148,163,184,0.14);border-top:3px solid #64748b;border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+  .dc-kpi-t{font-size:11px;text-transform:uppercase;color:#8b9bb4;font-weight:700;letter-spacing:0.4px}
+  .dc-kpi b{font-size:19px;font-variant-numeric:tabular-nums;color:#e6edf7}
+  .dc-kpi-s{font-size:11px;color:#8b9bb4}
   .dc-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .dc-in{padding:8px 10px;font-size:13px;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;background:#fff;color:#111;outline:none}
-  .dc-tabela-wrap{background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:14px;overflow-x:auto}
+  .dc-in{padding:8px 10px;font-size:13px;border:0.5px solid rgba(148,163,184,0.22);border-radius:8px;background:#131e33;color:#e6edf7;outline:none}
+  .dc-tabela-wrap{background:#131e33;border:0.5px solid rgba(148,163,184,0.14);border-radius:14px;overflow-x:auto}
   .dc-tabela{width:100%;border-collapse:collapse;font-size:13px}
-  .dc-tabela th{text-align:left;padding:10px 12px;border-bottom:2px solid rgba(0,0,0,0.08);color:#6b7280;font-size:11px;text-transform:uppercase;white-space:nowrap}
-  .dc-tabela td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:top}
-  .dc-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#374151}
-  .dc-btn{border:0.5px solid rgba(0,0,0,0.15);background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;margin-left:5px;color:#374151}
-  .dc-btn:hover{background:#f5f5f3}
-  .dc-btn-ok{border-color:#3B6D11;color:#3B6D11;font-weight:600}
-  .dc-btn-warn{border-color:#854F0B;color:#854F0B}
-  .dc-btn-del{border-color:#A32D2D;color:#A32D2D}
-  .dc-vazio{background:#fff;border:0.5px solid rgba(0,0,0,0.08);border-radius:14px;padding:26px;text-align:center;color:#888;font-size:13px}
+  .dc-tabela th{text-align:left;padding:10px 12px;border-bottom:2px solid rgba(148,163,184,0.12);color:#8b9bb4;font-size:11px;text-transform:uppercase;white-space:nowrap}
+  .dc-tabela td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);vertical-align:top}
+  .dc-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap;background:#1a2742;color:#c6d2e4}
+  .dc-btn{border:0.5px solid rgba(148,163,184,0.20);background:#131e33;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;margin-left:5px;color:#c6d2e4}
+  .dc-btn:hover{background:#1a2742}
+  .dc-btn-ok{border-color:#34d399;color:#34d399;font-weight:600}
+  .dc-btn-warn{border-color:#fbbf24;color:#fbbf24}
+  .dc-btn-del{border-color:#f87171;color:#f87171}
+  .dc-vazio{background:#131e33;border:0.5px solid rgba(148,163,184,0.12);border-radius:14px;padding:26px;text-align:center;color:#8b9bb4;font-size:13px}
   @media(max-width:720px){.dc-tabela th:nth-child(3),.dc-tabela td:nth-child(3){display:none}}
 `

@@ -2,26 +2,26 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4, letterSpacing: '-0.3px' },
-  subtitle: { fontSize: 13, color: '#888', marginBottom: 24 },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
+  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 24 },
   section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
   periodoSelector: { display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' },
-  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', background: '#fff', color: '#555', cursor: 'pointer' },
-  periodoBtnActive: { background: '#111', color: '#fff', borderColor: '#111' },
-  bar: { height: 8, background: '#f0f0ed', borderRadius: 4, overflow: 'hidden' },
+  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
+  periodoBtnActive: { background: '#e6edf7', color: '#131e33', borderColor: '#e6edf7' },
+  bar: { height: 8, background: '#1a2742', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', transition: 'width 0.3s' },
-  loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
-  empty: { fontSize: 13, color: '#aaa', padding: '1rem 0', textAlign: 'center' },
+  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
+  empty: { fontSize: 13, color: '#64748b', padding: '1rem 0', textAlign: 'center' },
 }
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 function corDoPct(pct) {
-  if (pct >= 90) return '#3B6D11'
-  if (pct >= 50) return '#854F0B'
-  return '#A32D2D'
+  if (pct >= 90) return '#34d399'
+  if (pct >= 50) return '#fbbf24'
+  return '#f87171'
 }
 
 function ProgressoBar({ atual, meta }) {
@@ -36,11 +36,11 @@ function ProgressoBar({ atual, meta }) {
 function CardMetric({ label, atual, meta }) {
   const pct = meta > 0 ? Math.round((atual / meta) * 100) : 0
   return (
-    <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-      <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+    <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 8, padding: '12px 14px' }}>
+      <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 17, fontWeight: 500, color: '#111' }}>
-          {atual.toLocaleString('pt-BR')} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>/ {(meta || 0).toLocaleString('pt-BR')}</span>
+        <div style={{ fontSize: 17, fontWeight: 500, color: '#e6edf7' }}>
+          {atual.toLocaleString('pt-BR')} <span style={{ fontSize: 12, color: '#8b9bb4', fontWeight: 400 }}>/ {(meta || 0).toLocaleString('pt-BR')}</span>
         </div>
         <div style={{ fontSize: 12, fontWeight: 500, color: corDoPct(pct) }}>{pct}%</div>
       </div>
@@ -235,7 +235,7 @@ export default function BIBruno() {
         <button style={s.periodoBtn} onClick={() => navegarMes(1)}>Próximo ▶</button>
         <button style={s.periodoBtn} onClick={() => { setAno(hoje.getFullYear()); setMes(hoje.getMonth() + 1) }}>Mês atual</button>
         {ehMesAtual && (
-          <div style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
+          <div style={{ fontSize: 12, color: '#8b9bb4', marginLeft: 8 }}>
             ~{diasUteisRestantes} dias úteis restantes
           </div>
         )}
@@ -253,11 +253,11 @@ export default function BIBruno() {
           {metaB2C && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: '#e6edf7' }}>
                   Total: <span style={{ color: corDoPct(metaB2CTotal > 0 ? (emitidosB2CTotal / metaB2CTotal) * 100 : 0), fontWeight: 600 }}>{emitidosB2CTotal.toLocaleString('pt-BR')}</span> / {metaB2CTotal.toLocaleString('pt-BR')} ({metaB2CTotal > 0 ? Math.round((emitidosB2CTotal / metaB2CTotal) * 100) : 0}%)
                 </div>
                 {ehMesAtual && metaB2CTotal > emitidosB2CTotal && (
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: '#8b9bb4' }}>
                     Falta <strong>{(metaB2CTotal - emitidosB2CTotal).toLocaleString('pt-BR')}</strong> · ritmo <strong>{Math.ceil((metaB2CTotal - emitidosB2CTotal) / diasUteisRestantes)}/dia</strong>
                   </div>
                 )}
@@ -287,10 +287,10 @@ export default function BIBruno() {
           {metasB2B.length > 0 && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: '#e6edf7' }}>
                   Equipe ({vendedoras.length} vendedoras): <span style={{ color: corDoPct(metaEquipeTotal > 0 ? (vendidoEquipeTotal / metaEquipeTotal) * 100 : 0), fontWeight: 600 }}>{vendidoEquipeTotal.toLocaleString('pt-BR')}</span> / {metaEquipeTotal.toLocaleString('pt-BR')} ({metaEquipeTotal > 0 ? Math.round((vendidoEquipeTotal / metaEquipeTotal) * 100) : 0}%)
                 </div>
-                <div style={{ fontSize: 11, color: '#888' }}>
+                <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                   Conta lotes: pago + entregue + a_entregar · exclui inadimplente e não assinou
                 </div>
               </div>
@@ -319,27 +319,27 @@ export default function BIBruno() {
               return (
                 <div key={v.id} style={s.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{v.nome}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{v.nome}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: corDoPct(pctTotal) }}>{pctTotal}%</div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 8 }}>
                     {totalV.toLocaleString('pt-BR')} / {metaB2BUnitTotal.toLocaleString('pt-BR')} válidos
                   </div>
                   <div style={{ marginBottom: 12 }}>
                     <ProgressoBar atual={totalV} meta={metaB2BUnitTotal} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, fontSize: 11 }}>
-                    <div style={{ background: '#f8f8f6', padding: '8px 10px', borderRadius: 6 }}>
-                      <div style={{ color: '#888', marginBottom: 2 }}>Mat</div>
-                      <div style={{ fontWeight: 500, color: '#111' }}>{venda.Maternidade}/{metaB2BUnitMat}</div>
+                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                      <div style={{ color: '#8b9bb4', marginBottom: 2 }}>Mat</div>
+                      <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.Maternidade}/{metaB2BUnitMat}</div>
                     </div>
-                    <div style={{ background: '#f8f8f6', padding: '8px 10px', borderRadius: 6 }}>
-                      <div style={{ color: '#888', marginBottom: 2 }}>BPC</div>
-                      <div style={{ fontWeight: 500, color: '#111' }}>{venda.BPC}/{metaB2BUnitBPC}</div>
+                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                      <div style={{ color: '#8b9bb4', marginBottom: 2 }}>BPC</div>
+                      <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.BPC}/{metaB2BUnitBPC}</div>
                     </div>
-                    <div style={{ background: '#f8f8f6', padding: '8px 10px', borderRadius: 6 }}>
-                      <div style={{ color: '#888', marginBottom: 2 }}>Aux</div>
-                      <div style={{ fontWeight: 500, color: '#111' }}>{venda.Aux}/{metaB2BUnitAux}</div>
+                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                      <div style={{ color: '#8b9bb4', marginBottom: 2 }}>Aux</div>
+                      <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.Aux}/{metaB2BUnitAux}</div>
                     </div>
                   </div>
                 </div>

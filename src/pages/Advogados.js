@@ -5,47 +5,47 @@ import NovoAdvogado from '../components/NovoAdvogado'
 import DetalheAdvogado from '../components/DetalheAdvogado'
 
 const TITULOS_CLASS = {
-  'Parceiro Bronze': { bg: '#FAECE7', color: '#993C1D' },
-  'Parceiro Prata': { bg: '#D3D1C7', color: '#444441' },
-  'Cliente Gold': { bg: '#FAEEDA', color: '#854F0B' },
-  'Cliente Gold II': { bg: '#FAEEDA', color: '#854F0B' },
-  'Cliente Platinum': { bg: '#E6F1FB', color: '#185FA5' },
-  'Cliente Platinum II': { bg: '#E6F1FB', color: '#185FA5' },
-  'Cliente Diamond': { bg: '#EEEDFE', color: '#3C3489' },
-  'Cliente Diamond II': { bg: '#EEEDFE', color: '#3C3489' },
-  'Cliente Black': { bg: '#2C2C2A', color: '#D3D1C7' },
+  'Parceiro Bronze': { bg: 'rgba(248,113,113,.14)', color: '#fbbf24' },
+  'Parceiro Prata': { bg: '#334766', color: '#c6d2e4' },
+  'Cliente Gold': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
+  'Cliente Gold II': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
+  'Cliente Platinum': { bg: 'rgba(96,165,250,.12)', color: '#60a5fa' },
+  'Cliente Platinum II': { bg: 'rgba(96,165,250,.12)', color: '#60a5fa' },
+  'Cliente Diamond': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
+  'Cliente Diamond II': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
+  'Cliente Black': { bg: '#c6d2e4', color: '#334766' },
 }
 const PROD_CLASS = {
-  'Maternidade': { bg: '#E1F5EE', color: '#0F6E56' },
-  'Gestante até 5 meses': { bg: '#E0F2FE', color: '#0369A1' },
-  'BPC': { bg: '#EEEDFE', color: '#534AB7' },
-  'Auxilio Acidente': { bg: '#FAEEDA', color: '#854F0B' },
+  'Maternidade': { bg: 'rgba(52,211,153,.14)', color: '#34d399' },
+  'Gestante até 5 meses': { bg: 'rgba(96,165,250,.10)', color: '#60a5fa' },
+  'BPC': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
+  'Auxilio Acidente': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
 }
 const STATUS = {
-  verde: { bg: '#EAF3DE', color: '#3B6D11', label: 'Ativo' },
-  amarelo: { bg: '#FAEEDA', color: '#854F0B', label: 'Atenção' },
-  vermelho: { bg: '#FCEBEB', color: '#A32D2D', label: 'Crítico' },
+  verde: { bg: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Ativo' },
+  amarelo: { bg: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Atenção' },
+  vermelho: { bg: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Crítico' },
 }
 
 const s = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
-  title: { fontSize: 20, fontWeight: 500, color: '#111', letterSpacing: '-0.3px' },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', letterSpacing: '-0.3px' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' },
-  metric: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: '12px 14px' },
-  metricLabel: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
-  metricValue: { fontSize: 24, fontWeight: 500, color: '#111' },
+  metric: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: '12px 14px' },
+  metricLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
+  metricValue: { fontSize: 24, fontWeight: 500, color: '#e6edf7' },
   filters: { display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' },
-  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' },
-  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, background: '#fff', color: '#111', outline: 'none' },
-  btnAdd: { padding: '8px 16px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  tableWrap: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' },
-  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#f8f8f6', borderBottom: '0.5px solid rgba(0,0,0,0.08)' },
-  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 13, color: '#111', verticalAlign: 'middle' },
-  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#eee', color: STATUS[st]?.color || '#555' }),
-  dot: (st) => ({ width: 7, height: 7, borderRadius: '50%', background: STATUS[st]?.color || '#888', display: 'inline-block' }),
-  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#eee', color: TITULOS_CLASS[t]?.color || '#555', whiteSpace: 'nowrap' }),
-  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#eee', color: PROD_CLASS[p]?.color || '#555', display: 'inline-block' }),
-  loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
+  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' },
+  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' },
+  btnAdd: { padding: '8px 16px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  tableWrap: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden' },
+  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#0d1526', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
+  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', fontSize: 13, color: '#e6edf7', verticalAlign: 'middle' },
+  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#1a2742', color: STATUS[st]?.color || '#8b9bb4' }),
+  dot: (st) => ({ width: 7, height: 7, borderRadius: '50%', background: STATUS[st]?.color || '#8b9bb4', display: 'inline-block' }),
+  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#1a2742', color: TITULOS_CLASS[t]?.color || '#8b9bb4', whiteSpace: 'nowrap' }),
+  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#1a2742', color: PROD_CLASS[p]?.color || '#8b9bb4', display: 'inline-block' }),
+  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
 }
 
 export default function Advogados() {
@@ -88,9 +88,9 @@ export default function Advogados() {
 
       <div style={s.metrics}>
         <div style={s.metric}><div style={s.metricLabel}>Total</div><div style={s.metricValue}>{counts.total}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#3B6D11' }}>Ativos</div><div style={{ ...s.metricValue, color: '#3B6D11' }}>{counts.verde}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#BA7517' }}>Atenção</div><div style={{ ...s.metricValue, color: '#BA7517' }}>{counts.amarelo}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#A32D2D' }}>Críticos</div><div style={{ ...s.metricValue, color: '#A32D2D' }}>{counts.vermelho}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#34d399' }}>Ativos</div><div style={{ ...s.metricValue, color: '#34d399' }}>{counts.verde}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#fbbf24' }}>Atenção</div><div style={{ ...s.metricValue, color: '#fbbf24' }}>{counts.amarelo}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#f87171' }}>Críticos</div><div style={{ ...s.metricValue, color: '#f87171' }}>{counts.vermelho}</div></div>
       </div>
 
       <div style={s.filters}>
@@ -131,13 +131,13 @@ export default function Advogados() {
             <tbody>
               {filtered.map(a => (
                 <tr key={a.id} onClick={() => setDetalhe(a)} style={{ cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8f8f6'}
+                  onMouseEnter={e => e.currentTarget.style.background = '#0d1526'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 500 }}>{a.nome_completo}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>{a.cidade}</div>
+                    <div style={{ fontSize: 11, color: '#8b9bb4' }}>{a.cidade}</div>
                   </td>
-                  <td style={{ ...s.td, fontSize: 12, color: '#888' }}>{a.oab}</td>
+                  <td style={{ ...s.td, fontSize: 12, color: '#8b9bb4' }}>{a.oab}</td>
                   <td style={{ ...s.td, fontSize: 12 }}>{a.estado}</td>
                   {profile?.role === 'admin' && <td style={{ ...s.td, fontSize: 12 }}>{a.profiles?.nome || '—'}</td>}
                   <td style={s.td}>
@@ -149,10 +149,10 @@ export default function Advogados() {
                   <td style={s.td}>{a.titulo ? <span style={s.titleBadge(a.titulo)}>{a.titulo}</span> : '—'}</td>
                   <td style={s.td}>{(a.advogado_produtos || []).map(p => <span key={p.produto} style={s.prodTag(p.produto)}>{p.produto === 'Auxilio Acidente' ? 'Aux.' : p.produto}</span>)}</td>
                   <td style={{ ...s.td, fontWeight: 500, textAlign: 'center' }}>{a.total_compras}</td>
-                  <td style={{ ...s.td, color: '#aaa', fontSize: 16 }}>›</td>
+                  <td style={{ ...s.td, color: '#64748b', fontSize: 16 }}>›</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#aaa', padding: '2rem' }}>Nenhum advogado encontrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#64748b', padding: '2rem' }}>Nenhum advogado encontrado</td></tr>}
             </tbody>
           </table>
         )}

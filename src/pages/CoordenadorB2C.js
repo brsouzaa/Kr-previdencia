@@ -23,40 +23,40 @@ const STATUS_OVERRIDE = [
 ]
 
 const s = {
-  pageTitle: { fontSize: 20, fontWeight: 600, color: '#111', marginBottom: 4 },
-  pageSubtitle: { fontSize: 12, color: '#666', marginBottom: 20 },
-  sectionTitle: { fontSize: 13, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20 },
+  pageTitle: { fontSize: 20, fontWeight: 600, color: '#e6edf7', marginBottom: 4 },
+  pageSubtitle: { fontSize: 12, color: '#8b9bb4', marginBottom: 20 },
+  sectionTitle: { fontSize: 13, fontWeight: 600, color: '#c6d2e4', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20 },
   cardsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 8 },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '14px 16px' },
-  cardLabel: { fontSize: 11, color: '#666', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
-  cardNum: { fontSize: 22, fontWeight: 600, color: '#111' },
-  cardSub: { fontSize: 11, color: '#888', marginTop: 2 },
-  alerta: { background: '#FCEBEB', border: '1.5px solid #A32D2D', borderRadius: 12, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '14px 16px' },
+  cardLabel: { fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
+  cardNum: { fontSize: 22, fontWeight: 600, color: '#e6edf7' },
+  cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  alerta: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #f87171', borderRadius: 12, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 },
   alertaIcon: { fontSize: 18 },
-  alertaText: { fontSize: 13, color: '#A32D2D', fontWeight: 500, flex: 1 },
-  alertaNum: { fontSize: 18, fontWeight: 700, color: '#A32D2D' },
+  alertaText: { fontSize: 13, color: '#f87171', fontWeight: 500, flex: 1 },
+  alertaNum: { fontSize: 18, fontWeight: 700, color: '#f87171' },
   acoesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },
-  acaoBtn: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 },
+  acaoBtn: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 },
   acaoBtnIcon: { fontSize: 20 },
-  acaoBtnTitulo: { fontSize: 13, fontWeight: 600, color: '#111', marginBottom: 2 },
-  acaoBtnDesc: { fontSize: 11, color: '#666' },
-  tabela: { width: '100%', background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden', fontSize: 12 },
-  th: { textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.3, background: '#fafafa', borderBottom: '0.5px solid rgba(0,0,0,0.08)' },
-  td: { padding: '10px 12px', borderTop: '0.5px solid rgba(0,0,0,0.05)', color: '#333' },
+  acaoBtnTitulo: { fontSize: 13, fontWeight: 600, color: '#e6edf7', marginBottom: 2 },
+  acaoBtnDesc: { fontSize: 11, color: '#8b9bb4' },
+  tabela: { width: '100%', background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden', fontSize: 12 },
+  th: { textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: 0.3, background: '#0f1930', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
+  td: { padding: '10px 12px', borderTop: '0.5px solid rgba(148,163,184,0.08)', color: '#c6d2e4' },
   modalBg: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 },
-  modal: { background: '#fff', borderRadius: 16, padding: 22, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto' },
-  modalTitulo: { fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 14 },
-  label: { fontSize: 12, fontWeight: 500, color: '#444', marginBottom: 6, display: 'block' },
-  input: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
-  select: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
-  textarea: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit', resize: 'vertical', minHeight: 70 },
-  btnPrimary: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' },
-  btnDanger: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' },
-  btnGhost: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: '#666', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, cursor: 'pointer' },
-  msgErro: { padding: 10, background: '#FCEBEB', color: '#A32D2D', fontSize: 12, borderRadius: 8, marginBottom: 10 },
-  msgOk: { padding: 10, background: '#EAF3DE', color: '#3B6D11', fontSize: 12, borderRadius: 8, marginBottom: 10 },
-  candidato: { padding: '8px 10px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, cursor: 'pointer', marginBottom: 6, fontSize: 12 },
-  candidatoAtivo: { background: '#E6F1FB', borderColor: '#185FA5' },
+  modal: { background: '#131e33', borderRadius: 16, padding: 22, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto' },
+  modalTitulo: { fontSize: 16, fontWeight: 600, color: '#e6edf7', marginBottom: 14 },
+  label: { fontSize: 12, fontWeight: 500, color: '#c6d2e4', marginBottom: 6, display: 'block' },
+  input: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  select: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  textarea: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit', resize: 'vertical', minHeight: 70 },
+  btnPrimary: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, cursor: 'pointer' },
+  btnDanger: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, cursor: 'pointer' },
+  btnGhost: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: '#8b9bb4', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, cursor: 'pointer' },
+  msgErro: { padding: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', fontSize: 12, borderRadius: 8, marginBottom: 10 },
+  msgOk: { padding: 10, background: 'rgba(52,211,153,.14)', color: '#34d399', fontSize: 12, borderRadius: 8, marginBottom: 10 },
+  candidato: { padding: '8px 10px', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 8, cursor: 'pointer', marginBottom: 6, fontSize: 12 },
+  candidatoAtivo: { background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa' },
 }
 
 function tempoRel(dt) {
@@ -212,7 +212,7 @@ export default function CoordenadorB2C() {
     <div style={{ maxWidth: 1200 }}>
       <div style={s.pageTitle}>
         Painel da coordenadora
-        <span style={{ fontSize: 12, fontWeight: 400, color: '#888', marginLeft: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 400, color: '#8b9bb4', marginLeft: 10 }}>
           • Setor: {setorResp === 'captacao' ? 'Captação + IA' : 'Autônomos'}
         </span>
       </div>
@@ -224,15 +224,15 @@ export default function CoordenadorB2C() {
       <div style={s.cardsRow}>
         <CardNum label="Cadastrados" valor={metricas?.cadastrados} loading={loading} />
         <CardNum label="Emitidos" valor={metricas?.emitidos} loading={loading} />
-        <CardNum label="Assinados" valor={metricas?.assinados} loading={loading} cor="#3B6D11" />
-        <CardNum label="Validados" valor={metricas?.validados} loading={loading} cor="#3B6D11" />
-        <CardNum label="Cancelados" valor={metricas?.cancelados} loading={loading} cor={metricas?.cancelados > 0 ? '#A32D2D' : '#111'} />
-        <CardNum label="Barrados" valor={metricas?.barrados} loading={loading} cor={metricas?.barrados > 0 ? '#A32D2D' : '#111'} />
+        <CardNum label="Assinados" valor={metricas?.assinados} loading={loading} cor="#34d399" />
+        <CardNum label="Validados" valor={metricas?.validados} loading={loading} cor="#34d399" />
+        <CardNum label="Cancelados" valor={metricas?.cancelados} loading={loading} cor={metricas?.cancelados > 0 ? '#f87171' : '#e6edf7'} />
+        <CardNum label="Barrados" valor={metricas?.barrados} loading={loading} cor={metricas?.barrados > 0 ? '#f87171' : '#e6edf7'} />
       </div>
 
       <div style={s.sectionTitle}>⚠️ Alertas agora</div>
       {alertas.posVendaCritico === 0 && alertas.iaTravada === 0 && alertas.devolPendente === 0 && (
-        <div style={{ ...s.card, color: '#3B6D11', fontSize: 13 }}>
+        <div style={{ ...s.card, color: '#34d399', fontSize: 13 }}>
           ✓ Nenhum alerta crítico no momento.
         </div>
       )}
@@ -270,7 +270,7 @@ export default function CoordenadorB2C() {
 
       <div style={s.sectionTitle}>📜 Minhas últimas ações</div>
       {historico.length === 0 ? (
-        <div style={{ ...s.card, color: '#888', fontSize: 12 }}>Nenhuma ação registrada ainda.</div>
+        <div style={{ ...s.card, color: '#8b9bb4', fontSize: 12 }}>Nenhuma ação registrada ainda.</div>
       ) : (
         <table style={s.tabela}>
           <thead>
@@ -288,7 +288,7 @@ export default function CoordenadorB2C() {
                 <td style={s.td}>{rotuloAcao(h.acao)}</td>
                 <td style={s.td}>
                   {h.detalhes?.cliente_nome || h.entidade_tipo}
-                  {h.detalhes?.cliente_cpf && <span style={{ color: '#888' }}> ({formatCPF(h.detalhes.cliente_cpf)})</span>}
+                  {h.detalhes?.cliente_cpf && <span style={{ color: '#8b9bb4' }}> ({formatCPF(h.detalhes.cliente_cpf)})</span>}
                 </td>
                 <td style={s.td}>{h.motivo}</td>
               </tr>
@@ -330,7 +330,7 @@ export default function CoordenadorB2C() {
   )
 }
 
-function CardNum({ label, valor, loading, cor = '#111', sub }) {
+function CardNum({ label, valor, loading, cor = '#e6edf7', sub }) {
   return (
     <div style={s.card}>
       <div style={s.cardLabel}>{label}</div>
@@ -342,7 +342,7 @@ function CardNum({ label, valor, loading, cor = '#111', sub }) {
 
 function AcaoBtn({ icone, titulo, desc, onClick }) {
   return (
-    <button onClick={onClick} style={s.acaoBtn} onMouseEnter={e => e.currentTarget.style.background = '#fafafa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+    <button onClick={onClick} style={s.acaoBtn} onMouseEnter={e => e.currentTarget.style.background = '#0f1930'} onMouseLeave={e => e.currentTarget.style.background = '#131e33'}>
       <span style={s.acaoBtnIcon}>{icone}</span>
       <div>
         <div style={s.acaoBtnTitulo}>{titulo}</div>
@@ -388,7 +388,7 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
         onChange={e => { setValor(e.target.value); setSelecionado(null) }}
         autoFocus
       />
-      {buscando && <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>Buscando...</div>}
+      {buscando && <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>Buscando...</div>}
       {resultados.length > 0 && (
         <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 10 }}>
           {resultados.map(c => (
@@ -396,11 +396,11 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
               key={c.id}
               onClick={() => { setSelecionado(c); setValor(c.nome) }}
               style={{ ...s.candidato }}
-              onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-              onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+              onMouseEnter={e => e.currentTarget.style.background = '#0f1930'}
+              onMouseLeave={e => e.currentTarget.style.background = '#131e33'}
             >
               <div style={{ fontWeight: 500 }}>{c.nome}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>
+              <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                 {formatCPF(c.cpf)} • {c.status}
               </div>
             </div>
@@ -465,9 +465,9 @@ function ModalCancelar({ onClose, onSucesso, setorResp }) {
         <label style={s.label}>Cliente</label>
         <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
         {cliente && (
-          <div style={{ ...s.card, background: '#E6F1FB', borderColor: '#185FA5', marginBottom: 12, padding: '8px 10px' }}>
+          <div style={{ ...s.card, background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa', marginBottom: 12, padding: '8px 10px' }}>
             <div style={{ fontWeight: 500, fontSize: 13 }}>{cliente.nome}</div>
-            <div style={{ fontSize: 11, color: '#666' }}>{formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b></div>
+            <div style={{ fontSize: 11, color: '#8b9bb4' }}>{formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b></div>
           </div>
         )}
 
@@ -701,7 +701,7 @@ function ModalMudarStatus({ onClose, onSucesso, setorResp }) {
     <div style={s.modalBg} onClick={onClose}>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
         <div style={s.modalTitulo}>🛠️ Mudar status (override)</div>
-        <div style={{ ...s.msgErro, background: '#FAEEDA', color: '#854F0B' }}>
+        <div style={{ ...s.msgErro, background: 'rgba(251,191,36,.12)', color: '#fbbf24' }}>
           ⚠️ Use só pra casos especiais. Toda mudança fica registrada com seu nome.
         </div>
         {erro && <div style={s.msgErro}>{erro}</div>}
@@ -709,7 +709,7 @@ function ModalMudarStatus({ onClose, onSucesso, setorResp }) {
         <label style={s.label}>Cliente</label>
         <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
         {cliente && (
-          <div style={{ fontSize: 11, color: '#666', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 10 }}>
             Status atual: <b>{cliente.status}</b>
           </div>
         )}

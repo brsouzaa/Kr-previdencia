@@ -114,54 +114,54 @@ function sugestaoPara(lead) {
 }
 
 const CORES = {
-  vermelho: { border: '1px solid #A32D2D', background: '#FEF6F6' },
-  amarelo: { border: '1px solid #C88A00', background: '#FFFBEB' },
-  frio: { border: '0.5px solid rgba(0,0,0,0.12)', background: '#F3F4F6', opacity: 0.8 },
-  verde: { border: '0.5px solid #3B6D1140', background: '#F2F8EC' },
-  normal: { border: '0.5px solid rgba(0,0,0,0.1)', background: '#fff' },
+  vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
+  amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
+  frio: { border: '0.5px solid rgba(148,163,184,0.16)', background: '#1a2742', opacity: 0.8 },
+  verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
+  normal: { border: '0.5px solid rgba(148,163,184,0.14)', background: '#131e33' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#888', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
   topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)', background: '#fff', color: '#666', cursor: 'pointer' },
-  chipOn: { background: '#A32D2D', color: '#fff', borderColor: '#A32D2D' },
-  kpi: { fontSize: 13, color: '#555', padding: '6px 12px', background: '#F4F8FC', borderRadius: 8 },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
+  chipOn: { background: '#f87171', color: '#131e33', borderColor: '#f87171' },
+  kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 230, maxWidth: 230, background: '#F4F5F7', borderRadius: 10, padding: 8, flexShrink: 0 },
-  colTitulo: { fontSize: 12, fontWeight: 600, color: '#555', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
+  col: { minWidth: 230, maxWidth: 230, background: '#1a2742', borderRadius: 10, padding: 8, flexShrink: 0 },
+  colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
-  cardNome: { fontSize: 13, fontWeight: 600, color: '#111' },
-  cardMeta: { fontSize: 11, color: '#888', marginTop: 2 },
-  tagTrat: { fontSize: 10, background: '#DFF3E0', color: '#256B2E', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagTratSup: { fontSize: 10, background: '#E0ECFF', color: '#185FA5', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagNinguem: { fontSize: 10, background: '#F3E6E6', color: '#A32D2D', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagRespondeu: { fontSize: 10, background: '#FFF3DC', color: '#B26B00', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
+  cardMeta: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#fbbf24', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#F8FAFC', borderRadius: 10, padding: 12, marginBottom: 12 },
-  destaque: { gridColumn: '1 / -1', background: '#FFF7E6', border: '1px solid #C88A0040', borderRadius: 8, padding: '8px 10px', fontSize: 13, fontWeight: 600 },
+  modal: { background: '#131e33', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#0f1930', borderRadius: 10, padding: 12, marginBottom: 12 },
+  destaque: { gridColumn: '1 / -1', background: 'rgba(251,191,36,.12)', border: '1px solid #C88A0040', borderRadius: 8, padding: '8px 10px', fontSize: 13, fontWeight: 600 },
   anexoBox: { marginBottom: 12 },
-  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 },
+  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 },
   anexoRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.15)' },
-  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#F4F8FC', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, fontSize: 12, color: '#185FA5', textDecoration: 'none', fontWeight: 500 },
-  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#F1F1F1', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
-  msgAna: { alignSelf: 'flex-end', background: '#EAF3DE', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
-  textarea: { width: '100%', minHeight: 80, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.2)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' },
-  btnEnviar: { width: '100%', padding: 12, background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
-  btnAprovar: { flex: 1, padding: 12, background: '#3B6D11', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnReprovar: { flex: 1, padding: 12, background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnAvancar: { flex: 1, padding: 12, background: '#185FA5', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnVoltar: { flex: 1, padding: 12, background: '#fff', color: '#666', border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnFechar: { padding: '9px 12px', background: '#fff', color: '#888', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
-  btnNegar: { padding: '9px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  seloMaquina: { marginTop: 6, display: 'inline-block', padding: '2px 8px', background: '#EAF2FB', color: '#185FA5', border: '0.5px solid rgba(24,95,165,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600 },
-  painelMotivos: { marginTop: 8, padding: 12, background: '#FAFAFA', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10 },
+  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' },
+  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'rgba(96,165,250,.10)', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 8, fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
+  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#1a2742', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  textarea: { width: '100%', minHeight: 80, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.45)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' },
+  btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#131e33', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
+  btnAprovar: { flex: 1, padding: 12, background: '#34d399', color: '#131e33', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnReprovar: { flex: 1, padding: 12, background: '#f87171', color: '#131e33', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnAvancar: { flex: 1, padding: 12, background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnVoltar: { flex: 1, padding: 12, background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnFechar: { padding: '9px 12px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+  btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  seloMaquina: { marginTop: 6, display: 'inline-block', padding: '2px 8px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(96,165,250,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600 },
+  painelMotivos: { marginTop: 8, padding: 12, background: '#0f1930', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  btnMotivo: { padding: '9px 10px', background: '#fff', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
+  btnMotivo: { padding: '9px 10px', background: '#131e33', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
 }
 
 export default function RevisaoIARetroativo() {
@@ -434,7 +434,7 @@ export default function RevisaoIARetroativo() {
           const podeSoltar = col !== 'OUTROS'
           return (
             <div key={col}
-              style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #185FA5' } : {}) }}
+              style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #60a5fa' } : {}) }}
               onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
               onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
               <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && !veTodasColunas && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
@@ -493,7 +493,7 @@ export default function RevisaoIARetroativo() {
                 📎 Anexos {carregandoAnexos ? '(carregando...)' : `(${anexos.length})`}
               </div>
               {!carregandoAnexos && anexos.length === 0 && (
-                <div style={{ fontSize: 12, color: '#aaa' }}>Nenhum anexo nesta conversa.</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>Nenhum anexo nesta conversa.</div>
               )}
               <div style={s.anexoRow}>
                 {anexos.map((a, i) => (
@@ -513,17 +513,17 @@ export default function RevisaoIARetroativo() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               {lead.bf_em_tratamento ? (
                 <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: '#FBECEC', color: '#B23B3B', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
                   onClick={() => soltarTratamento(lead)}
                 >✋ Soltar (não estou mais nesse)</button>
               ) : (
                 <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: '#EAF5E1', color: '#3B6D11', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
                   onClick={() => marcarTratando(lead)}
                 >🙋 Estou nesse</button>
               )}
               {lead.bf_em_tratamento && lead.cliente_respondeu && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#B26B00', background: '#FFF3DC', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24', background: 'rgba(251,191,36,.12)', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
               )}
             </div>
 
@@ -531,7 +531,7 @@ export default function RevisaoIARetroativo() {
               <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Negar / Não quis</button>
               {mostrarMotivosNegar && (
                 <div style={s.painelMotivos}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8 }}>Por que está negando? (não mexe no CNIS)</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#8b9bb4', marginBottom: 8 }}>Por que está negando? (não mexe no CNIS)</div>
                   <div style={s.motivosGrid}>
                     {MOTIVOS_NEGAR.map(([codigo, texto]) => (
                       <button key={codigo} style={s.btnMotivo} onClick={() => negarLead(lead.id, texto)}>{texto}</button>
@@ -542,11 +542,11 @@ export default function RevisaoIARetroativo() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>
-                💬 Conversa <span style={{ color: '#3B6D11', fontWeight: 500 }}>· atualiza sozinha</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4' }}>
+                💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span>
               </span>
               <button
-                style={{ fontSize: 11, padding: '4px 10px', background: '#F4F8FC', color: '#185FA5', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
+                style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => recarregarConversa(lead, true)}
                 disabled={atualizandoConversa}
               >
@@ -554,7 +554,7 @@ export default function RevisaoIARetroativo() {
               </button>
             </div>
             <div style={s.msgs}>
-              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>Sem mensagens.</div>}
+              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
               {mensagens.map((m, i) => (
                 <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content || '—'}</div>
               ))}
@@ -569,7 +569,7 @@ export default function RevisaoIARetroativo() {
 
             {lead.estado === 'COLETANDO_CADASTRO' && (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Mover etapa do cadastro na mão (não aciona a IA):</div>
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4 }}>Mover etapa do cadastro na mão (não aciona a IA):</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button style={s.btnVoltar} disabled={enviando} onClick={() => avancarEtapa('voltar')}>← Voltar</button>
                   <button style={s.btnAvancar} disabled={enviando} onClick={() => avancarEtapa('proximo')}>Próxima etapa →</button>

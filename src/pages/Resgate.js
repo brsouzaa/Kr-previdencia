@@ -15,36 +15,36 @@ const MOTIVO_LABEL = {
 }
 
 const STATUS_STYLE = {
-  em_andamento: { background: '#FFF8E7', color: '#854F0B', label: 'Em andamento' },
-  recuperado: { background: '#EAF3DE', color: '#3B6D11', label: 'Recuperado' },
-  realocado: { background: '#E6F1FB', color: '#185FA5', label: 'Realocado' },
-  virou_reposicao: { background: '#F1EFE8', color: '#5F5E5A', label: 'Virou reposição' },
-  perdido: { background: '#FCEBEB', color: '#A32D2D', label: 'Perdido' },
+  em_andamento: { background: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Em andamento' },
+  recuperado: { background: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Recuperado' },
+  realocado: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'Realocado' },
+  virou_reposicao: { background: '#1a2742', color: '#8b9bb4', label: 'Virou reposição' },
+  perdido: { background: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Perdido' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4, letterSpacing: '-0.3px' },
-  subtitle: { fontSize: 13, color: '#888', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(0,0,0,0.1)', flexWrap: 'wrap' },
-  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
-  tabActive: { color: '#0F6E56', borderBottomColor: '#0F6E56' },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
+  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)', flexWrap: 'wrap' },
+  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
+  tabActive: { color: '#34d399', borderBottomColor: '#34d399' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 },
-  nome: { fontSize: 15, fontWeight: 500, color: '#111' },
-  meta: { fontSize: 12, color: '#888', marginTop: 2 },
+  nome: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
+  meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
   status: { fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500 },
-  motivoBox: { background: '#FBFAF7', border: '0.5px solid rgba(0,0,0,0.07)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13, color: '#555' },
+  motivoBox: { background: 'rgba(251,191,36,.12)', border: '0.5px solid rgba(0,0,0,0.07)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13, color: '#8b9bb4' },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   btn: { padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid' },
-  btnRecup: { background: '#EAF3DE', color: '#3B6D11', borderColor: '#3B6D11' },
-  btnRealoc: { background: '#E6F1FB', color: '#185FA5', borderColor: '#185FA5' },
-  btnRepos: { background: '#F1EFE8', color: '#5F5E5A', borderColor: '#888' },
-  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
-  loading: { textAlign: 'center', padding: '3rem', color: '#888', fontSize: 14 },
+  btnRecup: { background: 'rgba(52,211,153,.14)', color: '#34d399', borderColor: '#34d399' },
+  btnRealoc: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', borderColor: '#60a5fa' },
+  btnRepos: { background: '#1a2742', color: '#8b9bb4', borderColor: '#8b9bb4' },
+  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: 13 },
+  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
   metricRow: { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 },
-  metricCard: { background: '#FBFAF7', borderRadius: 10, padding: '0.85rem 1.1rem', minWidth: 130, border: '0.5px solid rgba(0,0,0,0.06)' },
+  metricCard: { background: 'rgba(251,191,36,.12)', borderRadius: 10, padding: '0.85rem 1.1rem', minWidth: 130, border: '0.5px solid rgba(148,163,184,0.10)' },
   metricNum: { fontSize: 24, fontWeight: 600 },
-  metricLabel: { fontSize: 11, color: '#9a9a96', marginTop: 2 },
+  metricLabel: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
 }
 
 export default function Resgate() {
@@ -162,19 +162,19 @@ export default function Resgate() {
       {metricas && (
         <div style={s.metricRow}>
           <div style={s.metricCard}>
-            <div style={{ ...s.metricNum, color: '#854F0B' }}>{metricas.em_andamento || 0}</div>
+            <div style={{ ...s.metricNum, color: '#fbbf24' }}>{metricas.em_andamento || 0}</div>
             <div style={s.metricLabel}>em andamento</div>
           </div>
           <div style={s.metricCard}>
-            <div style={{ ...s.metricNum, color: '#3B6D11' }}>{metricas.recuperados || 0}</div>
+            <div style={{ ...s.metricNum, color: '#34d399' }}>{metricas.recuperados || 0}</div>
             <div style={s.metricLabel}>recuperados no mês</div>
           </div>
           <div style={s.metricCard}>
-            <div style={{ ...s.metricNum, color: '#A32D2D' }}>{metricas.falharam || 0}</div>
+            <div style={{ ...s.metricNum, color: '#f87171' }}>{metricas.falharam || 0}</div>
             <div style={s.metricLabel}>viraram reposição</div>
           </div>
           <div style={s.metricCard}>
-            <div style={{ ...s.metricNum, color: '#0F6E56' }}>{metricas.taxa_recuperacao_pct != null ? metricas.taxa_recuperacao_pct + '%' : '—'}</div>
+            <div style={{ ...s.metricNum, color: '#34d399' }}>{metricas.taxa_recuperacao_pct != null ? metricas.taxa_recuperacao_pct + '%' : '—'}</div>
             <div style={s.metricLabel}>taxa de recuperação</div>
           </div>
         </div>
@@ -219,14 +219,14 @@ export default function Resgate() {
               )}
 
               {reg.status === 'em_andamento' && realocando?.id === reg.id && (
-                <div style={{ background: '#F4F8FC', border: '0.5px solid #185FA530', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 12, color: '#185FA5', fontWeight: 500, marginBottom: 6 }}>Com qual advogado o cliente assinou?</div>
+                <div style={{ background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA530', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 12, color: '#60a5fa', fontWeight: 500, marginBottom: 6 }}>Com qual advogado o cliente assinou?</div>
                   {!advSel && (
                     <>
-                      <input style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
+                      <input style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
                         value={advBusca} onChange={e => setAdvBusca(e.target.value)} placeholder="Buscar advogado (3+ letras)…" autoFocus />
                       {advLista.map(a => (
-                        <div key={a.id} onClick={() => setAdvSel(a)} style={{ padding: '7px 10px', borderRadius: 6, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.08)', marginBottom: 5, fontSize: 13 }}>
+                        <div key={a.id} onClick={() => setAdvSel(a)} style={{ padding: '7px 10px', borderRadius: 6, cursor: 'pointer', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 5, fontSize: 13 }}>
                           {a.nome_completo}{a.oab ? ` · OAB ${a.oab}` : ''}
                         </div>
                       ))}
@@ -235,7 +235,7 @@ export default function Resgate() {
                   {advSel && <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>→ {advSel.nome_completo}</div>}
                   <div style={s.actions}>
                     <button style={{ ...s.btn, ...s.btnRealoc }} disabled={acao === reg.id || !advSel} onClick={confirmarRealocacao}>Confirmar realocação</button>
-                    <button style={{ ...s.btn, background: '#f3f3f3', color: '#666', borderColor: '#ccc' }} onClick={() => { setRealocando(null); setAdvSel(null); setAdvBusca('') }}>Cancelar</button>
+                    <button style={{ ...s.btn, background: '#1a2742', color: '#8b9bb4', borderColor: '#64748b' }} onClick={() => { setRealocando(null); setAdvSel(null); setAdvBusca('') }}>Cancelar</button>
                   </div>
                 </div>
               )}

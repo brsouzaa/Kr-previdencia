@@ -22,8 +22,8 @@ export default function PerformanceIA() {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Carregando...</div>
-  if (!dados) return <div style={{ padding: 40, textAlign: 'center', color: '#A32D2D' }}>Erro ao carregar métricas</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#8b9bb4' }}>Carregando...</div>
+  if (!dados) return <div style={{ padding: 40, textAlign: 'center', color: '#f87171' }}>Erro ao carregar métricas</div>
 
   const { ia, humano, comparativo } = dados
 
@@ -32,9 +32,9 @@ export default function PerformanceIA() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24 }}>📈 Performance IA</h1>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Acompanhe a performance da IA e compare com vendedoras humanas.</div>
+          <div style={{ fontSize: 13, color: '#8b9bb4', marginTop: 4 }}>Acompanhe a performance da IA e compare com vendedoras humanas.</div>
         </div>
-        <div style={{ display: 'flex', gap: 4, background: '#fff', padding: 4, borderRadius: 6, border: '1px solid rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: 4, background: '#131e33', padding: 4, borderRadius: 6, border: '1px solid rgba(148,163,184,0.12)' }}>
           {[
             { v: 'hoje', label: 'Hoje' },
             { v: '7d', label: '7 dias' },
@@ -44,8 +44,8 @@ export default function PerformanceIA() {
             <button key={p.v} onClick={() => setPeriodo(p.v)}
               style={{
                 padding: '6px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-                background: periodo === p.v ? '#185FA5' : 'transparent',
-                color: periodo === p.v ? '#fff' : '#666',
+                background: periodo === p.v ? '#60a5fa' : 'transparent',
+                color: periodo === p.v ? '#131e33' : '#8b9bb4',
                 fontWeight: periodo === p.v ? 600 : 400,
               }}>
               {p.label}
@@ -56,25 +56,25 @@ export default function PerformanceIA() {
 
       {/* Taxas principais */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <CardGrande label="Taxa Assinatura IA" valor={`${ia.taxa_assinatura}%`} sub={`${ia.funil.assinados}/${ia.funil.emitidos} emitidos`} cor="#185FA5" />
-        <CardGrande label="Aprovação Agatha" valor={`${ia.taxa_aprovacao_agatha}%`} sub={`${ia.funil.validados_agatha} validados`} cor="#3B6D11" />
-        <CardGrande label="Reprovação Agatha" valor={`${ia.taxa_reprovacao_agatha}%`} sub={`${ia.funil.barrados_agatha} barrados`} cor="#A32D2D" />
-        <CardGrande label="Conclusão IA" valor={`${ia.taxa_conclusao}%`} sub={`${ia.funil.entregues} entregues`} cor="#854F0B" />
+        <CardGrande label="Taxa Assinatura IA" valor={`${ia.taxa_assinatura}%`} sub={`${ia.funil.assinados}/${ia.funil.emitidos} emitidos`} cor="#60a5fa" />
+        <CardGrande label="Aprovação Agatha" valor={`${ia.taxa_aprovacao_agatha}%`} sub={`${ia.funil.validados_agatha} validados`} cor="#34d399" />
+        <CardGrande label="Reprovação Agatha" valor={`${ia.taxa_reprovacao_agatha}%`} sub={`${ia.funil.barrados_agatha} barrados`} cor="#f87171" />
+        <CardGrande label="Conclusão IA" valor={`${ia.taxa_conclusao}%`} sub={`${ia.funil.entregues} entregues`} cor="#fbbf24" />
       </div>
 
       {/* Funil IA */}
-      <div style={{ background: '#fff', padding: 20, borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', marginBottom: 20 }}>
+      <div style={{ background: '#131e33', padding: 20, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)', marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, margin: '0 0 16px 0' }}>🤖 Funil da IA</h2>
         <Funil etapas={[
-          { label: 'Cadastrados', valor: ia.funil.cadastrados, cor: '#185FA5' },
-          { label: 'Emitidos', valor: ia.funil.emitidos, cor: '#185FA5' },
-          { label: 'Assinados', valor: ia.funil.assinados, cor: '#3B6D11' },
-          { label: 'Em revisão Agatha', valor: ia.funil.em_revisao_agatha, cor: '#854F0B' },
-          { label: 'Validados Agatha', valor: ia.funil.validados_agatha, cor: '#3B6D11' },
-          { label: 'Validados Sthefany', valor: ia.funil.validados_sthefany, cor: '#3B6D11' },
-          { label: 'Entregues', valor: ia.funil.entregues, cor: '#3B6D11' },
+          { label: 'Cadastrados', valor: ia.funil.cadastrados, cor: '#60a5fa' },
+          { label: 'Emitidos', valor: ia.funil.emitidos, cor: '#60a5fa' },
+          { label: 'Assinados', valor: ia.funil.assinados, cor: '#34d399' },
+          { label: 'Em revisão Agatha', valor: ia.funil.em_revisao_agatha, cor: '#fbbf24' },
+          { label: 'Validados Agatha', valor: ia.funil.validados_agatha, cor: '#34d399' },
+          { label: 'Validados Sthefany', valor: ia.funil.validados_sthefany, cor: '#34d399' },
+          { label: 'Entregues', valor: ia.funil.entregues, cor: '#34d399' },
         ]} total={ia.funil.cadastrados} />
-        <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.05)', fontSize: 12, color: '#888' }}>
+        <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148,163,184,0.08)', fontSize: 12, color: '#8b9bb4' }}>
           <span>❌ Expirados: <strong>{ia.funil.expirados}</strong></span>
           <span>🚫 Barrados Agatha: <strong>{ia.funil.barrados_agatha}</strong></span>
           <span>🗑 Cancelados: <strong>{ia.funil.cancelados}</strong></span>
@@ -83,7 +83,7 @@ export default function PerformanceIA() {
 
       {/* Motivos de barragem */}
       {ia.motivos_barragem && ia.motivos_barragem.length > 0 && (
-        <div style={{ background: '#fff', padding: 20, borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', marginBottom: 20 }}>
+        <div style={{ background: '#131e33', padding: 20, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)', marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, margin: '0 0 16px 0' }}>🚫 Motivos de barragem (Agatha)</h2>
           {ia.motivos_barragem.map((m, i) => {
             const total = ia.motivos_barragem.reduce((s, x) => s + x.qtd, 0)
@@ -92,10 +92,10 @@ export default function PerformanceIA() {
               <div key={i} style={{ marginBottom: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 2 }}>
                   <span>{labelMotivo(m.motivo)}</span>
-                  <span style={{ color: '#888' }}>{m.qtd} ({pct}%)</span>
+                  <span style={{ color: '#8b9bb4' }}>{m.qtd} ({pct}%)</span>
                 </div>
-                <div style={{ height: 8, background: '#f0f0ee', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: '#A32D2D' }} />
+                <div style={{ height: 8, background: '#1a2742', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: '#f87171' }} />
                 </div>
               </div>
             )
@@ -104,11 +104,11 @@ export default function PerformanceIA() {
       )}
 
       {/* Comparativo IA vs Humano */}
-      <div style={{ background: '#fff', padding: 20, borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)' }}>
+      <div style={{ background: '#131e33', padding: 20, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)' }}>
         <h2 style={{ fontSize: 16, margin: '0 0 16px 0' }}>⚔️ IA vs Vendedoras Humanas</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.1)', textAlign: 'left' }}>
+            <tr style={{ borderBottom: '2px solid rgba(148,163,184,0.14)', textAlign: 'left' }}>
               <th style={{ padding: 8 }}>Métrica</th>
               <th style={{ padding: 8, textAlign: 'right' }}>🤖 IA</th>
               <th style={{ padding: 8, textAlign: 'right' }}>👩 Humanas</th>
@@ -116,41 +116,41 @@ export default function PerformanceIA() {
             </tr>
           </thead>
           <tbody>
-            <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.08)' }}>
               <td style={{ padding: 8 }}>Cadastrados</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{ia.funil.cadastrados}</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{humano.funil.cadastrados}</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#888' }}>—</td>
+              <td style={{ padding: 8, textAlign: 'right', color: '#8b9bb4' }}>—</td>
             </tr>
-            <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.08)' }}>
               <td style={{ padding: 8 }}>Assinados</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{ia.funil.assinados}</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{humano.funil.assinados}</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#888' }}>—</td>
+              <td style={{ padding: 8, textAlign: 'right', color: '#8b9bb4' }}>—</td>
             </tr>
-            <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.08)' }}>
               <td style={{ padding: 8 }}>Validados</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{ia.funil.validados_sthefany}</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{humano.funil.validados}</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#888' }}>—</td>
+              <td style={{ padding: 8, textAlign: 'right', color: '#8b9bb4' }}>—</td>
             </tr>
-            <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.08)' }}>
               <td style={{ padding: 8 }}>Entregues</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{ia.funil.entregues}</td>
               <td style={{ padding: 8, textAlign: 'right' }}>{humano.funil.entregues}</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#888' }}>—</td>
+              <td style={{ padding: 8, textAlign: 'right', color: '#8b9bb4' }}>—</td>
             </tr>
-            <tr style={{ background: '#f8f8f6', fontWeight: 600 }}>
+            <tr style={{ background: '#0d1526', fontWeight: 600 }}>
               <td style={{ padding: 8 }}>Taxa de conclusão</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#185FA5' }}>{ia.taxa_conclusao}%</td>
-              <td style={{ padding: 8, textAlign: 'right', color: '#888' }}>{humano.taxa_conclusao}%</td>
-              <td style={{ padding: 8, textAlign: 'right', color: comparativo.ia_vs_humano_conclusao_pp >= 0 ? '#3B6D11' : '#A32D2D' }}>
+              <td style={{ padding: 8, textAlign: 'right', color: '#60a5fa' }}>{ia.taxa_conclusao}%</td>
+              <td style={{ padding: 8, textAlign: 'right', color: '#8b9bb4' }}>{humano.taxa_conclusao}%</td>
+              <td style={{ padding: 8, textAlign: 'right', color: comparativo.ia_vs_humano_conclusao_pp >= 0 ? '#34d399' : '#f87171' }}>
                 {comparativo.ia_vs_humano_conclusao_pp >= 0 ? '+' : ''}{comparativo.ia_vs_humano_conclusao_pp}pp
               </td>
             </tr>
           </tbody>
         </table>
-        <div style={{ fontSize: 12, color: '#888', marginTop: 12, padding: 8, background: '#f8f8f6', borderRadius: 4 }}>
+        <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 12, padding: 8, background: '#0d1526', borderRadius: 4 }}>
           ℹ️ Comparação ainda preliminar — IA tem poucos dias rodando. Aguarde 30+ dias pra conclusão estatística confiável.
         </div>
       </div>
@@ -160,10 +160,10 @@ export default function PerformanceIA() {
 
 function CardGrande({ label, valor, sub, cor }) {
   return (
-    <div style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)' }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
+    <div style={{ background: '#131e33', padding: 16, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)' }}>
+      <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 32, fontWeight: 700, color: cor, marginTop: 4 }}>{valor}</div>
-      <div style={{ fontSize: 11, color: '#888' }}>{sub}</div>
+      <div style={{ fontSize: 11, color: '#8b9bb4' }}>{sub}</div>
     </div>
   )
 }
@@ -176,10 +176,10 @@ function Funil({ etapas, total }) {
         const largura = total > 0 ? Math.max(8, (e.valor / total) * 100) : 0
         return (
           <div key={i} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 160, fontSize: 12, color: '#666' }}>{e.label}</div>
-            <div style={{ flex: 1, height: 24, background: '#f0f0ee', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ width: 160, fontSize: 12, color: '#8b9bb4' }}>{e.label}</div>
+            <div style={{ flex: 1, height: 24, background: '#1a2742', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
               <div style={{ height: '100%', width: `${largura}%`, background: e.cor, transition: 'width 0.3s' }} />
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 8, fontSize: 12, fontWeight: 600, color: largura > 30 ? '#fff' : '#222' }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 8, fontSize: 12, fontWeight: 600, color: largura > 30 ? '#131e33' : '#222' }}>
                 {e.valor} {total > 0 && `(${pct}%)`}
               </div>
             </div>

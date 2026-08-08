@@ -11,12 +11,12 @@ const TIPOS_DOC = [
 ]
 
 const s = {
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
-  cardUrgente: { background: '#fff', border: '1.5px solid #A32D2D', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(163,45,45,0.06)' },
-  metricCard: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: 14, textAlign: 'center' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardUrgente: { background: '#131e33', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.06)' },
+  metricCard: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 12, padding: 14, textAlign: 'center' },
   filtroChip: (ativo, cor, bg) => ({
     padding: '6px 12px', fontSize: 12, borderRadius: 16,
-    background: ativo ? cor : bg, color: ativo ? '#fff' : cor,
+    background: ativo ? cor : bg, color: ativo ? '#131e33' : cor,
     border: `1px solid ${cor}40`, cursor: 'pointer', fontWeight: 500,
   }),
   badge: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
@@ -153,18 +153,18 @@ export default function Devolucoes() {
     alert('Mensagem copiada! Cole no WhatsApp da ' + (c.vendedor?.nome || 'vendedora'))
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
   return (
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>
             ⚠️ {profile?.role === 'vendedor_operador' ? 'Meus devolvidos' :
                  profile?.role === 'vendedor' ? 'Devoluções dos meus lotes' :
                  'Devoluções'}
           </div>
-          <div style={{ fontSize: 13, color: '#888' }}>
+          <div style={{ fontSize: 13, color: '#8b9bb4' }}>
             {profile?.role === 'vendedor_operador'
               ? `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} pra você corrigir`
               : profile?.role === 'vendedor'
@@ -172,7 +172,7 @@ export default function Devolucoes() {
                 : `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} aguardando correção pelo vendedor`}
           </div>
         </div>
-        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, cursor: 'pointer', color: '#555' }}>
+        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
           ↻ Atualizar
         </button>
       </div>
@@ -180,31 +180,31 @@ export default function Devolucoes() {
       {/* === MÉTRICAS === */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
         <div style={s.metricCard}>
-          <div style={{ fontSize: 11, color: '#854F0B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Correção doc</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: '#854F0B' }}>{totais.correcao_doc}</div>
+          <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Correção doc</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: '#fbbf24' }}>{totais.correcao_doc}</div>
         </div>
         <div style={s.metricCard}>
-          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Reemissão</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: '#A32D2D' }}>{totais.reemissao}</div>
+          <div style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Reemissão</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: '#f87171' }}>{totais.reemissao}</div>
         </div>
         <div style={s.metricCard}>
-          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>⏰ Urgentes &lt;6h</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: totais.vencidas24h > 0 ? '#A32D2D' : '#aaa' }}>{totais.vencidas24h}</div>
+          <div style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>⏰ Urgentes &lt;6h</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: totais.vencidas24h > 0 ? '#f87171' : '#64748b' }}>{totais.vencidas24h}</div>
         </div>
         <div style={s.metricCard}>
-          <div style={{ fontSize: 11, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Total devoluções</div>
-          <div style={{ fontSize: 26, fontWeight: 500, color: '#185FA5' }}>{totais.todos}</div>
+          <div style={{ fontSize: 11, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Total devoluções</div>
+          <div style={{ fontSize: 26, fontWeight: 500, color: '#60a5fa' }}>{totais.todos}</div>
         </div>
       </div>
 
       {/* === TOP 3 VENDEDORAS COM MAIS DEVOLUÇÕES === */}
       {top3.length > 0 && top3[0][1].count > 1 && (
-        <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 10 }}>🎯 Vendedoras com mais devoluções pendentes</div>
+        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 14, padding: '1rem', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 10 }}>🎯 Vendedoras com mais devoluções pendentes</div>
           {top3.map(([id, info]) => (
-            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '0.5px solid rgba(0,0,0,0.05)' }}>
-              <div style={{ fontSize: 13, color: '#555' }}>{info.nome}</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: info.count >= 3 ? '#A32D2D' : '#854F0B' }}>
+            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '0.5px solid rgba(148,163,184,0.08)' }}>
+              <div style={{ fontSize: 13, color: '#8b9bb4' }}>{info.nome}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: info.count >= 3 ? '#f87171' : '#fbbf24' }}>
                 {info.count} devolução{info.count !== 1 ? 'ões' : ''}
               </div>
             </div>
@@ -213,18 +213,18 @@ export default function Devolucoes() {
       )}
 
       {/* === BUSCA E FILTROS === */}
-      <input style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
+      <input style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
         placeholder="🔍 Buscar por cliente, CPF ou vendedora..."
         value={busca} onChange={e => setBusca(e.target.value)} />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-        <button style={s.filtroChip(filtroTipo === 'todos', '#185FA5', '#E6F1FB')} onClick={() => setFiltroTipo('todos')}>
+        <button style={s.filtroChip(filtroTipo === 'todos', '#60a5fa', 'rgba(96,165,250,.12)')} onClick={() => setFiltroTipo('todos')}>
           Todos · {totais.todos}
         </button>
-        <button style={s.filtroChip(filtroTipo === 'correcao_doc', '#854F0B', '#FAEEDA')} onClick={() => setFiltroTipo('correcao_doc')}>
+        <button style={s.filtroChip(filtroTipo === 'correcao_doc', '#fbbf24', 'rgba(251,191,36,.12)')} onClick={() => setFiltroTipo('correcao_doc')}>
           🔁 Correção doc · {totais.correcao_doc}
         </button>
-        <button style={s.filtroChip(filtroTipo === 'reemissao', '#A32D2D', '#FCEBEB')} onClick={() => setFiltroTipo('reemissao')}>
+        <button style={s.filtroChip(filtroTipo === 'reemissao', '#f87171', 'rgba(248,113,113,.14)')} onClick={() => setFiltroTipo('reemissao')}>
           🔄 Reemissão · {totais.reemissao}
         </button>
       </div>
@@ -232,7 +232,7 @@ export default function Devolucoes() {
       {vendedoras.length > 1 && (
         <div style={{ marginBottom: 16 }}>
           <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
-            style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.2)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
+            style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', cursor: 'pointer' }}>
             <option value="todos">Todas as vendedoras ({clientes.length})</option>
             {vendedoras.map(v => {
               const count = clientes.filter(c => c.vendedor_operador_id === v.id).length
@@ -244,7 +244,7 @@ export default function Devolucoes() {
 
       {/* === LISTA === */}
       {filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#888', background: '#fff', borderRadius: 14, border: '0.5px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
           ✅ {clientes.length === 0 ? 'Nenhuma devolução pendente.' : 'Nenhum resultado com esses filtros.'}
         </div>
       ) : filtrados.map(c => {
@@ -259,36 +259,36 @@ export default function Devolucoes() {
           <div key={c.id} style={urgente ? s.cardUrgente : s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{c.nome}</div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{c.nome}</div>
+                <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 2 }}>
                   {c.cpf} · {c.telefone} · {c.cidade}/{c.uf}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <span style={s.badge(
-                  ehReemissao ? '#A32D2D' : '#854F0B',
-                  ehReemissao ? '#FCEBEB' : '#FAEEDA'
+                  ehReemissao ? '#f87171' : '#fbbf24',
+                  ehReemissao ? 'rgba(248,113,113,.14)' : 'rgba(251,191,36,.12)'
                 )}>
                   {ehReemissao ? '🔄 Reemissão' : '🔁 Correção doc'}
                 </span>
                 {restante?.vencido && (
-                  <span style={s.badge('#fff', '#A32D2D')}>⚠️ VENCIDO 24h — vai cancelar</span>
+                  <span style={s.badge('#131e33', '#f87171')}>⚠️ VENCIDO 24h — vai cancelar</span>
                 )}
                 {restante && !restante.vencido && restante.horas < 6 && (
-                  <span style={s.badge('#A32D2D', '#FCEBEB')}>⏰ Restam {restante.horas}h{restante.minutos}min</span>
+                  <span style={s.badge('#f87171', 'rgba(248,113,113,.14)')}>⏰ Restam {restante.horas}h{restante.minutos}min</span>
                 )}
                 {ehReemissao && dias >= 3 && (
-                  <span style={s.badge('#A32D2D', '#FCEBEB')}>🚨 {dias}d parado</span>
+                  <span style={s.badge('#f87171', 'rgba(248,113,113,.14)')}>🚨 {dias}d parado</span>
                 )}
               </div>
             </div>
 
-            <div style={{ background: '#FCEBEB', borderRadius: 6, padding: 10, marginBottom: 8, fontSize: 12, color: '#A32D2D' }}>
+            <div style={{ background: 'rgba(248,113,113,.14)', borderRadius: 6, padding: 10, marginBottom: 8, fontSize: 12, color: '#f87171' }}>
               <div style={{ fontWeight: 500, marginBottom: 2 }}>💬 Motivo:</div>
               "{c.motivo_devolucao || '— sem motivo registrado —'}"
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, color: '#888', marginBottom: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>
               <span><strong>Vendedora:</strong> {c.vendedor?.nome || '—'}</span>
               <span><strong>Devolvido por:</strong> {c.analista?.nome || '—'}</span>
               <span><strong>Quando:</strong> {tempoRelativo(c.devolvido_em)}</span>
@@ -296,19 +296,19 @@ export default function Devolucoes() {
             </div>
 
             <button onClick={() => setVerDocsId(verDocs ? null : c.id)}
-              style={{ fontSize: 12, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
+              style={{ fontSize: 12, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 8 }}>
               📎 {verDocs ? 'Esconder documentos' : 'Ver documentos'}
             </button>
 
             {verDocs && (
-              <div style={{ background: '#fafaf8', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+              <div style={{ background: '#0f1930', borderRadius: 6, padding: 10, marginBottom: 8 }}>
                 {TIPOS_DOC.map(tipo => (
                   <div key={tipo.chave} style={{ marginBottom: 4, fontSize: 12 }}>
-                    <span style={{ color: '#555' }}>{tipo.label}: </span>
+                    <span style={{ color: '#8b9bb4' }}>{tipo.label}: </span>
                     {docs[tipo.chave] ? (
-                      <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#185FA5', textDecoration: 'underline' }}>✓ abrir</a>
+                      <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>✓ abrir</a>
                     ) : (
-                      <span style={{ color: '#aaa' }}>— não anexado</span>
+                      <span style={{ color: '#64748b' }}>— não anexado</span>
                     )}
                   </div>
                 ))}
@@ -317,7 +317,7 @@ export default function Devolucoes() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => copiarCobranca(c)}
-                style={{ padding: '8px 14px', background: '#fff', color: '#185FA5', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                style={{ padding: '8px 14px', background: '#131e33', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                 💬 Copiar cobrança pra WhatsApp
               </button>
             </div>

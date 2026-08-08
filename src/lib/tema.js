@@ -9,14 +9,14 @@ export const cores = {
   perigo: '#dc2626', perigoVivo: '#f87171',
   // sidebar (sempre escura)
   sideBg: '#0b1220', sideTexto: '#8b9bb4', sideTextoAtivo: '#ffffff',
-  // conteúdo (claro)
-  fundo: '#eef2f7', card: '#ffffff', cardBorda: 'rgba(15,23,42,0.06)',
-  texto: '#0f172a', suave: '#64748b', chipBg: 'rgba(15,23,42,0.045)',
+  // conteúdo (ESCURO premium)
+  fundo: '#0d1526', card: '#131e33', cardBorda: 'rgba(148,163,184,0.10)',
+  texto: '#e6edf7', suave: '#8b9bb4', chipBg: 'rgba(148,163,184,0.08)',
 }
 
 export const sombras = {
-  card: '0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06)',
-  cardHover: '0 2px 6px rgba(15,23,42,.08), 0 18px 44px rgba(15,23,42,.12)',
+  card: '0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35)',
+  cardHover: '0 2px 8px rgba(0,0,0,.4), 0 20px 50px rgba(0,0,0,.5)',
   glowAzul: '0 4px 14px rgba(59,130,246,.35)',
 }
 
@@ -31,8 +31,8 @@ export const fonte = {
 export const fundoMesh = {
   background: cores.fundo,
   backgroundImage:
-    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.10), transparent 60%),' +
-    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.08), transparent 60%)',
+    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.16), transparent 60%),' +
+    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.13), transparent 60%)',
 }
 
 // injeta a fonte Inter uma vez (chamado pelo Layout)

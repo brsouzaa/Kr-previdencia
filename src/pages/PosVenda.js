@@ -9,8 +9,8 @@ const MOTIVOS_BARRADO = [
 ]
 
 const STATUS_LABEL = {
-  aguardando_pos_venda: { label: 'Novo — não contatado', cor: '#185FA5', bg: '#E6F1FB', icon: '🆕' },
-  em_contato_pos_venda: { label: 'Em contato', cor: '#854F0B', bg: '#FAEEDA', icon: '📞' },
+  aguardando_pos_venda: { label: 'Novo — não contatado', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '🆕' },
+  em_contato_pos_venda: { label: 'Em contato', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: '📞' },
 }
 
 function tempoRelativo(data) {
@@ -49,11 +49,11 @@ function prazoRestante(prazo) {
 }
 
 function corPrazo(nivel) {
-  if (nivel === 'vencido') return { bg: '#A32D2D', cor: '#fff', borda: '#A32D2D' }
-  if (nivel === 'critico') return { bg: '#FCEBEB', cor: '#A32D2D', borda: '#A32D2D' }
-  if (nivel === 'urgente') return { bg: '#FBE5D6', cor: '#C2410C', borda: '#C2410C' }
-  if (nivel === 'atencao') return { bg: '#FAEEDA', cor: '#854F0B', borda: '#854F0B' }
-  return { bg: '#EAF3DE', cor: '#3B6D11', borda: '#3B6D11' }
+  if (nivel === 'vencido') return { bg: '#f87171', cor: '#131e33', borda: '#f87171' }
+  if (nivel === 'critico') return { bg: 'rgba(248,113,113,.14)', cor: '#f87171', borda: '#f87171' }
+  if (nivel === 'urgente') return { bg: 'rgba(251,191,36,.12)', cor: '#fbbf24', borda: '#fbbf24' }
+  if (nivel === 'atencao') return { bg: 'rgba(251,191,36,.12)', cor: '#fbbf24', borda: '#fbbf24' }
+  return { bg: 'rgba(52,211,153,.14)', cor: '#34d399', borda: '#34d399' }
 }
 
 export default function PosVenda() {
@@ -211,7 +211,7 @@ export default function PosVenda() {
     return `https://wa.me/${numero}?text=${msg}`
   }
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Carregando fila do pós-venda...</div>
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#8b9bb4' }}>Carregando fila do pós-venda...</div>
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
@@ -224,39 +224,39 @@ export default function PosVenda() {
       `}</style>
 
       <div style={{ marginBottom: 18 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111', marginBottom: 4 }}>📞 Fila de Pós-Venda / Qualidade</h2>
-        <div style={{ fontSize: 13, color: '#666' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: '#e6edf7', marginBottom: 4 }}>📞 Fila de Pós-Venda / Qualidade</h2>
+        <div style={{ fontSize: 13, color: '#8b9bb4' }}>
           Você tem <strong>24 horas</strong> a partir da assinatura pra validar ou barrar cada cliente. Após esse prazo, o cliente é <strong>barrado automaticamente</strong> e a vendedora precisa reabordar.
         </div>
-        <div style={{ fontSize: 11, color: '#888', marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <span>✅ <strong style={{ color: '#3B6D11' }}>Verde</strong> = +36h</span>
-          <span>⏰ <strong style={{ color: '#854F0B' }}>Amarelo</strong> = 24-36h</span>
-          <span>⚠️ <strong style={{ color: '#C2410C' }}>Laranja</strong> = 12-24h</span>
-          <span>🔥 <strong style={{ color: '#A32D2D' }}>Vermelho</strong> = &lt;12h (URGENTE)</span>
+        <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <span>✅ <strong style={{ color: '#34d399' }}>Verde</strong> = +36h</span>
+          <span>⏰ <strong style={{ color: '#fbbf24' }}>Amarelo</strong> = 24-36h</span>
+          <span>⚠️ <strong style={{ color: '#fbbf24' }}>Laranja</strong> = 12-24h</span>
+          <span>🔥 <strong style={{ color: '#f87171' }}>Vermelho</strong> = &lt;12h (URGENTE)</span>
         </div>
       </div>
 
       {/* Cards de estatísticas */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 }}>
-        <button onClick={() => setFiltro('todos')} style={statCard(filtro === 'todos', '#185FA5')}>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total na fila</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#111', marginTop: 4 }}>{stats.total}</div>
+        <button onClick={() => setFiltro('todos')} style={statCard(filtro === 'todos', '#60a5fa')}>
+          <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total na fila</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#e6edf7', marginTop: 4 }}>{stats.total}</div>
         </button>
-        <button onClick={() => setFiltro('novos')} style={statCard(filtro === 'novos', '#185FA5', '#E6F1FB')}>
-          <div style={{ fontSize: 11, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🆕 Novos</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#185FA5', marginTop: 4 }}>{stats.novos}</div>
+        <button onClick={() => setFiltro('novos')} style={statCard(filtro === 'novos', '#60a5fa', 'rgba(96,165,250,.12)')}>
+          <div style={{ fontSize: 11, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🆕 Novos</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#60a5fa', marginTop: 4 }}>{stats.novos}</div>
         </button>
-        <button onClick={() => setFiltro('em_contato')} style={statCard(filtro === 'em_contato', '#854F0B', '#FAEEDA')}>
-          <div style={{ fontSize: 11, color: '#854F0B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📞 Em contato</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#854F0B', marginTop: 4 }}>{stats.em_contato}</div>
+        <button onClick={() => setFiltro('em_contato')} style={statCard(filtro === 'em_contato', '#fbbf24', 'rgba(251,191,36,.12)')}>
+          <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📞 Em contato</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#fbbf24', marginTop: 4 }}>{stats.em_contato}</div>
         </button>
-        <button onClick={() => setFiltro('urgentes')} style={statCard(filtro === 'urgentes', '#C2410C', '#FBE5D6')}>
-          <div style={{ fontSize: 11, color: '#C2410C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚠️ Urgentes (&lt;24h)</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#C2410C', marginTop: 4 }}>{stats.urgentes}</div>
+        <button onClick={() => setFiltro('urgentes')} style={statCard(filtro === 'urgentes', '#fbbf24', 'rgba(251,191,36,.12)')}>
+          <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚠️ Urgentes (&lt;24h)</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#fbbf24', marginTop: 4 }}>{stats.urgentes}</div>
         </button>
-        <button onClick={() => setFiltro('criticos')} style={statCard(filtro === 'criticos', '#A32D2D', '#FCEBEB')}>
-          <div style={{ fontSize: 11, color: '#A32D2D', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔥 CRÍTICOS (&lt;12h)</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#A32D2D', marginTop: 4 }}>{stats.criticos}</div>
+        <button onClick={() => setFiltro('criticos')} style={statCard(filtro === 'criticos', '#f87171', 'rgba(248,113,113,.14)')}>
+          <div style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔥 CRÍTICOS (&lt;12h)</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#f87171', marginTop: 4 }}>{stats.criticos}</div>
         </button>
       </div>
 
@@ -267,13 +267,13 @@ export default function PosVenda() {
           placeholder="🔍 Buscar por nome, CPF ou telefone..."
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          style={{ flex: 1, padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', outline: 'none' }}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', outline: 'none' }}
         />
         {produtos.length > 1 && (
           <select
             value={filtroProduto}
             onChange={e => setFiltroProduto(e.target.value)}
-            style={{ padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', outline: 'none', cursor: 'pointer' }}
+            style={{ padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', outline: 'none', cursor: 'pointer' }}
           >
             <option value="todos">📦 Todos os produtos</option>
             {produtos.map(p => <option key={p} value={p}>{p}</option>)}
@@ -283,9 +283,9 @@ export default function PosVenda() {
 
       {/* Lista */}
       {filtrados.length === 0 ? (
-        <div style={{ background: '#fff', padding: 40, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.08)' }}>
+        <div style={{ background: '#131e33', padding: 40, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(148,163,184,0.12)' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
-          <div style={{ fontSize: 14, color: '#666' }}>
+          <div style={{ fontSize: 14, color: '#8b9bb4' }}>
             {filtro === 'todos' ? 'Fila vazia! Nenhum cliente aguardando contato.' : 'Nenhum cliente nesse filtro.'}
           </div>
         </div>
@@ -297,12 +297,12 @@ export default function PosVenda() {
 
         return (
           <div key={c.id} style={{
-            background: ehMaternidadeMae(c) ? '#F6ECFB' : '#fff',
-            border: ehMaternidadeMae(c) ? '2px solid #7B1FA2'
+            background: ehMaternidadeMae(c) ? 'rgba(167,139,250,.14)' : '#131e33',
+            border: ehMaternidadeMae(c) ? '2px solid #a78bfa'
                   : prazo?.nivel === 'vencido' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'critico' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'urgente' ? `1px solid ${corPz.borda}80`
-                  : '0.5px solid rgba(0,0,0,0.1)',
+                  : '0.5px solid rgba(148,163,184,0.14)',
             borderRadius: 12,
             padding: 14,
             marginBottom: 10,
@@ -310,9 +310,9 @@ export default function PosVenda() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>{c.nome}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7' }}>{c.nome}</div>
                   {ehMaternidadeMae(c) && (
-                    <span style={{ fontSize: 10, padding: '3px 8px', background: '#7B1FA2', color: '#fff', borderRadius: 6, fontWeight: 700, letterSpacing: 0.3 }}>
+                    <span style={{ fontSize: 10, padding: '3px 8px', background: '#a78bfa', color: '#131e33', borderRadius: 6, fontWeight: 700, letterSpacing: 0.3 }}>
                       👶 MATERNIDADE MÃE
                     </span>
                   )}
@@ -320,19 +320,19 @@ export default function PosVenda() {
                     {info.icon} {info.label}
                   </span>
                   {c.pos_venda_tentativas > 0 && (
-                    <span style={{ fontSize: 10, padding: '2px 6px', background: '#f0f0ee', color: '#5F5E5A', borderRadius: 6 }}>
+                    <span style={{ fontSize: 10, padding: '2px 6px', background: '#1a2742', color: '#8b9bb4', borderRadius: 6 }}>
                       📞 {c.pos_venda_tentativas} tentativa{c.pos_venda_tentativas !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>
+                <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 2 }}>
                   {c.cpf} · {c.telefone} · {c.cidade}/{c.uf}
                 </div>
-                <div style={{ fontSize: 11, color: '#888' }}>
+                <div style={{ fontSize: 11, color: '#8b9bb4' }}>
                   Produto: <strong>{c.produto}</strong> · Vendedora: {c.vendedor?.nome || '—'} · Assinou {tempoEsperando}
                 </div>
                 {c.advogado && (
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>
                     Advogado: {c.advogado.nome_completo} ({c.advogado.oab})
                   </div>
                 )}
@@ -359,28 +359,28 @@ export default function PosVenda() {
 
             {/* Observações anteriores */}
             {c.pos_venda_observacao && (
-              <div style={{ background: '#FAEEDA', borderRadius: 6, padding: 8, marginBottom: 8, fontSize: 12, color: '#854F0B' }}>
+              <div style={{ background: 'rgba(251,191,36,.12)', borderRadius: 6, padding: 8, marginBottom: 8, fontSize: 12, color: '#fbbf24' }}>
                 💬 <strong>Última anotação:</strong> {c.pos_venda_observacao}
-                {c.pos_venda_ultimo_contato && <span style={{ color: '#888', marginLeft: 6 }}>({tempoRelativo(c.pos_venda_ultimo_contato)})</span>}
+                {c.pos_venda_ultimo_contato && <span style={{ color: '#8b9bb4', marginLeft: 6 }}>({tempoRelativo(c.pos_venda_ultimo_contato)})</span>}
               </div>
             )}
 
             {/* Ações */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              <a href={whatsappLink(c.telefone, c.nome)} target="_blank" rel="noreferrer" style={btnAcao('#3B6D11', '#EAF3DE', { flex: 1, textDecoration: 'none', textAlign: 'center', minWidth: 120 })}>
+              <a href={whatsappLink(c.telefone, c.nome)} target="_blank" rel="noreferrer" style={btnAcao('#34d399', 'rgba(52,211,153,.14)', { flex: 1, textDecoration: 'none', textAlign: 'center', minWidth: 120 })}>
                 💬 Abrir WhatsApp
               </a>
-              <button onClick={() => { setAcaoCliente({ tipo: 'contato', cliente: c }); setObs(c.pos_venda_observacao || '') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#854F0B', '#FAEEDA', { flex: 1, minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'contato', cliente: c }); setObs(c.pos_venda_observacao || '') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#fbbf24', 'rgba(251,191,36,.12)', { flex: 1, minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 📞 Marcar contato realizado
               </button>
-              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#3B6D11', '#3B6D11', { flex: 1, color: '#fff', minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#34d399', '#34d399', { flex: 1, color: '#131e33', minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 ✅ Validar venda
               </button>
-              <button onClick={() => { setAcaoCliente({ tipo: 'barrar', cliente: c }); setObs(''); setMotivoBarrado('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#A32D2D', '#FCEBEB', { minWidth: 100 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'barrar', cliente: c }); setObs(''); setMotivoBarrado('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#f87171', 'rgba(248,113,113,.14)', { minWidth: 100 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 ❌ Barrar
               </button>
               {!podeAgir(c) && (
-                <div style={{ fontSize: 11, color: ehMaternidadeMae(c) ? '#7B1FA2' : '#888', fontWeight: 500, alignSelf: 'center', paddingLeft: 4 }}>
+                <div style={{ fontSize: 11, color: ehMaternidadeMae(c) ? '#a78bfa' : '#8b9bb4', fontWeight: 500, alignSelf: 'center', paddingLeft: 4 }}>
                   {ehMaternidadeMae(c) ? '👶 Só a Karol valida Maternidade Mãe' : 'Cliente de outro produto'}
                 </div>
               )}
@@ -392,40 +392,40 @@ export default function PosVenda() {
       {/* Modal de ação */}
       {acaoCliente && (
         <div onClick={() => !salvando && setAcaoCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 4 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#131e33', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#e6edf7', marginBottom: 4 }}>
               {acaoCliente.tipo === 'contato' && '📞 Marcar contato realizado'}
               {acaoCliente.tipo === 'validar' && '✅ Validar venda'}
               {acaoCliente.tipo === 'barrar' && '❌ Barrar cliente'}
             </div>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 16 }}>
               Cliente: <strong>{acaoCliente.cliente.nome}</strong>
             </div>
 
             {acaoCliente.tipo === 'contato' && (
-              <div style={{ background: '#FAEEDA', padding: 10, borderRadius: 6, fontSize: 12, color: '#854F0B', marginBottom: 12 }}>
+              <div style={{ background: 'rgba(251,191,36,.12)', padding: 10, borderRadius: 6, fontSize: 12, color: '#fbbf24', marginBottom: 12 }}>
                 Isso vai registrar mais 1 tentativa de contato. Use quando ligou mas precisa retornar depois.
               </div>
             )}
             {acaoCliente.tipo === 'validar' && (
-              <div style={{ background: '#EAF3DE', padding: 10, borderRadius: 6, fontSize: 12, color: '#3B6D11', marginBottom: 12 }}>
+              <div style={{ background: 'rgba(52,211,153,.14)', padding: 10, borderRadius: 6, fontSize: 12, color: '#34d399', marginBottom: 12 }}>
                 ✓ Cliente vai pra próxima etapa (Sthefany — analista). Você não verá mais ele aqui.
               </div>
             )}
             {acaoCliente.tipo === 'barrar' && (
               <>
-                <div style={{ background: '#FCEBEB', padding: 10, borderRadius: 6, fontSize: 12, color: '#A32D2D', marginBottom: 12 }}>
+                <div style={{ background: 'rgba(248,113,113,.14)', padding: 10, borderRadius: 6, fontSize: 12, color: '#f87171', marginBottom: 12 }}>
                   ⚠️ Isso vai <strong>cancelar o contrato no ZapSign</strong>, liberar o lote do advogado e <strong>desconta o bônus da vendedora</strong>. A vendedora será notificada pra reabordar.
                 </div>
-                <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>Motivo do barramento *</label>
-                <select value={motivoBarrado} onChange={e => setMotivoBarrado(e.target.value)} style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, background: '#fff', marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: '#e6edf7', fontWeight: 500, marginBottom: 4, display: 'block' }}>Motivo do barramento *</label>
+                <select value={motivoBarrado} onChange={e => setMotivoBarrado(e.target.value)} style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', marginBottom: 12 }}>
                   <option value="">Selecione...</option>
                   {MOTIVOS_BARRADO.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </>
             )}
 
-            <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>
+            <label style={{ fontSize: 12, color: '#e6edf7', fontWeight: 500, marginBottom: 4, display: 'block' }}>
               Observações {acaoCliente.tipo === 'barrar' ? '(detalhes do motivo)' : '(opcional)'}
             </label>
             <textarea
@@ -435,14 +435,14 @@ export default function PosVenda() {
                             acaoCliente.tipo === 'validar' ? 'Ex: Cliente confirmou contratação, está alinhada com tudo.' :
                             'Detalhe o motivo do barramento...'}
               rows={4}
-              style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 16 }}
+              style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 16 }}
             />
 
             {/* Anexar prints — obrigatório pra validar/barrar */}
             {(acaoCliente.tipo === 'validar' || acaoCliente.tipo === 'barrar') && (
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: '#111', fontWeight: 500, marginBottom: 4, display: 'block' }}>
-                  📎 Prints da conversa <span style={{ color: '#A32D2D' }}>*obrigatório</span>
+                <label style={{ fontSize: 12, color: '#e6edf7', fontWeight: 500, marginBottom: 4, display: 'block' }}>
+                  📎 Prints da conversa <span style={{ color: '#f87171' }}>*obrigatório</span>
                 </label>
                 <input
                   type="file"
@@ -453,26 +453,26 @@ export default function PosVenda() {
                     setPrints(p => [...p, ...novos])
                     e.target.value = '' // permite selecionar o mesmo arquivo de novo
                   }}
-                  style={{ width: '100%', padding: 8, fontSize: 12, border: '0.5px dashed rgba(0,0,0,0.25)', borderRadius: 8, marginBottom: 8, background: '#fafafa', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: 8, fontSize: 12, border: '0.5px dashed rgba(0,0,0,0.25)', borderRadius: 8, marginBottom: 8, background: '#0f1930', cursor: 'pointer' }}
                 />
                 {prints.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
                     {prints.map((arq, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#EAF3DE', borderRadius: 6, fontSize: 12, color: '#3B6D11' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 12, color: '#34d399' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>📎 {arq.name} ({Math.round(arq.size/1024)} KB)</span>
-                        <button onClick={() => setPrints(p => p.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'transparent', color: '#A32D2D', cursor: 'pointer', fontSize: 14, padding: 0 }}>✕</button>
+                        <button onClick={() => setPrints(p => p.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'transparent', color: '#f87171', cursor: 'pointer', fontSize: 14, padding: 0 }}>✕</button>
                       </div>
                     ))}
                   </div>
                 )}
-                <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 4 }}>
                   Aceita: JPG, PNG, WebP, HEIC, PDF · até 10MB cada · pode anexar vários
                 </div>
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setAcaoCliente(null); setPrints([]) }} disabled={salvando || uploadando} style={{ padding: '8px 14px', background: '#f0f0ee', color: '#5F5E5A', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={() => { setAcaoCliente(null); setPrints([]) }} disabled={salvando || uploadando} style={{ padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button
@@ -484,8 +484,8 @@ export default function PosVenda() {
                 }
                 style={{
                   padding: '8px 14px',
-                  background: acaoCliente.tipo === 'validar' ? '#3B6D11' : acaoCliente.tipo === 'barrar' ? '#A32D2D' : '#854F0B',
-                  color: '#fff',
+                  background: acaoCliente.tipo === 'validar' ? '#34d399' : acaoCliente.tipo === 'barrar' ? '#f87171' : '#fbbf24',
+                  color: '#131e33',
                   border: 'none',
                   borderRadius: 7,
                   fontSize: 13,
@@ -515,10 +515,10 @@ export default function PosVenda() {
   )
 }
 
-function statCard(ativo, cor, bg = '#fff') {
+function statCard(ativo, cor, bg = '#131e33') {
   return {
-    background: ativo ? bg : '#fff',
-    border: `1px solid ${ativo ? cor : 'rgba(0,0,0,0.1)'}`,
+    background: ativo ? bg : '#131e33',
+    border: `1px solid ${ativo ? cor : 'rgba(148,163,184,0.14)'}`,
     borderRadius: 12,
     padding: 14,
     cursor: 'pointer',
@@ -531,7 +531,7 @@ function btnAcao(cor, bg, extra = {}) {
   return {
     padding: '8px 12px',
     background: bg,
-    color: cor === bg ? '#fff' : cor,
+    color: cor === bg ? '#131e33' : cor,
     border: `0.5px solid ${cor}`,
     borderRadius: 7,
     fontSize: 12,

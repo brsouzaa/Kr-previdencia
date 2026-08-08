@@ -18,30 +18,30 @@ const MOTIVO_LABEL = {
   pensou_outra_coisa: 'Pensou que era outra coisa', outro: 'Outro',
 }
 const STATUS_STYLE = {
-  em_andamento: { background: '#FFF8E7', color: '#854F0B', label: 'Em andamento' },
-  recuperado: { background: '#EAF3DE', color: '#3B6D11', label: 'Recuperado' },
-  realocado: { background: '#E6F1FB', color: '#185FA5', label: 'Realocado' },
-  virou_reposicao: { background: '#F1EFE8', color: '#5F5E5A', label: 'Virou reposição' },
-  perdido: { background: '#FCEBEB', color: '#A32D2D', label: 'Perdido' },
+  em_andamento: { background: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Em andamento' },
+  recuperado: { background: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Recuperado' },
+  realocado: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'Realocado' },
+  virou_reposicao: { background: '#1a2742', color: '#8b9bb4', label: 'Virou reposição' },
+  perdido: { background: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Perdido' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#111', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#888', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(0,0,0,0.1)', flexWrap: 'wrap' },
-  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
-  tabActive: { color: '#0F6E56', borderBottomColor: '#0F6E56' },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
-  label: { fontSize: 12, color: '#666', fontWeight: 500, marginBottom: 4, display: 'block' },
-  input: { width: '100%', padding: '9px 11px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.18)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box', background: '#fff' },
-  btnPrim: { padding: '9px 16px', background: '#0F6E56', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnDanger: { padding: '9px 16px', background: '#A32D2D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  meta: { fontSize: 12, color: '#888', marginTop: 2 },
-  nome: { fontSize: 14, fontWeight: 500, color: '#111' },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)', flexWrap: 'wrap' },
+  tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
+  tabActive: { color: '#34d399', borderBottomColor: '#34d399' },
+  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  label: { fontSize: 12, color: '#8b9bb4', fontWeight: 500, marginBottom: 4, display: 'block' },
+  input: { width: '100%', padding: '9px 11px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box', background: '#131e33' },
+  btnPrim: { padding: '9px 16px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnDanger: { padding: '9px 16px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
+  nome: { fontSize: 14, fontWeight: 500, color: '#e6edf7' },
   status: { fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500 },
-  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 13 },
-  loading: { textAlign: 'center', padding: '2rem', color: '#888', fontSize: 14 },
-  warn: { background: '#FCEBEB', border: '0.5px solid #A32D2D40', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#A32D2D', marginBottom: 12 },
+  empty: { textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: 13 },
+  loading: { textAlign: 'center', padding: '2rem', color: '#8b9bb4', fontSize: 14 },
+  warn: { background: 'rgba(248,113,113,.14)', border: '0.5px solid #A32D2D40', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#f87171', marginBottom: 12 },
 }
 
 export default function ResgateVendedor() {
@@ -170,7 +170,7 @@ export default function ResgateVendedor() {
           <input style={s.input} value={busca} onChange={e => { setBusca(e.target.value); setClienteSel(null) }} placeholder="Digite ao menos 3 letras…" />
 
           {!clienteSel && clientes.map(c => (
-            <div key={c.id} onClick={() => setClienteSel(c)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: '0.5px solid rgba(0,0,0,0.08)', marginBottom: 6 }}>
+            <div key={c.id} onClick={() => setClienteSel(c)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 6 }}>
               <div style={s.nome}>{c.nome}</div>
               <div style={s.meta}>{c.cpf} · {c.advogados?.nome_completo || 'sem advogado'} · {c.status}</div>
             </div>
@@ -178,7 +178,7 @@ export default function ResgateVendedor() {
 
           {clienteSel && (
             <>
-              <div style={{ background: '#FBFAF7', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '0.5px solid rgba(0,0,0,0.07)' }}>
+              <div style={{ background: 'rgba(251,191,36,.12)', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '0.5px solid rgba(0,0,0,0.07)' }}>
                 <div style={s.nome}>{clienteSel.nome}</div>
                 <div style={s.meta}>{clienteSel.cpf} · advogado: {clienteSel.advogados?.nome_completo || '—'}</div>
               </div>
@@ -211,7 +211,7 @@ export default function ResgateVendedor() {
 
       {aba === 'inadimplentes' && (
         <div style={s.card}>
-          <div style={{ background: '#F4F8FC', border: '0.5px solid #185FA530', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#185FA5', marginBottom: 12 }}>
+          <div style={{ background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA530', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#60a5fa', marginBottom: 12 }}>
             ℹ️ Manda os clientes vivos do advogado pra ala de resgate. Ninguém é cancelado — eles seguem vivos e a ala realoca cada um. A inadimplência abate só quando o cliente assina com o novo advogado.
           </div>
           <label style={s.label}>Advogado inadimplente</label>
