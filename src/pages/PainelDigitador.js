@@ -69,6 +69,22 @@ export default function PainelDigitador() {
   const [novaSenha, setNovaSenha] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [vncAberto, setVncAberto] = useState(false)
+  const [simul, setSimul] = useState(null)
+  const [sincronizando, setSincronizando] = useState(false)
+
+  const carregarSimul = useCallback(async () => {
+    const { data } = await supabase.rpc('simulacao_crefisa_resumo')
+    setSimul(data || null)
+  }, [])
+
+  const sincronizarAgora = async () => {
+    setSincronizando(true)
+    const { data, error } = await supabase.rpc('tecnologia_bf_sincronizar')
+    setSincronizando(false)
+    if (error) { alert('Erro: ' + error.message); return }
+    alert(`Sincronizado! Pitch: ${data?.pitch ?? 0} · guardados: ${data?.guardados ?? 0} · marcados: ${data?.marcado_sem_mover ?? 0}`)
+    carregarSimul(); carregar()
+  }
 
   const carregar = useCallback(async () => {
     const [c, se, hb, r] = await Promise.all([
@@ -115,11 +131,11 @@ export default function PainelDigitador() {
     setProblemas(data || [])
   }, [])
 
-  useEffect(() => { carregar(); carregarConfs(); carregarLogs(); carregarProblemas() }, []) // eslint-disable-line
+  useEffect(() => { carregar(); carregarConfs(); carregarLogs(); carregarProblemas(); carregarSimul() }, []) // eslint-disable-line
   useEffect(() => {
-    const id = setInterval(() => { carregar(); if (aba === 'conferencia') carregarConfs(); if (aba === 'erros') carregarLogs() }, 20000)
+    const id = setInterval(() => { carregar(); if (aba === 'conferencia') carregarConfs(); if (aba === 'erros') carregarLogs(); if (aba === 'simulacao') carregarSimul() }, 20000)
     return () => clearInterval(id)
-  }, [aba, carregar, carregarConfs, carregarLogs])
+  }, [aba, carregar, carregarConfs, carregarLogs, carregarSimul])
   useEffect(() => { carregarConfs() }, [filtroConf, filtroConfLogin]) // eslint-disable-line
   useEffect(() => { carregarLogs() }, [filtroNivel, filtroUsuario]) // eslint-disable-line
 
@@ -218,10 +234,103 @@ export default function PainelDigitador() {
 
       {/* ABAS */}
       <div style={s.abas}>
-        {[['conferencia', `✅ Conferência${conf.pendentes ? ` (${conf.pendentes})` : ''}`], ['controle', '🎛️ Controle'], ['logins', `🔑 Logins${caidas.length ? ` (${caidas.length}⚠)` : ''}`], ['erros', '🐞 Erros & Logs'], ['metricas', '📊 Métricas']].map(([k, l]) => (
-          <div key={k} style={s.aba(aba === k)} onClick={() => { setAba(k); if (k === 'erros') { carregarLogs(); carregarProblemas() } if (k === 'conferencia') carregarConfs() }}>{l}</div>
+        {[['simulacao', '🔮 Simulação Crefisa'], ['conferencia', `✅ Digitação${conf.pendentes ? ` (${conf.pendentes})` : ''}`], ['controle', '🎛️ Controle'], ['logins', `🔑 Acessos Crefisa${caidas.length ? ` (${caidas.length}⚠)` : ''}`], ['erros', '🐞 Erros & Logs'], ['metricas', '📊 Métricas']].map(([k, l]) => (
+          <div key={k} style={s.aba(aba === k)} onClick={() => { setAba(k); if (k === 'erros') { carregarLogs(); carregarProblemas() } if (k === 'conferencia') carregarConfs(); if (k === 'simulacao') carregarSimul() }}>{l}</div>
         ))}
       </div>
+
+      {/* ===== SIMULAÇÃO CREFISA (ponta 1 — API que pré-aprova) ===== */}
+      {aba === 'simulacao' && (
+        <div>
+          <div style={s.box}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div style={s.boxTitulo}>API Crefisa — simulação de crédito</div>
+              <button style={s.btn} onClick={sincronizarAgora} disabled={sincronizando}>
+                {sincronizando ? '⏳ Sincronizando...' : '🔄 Sincronizar agora'}
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 2 }}>
+              O robô simula na Crefisa e devolve pré-aprovado/negado. "Sincronizar" leva os pré-aprovados recentes pra fila do BF na hora (sem esperar o cron).
+            </div>
+          </div>
+
+          {simul ? (
+            <>
+              <div style={s.cards}>
+                {(() => {
+                  const min = simul.minutos_desde_ultima
+                  const vivo = min != null && min < 30
+                  return (
+                    <div style={s.card(vivo ? '#34d399' : '#f87171')}>
+                      <div style={s.cardTop}>Robô simulador</div>
+                      <div style={{ ...s.cardNum, color: vivo ? '#34d399' : '#f87171' }}>{vivo ? 'ATIVO' : 'PARADO'}</div>
+                      <div style={s.cardSub}>última: {simul.ultima_simulacao ? fmtTs(simul.ultima_simulacao) : '—'}</div>
+                    </div>
+                  )
+                })()}
+                <div style={s.card('#60a5fa')}>
+                  <div style={s.cardTop}>Simuladas hoje</div>
+                  <div style={s.cardNum}>{simul.hoje ?? '—'}</div>
+                  <div style={s.cardSub}>{simul.total?.toLocaleString('pt-BR')} no total</div>
+                </div>
+                <div style={s.card('#34d399')}>
+                  <div style={s.cardTop}>Pré-aprovados</div>
+                  <div style={{ ...s.cardNum, color: '#34d399' }}>{simul.pre_aprovados?.toLocaleString('pt-BR') ?? '—'}</div>
+                  <div style={s.cardSub}>taxa: {simul.taxa_aprovacao_pct != null ? simul.taxa_aprovacao_pct + '%' : '—'}</div>
+                </div>
+                <div style={s.card('#f87171')}>
+                  <div style={s.cardTop}>Negados</div>
+                  <div style={{ ...s.cardNum, color: '#f87171' }}>{simul.negados?.toLocaleString('pt-BR') ?? '—'}</div>
+                  <div style={s.cardSub}>sem margem / benefício</div>
+                </div>
+                <div style={s.card('#fbbf24')}>
+                  <div style={s.cardTop}>Em fila</div>
+                  <div style={{ ...s.cardNum, color: '#fbbf24' }}>{simul.em_fila ?? '—'}</div>
+                  <div style={s.cardSub}>aguardando decisão</div>
+                </div>
+              </div>
+
+              {/* alerta do bridge sim→lead */}
+              <div style={s.box}>
+                <div style={s.boxTitulo}>Ponte simulação → fila BF</div>
+                <div style={{ fontSize: 13, color: '#c6d2e4' }}>
+                  Pré-aprovados na Crefisa (48h): <strong>{simul.bridge_pre_aprovados_48h ?? 0}</strong> ·
+                  {' '}No funil BF agora: <strong>{simul.bridge_no_funil ?? 0}</strong>
+                  {simul.bridge_pre_aprovados_48h > 0 && simul.bridge_no_funil === 0 && (
+                    <span style={{ ...s.tag('rgba(248,113,113,.14)', '#f87171'), marginLeft: 8 }}>⚠ ponte pode estar quebrada</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 6 }}>
+                  Se tem pré-aprovado e nada no funil, clique em "Sincronizar agora" acima. A cada 15min o cron já faz isso automático.
+                </div>
+              </div>
+
+              {/* últimas simulações */}
+              <div style={s.box}>
+                <div style={s.boxTitulo}>Últimas simulações</div>
+                {(simul.ultimas || []).length === 0 && <div style={{ color: '#8b9bb4', fontSize: 13 }}>Nenhuma simulação ainda.</div>}
+                {(simul.ultimas || []).map((x, i) => (
+                  <div key={i} style={s.linha}>
+                    <div>
+                      <strong>{x.nome || 'Sem nome'}</strong> {x.cpf && <span style={s.mono}>· {x.cpf}</span>}
+                      {x.motivo_negado && <div style={{ fontSize: 11.5, color: '#8b9bb4', marginTop: 2 }}>{x.motivo_negado}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={
+                        x.status === 'pre_aprovado' ? s.tag('rgba(52,211,153,.14)', '#34d399')
+                        : x.status === 'negado' ? s.tag('rgba(248,113,113,.14)', '#f87171')
+                        : s.tag('rgba(251,191,36,.12)', '#fbbf24')
+                      }>{x.status}</span>
+                      {x.valor_simulado && <div style={{ fontSize: 12, color: '#34d399', fontFamily: 'monospace', marginTop: 3 }}>R$ {Number(x.valor_simulado).toLocaleString('pt-BR')}</div>}
+                      <div style={{ fontSize: 10.5, color: '#8b9bb4' }}>{fmtTs(x.criado_em)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : <div style={{ ...s.box, color: '#8b9bb4', textAlign: 'center' }}>Carregando...</div>}
+        </div>
+      )}
 
       {/* ===== CONFERÊNCIA (pós-fato, 1 clique) ===== */}
       {aba === 'conferencia' && (
