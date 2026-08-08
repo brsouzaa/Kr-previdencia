@@ -10,8 +10,8 @@ export const cores = {
   // sidebar (sempre escura)
   sideBg: '#0b1220', sideTexto: '#8b9bb4', sideTextoAtivo: '#ffffff',
   // conteúdo (ESCURO premium)
-  fundo: '#0d1526', card: '#131e33', cardBorda: 'rgba(148,163,184,0.10)',
-  texto: '#e6edf7', suave: '#8b9bb4', chipBg: 'rgba(148,163,184,0.08)',
+  fundo: '#171c26', card: '#232a37', cardBorda: 'rgba(255,255,255,0.07)',
+  texto: '#e6edf7', suave: '#8b9bb4', chipBg: 'rgba(255,255,255,0.05)',
 }
 
 export const sombras = {
@@ -31,8 +31,8 @@ export const fonte = {
 export const fundoMesh = {
   background: cores.fundo,
   backgroundImage:
-    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.16), transparent 60%),' +
-    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.13), transparent 60%)',
+    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.11), transparent 60%),' +
+    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.10), transparent 60%)',
 }
 
 // injeta a fonte Inter + CSS base do modo escuro uma vez (chamado pelo Layout)
@@ -51,19 +51,19 @@ export function carregarFonte() {
     s.id = 'kr-base-escura'
     s.textContent = `
       html { color-scheme: dark; }
-      body { color: #e6edf7; background: #0d1526; }
+      body { color: #e6edf7; background: #171c26; }
       input, select, textarea {
-        background-color: #0f1930; color: #e6edf7;
+        background-color: #1e242f; color: #e6edf7;
         border: 1px solid rgba(148,163,184,.25); border-radius: 8px;
         color-scheme: dark; font-family: inherit;
       }
-      select option { background: #131e33; color: #e6edf7; }
+      select option { background: #232a37; color: #e6edf7; }
       input::placeholder, textarea::placeholder { color: #64748b; }
       input:focus, select:focus, textarea:focus {
         outline: 2px solid rgba(96,165,250,.45); outline-offset: 1px;
       }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
-      ::-webkit-scrollbar-thumb { background: #2b3b58; border-radius: 8px; }
+      ::-webkit-scrollbar-thumb { 
       ::-webkit-scrollbar-track { background: transparent; }
       a { color: #60a5fa; }
     `

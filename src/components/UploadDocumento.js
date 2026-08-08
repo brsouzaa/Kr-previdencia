@@ -73,7 +73,7 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '14px', border: `1.5px dashed ${erro ? '#f87171' : 'rgba(0,0,0,0.45)'}`,
           borderRadius: 8, cursor: enviando ? 'wait' : 'pointer',
-          background: erro ? 'rgba(248,113,113,.14)' : '#0f1930',
+          background: erro ? 'rgba(248,113,113,.14)' : '#1e242f',
           fontSize: 13, color: erro ? '#f87171' : '#8b9bb4',
           minHeight: 50,
         }}>

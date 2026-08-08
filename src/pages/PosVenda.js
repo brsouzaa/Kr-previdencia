@@ -49,7 +49,7 @@ function prazoRestante(prazo) {
 }
 
 function corPrazo(nivel) {
-  if (nivel === 'vencido') return { bg: '#f87171', cor: '#131e33', borda: '#f87171' }
+  if (nivel === 'vencido') return { bg: '#f87171', cor: '#232a37', borda: '#f87171' }
   if (nivel === 'critico') return { bg: 'rgba(248,113,113,.14)', cor: '#f87171', borda: '#f87171' }
   if (nivel === 'urgente') return { bg: 'rgba(251,191,36,.12)', cor: '#fbbf24', borda: '#fbbf24' }
   if (nivel === 'atencao') return { bg: 'rgba(251,191,36,.12)', cor: '#fbbf24', borda: '#fbbf24' }
@@ -267,13 +267,13 @@ export default function PosVenda() {
           placeholder="🔍 Buscar por nome, CPF ou telefone..."
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          style={{ flex: 1, padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', outline: 'none' }}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, background: '#232a37', outline: 'none' }}
         />
         {produtos.length > 1 && (
           <select
             value={filtroProduto}
             onChange={e => setFiltroProduto(e.target.value)}
-            style={{ padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', outline: 'none', cursor: 'pointer' }}
+            style={{ padding: '10px 14px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, background: '#232a37', outline: 'none', cursor: 'pointer' }}
           >
             <option value="todos">📦 Todos os produtos</option>
             {produtos.map(p => <option key={p} value={p}>{p}</option>)}
@@ -283,7 +283,7 @@ export default function PosVenda() {
 
       {/* Lista */}
       {filtrados.length === 0 ? (
-        <div style={{ background: '#131e33', padding: 40, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(148,163,184,0.12)' }}>
+        <div style={{ background: '#232a37', padding: 40, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
           <div style={{ fontSize: 14, color: '#8b9bb4' }}>
             {filtro === 'todos' ? 'Fila vazia! Nenhum cliente aguardando contato.' : 'Nenhum cliente nesse filtro.'}
@@ -297,12 +297,12 @@ export default function PosVenda() {
 
         return (
           <div key={c.id} style={{
-            background: ehMaternidadeMae(c) ? 'rgba(167,139,250,.14)' : '#131e33',
+            background: ehMaternidadeMae(c) ? 'rgba(167,139,250,.14)' : '#232a37',
             border: ehMaternidadeMae(c) ? '2px solid #a78bfa'
                   : prazo?.nivel === 'vencido' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'critico' ? `1.5px solid ${corPz.borda}`
                   : prazo?.nivel === 'urgente' ? `1px solid ${corPz.borda}80`
-                  : '0.5px solid rgba(148,163,184,0.14)',
+                  : '0.5px solid rgba(255,255,255,0.08)',
             borderRadius: 12,
             padding: 14,
             marginBottom: 10,
@@ -312,7 +312,7 @@ export default function PosVenda() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7' }}>{c.nome}</div>
                   {ehMaternidadeMae(c) && (
-                    <span style={{ fontSize: 10, padding: '3px 8px', background: '#a78bfa', color: '#131e33', borderRadius: 6, fontWeight: 700, letterSpacing: 0.3 }}>
+                    <span style={{ fontSize: 10, padding: '3px 8px', background: '#a78bfa', color: '#232a37', borderRadius: 6, fontWeight: 700, letterSpacing: 0.3 }}>
                       👶 MATERNIDADE MÃE
                     </span>
                   )}
@@ -320,7 +320,7 @@ export default function PosVenda() {
                     {info.icon} {info.label}
                   </span>
                   {c.pos_venda_tentativas > 0 && (
-                    <span style={{ fontSize: 10, padding: '2px 6px', background: '#1a2742', color: '#8b9bb4', borderRadius: 6 }}>
+                    <span style={{ fontSize: 10, padding: '2px 6px', background: '#2b3340', color: '#8b9bb4', borderRadius: 6 }}>
                       📞 {c.pos_venda_tentativas} tentativa{c.pos_venda_tentativas !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -373,7 +373,7 @@ export default function PosVenda() {
               <button onClick={() => { setAcaoCliente({ tipo: 'contato', cliente: c }); setObs(c.pos_venda_observacao || '') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#fbbf24', 'rgba(251,191,36,.12)', { flex: 1, minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 📞 Marcar contato realizado
               </button>
-              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#34d399', '#34d399', { flex: 1, color: '#131e33', minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
+              <button onClick={() => { setAcaoCliente({ tipo: 'validar', cliente: c }); setObs('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#34d399', '#34d399', { flex: 1, color: '#232a37', minWidth: 120 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
                 ✅ Validar venda
               </button>
               <button onClick={() => { setAcaoCliente({ tipo: 'barrar', cliente: c }); setObs(''); setMotivoBarrado('') }} disabled={!podeAgir(c)} style={{ ...btnAcao('#f87171', 'rgba(248,113,113,.14)', { minWidth: 100 }), ...(podeAgir(c) ? {} : { opacity: 0.4, cursor: 'not-allowed' }) }}>
@@ -392,7 +392,7 @@ export default function PosVenda() {
       {/* Modal de ação */}
       {acaoCliente && (
         <div onClick={() => !salvando && setAcaoCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#131e33', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#232a37', borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#e6edf7', marginBottom: 4 }}>
               {acaoCliente.tipo === 'contato' && '📞 Marcar contato realizado'}
               {acaoCliente.tipo === 'validar' && '✅ Validar venda'}
@@ -418,7 +418,7 @@ export default function PosVenda() {
                   ⚠️ Isso vai <strong>cancelar o contrato no ZapSign</strong>, liberar o lote do advogado e <strong>desconta o bônus da vendedora</strong>. A vendedora será notificada pra reabordar.
                 </div>
                 <label style={{ fontSize: 12, color: '#e6edf7', fontWeight: 500, marginBottom: 4, display: 'block' }}>Motivo do barramento *</label>
-                <select value={motivoBarrado} onChange={e => setMotivoBarrado(e.target.value)} style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, background: '#131e33', marginBottom: 12 }}>
+                <select value={motivoBarrado} onChange={e => setMotivoBarrado(e.target.value)} style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, background: '#232a37', marginBottom: 12 }}>
                   <option value="">Selecione...</option>
                   {MOTIVOS_BARRADO.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
@@ -435,7 +435,7 @@ export default function PosVenda() {
                             acaoCliente.tipo === 'validar' ? 'Ex: Cliente confirmou contratação, está alinhada com tudo.' :
                             'Detalhe o motivo do barramento...'}
               rows={4}
-              style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 16 }}
+              style={{ width: '100%', padding: 10, fontSize: 13, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 16 }}
             />
 
             {/* Anexar prints — obrigatório pra validar/barrar */}
@@ -453,7 +453,7 @@ export default function PosVenda() {
                     setPrints(p => [...p, ...novos])
                     e.target.value = '' // permite selecionar o mesmo arquivo de novo
                   }}
-                  style={{ width: '100%', padding: 8, fontSize: 12, border: '0.5px dashed rgba(0,0,0,0.25)', borderRadius: 8, marginBottom: 8, background: '#0f1930', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: 8, fontSize: 12, border: '0.5px dashed rgba(0,0,0,0.25)', borderRadius: 8, marginBottom: 8, background: '#1e242f', cursor: 'pointer' }}
                 />
                 {prints.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
@@ -472,7 +472,7 @@ export default function PosVenda() {
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setAcaoCliente(null); setPrints([]) }} disabled={salvando || uploadando} style={{ padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={() => { setAcaoCliente(null); setPrints([]) }} disabled={salvando || uploadando} style={{ padding: '8px 14px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button
@@ -485,7 +485,7 @@ export default function PosVenda() {
                 style={{
                   padding: '8px 14px',
                   background: acaoCliente.tipo === 'validar' ? '#34d399' : acaoCliente.tipo === 'barrar' ? '#f87171' : '#fbbf24',
-                  color: '#131e33',
+                  color: '#232a37',
                   border: 'none',
                   borderRadius: 7,
                   fontSize: 13,
@@ -515,10 +515,10 @@ export default function PosVenda() {
   )
 }
 
-function statCard(ativo, cor, bg = '#131e33') {
+function statCard(ativo, cor, bg = '#232a37') {
   return {
-    background: ativo ? bg : '#131e33',
-    border: `1px solid ${ativo ? cor : 'rgba(148,163,184,0.14)'}`,
+    background: ativo ? bg : '#232a37',
+    border: `1px solid ${ativo ? cor : 'rgba(255,255,255,0.08)'}`,
     borderRadius: 12,
     padding: 14,
     cursor: 'pointer',
@@ -531,7 +531,7 @@ function btnAcao(cor, bg, extra = {}) {
   return {
     padding: '8px 12px',
     background: bg,
-    color: cor === bg ? '#131e33' : cor,
+    color: cor === bg ? '#232a37' : cor,
     border: `0.5px solid ${cor}`,
     borderRadius: 7,
     fontSize: 12,

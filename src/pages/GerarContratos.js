@@ -3,17 +3,17 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
   label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 },
-  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box' },
-  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, color: '#c6d2e4', background: '#1a2742', outline: 'none', boxSizing: 'border-box' },
-  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
+  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, color: '#c6d2e4', background: '#2b3340', outline: 'none', boxSizing: 'border-box' },
+  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
-  btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
-  btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
-  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(148,163,184,0.10)' },
+  btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
+  btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
+  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(255,255,255,0.06)' },
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, marginLeft: 6 },
   hint: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
   hintErr: { fontSize: 11, color: '#f87171', marginTop: 4 },
@@ -316,7 +316,7 @@ export default function GerarContratos() {
           <div style={s.sectionTitle}>
             Advogado da vez — próximo na fila
             {proximoLote?.prioridade_fila && (
-              <span style={{ ...s.badge, background: '#fbbf24', color: '#131e33' }}>⚡ PRIORIDADE</span>
+              <span style={{ ...s.badge, background: '#fbbf24', color: '#232a37' }}>⚡ PRIORIDADE</span>
             )}
           </div>
           <div style={{ fontSize: 16, fontWeight: 500, color: '#e6edf7', marginBottom: 6 }}>{advogado.nome_completo}</div>
@@ -349,11 +349,11 @@ export default function GerarContratos() {
               ⏰ Link expira em 15 horas ({resultado.expira})
             </div>
           )}
-          <div style={{ background: '#131e33', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+          <div style={{ background: '#232a37', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(255,255,255,0.08)' }}>
             {resultado.link}
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button onClick={copiarLink} style={{ flex: 1, padding: '10px', background: copiado ? '#34d399' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            <button onClick={copiarLink} style={{ flex: 1, padding: '10px', background: copiado ? '#34d399' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
               {copiado ? '✓ Copiado!' : '📋 Copiar link'}
             </button>
             <a href={`https://wa.me/?text=${encodeURIComponent('Olá! Segue o link para assinar seus documentos: ' + resultado.link)}`}
@@ -362,7 +362,7 @@ export default function GerarContratos() {
               💬 WhatsApp
             </a>
           </div>
-          <button onClick={proximoCliente} style={{ width: '100%', padding: '10px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+          <button onClick={proximoCliente} style={{ width: '100%', padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             ➡️ Próximo cliente
           </button>
         </div>

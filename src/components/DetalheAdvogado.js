@@ -28,14 +28,14 @@ const PROD_STYLE = {
   'Auxilio Acidente': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
 }
 const PAG_STYLE = {
-  emitir_contrato: { bg: '#1a2742', color: '#8b9bb4', label: 'Emitir contrato' },
+  emitir_contrato: { bg: '#2b3340', color: '#8b9bb4', label: 'Emitir contrato' },
   assinar_contrato: { bg: 'rgba(167,139,250,.14)', color: '#a78bfa', label: 'Assinar contrato' },
   a_entregar: { bg: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'A entregar' },
   entregue: { bg: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Entregue' },
   pago: { bg: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Pago' },
   inadimplente: { bg: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Inadimplente' },
   pendente_aprovacao: { bg: 'rgba(251,191,36,.12)', color: '#fbbf24', label: '🔄 Reposição pendente' },
-  nao_assinou: { bg: '#1a2742', color: '#8b9bb4', label: 'Não assinou' },
+  nao_assinou: { bg: '#2b3340', color: '#8b9bb4', label: 'Não assinou' },
 }
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
 const PRODUTOS = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'Auxilio Acidente']
@@ -95,25 +95,25 @@ function calcularValorPorQtds(qtds, tabelas) {
 
 const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' },
-  panel: { background: '#131e33', height: '100vh', overflowY: 'auto', padding: '1.5rem', borderLeft: '0.5px solid rgba(148,163,184,0.14)' },
+  panel: { background: '#232a37', height: '100vh', overflowY: 'auto', padding: '1.5rem', borderLeft: '0.5px solid rgba(255,255,255,0.08)' },
   closeBtn: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#8b9bb4', float: 'right' },
   name: { fontSize: 18, fontWeight: 500, color: '#e6edf7', marginBottom: 3, marginTop: '1.5rem' },
   sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
   badges: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
   badge: (style) => ({ padding: '3px 9px', borderRadius: 20, fontSize: 12, fontWeight: 500, ...style }),
-  section: { marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '0.5px solid rgba(148,163,184,0.12)' },
+  section: { marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '0.5px solid rgba(255,255,255,0.07)' },
   sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10, fontWeight: 500 },
   row: { display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 },
   rowLabel: { color: '#8b9bb4' },
   rowValue: { fontWeight: 500, color: '#e6edf7' },
-  compraBox: { background: '#0d1526', borderRadius: 10, padding: '1rem', marginTop: '1rem' },
+  compraBox: { background: '#171c26', borderRadius: 10, padding: '1rem', marginTop: '1rem' },
   label: { fontSize: 12, color: '#8b9bb4', marginBottom: 4, display: 'block', marginTop: 10 },
-  input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' },
-  btnSave: { width: '100%', marginTop: 12, padding: '10px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnDisabled: { width: '100%', marginTop: 12, padding: '10px', background: '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'not-allowed' },
+  input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' },
+  btnSave: { width: '100%', marginTop: 12, padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnDisabled: { width: '100%', marginTop: 12, padding: '10px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'not-allowed' },
   qtyRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
   qtyLabel: { fontSize: 13, flex: 1, color: '#c6d2e4' },
-  qtyBtn: { width: 32, height: 32, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.45)', background: '#131e33', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontWeight: 500, flexShrink: 0 },
+  qtyBtn: { width: 32, height: 32, borderRadius: 8, border: '0.5px solid rgba(0,0,0,0.45)', background: '#232a37', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontWeight: 500, flexShrink: 0 },
   qtyValue: { fontSize: 16, fontWeight: 500, minWidth: 28, textAlign: 'center', color: '#e6edf7' },
 }
 
@@ -435,7 +435,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         </div>
 
         {/* Abas */}
-        <div style={{ display: 'flex', marginTop: '1.25rem', borderBottom: '1px solid rgba(148,163,184,0.12)' }}>
+        <div style={{ display: 'flex', marginTop: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           {[['lotes','Lotes'],['dados','Dados cadastrais']].map(([key, label]) => (
             <button key={key} onClick={() => setAba(key)} style={{ flex: 1, padding: '9px 0', fontSize: 13, fontWeight: aba === key ? 500 : 400, color: aba === key ? '#60a5fa' : '#8b9bb4', background: 'none', border: 'none', borderBottom: aba === key ? '2px solid #60a5fa' : '2px solid transparent', cursor: 'pointer' }}>
               {label}
@@ -494,7 +494,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                     <button style={s.qtyBtn} onClick={() => ajustarQtd(p, 1)} type="button">+</button>
                   </div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid rgba(148,163,184,0.14)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
                   <span style={{ color: '#8b9bb4' }}>Total · Valor</span>
                   <span style={{ fontWeight: 500 }}>{totalLote} contrato{totalLote !== 1 ? 's' : ''} · {fmt(valorLote)}</span>
                 </div>
@@ -565,7 +565,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                           <button onClick={() => setModalLote(lote)} style={{ flex: 1, padding: '7px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>📎 Pago + comprovante</button>
                         )}
                         {lote.status_pagamento === 'pago' && (
-                          <button onClick={() => desfazerPagamento(lote.id)} style={{ flex: 1, padding: '7px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Desfazer</button>
+                          <button onClick={() => desfazerPagamento(lote.id)} style={{ flex: 1, padding: '7px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Desfazer</button>
                         )}
                         {lote.status_pagamento === 'inadimplente' && (
                           <>
@@ -585,11 +585,11 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
 
                       {/* Admin: editar */}
                       {profile?.role === 'admin' && (
-                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px dashed rgba(148,163,184,0.14)' }}>
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px dashed rgba(255,255,255,0.08)' }}>
                           <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Admin — alterar status</div>
                           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
                             {[
-                              { key: 'emitir_contrato', label: 'Emitir', bg: '#1a2742', color: '#8b9bb4' },
+                              { key: 'emitir_contrato', label: 'Emitir', bg: '#2b3340', color: '#8b9bb4' },
                               { key: 'assinar_contrato', label: 'Assinar', bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
                               { key: 'a_entregar', label: 'A entregar', bg: 'rgba(96,165,250,.12)', color: '#60a5fa' },
                               { key: 'entregue', label: 'Entregue', bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
@@ -598,12 +598,12 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                             ].map(op => (
                               <button key={op.key} disabled={lote.status_pagamento === op.key}
                                 onClick={() => op.key === 'pago' ? setModalLote(lote) : mudarStatusAdmin(lote, op.key)}
-                                style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: lote.status_pagamento === op.key ? 'default' : 'pointer', fontWeight: lote.status_pagamento === op.key ? 500 : 400, background: lote.status_pagamento === op.key ? op.bg : '#1a2742', color: lote.status_pagamento === op.key ? op.color : '#8b9bb4', border: lote.status_pagamento === op.key ? '1.5px solid ' + op.color : '0.5px solid #ddd' }}>
+                                style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: lote.status_pagamento === op.key ? 'default' : 'pointer', fontWeight: lote.status_pagamento === op.key ? 500 : 400, background: lote.status_pagamento === op.key ? op.bg : '#2b3340', color: lote.status_pagamento === op.key ? op.color : '#8b9bb4', border: lote.status_pagamento === op.key ? '1.5px solid ' + op.color : '0.5px solid #ddd' }}>
                                 {lote.status_pagamento === op.key ? '✓ ' : ''}{op.label}
                               </button>
                             ))}
                           </div>
-                          <button onClick={() => editarQtdLote(lote.id, lote.total_contratos, adv.total_compras)} style={{ fontSize: 11, padding: '5px 10px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, cursor: 'pointer' }}>
+                          <button onClick={() => editarQtdLote(lote.id, lote.total_contratos, adv.total_compras)} style={{ fontSize: 11, padding: '5px 10px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, cursor: 'pointer' }}>
                             ✏️ Editar quantidade ({lote.total_contratos} contrato{lote.total_contratos!==1?'s':''})
                           </button>
                         </div>
@@ -626,8 +626,8 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
       )}
 
       {modalReposicao && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModalReposicao(false)}>
-          <div style={{ background: '#131e33', borderRadius: 12, padding: '1.5rem', width: 'min(440px, 92vw)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModalReposicao(false)}>
+          <div style={{ background: '#232a37', borderRadius: 12, padding: '1.5rem', width: 'min(440px, 92vw)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontSize: 16, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>🔄 Solicitar reposição</div>
             <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 16 }}>Contratos grátis pra cobrir problemas com advogado. Não conta no faturamento nem na meta.</div>
             
@@ -635,7 +635,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
             <select
               value={repForm.produto}
               onChange={e => setRepForm({ ...repForm, produto: e.target.value })}
-              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 12, background: '#131e33', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 12, background: '#232a37', boxSizing: 'border-box' }}
             >
               <option value="Maternidade">Maternidade</option>
               <option value="Pensão por Morte">Pensão por Morte</option>
@@ -652,7 +652,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
               placeholder="🔎 Buscar por nome ou CPF..."
               style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
             />
-            <div style={{ maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, marginBottom: 12 }}>
+            <div style={{ maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, marginBottom: 12 }}>
               {clientesAdv.length === 0 ? (
                 <div style={{ padding: '12px', fontSize: 12, color: '#8b9bb4' }}>Nenhum cliente vivo deste advogado disponível.</div>
               ) : clientesAdvFiltrados.length === 0 ? (
@@ -662,7 +662,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
                 return (
                   <div key={c.id}
                     onClick={() => setRepSelecionados(sel ? repSelecionados.filter(id => id !== c.id) : [...repSelecionados, c.id])}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '0.5px solid rgba(148,163,184,0.08)', cursor: 'pointer', background: sel ? 'rgba(248,113,113,.14)' : '#131e33' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.05)', cursor: 'pointer', background: sel ? 'rgba(248,113,113,.14)' : '#232a37' }}>
                     <input type="checkbox" checked={sel} readOnly style={{ pointerEvents: 'none' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: '#e6edf7' }}>{c.nome}</div>
@@ -677,7 +677,7 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
             <select 
               value={repForm.motivo} 
               onChange={e => setRepForm({ ...repForm, motivo: e.target.value })}
-              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 12, background: '#131e33', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 12, background: '#232a37', boxSizing: 'border-box' }}
             >
               <option value="">Selecione...</option>
               <option value="Cliente não assinou">Cliente não assinou</option>
@@ -700,14 +700,14 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button 
                 onClick={() => { setModalReposicao(false); setRepSelecionados([]) }}
-                style={{ flex: 1, padding: '10px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button 
                 onClick={solicitarReposicao}
                 disabled={savingRep || !repForm.motivo || repSelecionados.length === 0}
-                style={{ flex: 2, padding: '10px', background: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? '#64748b' : '#fbbf24', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 2, padding: '10px', background: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? '#64748b' : '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: (savingRep || !repForm.motivo || repSelecionados.length === 0) ? 'not-allowed' : 'pointer' }}
               >
                 {savingRep ? 'Enviando...' : `Enviar solicitação${repSelecionados.length ? ' (' + repSelecionados.length + ')' : ''}`}
               </button>

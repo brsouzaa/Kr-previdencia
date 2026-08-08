@@ -4,18 +4,18 @@ import { useAuth } from '../lib/AuthContext'
 import formatarParaWhatsApp from '../lib/formatarParaWhatsApp'
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
-  cardReemissao: { background: '#131e33', border: '1.5px solid #f87171', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
+  cardReemissao: { background: '#232a37', border: '1.5px solid #f87171', borderRadius: 14, padding: '1.25rem', marginBottom: 12 },
   sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500 },
-  btn: { padding: '10px 16px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnDisabled: { padding: '10px 16px', background: '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'not-allowed' },
-  btnSec: { padding: '8px 14px', background: '#131e33', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  btn: { padding: '10px 16px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnDisabled: { padding: '10px 16px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'not-allowed' },
+  btnSec: { padding: '8px 14px', background: '#232a37', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
   field: { fontSize: 12, marginBottom: 4 },
   fieldLabel: { color: '#8b9bb4', fontWeight: 500 },
   fieldValue: { color: '#e6edf7', marginLeft: 6 },
   badge: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
-  modalBg: { position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
-  modal: { background: '#131e33', borderRadius: 14, padding: '1.5rem', maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
+  modalBg: { position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
+  modal: { background: '#232a37', borderRadius: 14, padding: '1.5rem', maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
   successBox: { background: 'rgba(52,211,153,.14)', border: '1.5px solid #3B6D1150', borderRadius: 12, padding: '1rem', marginTop: 12 },
 }
 
@@ -212,10 +212,10 @@ export default function FilaDigitacao() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}
-            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none', cursor: 'pointer' }}>
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none', cursor: 'pointer' }}>
             {PRODUTOS_FILA.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>↻ Atualizar</button>
+          <button onClick={fetchTudo} style={{ padding: '8px 14px', fontSize: 13, background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>↻ Atualizar</button>
         </div>
       </div>
 
@@ -235,7 +235,7 @@ export default function FilaDigitacao() {
             const ocupado = contarVivosLote(l)
             const cheio = ocupado >= (l.total_contratos || 0)
             return (
-              <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: i === 0 ? 'rgba(251,191,36,.12)' : '#0d1526', borderRadius: 8, marginBottom: 6 }}>
+              <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: i === 0 ? 'rgba(251,191,36,.12)' : '#171c26', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', minWidth: 20 }}>{i + 1}º</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{l.advogados?.nome_completo || '—'}</div>
@@ -243,7 +243,7 @@ export default function FilaDigitacao() {
                 </div>
                 <button onClick={() => moverOrdem(i, -1)} disabled={i === 0 || salvandoOrdem} style={{ ...s.btnSec, padding: '4px 10px', opacity: i === 0 ? 0.4 : 1 }}>↑</button>
                 <button onClick={() => moverOrdem(i, 1)} disabled={i === ordemManual.length - 1 || salvandoOrdem} style={{ ...s.btnSec, padding: '4px 10px', opacity: i === ordemManual.length - 1 ? 0.4 : 1 }}>↓</button>
-                <button onClick={() => removerDaOrdem(l.id)} disabled={salvandoOrdem} style={{ padding: '4px 10px', background: '#131e33', color: '#f87171', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
+                <button onClick={() => removerDaOrdem(l.id)} disabled={salvandoOrdem} style={{ padding: '4px 10px', background: '#232a37', color: '#f87171', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
               </div>
             )
           })
@@ -263,7 +263,7 @@ export default function FilaDigitacao() {
                 const ocupado = contarVivosLote(l)
                 return (
                   <div key={l.id} onClick={() => adicionarNaOrdem(l.id)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#0d1526', borderRadius: 8, marginBottom: 6, cursor: 'pointer' }}>
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#171c26', borderRadius: 8, marginBottom: 6, cursor: 'pointer' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{l.advogados?.nome_completo || '—'}</div>
                       <div style={{ fontSize: 11, color: '#8b9bb4' }}>{ocupado}/{l.total_contratos} ocupados · {l.produto || ''}</div>
@@ -273,7 +273,7 @@ export default function FilaDigitacao() {
                 )
               })
             )}
-            <button onClick={() => setAddAberto(false)} style={{ width: '100%', marginTop: 12, padding: '10px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Fechar</button>
+            <button onClick={() => setAddAberto(false)} style={{ width: '100%', marginTop: 12, padding: '10px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Fechar</button>
           </div>
         </div>
       )}
@@ -282,7 +282,7 @@ export default function FilaDigitacao() {
         <div style={{ ...s.card, background: proximoLoteFiltrado.prioridade_fila ? 'rgba(251,191,36,.12)' : 'rgba(96,165,250,.12)', border: proximoLoteFiltrado.prioridade_fila ? '1.5px solid #fbbf24' : '1.5px solid #185FA540' }}>
           <div style={{ ...s.sectionTitle, marginBottom: 6 }}>
             ⚖️ Advogado da vez
-            {proximoLoteFiltrado.prioridade_fila && <span style={{ marginLeft: 8, padding: '2px 8px', background: '#fbbf24', color: '#131e33', borderRadius: 10, fontSize: 10 }}>⚡ PRIORIDADE</span>}
+            {proximoLoteFiltrado.prioridade_fila && <span style={{ marginLeft: 8, padding: '2px 8px', background: '#fbbf24', color: '#232a37', borderRadius: 10, fontSize: 10 }}>⚡ PRIORIDADE</span>}
           </div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#e6edf7' }}>{proximoLoteFiltrado.advogados.nome_completo}</div>
           <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 2 }}>OAB/{proximoLoteFiltrado.advogados.estado} {proximoLoteFiltrado.advogados.oab}</div>
@@ -297,7 +297,7 @@ export default function FilaDigitacao() {
       )}
 
       {clientesFiltrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.06)' }}>
           ✅ Fila vazia — nenhum cliente aguardando.
         </div>
       ) : clientesFiltrados.map((c, idx) => {
@@ -335,7 +335,7 @@ export default function FilaDigitacao() {
               </div>
             )}
 
-            <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6, marginBottom: 8 }}>
+            <div style={{ background: '#171c26', padding: '8px 10px', borderRadius: 6, marginBottom: 8 }}>
               <div style={s.field}>
                 <span style={s.fieldLabel}>RG:</span><span style={s.fieldValue}>{c.rg}</span>
                 <span style={{ ...s.fieldLabel, marginLeft: 12 }}>E-mail:</span><span style={s.fieldValue}>{c.email}</span>
@@ -371,7 +371,7 @@ export default function FilaDigitacao() {
             </div>
 
             {verDocs && (
-              <div style={{ marginBottom: 10, padding: 10, background: '#0f1930', borderRadius: 6 }}>
+              <div style={{ marginBottom: 10, padding: 10, background: '#1e242f', borderRadius: 6 }}>
                 {TIPOS_DOC.map(tipo => (
                   <div key={tipo.chave} style={{ marginBottom: 4, fontSize: 12 }}>
                     <span style={{ color: '#8b9bb4', minWidth: 200, display: 'inline-block' }}>{tipo.label}:</span>
@@ -388,7 +388,7 @@ export default function FilaDigitacao() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button onClick={() => copiarWhats(c)}
                 style={copiadoWhatsId === c.id ?
-                  { padding: '8px 14px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' } :
+                  { padding: '8px 14px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' } :
                   s.btnSec}>
                 {copiadoWhatsId === c.id ? '✓ Copiado pra WhatsApp' : '📋 Copiar pra WhatsApp'}
               </button>
@@ -396,7 +396,7 @@ export default function FilaDigitacao() {
                 🚀 Emitir contrato
               </button>
               <button onClick={() => { setBarrarCliente(c); setMotivoBarra('') }}
-                style={{ padding: '8px 14px', background: '#131e33', color: '#f87171', border: '1px solid rgba(248,113,113,.14)', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                style={{ padding: '8px 14px', background: '#232a37', color: '#f87171', border: '1px solid rgba(248,113,113,.14)', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                 🚫 Barrar
               </button>
             </div>
@@ -411,18 +411,18 @@ export default function FilaDigitacao() {
             <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 12 }}>
               O cliente sai da fila e é cancelado. Informe o motivo.
             </div>
-            <div style={{ background: '#0d1526', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+            <div style={{ background: '#171c26', borderRadius: 8, padding: 12, marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4 }}>CLIENTE</div>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{barrarCliente.nome}</div>
               <div style={{ fontSize: 12, color: '#8b9bb4' }}>{barrarCliente.cpf}</div>
             </div>
             <textarea value={motivoBarra} onChange={e => setMotivoBarra(e.target.value)}
               placeholder="Motivo (ex: cliente desistiu, dados inválidos, duplicado...)"
-              style={{ width: '100%', minHeight: 70, padding: 10, borderRadius: 8, border: '1px solid rgba(148,163,184,0.20)', fontSize: 13, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical' }} />
+              style={{ width: '100%', minHeight: 70, padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.11)', fontSize: 13, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setBarrarCliente(null)} style={{ flex: 1, padding: '10px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setBarrarCliente(null)} style={{ flex: 1, padding: '10px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={barrar} disabled={barrando}
-                style={{ flex: 2, padding: '10px', background: barrando ? '#64748b' : '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: barrando ? 'not-allowed' : 'pointer' }}>
+                style={{ flex: 2, padding: '10px', background: barrando ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: barrando ? 'not-allowed' : 'pointer' }}>
                 {barrando ? '⏳ Barrando...' : '🚫 Confirmar e barrar'}
               </button>
             </div>
@@ -440,7 +440,7 @@ export default function FilaDigitacao() {
                   Será gerado um contrato no ZapSign vinculando este cliente ao advogado da vez.
                 </div>
 
-                <div style={{ background: '#0d1526', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                <div style={{ background: '#171c26', borderRadius: 8, padding: 12, marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4 }}>CLIENTE</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>{modalAberto.nome}</div>
                   <div style={{ fontSize: 12, color: '#8b9bb4' }}>{modalAberto.cpf}</div>
@@ -453,9 +453,9 @@ export default function FilaDigitacao() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
                   <button onClick={() => emitir(modalAberto)} disabled={emitindo}
-                    style={{ flex: 2, padding: '10px', background: emitindo ? '#64748b' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: emitindo ? 'not-allowed' : 'pointer' }}>
+                    style={{ flex: 2, padding: '10px', background: emitindo ? '#64748b' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: emitindo ? 'not-allowed' : 'pointer' }}>
                     {emitindo ? '⏳ Emitindo...' : '🚀 Confirmar e emitir'}
                   </button>
                 </div>
@@ -470,14 +470,14 @@ export default function FilaDigitacao() {
 
                 <div style={s.successBox}>
                   <div style={{ fontSize: 12, color: '#34d399', fontWeight: 500, marginBottom: 6 }}>📨 Link de assinatura</div>
-                  <div style={{ background: '#131e33', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#60a5fa', wordBreak: 'break-all', marginBottom: 8 }}>{resultado.link}</div>
+                  <div style={{ background: '#232a37', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#60a5fa', wordBreak: 'break-all', marginBottom: 8 }}>{resultado.link}</div>
                   <div style={{ fontSize: 11, color: '#fbbf24', marginBottom: 10 }}>⏰ Expira em 15h</div>
-                  <button onClick={copiarLink} style={{ width: '100%', padding: '10px', background: copiado ? '#34d399' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                  <button onClick={copiarLink} style={{ width: '100%', padding: '10px', background: copiado ? '#34d399' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                     {copiado ? '✓ Link copiado' : '📋 Copiar link'}
                   </button>
                 </div>
 
-                <button onClick={fecharModal} style={{ width: '100%', marginTop: 14, padding: '10px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                <button onClick={fecharModal} style={{ width: '100%', marginTop: 14, padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                   Próximo cliente da fila
                 </button>
               </>

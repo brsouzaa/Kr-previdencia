@@ -254,7 +254,7 @@ export default function SupervisorProducao() {
   }, {})
   const ranking = Object.entries(rankingMap).sort((a,b) => b[1].enviados - a[1].enviados)
 
-  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '14px 16px' }
+  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }
 
   const titulo = isSupAutonomo ? '📊 Supervisão Autônomos' : '📊 Supervisão de Produção'
 
@@ -265,7 +265,7 @@ export default function SupervisorProducao() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7' }}>{titulo}</div>
         <button onClick={sincronizarAgora} disabled={sincronizando}
-          style={{ padding: '8px 14px', background: sincronizando ? '#64748b' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: sincronizando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 14px', background: sincronizando ? '#64748b' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: sincronizando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           {sincronizando ? '⏳ Sincronizando...' : '🔄 Sincronizar agora'}
         </button>
       </div>
@@ -307,10 +307,10 @@ export default function SupervisorProducao() {
                 <div key={s.supervisora_id} style={{
                   flex: '1 1 200px',
                   padding: '12px',
-                  background: ehVoce ? '#60a5fa' : '#131e33',
-                  color: ehVoce ? '#131e33' : '#e6edf7',
+                  background: ehVoce ? '#60a5fa' : '#232a37',
+                  color: ehVoce ? '#232a37' : '#e6edf7',
                   borderRadius: 8,
-                  border: ehVoce ? 'none' : '0.5px solid rgba(148,163,184,0.14)'
+                  border: ehVoce ? 'none' : '0.5px solid rgba(255,255,255,0.08)'
                 }}>
                   <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>
                     {['🥇','🥈','🥉'][s.posicao - 1] || `${s.posicao}º`} {ehVoce && '· VOCÊ'}
@@ -332,17 +332,17 @@ export default function SupervisorProducao() {
       {/* Bloco "Lotes em prioridade na fila" removido a pedido do Bruno (29/05/2026) */}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
           <option value="total">Todo período</option>
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
           <option value="">Todos os vendedores B2C</option>
           {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}{p.id === IA_ID ? ' 🤖' : ''}</option>)}
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos os produtos</option>
           {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -355,7 +355,7 @@ export default function SupervisorProducao() {
           {ranking.map(([nome, dados], i) => {
             const conv = dados.enviados > 0 ? Math.round((dados.assinados / dados.enviados) * 100) : 0
             return (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: dados.is_ia ? 'rgba(251,191,36,.12)' : (i === 0 ? 'rgba(96,165,250,.12)' : '#0d1526'), borderRadius: 8, border: dados.is_ia ? '0.5px dashed #F59E0B60' : 'none' }}>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: dados.is_ia ? 'rgba(251,191,36,.12)' : (i === 0 ? 'rgba(96,165,250,.12)' : '#171c26'), borderRadius: 8, border: dados.is_ia ? '0.5px dashed #F59E0B60' : 'none' }}>
                 <div style={{ width: 24, fontSize: 16, textAlign: 'center' }}>{dados.is_ia ? '🤖' : (['🥇','🥈','🥉'][i] || `${i+1}º`)}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
@@ -383,7 +383,7 @@ export default function SupervisorProducao() {
                   <span style={{ color: c, fontWeight: 500 }}>{l}</span>
                   <span style={{ fontWeight: 500 }}>{v} <span style={{ color: '#64748b', fontWeight: 400 }}>({pct}%)</span></span>
                 </div>
-                <div style={{ background: '#1a2742', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                <div style={{ background: '#2b3340', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 4, transition: 'width 0.4s' }} />
                 </div>
               </div>
@@ -396,7 +396,7 @@ export default function SupervisorProducao() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>Contratos gerados ({filtrados.length})</div>
           <input type="text" placeholder="🔍 Buscar por nome, CPF, telefone ou advogado..." value={busca} onChange={e => setBusca(e.target.value)}
-            style={{ flex: 1, minWidth: 240, maxWidth: 400, padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none' }} />
+            style={{ flex: 1, minWidth: 240, maxWidth: 400, padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none' }} />
         </div>
 
         {filtrados.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhum contrato encontrado</div>}
@@ -410,8 +410,8 @@ export default function SupervisorProducao() {
           const ehIA = isIA(c)
           return (
             <div key={c.id} onClick={() => abrirCliente(c)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s', background: ehIA ? 'rgba(251,191,36,.12)' : 'transparent' }}
-              onMouseEnter={e => { if (cli) e.currentTarget.style.background = ehIA ? 'rgba(251,191,36,.12)' : '#0d1526' }}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', cursor: cli ? 'pointer' : 'default', borderRadius: 6, transition: 'background 0.15s', background: ehIA ? 'rgba(251,191,36,.12)' : 'transparent' }}
+              onMouseEnter={e => { if (cli) e.currentTarget.style.background = ehIA ? 'rgba(251,191,36,.12)' : '#171c26' }}
               onMouseLeave={e => { e.currentTarget.style.background = ehIA ? 'rgba(251,191,36,.12)' : 'transparent' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
@@ -444,8 +444,8 @@ export default function SupervisorProducao() {
       </div>
 
       {clienteAberto && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setClienteAberto(null)}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setClienteAberto(null)}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 12, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: 18, color: '#e6edf7' }}>✏️ Editar cliente</h2>
@@ -483,9 +483,9 @@ export default function SupervisorProducao() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid rgba(148,163,184,0.12)' }}>
-              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#1a2742', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
-              <button onClick={salvarCliente} disabled={salvando} style={{ flex: 2, padding: 10, background: salvando ? '#64748b' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 6, cursor: salvando ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <button onClick={() => setClienteAberto(null)} disabled={salvando} style={{ flex: 1, padding: 10, background: '#2b3340', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+              <button onClick={salvarCliente} disabled={salvando} style={{ flex: 2, padding: 10, background: salvando ? '#64748b' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 6, cursor: salvando ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}>
                 {salvando ? '⏳ Salvando...' : '💾 Salvar alterações'}
               </button>
             </div>

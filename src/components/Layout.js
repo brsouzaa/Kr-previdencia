@@ -160,10 +160,10 @@ const grupoDe = (key) => GRUPO_DE[key] || 'Produção'
 const t = {
   sidebar: {
     width: 236, flexShrink: 0, display: 'flex', flexDirection: 'column',
-    background: '#f7f9fc',
+    background: '#1e2430',
     backgroundImage: 'radial-gradient(500px 220px at 50% -60px, rgba(59,130,246,.07), transparent 70%)',
-    borderRight: '1px solid rgba(15,23,42,0.08)',
-    boxShadow: '4px 0 24px rgba(0,0,0,0.35)',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '4px 0 28px rgba(0,0,0,0.35)',
     padding: '18px 12px 14px', height: '100vh', position: 'sticky', top: 0, overflowY: 'auto',
   },
   logoIco: {
@@ -174,16 +174,16 @@ const t = {
   },
   grupo: {
     fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.4px',
-    color: '#94a3b8', padding: '14px 10px 6px',
+    color: '#7c8aa3', padding: '14px 10px 6px',
   },
   item: (ativo) => ({
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
     width: '100%', padding: '9px 11px', borderRadius: 11, border: 'none',
     textAlign: 'left', cursor: 'pointer', marginBottom: 2,
     fontSize: 13, fontWeight: ativo ? 600 : 500, fontFamily: 'inherit',
-    color: ativo ? '#1d4ed8' : '#526078',
-    background: ativo ? 'linear-gradient(90deg, rgba(59,130,246,.14), rgba(59,130,246,.04))' : 'transparent',
-    boxShadow: ativo ? 'inset 0 0 0 1px rgba(59,130,246,.25)' : 'none',
+    color: ativo ? '#ffffff' : '#a3adbd',
+    background: ativo ? 'linear-gradient(90deg, rgba(96,165,250,.22), rgba(96,165,250,.05))' : 'transparent',
+    boxShadow: ativo ? 'inset 0 0 0 1px rgba(96,165,250,.28)' : 'none',
     transition: 'background .15s, color .15s',
   }),
   badgeVerde: {
@@ -193,8 +193,8 @@ const t = {
   },
   userBox: {
     marginTop: 'auto', padding: '11px 10px', borderRadius: 12,
-    background: '#ffffff', border: '1px solid rgba(15,23,42,.08)',
-    boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)',
+    boxShadow: 'none',
   },
   avatar: {
     width: 32, height: 32, borderRadius: 999, display: 'grid', placeItems: 'center',
@@ -367,8 +367,8 @@ export default function Layout({ children, page, setPage }) {
         key={n.key}
         onClick={() => { setPage(n.key); setMenuOpen(false) }}
         style={t.item(ativo)}
-        onMouseEnter={e => { if (!ativo) { e.currentTarget.style.background = 'rgba(59,130,246,.07)'; e.currentTarget.style.color = '#1e293b' } }}
-        onMouseLeave={e => { if (!ativo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#526078' } }}
+        onMouseEnter={e => { if (!ativo) { e.currentTarget.style.background = 'rgba(255,255,255,.05)'; e.currentTarget.style.color = '#e2e8f0' } }}
+        onMouseLeave={e => { if (!ativo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3adbd' } }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
         {showBadge && <span style={t.badgeVerde}>{novosLotes}</span>}
@@ -390,8 +390,8 @@ export default function Layout({ children, page, setPage }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 8px 16px' }}>
             <div style={t.logoIco}>KR</div>
             <div>
-              <div style={{ color: '#0f172a', fontWeight: 700, fontSize: 14.5, letterSpacing: '.1px' }}>KR Previdência</div>
-              <div style={{ color: '#8593a8', fontSize: 10, fontWeight: 600, letterSpacing: '1.6px', textTransform: 'uppercase' }}>CRM Operacional</div>
+              <div style={{ color: '#f1f5fb', fontWeight: 700, fontSize: 14.5, letterSpacing: '.1px' }}>KR Previdência</div>
+              <div style={{ color: '#7c8aa3', fontSize: 10, fontWeight: 600, letterSpacing: '1.6px', textTransform: 'uppercase' }}>CRM Operacional</div>
             </div>
           </div>
 
@@ -406,12 +406,12 @@ export default function Layout({ children, page, setPage }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={t.avatar}>{iniciais(profile?.nome)}</div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ color: '#0f172a', fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.nome}</div>
-                <div style={{ color: '#8593a8', fontSize: 10.5 }}>{rotulo}</div>
+                <div style={{ color: '#e2e8f0', fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.nome}</div>
+                <div style={{ color: '#7c8aa3', fontSize: 10.5 }}>{rotulo}</div>
               </div>
               <NotificacoesBell onNavigate={(p) => setPage(p)} />
             </div>
-            <button onClick={signOut} style={{ marginTop: 8, width: '100%', padding: '6px 0', borderRadius: 8, border: '1px solid rgba(220,38,38,.25)', background: 'rgba(220,38,38,.06)', color: '#dc2626', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={signOut} style={{ marginTop: 8, width: '100%', padding: '6px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,.25)', background: 'rgba(248,113,113,.08)', color: '#f87171', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               Sair
             </button>
           </div>
@@ -420,7 +420,7 @@ export default function Layout({ children, page, setPage }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {isMobile && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#0b1220', borderBottom: '1px solid rgba(148,163,184,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#1e2430', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
             <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#e6edf7', padding: '4px 8px', lineHeight: 1, position: 'relative' }}>
               ☰
               {novosLotes > 0 && (

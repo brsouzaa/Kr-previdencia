@@ -31,7 +31,7 @@ export default function MeuLink() {
     window.open(`https://wa.me/?text=${msg}`, '_blank')
   }
 
-  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 }
+  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 }
 
   return (
     <div>
@@ -42,10 +42,10 @@ export default function MeuLink() {
       <div style={card}>
         <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Seu link</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, padding: '10px 14px', background: '#0d1526', borderRadius: 8, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(148,163,184,0.12)' }}>
+          <div style={{ flex: 1, padding: '10px 14px', background: '#171c26', borderRadius: 8, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(255,255,255,0.07)' }}>
             {link}
           </div>
-          <button onClick={copiarLink} style={{ padding: '10px 16px', background: copiado ? 'rgba(52,211,153,.14)' : '#60a5fa', color: copiado ? '#34d399' : '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
+          <button onClick={copiarLink} style={{ padding: '10px 16px', background: copiado ? 'rgba(52,211,153,.14)' : '#60a5fa', color: copiado ? '#34d399' : '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
             {copiado ? '✓ Copiado!' : 'Copiar'}
           </button>
         </div>
@@ -68,7 +68,7 @@ export default function MeuLink() {
       <div style={card}>
         <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>QR Code</div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <div ref={qrRef} id="qrcode-container" style={{ padding: 16, background: '#131e33', borderRadius: 12, border: '0.5px solid rgba(148,163,184,0.14)', display: 'inline-block' }}>
+          <div ref={qrRef} id="qrcode-container" style={{ padding: 16, background: '#232a37', borderRadius: 12, border: '0.5px solid rgba(255,255,255,0.08)', display: 'inline-block' }}>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}&bgcolor=ffffff&color=0d0d0d&margin=0`}
               alt="QR Code do seu link de cadastro"
@@ -85,7 +85,7 @@ export default function MeuLink() {
             download="qrcode-kr-previdencia.png"
             target="_blank"
             rel="noreferrer"
-            style={{ padding: '9px 18px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 8, fontSize: 13, textDecoration: 'none', cursor: 'pointer' }}
+            style={{ padding: '9px 18px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 8, fontSize: 13, textDecoration: 'none', cursor: 'pointer' }}
           >
             Baixar QR Code
           </a>
@@ -93,14 +93,14 @@ export default function MeuLink() {
       </div>
 
       {/* Preview */}
-      <div style={{ ...card, background: '#0d1526', border: '0.5px dashed rgba(148,163,184,0.20)' }}>
+      <div style={{ ...card, background: '#171c26', border: '0.5px dashed rgba(255,255,255,0.11)' }}>
         <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Prévia do formulário</div>
         <div style={{ fontSize: 13, color: '#8b9bb4', lineHeight: 1.6 }}>
           O advogado vai ver um formulário simples com:<br />
           nome, OAB, estado, cidade, telefone, e-mail, endereço e estado civil.<br />
           Ao enviar, o cadastro aparece automaticamente na sua lista de advogados.
         </div>
-        <a href={link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, padding: '8px 14px', background: '#60a5fa', color: '#131e33', borderRadius: 8, fontSize: 13, textDecoration: 'none', fontWeight: 500 }}>
+        <a href={link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, padding: '8px 14px', background: '#60a5fa', color: '#232a37', borderRadius: 8, fontSize: 13, textDecoration: 'none', fontWeight: 500 }}>
           Ver formulário →
         </a>
       </div>

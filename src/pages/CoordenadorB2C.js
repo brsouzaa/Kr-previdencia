@@ -27,7 +27,7 @@ const s = {
   pageSubtitle: { fontSize: 12, color: '#8b9bb4', marginBottom: 20 },
   sectionTitle: { fontSize: 13, fontWeight: 600, color: '#c6d2e4', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20 },
   cardsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 8 },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '14px 16px' },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '14px 16px' },
   cardLabel: { fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
   cardNum: { fontSize: 22, fontWeight: 600, color: '#e6edf7' },
   cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
@@ -36,26 +36,26 @@ const s = {
   alertaText: { fontSize: 13, color: '#f87171', fontWeight: 500, flex: 1 },
   alertaNum: { fontSize: 18, fontWeight: 700, color: '#f87171' },
   acoesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },
-  acaoBtn: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 },
+  acaoBtn: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 },
   acaoBtnIcon: { fontSize: 20 },
   acaoBtnTitulo: { fontSize: 13, fontWeight: 600, color: '#e6edf7', marginBottom: 2 },
   acaoBtnDesc: { fontSize: 11, color: '#8b9bb4' },
-  tabela: { width: '100%', background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden', fontSize: 12 },
-  th: { textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: 0.3, background: '#0f1930', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
-  td: { padding: '10px 12px', borderTop: '0.5px solid rgba(148,163,184,0.08)', color: '#c6d2e4' },
+  tabela: { width: '100%', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden', fontSize: 12 },
+  th: { textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: 0.3, background: '#1e242f', borderBottom: '0.5px solid rgba(255,255,255,0.07)' },
+  td: { padding: '10px 12px', borderTop: '0.5px solid rgba(255,255,255,0.05)', color: '#c6d2e4' },
   modalBg: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 },
-  modal: { background: '#131e33', borderRadius: 16, padding: 22, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto' },
+  modal: { background: '#232a37', borderRadius: 16, padding: 22, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto' },
   modalTitulo: { fontSize: 16, fontWeight: 600, color: '#e6edf7', marginBottom: 14 },
   label: { fontSize: 12, fontWeight: 500, color: '#c6d2e4', marginBottom: 6, display: 'block' },
-  input: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
-  select: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
-  textarea: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit', resize: 'vertical', minHeight: 70 },
-  btnPrimary: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, cursor: 'pointer' },
-  btnDanger: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, cursor: 'pointer' },
+  input: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  select: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  textarea: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit', resize: 'vertical', minHeight: 70 },
+  btnPrimary: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer' },
+  btnDanger: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: '#f87171', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer' },
   btnGhost: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: '#8b9bb4', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, cursor: 'pointer' },
   msgErro: { padding: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', fontSize: 12, borderRadius: 8, marginBottom: 10 },
   msgOk: { padding: 10, background: 'rgba(52,211,153,.14)', color: '#34d399', fontSize: 12, borderRadius: 8, marginBottom: 10 },
-  candidato: { padding: '8px 10px', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 8, cursor: 'pointer', marginBottom: 6, fontSize: 12 },
+  candidato: { padding: '8px 10px', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 8, cursor: 'pointer', marginBottom: 6, fontSize: 12 },
   candidatoAtivo: { background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa' },
 }
 
@@ -342,7 +342,7 @@ function CardNum({ label, valor, loading, cor = '#e6edf7', sub }) {
 
 function AcaoBtn({ icone, titulo, desc, onClick }) {
   return (
-    <button onClick={onClick} style={s.acaoBtn} onMouseEnter={e => e.currentTarget.style.background = '#0f1930'} onMouseLeave={e => e.currentTarget.style.background = '#131e33'}>
+    <button onClick={onClick} style={s.acaoBtn} onMouseEnter={e => e.currentTarget.style.background = '#1e242f'} onMouseLeave={e => e.currentTarget.style.background = '#232a37'}>
       <span style={s.acaoBtnIcon}>{icone}</span>
       <div>
         <div style={s.acaoBtnTitulo}>{titulo}</div>
@@ -396,8 +396,8 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
               key={c.id}
               onClick={() => { setSelecionado(c); setValor(c.nome) }}
               style={{ ...s.candidato }}
-              onMouseEnter={e => e.currentTarget.style.background = '#0f1930'}
-              onMouseLeave={e => e.currentTarget.style.background = '#131e33'}
+              onMouseEnter={e => e.currentTarget.style.background = '#1e242f'}
+              onMouseLeave={e => e.currentTarget.style.background = '#232a37'}
             >
               <div style={{ fontWeight: 500 }}>{c.nome}</div>
               <div style={{ fontSize: 11, color: '#8b9bb4' }}>

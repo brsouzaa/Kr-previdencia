@@ -147,18 +147,18 @@ const CORES = {
   vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
   verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
-  normal: { border: '0.5px solid rgba(148,163,184,0.14)', background: '#131e33' },
+  normal: { border: '0.5px solid rgba(255,255,255,0.08)', background: '#232a37' },
 }
 
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
   sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
   topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
-  chipOn: { background: '#f87171', color: '#131e33', borderColor: '#f87171' },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
   kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 230, maxWidth: 230, background: '#1a2742', borderRadius: 10, padding: 8, flexShrink: 0 },
+  col: { minWidth: 230, maxWidth: 230, background: '#2b3340', borderRadius: 10, padding: 8, flexShrink: 0 },
   colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
@@ -167,27 +167,27 @@ const s = {
   tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#fbbf24', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
-  tagMotivo: { fontSize: 10, background: '#1a2742', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagMotivo: { fontSize: 10, background: '#2b3340', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  painelMotivos: { marginTop: 10, padding: 12, background: '#0f1930', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10 },
+  painelMotivos: { marginTop: 10, padding: 12, background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  btnMotivo: { padding: '9px 10px', background: '#131e33', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
+  btnMotivo: { padding: '9px 10px', background: '#232a37', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#131e33', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#0f1930', borderRadius: 10, padding: 12, marginBottom: 12 },
+  modal: { background: '#232a37', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#1e242f', borderRadius: 10, padding: 12, marginBottom: 12 },
   anexoBox: { marginBottom: 12 },
   anexoLabel: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 },
   anexoRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' },
-  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'rgba(96,165,250,.10)', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 8, fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
-  msgs: { maxHeight: 220, overflowY: 'auto', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#1a2742', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' },
+  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'rgba(96,165,250,.10)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
+  msgs: { maxHeight: 220, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#2b3340', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   textarea: { width: '100%', minHeight: 90, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.45)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' },
-  btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#131e33', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
+  btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#232a37', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
   acoes: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  btnAcao: { padding: '9px 12px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  btnFechar: { padding: '9px 12px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+  btnAcao: { padding: '9px 12px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
+  btnFechar: { padding: '9px 12px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
 }
 
 export default function RevisaoIABolsaFamilia() {
@@ -521,7 +521,7 @@ export default function RevisaoIABolsaFamilia() {
                 💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span>
               </span>
               <button
-                style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
+                style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => recarregarConversa(lead, true)}
                 disabled={atualizandoConversa}
               >

@@ -67,7 +67,7 @@ function GraficoMensal({ dados, isMobile }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
       {[0.25, 0.5, 0.75, 1].map(f => (
-        <line key={f} x1={padL} x2={W - padL} y1={y(maxV * f)} y2={y(maxV * f)} stroke="rgba(148,163,184,0.10)" strokeWidth="1" />
+        <line key={f} x1={padL} x2={W - padL} y1={y(maxV * f)} y2={y(maxV * f)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
       ))}
       {dados.map((d, i) => {
         const cx = padL + grupoW * i + grupoW / 2
@@ -129,7 +129,7 @@ function Composicao({ itens, receita }) {
                 {fmt(x.valor)} · <b style={{ color: '#e6edf7' }}>{temReceita ? `${pctRec.toFixed(1)}% da receita` : `${pctDesp.toFixed(1)}% da despesa`}</b>
               </span>
             </div>
-            <div style={{ height: 8, background: 'rgba(148,163,184,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 6, overflow: 'hidden' }}>
               <div style={{ width: `${barra}%`, height: '100%', background: x.cor, borderRadius: 6 }} />
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function PainelFinanceiro() {
   if (!podeVer) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7', marginBottom: 6 }}>Acesso restrito</div>
           <div style={{ fontSize: 13, color: '#8b9bb4' }}>Apenas administração tem acesso ao painel financeiro.</div>
         </div>
@@ -466,11 +466,11 @@ export default function PainelFinanceiro() {
     return (
       <div style={{ display: 'flex', gap: 6 }}>
         <select value={mes} onChange={e => setMes(Number(e.target.value))}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#131e33' }}>
+          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#232a37' }}>
           {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
         </select>
         <select value={ano} onChange={e => setAno(Number(e.target.value))}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#131e33' }}>
+          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#232a37' }}>
           {anos.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
@@ -479,7 +479,7 @@ export default function PainelFinanceiro() {
 
   function Card({ titulo, subtitulo, cor, seletor, contratos, lotes, valor, rodape }) {
     return (
-      <div style={{ background: '#131e33', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(148,163,184,0.14)', borderTop: `3px solid ${cor}` }}>
+      <div style={{ background: '#232a37', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${cor}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: cor }}>{titulo}</div>
@@ -506,8 +506,8 @@ export default function PainelFinanceiro() {
   const kpi = (titulo, valor, cor, sub, chave) => (
     <button onClick={() => chave && setDetalhe(detalhe === chave ? null : chave)}
       style={{
-        background: detalhe === chave ? 'rgba(96,165,250,.10)' : '#131e33', borderRadius: 14, padding: '14px 16px',
-        border: detalhe === chave ? `1.5px solid ${cor}` : '0.5px solid rgba(148,163,184,0.14)',
+        background: detalhe === chave ? 'rgba(96,165,250,.10)' : '#232a37', borderRadius: 14, padding: '14px 16px',
+        border: detalhe === chave ? `1.5px solid ${cor}` : '0.5px solid rgba(255,255,255,0.08)',
         borderTop: `3px solid ${cor}`, textAlign: 'left', cursor: chave ? 'pointer' : 'default', width: '100%',
       }}>
       <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.4px' }}>{titulo}</div>
@@ -525,8 +525,8 @@ export default function PainelFinanceiro() {
   )
 
   const pill = (ativo) => ({
-    background: ativo ? COR.azul : '#131e33', color: ativo ? '#131e33' : '#8b9bb4',
-    border: `1px solid ${ativo ? COR.azul : 'rgba(148,163,184,0.20)'}`, borderRadius: 20,
+    background: ativo ? COR.azul : '#232a37', color: ativo ? '#232a37' : '#8b9bb4',
+    border: `1px solid ${ativo ? COR.azul : 'rgba(255,255,255,0.11)'}`, borderRadius: 20,
     padding: '5px 13px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
   })
 
@@ -550,10 +550,10 @@ export default function PainelFinanceiro() {
               {periodo === 'perso' && (
                 <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
                   <input type="date" value={persoIni} max={persoFim} onChange={e => setPersoIni(e.target.value)}
-                    style={{ border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                    style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
                   <span>até</span>
                   <input type="date" value={persoFim} min={persoIni} onChange={e => setPersoFim(e.target.value)}
-                    style={{ border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                    style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
                 </span>
               )}
             </div>
@@ -561,7 +561,7 @@ export default function PainelFinanceiro() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
             <select value={produtoSel} onChange={e => setProdutoSel(e.target.value)}
-              style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.45)', color: '#e6edf7', fontWeight: 600, background: '#131e33', cursor: 'pointer', minWidth: 180 }}>
+              style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.45)', color: '#e6edf7', fontWeight: 600, background: '#232a37', cursor: 'pointer', minWidth: 180 }}>
               <option value="Todos">Todos os produtos</option>
               {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
@@ -600,7 +600,7 @@ export default function PainelFinanceiro() {
 
       {/* PAINEL DE DETALHE do KPI clicado */}
       {detalhe && (
-        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 14, padding: '1rem 1.25rem', marginTop: 10 }}>
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 14, padding: '1rem 1.25rem', marginTop: 10 }}>
           {detalhe === 'receita' && (() => {
             const pagosMes = base.filter(l => l.eh_pago && l.data_faturamento && l.data_faturamento >= rMesCorrente.ini && l.data_faturamento <= rMesCorrente.fim)
               .sort((a, b) => (b.data_faturamento || '').localeCompare(a.data_faturamento || ''))
@@ -635,7 +635,7 @@ export default function PainelFinanceiro() {
                   <span style={{ color: c, fontWeight: 600 }}>{lbl}</span><b>{fmt(v)}</b>
                 </div>
               ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, padding: '8px 0 2px', borderTop: '2px solid rgba(148,163,184,0.12)', marginTop: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, padding: '8px 0 2px', borderTop: '2px solid rgba(255,255,255,0.07)', marginTop: 4 }}>
                 <b>= Resultado</b>
                 <b style={{ color: Number(dreAtual.resultado || 0) >= 0 ? '#34d399' : '#f87171' }}>{fmt(dreAtual.resultado)}</b>
               </div>
@@ -728,7 +728,7 @@ export default function PainelFinanceiro() {
       {metas && (
         <>
           {secao('🎯 Metas do mês', <span style={{ fontSize: 11, color: '#8b9bb4' }}>meta {fmtK(metaFat)} · réguas {reguas.map(r => r.tetoPct + '%').join(' / ')}</span>)}
-          <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem 1.25rem' }}>
+          <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem 1.25rem' }}>
             {/* Faturamento vs meta */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
@@ -739,7 +739,7 @@ export default function PainelFinanceiro() {
                   <span style={{ color: '#8b9bb4' }}> · pace esperado hoje: {fmtK(paceEsperado)}</span>
                 </span>
               </div>
-              <div style={{ height: 12, background: 'rgba(148,163,184,0.08)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ height: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ width: `${Math.min(metaFat > 0 ? receitaAtual / metaFat * 100 : 0, 100)}%`, height: '100%', background: COR.verde, borderRadius: 8 }} />
                 {metaFat > 0 && <div style={{ position: 'absolute', left: `${Math.min(paceEsperado / metaFat * 100, 100)}%`, top: 0, bottom: 0, width: 2, background: '#e6edf7', opacity: 0.5 }} title="pace esperado" />}
               </div>
@@ -756,7 +756,7 @@ export default function PainelFinanceiro() {
                       {r.pctReceita != null && <span style={{ color: '#8b9bb4' }}> · {r.pctReceita.toFixed(1)}% da receita real</span>}
                     </span>
                   </div>
-                  <div style={{ height: 8, background: 'rgba(148,163,184,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+                  <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 6, overflow: 'hidden' }}>
                     <div style={{ width: `${Math.min(r.usoPct, 100)}%`, height: '100%', background: corBarra, borderRadius: 6 }} />
                   </div>
                 </div>
@@ -771,7 +771,7 @@ export default function PainelFinanceiro() {
 
       {/* GRÁFICO 6 MESES + COMPOSIÇÃO */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: 12, marginTop: 22 }}>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#e6edf7' }}>Receita × Despesa (6 meses)</div>
             <div style={{ fontSize: 11, color: '#8b9bb4' }}>
@@ -782,7 +782,7 @@ export default function PainelFinanceiro() {
           </div>
           <GraficoMensal dados={dre6} isMobile={isMobile} />
         </div>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#e6edf7', marginBottom: 10 }}>Pra onde vai o dinheiro ({MES_CURTO[hoje.getMonth()]}) — % do faturamento</div>
           <Composicao receita={receitaMes} itens={[
             { nome: 'Marketing (tráfego+extra)', valor: Number(dreAtual.marketing_total || 0), cor: COR.azul },
@@ -805,10 +805,10 @@ export default function PainelFinanceiro() {
           {periodo === 'perso' && (
             <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
               <input type="date" value={persoIni} max={persoFim} onChange={e => setPersoIni(e.target.value)}
-                style={{ border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
               <span>até</span>
               <input type="date" value={persoFim} min={persoIni} onChange={e => setPersoFim(e.target.value)}
-                style={{ border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
             </span>
           )}
         </div>
@@ -822,24 +822,24 @@ export default function PainelFinanceiro() {
       {/* CAC */}
       {secao('🎯 Custo de aquisição (CAC)', <Seletor mes={custoMes} setMes={setCustoMes} ano={custoAno} setAno={setCustoAno} cor={COR.azul} />)}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10 }}>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(148,163,184,0.14)', borderTop: `3px solid ${COR.azul}` }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${COR.azul}` }}>
           <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>CAC {MESES[custoMes]}</div>
           <div style={{ fontSize: 30, fontWeight: 700, color: COR.azul, marginTop: 4 }}>{cac > 0 ? fmt(cac) : '—'}</div>
           <div style={{ fontSize: 11, color: '#8b9bb4' }}>CAC parcial (só anúncio) ÷ {fmtNum(baseAquisicao)} adquiridos</div>
         </div>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>Evolução do CAC (6 meses)</div>
           <div style={{ marginTop: 8 }}><Sparkline pontos={cacSerie} cor={COR.azul} /></div>
           <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>
             {cacSerie.filter(x => x != null).map((v, i, arr) => i === arr.length - 1 ? fmt(v) : fmtK(v)).join(' · ')}
           </div>
         </div>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>Gasto anúncio {MESES[custoMes]}</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#e6edf7', marginTop: 4 }}>{fmt(custoTotal)}</div>
           <div style={{ fontSize: 11, color: '#8b9bb4' }}>líquido {fmt(custoLiquido)} + 13% imposto</div>
           <button onClick={sincronizarGastos} disabled={sincronizando}
-            style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.azul}`, background: '#131e33', color: COR.azul, cursor: 'pointer' }}>
+            style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.azul}`, background: '#232a37', color: COR.azul, cursor: 'pointer' }}>
             {sincronizando ? 'Sincronizando…' : '↻ Sincronizar Meta'}
           </button>
           <button onClick={async () => {
@@ -854,7 +854,7 @@ export default function PainelFinanceiro() {
               else alert(`Custo IA sincronizado: US$ ${Number(j.total_usd).toFixed(2)} → R$ ${Number(j.total_brl).toLocaleString('pt-BR')} (câmbio ${j.cambio}). Aparece em Variável · IA / Anthropic.`)
             } catch (e) { alert('Erro: ' + e.message) }
           }}
-            style={{ marginTop: 6, marginLeft: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.roxo}`, background: '#131e33', color: COR.roxo, cursor: 'pointer' }}>
+            style={{ marginTop: 6, marginLeft: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.roxo}`, background: '#232a37', color: COR.roxo, cursor: 'pointer' }}>
             🤖 Sincronizar custo IA
           </button>
           {custoSincronizadoEm && <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 4 }}>últ. sync: {new Date(custoSincronizadoEm).toLocaleString('pt-BR')}</div>}
@@ -885,7 +885,7 @@ export default function PainelFinanceiro() {
           contratos={inad.contratos} lotes={inad.lotes} valor={inad.valor}
           rodape={`Acumulado total em aberto: ${fmt(inadTotalValor)} (${fmtNum(inadTotal.length)} lotes)`}
         />
-        <div style={{ background: '#131e33', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(148,163,184,0.14)', borderTop: `3px solid ${repCorRegua}` }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${repCorRegua}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: repCorRegua }}>Reposições aprovadas</div>
@@ -899,7 +899,7 @@ export default function PainelFinanceiro() {
               <span>{repSituacao === 'sem_base' ? 'Sem base de fechados no mês' : `${repPct.toFixed(1)}% dos ${fmtNum(fechadosRepMes)} fechados do mês`}</span>
               <span>alerta {fmtNum(repTetoAlerta)} · teto {fmtNum(repTetoBloqueio)}</span>
             </div>
-            <div style={{ height: 8, background: 'rgba(148,163,184,0.10)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 6, overflow: 'hidden' }}>
               <div style={{ width: `${repPctTeto}%`, height: '100%', background: repCorRegua, borderRadius: 6 }} />
             </div>
           </div>
@@ -911,12 +911,12 @@ export default function PainelFinanceiro() {
 
       {/* DRE COMPACTA */}
       {secao('📑 DRE mensal', <span style={{ fontSize: 11, color: '#8b9bb4' }}>últimos 6 meses · % sobre a receita</span>)}
-      <div style={{ background: '#131e33', borderRadius: 14, padding: '0.5rem 0.75rem', border: '0.5px solid rgba(148,163,184,0.14)', overflowX: 'auto' }}>
+      <div style={{ background: '#232a37', borderRadius: 14, padding: '0.5rem 0.75rem', border: '0.5px solid rgba(255,255,255,0.08)', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
               {['Mês', 'Receita', 'Marketing', '%', 'Pessoas', '%', 'Fixo', '%', 'Outros', 'Desp. total', '% custo', 'Resultado'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid rgba(148,163,184,0.12)', color: '#8b9bb4', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+                <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid rgba(255,255,255,0.07)', color: '#8b9bb4', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -952,7 +952,7 @@ export default function PainelFinanceiro() {
         {[...atrasadas, ...prox7].slice(0, 8).map((x, i) => {
           const atr = x.origem === 'lancamento' && dv(x.data_vencimento) < h0
           return (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: atr ? 'rgba(248,113,113,.14)' : '#131e33', border: `1px solid ${atr ? '#A32D2D40' : 'rgba(148,163,184,0.14)'}`, borderRadius: 10, padding: '9px 14px' }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: atr ? 'rgba(248,113,113,.14)' : '#232a37', border: `1px solid ${atr ? '#A32D2D40' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '9px 14px' }}>
               <div style={{ fontSize: 12.5, color: '#e6edf7' }}>
                 <b>{x.data_vencimento.split('-').reverse().join('/')}</b> · {x.descricao || '—'}
                 {atr && <span style={{ color: COR.vermelho, fontWeight: 700 }}> · ATRASADA</span>}
@@ -963,7 +963,7 @@ export default function PainelFinanceiro() {
           )
         })}
         {!atrasadas.length && !prox7.length && (
-          <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: 16, textAlign: 'center', fontSize: 12.5, color: '#8b9bb4' }}>
+          <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 16, textAlign: 'center', fontSize: 12.5, color: '#8b9bb4' }}>
             Nada vencendo nos próximos 7 dias. Cadastre as recorrentes em Financeiro → Fixas & Recorrentes pra agenda ganhar vida.
           </div>
         )}
@@ -972,4 +972,4 @@ export default function PainelFinanceiro() {
   )
 }
 
-const td = { padding: '8px 10px', borderBottom: '1px solid rgba(148,163,184,0.08)' }
+const td = { padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }

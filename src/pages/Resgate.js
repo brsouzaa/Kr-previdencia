@@ -18,17 +18,17 @@ const STATUS_STYLE = {
   em_andamento: { background: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Em andamento' },
   recuperado: { background: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Recuperado' },
   realocado: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'Realocado' },
-  virou_reposicao: { background: '#1a2742', color: '#8b9bb4', label: 'Virou reposição' },
+  virou_reposicao: { background: '#2b3340', color: '#8b9bb4', label: 'Virou reposição' },
   perdido: { background: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Perdido' },
 }
 
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
   subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)', flexWrap: 'wrap' },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
   tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
   tabActive: { color: '#34d399', borderBottomColor: '#34d399' },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 },
   nome: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
   meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
@@ -38,11 +38,11 @@ const s = {
   btn: { padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid' },
   btnRecup: { background: 'rgba(52,211,153,.14)', color: '#34d399', borderColor: '#34d399' },
   btnRealoc: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', borderColor: '#60a5fa' },
-  btnRepos: { background: '#1a2742', color: '#8b9bb4', borderColor: '#8b9bb4' },
+  btnRepos: { background: '#2b3340', color: '#8b9bb4', borderColor: '#8b9bb4' },
   empty: { textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: 13 },
   loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
   metricRow: { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 },
-  metricCard: { background: 'rgba(251,191,36,.12)', borderRadius: 10, padding: '0.85rem 1.1rem', minWidth: 130, border: '0.5px solid rgba(148,163,184,0.10)' },
+  metricCard: { background: 'rgba(251,191,36,.12)', borderRadius: 10, padding: '0.85rem 1.1rem', minWidth: 130, border: '0.5px solid rgba(255,255,255,0.06)' },
   metricNum: { fontSize: 24, fontWeight: 600 },
   metricLabel: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
 }
@@ -223,10 +223,10 @@ export default function Resgate() {
                   <div style={{ fontSize: 12, color: '#60a5fa', fontWeight: 500, marginBottom: 6 }}>Com qual advogado o cliente assinou?</div>
                   {!advSel && (
                     <>
-                      <input style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
+                      <input style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box' }}
                         value={advBusca} onChange={e => setAdvBusca(e.target.value)} placeholder="Buscar advogado (3+ letras)…" autoFocus />
                       {advLista.map(a => (
-                        <div key={a.id} onClick={() => setAdvSel(a)} style={{ padding: '7px 10px', borderRadius: 6, cursor: 'pointer', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 5, fontSize: 13 }}>
+                        <div key={a.id} onClick={() => setAdvSel(a)} style={{ padding: '7px 10px', borderRadius: 6, cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.07)', marginBottom: 5, fontSize: 13 }}>
                           {a.nome_completo}{a.oab ? ` · OAB ${a.oab}` : ''}
                         </div>
                       ))}
@@ -235,7 +235,7 @@ export default function Resgate() {
                   {advSel && <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>→ {advSel.nome_completo}</div>}
                   <div style={s.actions}>
                     <button style={{ ...s.btn, ...s.btnRealoc }} disabled={acao === reg.id || !advSel} onClick={confirmarRealocacao}>Confirmar realocação</button>
-                    <button style={{ ...s.btn, background: '#1a2742', color: '#8b9bb4', borderColor: '#64748b' }} onClick={() => { setRealocando(null); setAdvSel(null); setAdvBusca('') }}>Cancelar</button>
+                    <button style={{ ...s.btn, background: '#2b3340', color: '#8b9bb4', borderColor: '#64748b' }} onClick={() => { setRealocando(null); setAdvSel(null); setAdvBusca('') }}>Cancelar</button>
                   </div>
                 </div>
               )}

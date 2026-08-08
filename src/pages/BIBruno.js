@@ -6,11 +6,11 @@ const s = {
   subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 24 },
   section: { marginBottom: 28 },
   sectionTitle: { fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
   periodoSelector: { display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' },
-  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
-  periodoBtnActive: { background: '#e6edf7', color: '#131e33', borderColor: '#e6edf7' },
-  bar: { height: 8, background: '#1a2742', borderRadius: 4, overflow: 'hidden' },
+  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  periodoBtnActive: { background: '#e6edf7', color: '#232a37', borderColor: '#e6edf7' },
+  bar: { height: 8, background: '#2b3340', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', transition: 'width 0.3s' },
   loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
   empty: { fontSize: 13, color: '#64748b', padding: '1rem 0', textAlign: 'center' },
@@ -36,7 +36,7 @@ function ProgressoBar({ atual, meta }) {
 function CardMetric({ label, atual, meta }) {
   const pct = meta > 0 ? Math.round((atual / meta) * 100) : 0
   return (
-    <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 8, padding: '12px 14px' }}>
+    <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '12px 14px' }}>
       <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={{ fontSize: 17, fontWeight: 500, color: '#e6edf7' }}>
@@ -329,15 +329,15 @@ export default function BIBruno() {
                     <ProgressoBar atual={totalV} meta={metaB2BUnitTotal} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, fontSize: 11 }}>
-                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                    <div style={{ background: '#171c26', padding: '8px 10px', borderRadius: 6 }}>
                       <div style={{ color: '#8b9bb4', marginBottom: 2 }}>Mat</div>
                       <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.Maternidade}/{metaB2BUnitMat}</div>
                     </div>
-                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                    <div style={{ background: '#171c26', padding: '8px 10px', borderRadius: 6 }}>
                       <div style={{ color: '#8b9bb4', marginBottom: 2 }}>BPC</div>
                       <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.BPC}/{metaB2BUnitBPC}</div>
                     </div>
-                    <div style={{ background: '#0d1526', padding: '8px 10px', borderRadius: 6 }}>
+                    <div style={{ background: '#171c26', padding: '8px 10px', borderRadius: 6 }}>
                       <div style={{ color: '#8b9bb4', marginBottom: 2 }}>Aux</div>
                       <div style={{ fontWeight: 500, color: '#e6edf7' }}>{venda.Aux}/{metaB2BUnitAux}</div>
                     </div>

@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d1526' },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 16, padding: '2.5rem 2rem', width: '100%', maxWidth: 380 },
+  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#171c26' },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: '2.5rem 2rem', width: '100%', maxWidth: 380 },
   logo: { fontSize: 20, fontWeight: 600, color: '#e6edf7', marginBottom: 6, letterSpacing: '-0.4px' },
   logoSpan: { color: '#60a5fa' },
   sub: { fontSize: 13, color: '#8b9bb4', marginBottom: '2rem' },
   label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 5, marginTop: 16 },
-  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, outline: 'none', background: '#131e33', color: '#e6edf7' },
-  btn: { width: '100%', marginTop: '1.5rem', padding: '11px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.2px' },
+  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, outline: 'none', background: '#232a37', color: '#e6edf7' },
+  btn: { width: '100%', marginTop: '1.5rem', padding: '11px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.2px' },
   error: { marginTop: 12, padding: '10px 12px', background: 'rgba(248,113,113,.14)', borderRadius: 8, fontSize: 13, color: '#f87171' },
 }
 

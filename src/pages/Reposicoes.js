@@ -5,11 +5,11 @@ import { useAuth } from '../lib/AuthContext'
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
   subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)' },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(255,255,255,0.08)' },
   tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
   tabActive: { color: '#60a5fa', borderBottomColor: '#60a5fa' },
-  badge: { fontSize: 11, color: '#131e33', padding: '2px 8px', borderRadius: 10, marginLeft: 6, background: '#f87171' },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  badge: { fontSize: 11, color: '#232a37', padding: '2px 8px', borderRadius: 10, marginLeft: 6, background: '#f87171' },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 8 },
   advNome: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
   metaInfo: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
@@ -23,18 +23,18 @@ const s = {
   loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
   status: { fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500 },
   // --- Painel do topo ---
-  painel: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
+  painel: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
   filtros: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#8b9bb4', cursor: 'pointer' },
-  fBtnOn: { background: '#60a5fa', color: '#131e33', borderColor: '#60a5fa' },
-  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', color: '#c6d2e4' },
+  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  fBtnOn: { background: '#60a5fa', color: '#232a37', borderColor: '#60a5fa' },
+  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', color: '#c6d2e4' },
   kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 },
-  kpi: { border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 10, padding: '10px 12px' },
+  kpi: { border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 12px' },
   kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6 },
   kpiNum: { fontSize: 24, fontWeight: 500, lineHeight: 1 },
   kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
   reguaBox: { borderRadius: 10, padding: '12px 14px', border: '0.5px solid' },
-  barraBg: { height: 8, background: 'rgba(148,163,184,0.10)', borderRadius: 99, overflow: 'hidden', marginTop: 8, position: 'relative' },
+  barraBg: { height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden', marginTop: 8, position: 'relative' },
   barraFill: { height: '100%', borderRadius: 99, transition: 'width .3s' },
   marca: { position: 'absolute', top: -3, width: 1.5, height: 14, background: 'rgba(0,0,0,0.35)' },
 }
@@ -274,7 +274,7 @@ export default function Reposicoes() {
               const sit = regua.situacao
               const semBase = sit === 'sem_base'
               const cor = semBase ? '#8b9bb4' : sit === 'bloqueio' ? '#f87171' : sit === 'alerta' ? '#fbbf24' : '#34d399'
-              const bg = semBase ? '#0f1930' : sit === 'bloqueio' ? 'rgba(248,113,113,.14)' : sit === 'alerta' ? 'rgba(251,191,36,.12)' : 'rgba(52,211,153,.14)'
+              const bg = semBase ? '#1e242f' : sit === 'bloqueio' ? 'rgba(248,113,113,.14)' : sit === 'alerta' ? 'rgba(251,191,36,.12)' : 'rgba(52,211,153,.14)'
               const rotulo = semBase ? 'Sem base' : sit === 'bloqueio' ? 'Bloqueio' : sit === 'alerta' ? 'Alerta' : 'Saudável'
               const pct = Number(regua.pct || 0)
               const fechados = Number(regua.clientes_fechados || 0)
@@ -308,7 +308,7 @@ export default function Reposicoes() {
 
                   {pctSeAprovarTudo != null && pendCt > 0 && (
                     <div style={{
-                      fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '0.5px solid rgba(148,163,184,0.12)',
+                      fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '0.5px solid rgba(255,255,255,0.07)',
                       color: pctSeAprovarTudo > 20 ? '#f87171' : pctSeAprovarTudo >= 15 ? '#fbbf24' : '#34d399', fontWeight: 500,
                     }}>
                       {pctSeAprovarTudo > 20 ? '🚫' : pctSeAprovarTudo >= 15 ? '⚠️' : '✓'} Se aprovar as {pendCt} pendentes: <strong>{pctSeAprovarTudo}%</strong>

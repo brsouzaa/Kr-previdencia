@@ -11,12 +11,12 @@ const TIPOS_DOC = [
 ]
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
-  cardUrgente: { background: '#131e33', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.06)' },
-  metricCard: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 12, padding: 14, textAlign: 'center' },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardUrgente: { background: '#232a37', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.06)' },
+  metricCard: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 14, textAlign: 'center' },
   filtroChip: (ativo, cor, bg) => ({
     padding: '6px 12px', fontSize: 12, borderRadius: 16,
-    background: ativo ? cor : bg, color: ativo ? '#131e33' : cor,
+    background: ativo ? cor : bg, color: ativo ? '#232a37' : cor,
     border: `1px solid ${cor}40`, cursor: 'pointer', fontWeight: 500,
   }),
   badge: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
@@ -172,7 +172,7 @@ export default function Devolucoes() {
                 : `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} aguardando correção pelo vendedor`}
           </div>
         </div>
-        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
+        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
           ↻ Atualizar
         </button>
       </div>
@@ -199,10 +199,10 @@ export default function Devolucoes() {
 
       {/* === TOP 3 VENDEDORAS COM MAIS DEVOLUÇÕES === */}
       {top3.length > 0 && top3[0][1].count > 1 && (
-        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 14, padding: '1rem', marginBottom: 16 }}>
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem', marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 10 }}>🎯 Vendedoras com mais devoluções pendentes</div>
           {top3.map(([id, info]) => (
-            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '0.5px solid rgba(148,163,184,0.08)' }}>
+            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
               <div style={{ fontSize: 13, color: '#8b9bb4' }}>{info.nome}</div>
               <div style={{ fontSize: 13, fontWeight: 500, color: info.count >= 3 ? '#f87171' : '#fbbf24' }}>
                 {info.count} devolução{info.count !== 1 ? 'ões' : ''}
@@ -213,7 +213,7 @@ export default function Devolucoes() {
       )}
 
       {/* === BUSCA E FILTROS === */}
-      <input style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
+      <input style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
         placeholder="🔍 Buscar por cliente, CPF ou vendedora..."
         value={busca} onChange={e => setBusca(e.target.value)} />
 
@@ -232,7 +232,7 @@ export default function Devolucoes() {
       {vendedoras.length > 1 && (
         <div style={{ marginBottom: 16 }}>
           <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
-            style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', cursor: 'pointer' }}>
+            style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', cursor: 'pointer' }}>
             <option value="todos">Todas as vendedoras ({clientes.length})</option>
             {vendedoras.map(v => {
               const count = clientes.filter(c => c.vendedor_operador_id === v.id).length
@@ -244,7 +244,7 @@ export default function Devolucoes() {
 
       {/* === LISTA === */}
       {filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.06)' }}>
           ✅ {clientes.length === 0 ? 'Nenhuma devolução pendente.' : 'Nenhum resultado com esses filtros.'}
         </div>
       ) : filtrados.map(c => {
@@ -272,7 +272,7 @@ export default function Devolucoes() {
                   {ehReemissao ? '🔄 Reemissão' : '🔁 Correção doc'}
                 </span>
                 {restante?.vencido && (
-                  <span style={s.badge('#131e33', '#f87171')}>⚠️ VENCIDO 24h — vai cancelar</span>
+                  <span style={s.badge('#232a37', '#f87171')}>⚠️ VENCIDO 24h — vai cancelar</span>
                 )}
                 {restante && !restante.vencido && restante.horas < 6 && (
                   <span style={s.badge('#f87171', 'rgba(248,113,113,.14)')}>⏰ Restam {restante.horas}h{restante.minutos}min</span>
@@ -301,7 +301,7 @@ export default function Devolucoes() {
             </button>
 
             {verDocs && (
-              <div style={{ background: '#0f1930', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+              <div style={{ background: '#1e242f', borderRadius: 6, padding: 10, marginBottom: 8 }}>
                 {TIPOS_DOC.map(tipo => (
                   <div key={tipo.chave} style={{ marginBottom: 4, fontSize: 12 }}>
                     <span style={{ color: '#8b9bb4' }}>{tipo.label}: </span>
@@ -317,7 +317,7 @@ export default function Devolucoes() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => copiarCobranca(c)}
-                style={{ padding: '8px 14px', background: '#131e33', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                style={{ padding: '8px 14px', background: '#232a37', color: '#60a5fa', border: '0.5px solid #185FA540', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                 💬 Copiar cobrança pra WhatsApp
               </button>
             </div>

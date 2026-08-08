@@ -8,10 +8,10 @@ function diasRestantes(dataLimite) {
 function diasDesde(data) { return Math.floor((Date.now() - new Date(data)) / 86400000) }
 
 function urgencia(restam) {
-  if (restam === null) return { bg: '#131e33', border: 'rgba(148,163,184,0.14)', badgeBg: '#1a2742', badgeColor: '#8b9bb4' }
-  if (restam <= 0) return { bg: 'rgba(248,113,113,.14)', border: '#A32D2D50', badgeBg: '#f87171', badgeColor: '#131e33' }
-  if (restam <= 2) return { bg: 'rgba(251,191,36,.12)', border: '#854F0B50', badgeBg: '#fbbf24', badgeColor: '#131e33' }
-  return { bg: 'rgba(52,211,153,.14)', border: '#3B6D1150', badgeBg: '#34d399', badgeColor: '#131e33' }
+  if (restam === null) return { bg: '#232a37', border: 'rgba(255,255,255,0.08)', badgeBg: '#2b3340', badgeColor: '#8b9bb4' }
+  if (restam <= 0) return { bg: 'rgba(248,113,113,.14)', border: '#A32D2D50', badgeBg: '#f87171', badgeColor: '#232a37' }
+  if (restam <= 2) return { bg: 'rgba(251,191,36,.12)', border: '#854F0B50', badgeBg: '#fbbf24', badgeColor: '#232a37' }
+  return { bg: 'rgba(52,211,153,.14)', border: '#3B6D1150', badgeBg: '#34d399', badgeColor: '#232a37' }
 }
 
 function isUrlValida(url) {
@@ -278,7 +278,7 @@ export default function FilaEntregas() {
           <div style={{ fontSize: 13, color: '#8b9bb4' }}>Confira docs e contratos · monte a pasta no Drive · entregue · {lotesFiltrados.length} pedido{lotesFiltrados.length !== 1 ? 's' : ''} na fila{filtroProduto ? ` · ${filtroProduto}` : ''}</div>
         </div>
         <select value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}
-          style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', outline: 'none', cursor: 'pointer' }}>
+          style={{ padding: '8px 12px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', outline: 'none', cursor: 'pointer' }}>
           <option value="">Todos os produtos</option>
           {PRODUTOS_FILA.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -291,7 +291,7 @@ export default function FilaEntregas() {
           ['Entregues', totalEntregues, '#34d399', 'rgba(52,211,153,.14)'],
           ['Vencem hoje', vencendoHoje, '#f87171', 'rgba(248,113,113,.14)'],
         ].map(([label, valor, cor, bg]) => (
-          <div key={label} style={{ background: label === 'Vencem hoje' && valor > 0 ? bg : '#131e33', border: `0.5px solid ${label === 'Vencem hoje' && valor > 0 ? cor + '50' : 'rgba(148,163,184,0.14)'}`, borderRadius: 12, padding: '14px 16px' }}>
+          <div key={label} style={{ background: label === 'Vencem hoje' && valor > 0 ? bg : '#232a37', border: `0.5px solid ${label === 'Vencem hoje' && valor > 0 ? cor + '50' : 'rgba(255,255,255,0.08)'}`, borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, color: cor, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>{label}</div>
             <div style={{ fontSize: 26, fontWeight: 500, color: cor }}>{valor}</div>
           </div>
@@ -299,7 +299,7 @@ export default function FilaEntregas() {
       </div>
 
       {lotesFiltrados.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '4rem', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.12)' }}>
+        <div style={{ textAlign: 'center', padding: '4rem', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#8b9bb4' }}>Fila vazia — nenhum lote aguardando entrega</div>
         </div>
@@ -326,13 +326,13 @@ export default function FilaEntregas() {
         return (
           <div key={lote.id} style={{ background: lote.tipo === 'reposicao' ? 'rgba(251,191,36,.12)' : u.bg, border: `${lote.tipo === 'reposicao' ? '2px' : '1.5px'} solid ${lote.tipo === 'reposicao' ? '#fbbf24' : u.border}`, borderRadius: 14, padding: '1.25rem', marginBottom: 14 }}>
             {lote.tipo === 'reposicao' && (
-              <div style={{ background: '#fbbf24', color: '#131e33', padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, marginBottom: 10, display: 'inline-block', letterSpacing: '0.3px' }}>
+              <div style={{ background: '#fbbf24', color: '#232a37', padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, marginBottom: 10, display: 'inline-block', letterSpacing: '0.3px' }}>
                 🔄 REPOSIÇÃO · PRAZO 24H · ENTREGAR HOJE
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#60a5fa', color: '#131e33', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{idx + 1}°</div>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#60a5fa', color: '#232a37', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{idx + 1}°</div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 500, color: '#e6edf7' }}>{lote.advogados?.nome_completo}</div>
                   <div style={{ fontSize: 12, color: '#8b9bb4' }}>{lote.advogados?.oab} · {lote.advogados?.cidade}, {lote.advogados?.estado}</div>
@@ -346,7 +346,7 @@ export default function FilaEntregas() {
                   {restam === null ? 'Sem prazo' : restam <= 0 ? '🔴 Vencido' : restam === 1 ? '⚠️ Vence hoje' : `${restam}d restantes`}
                 </span>
                 {(profile?.role === 'admin' || profile?.role === 'analista') && (
-                  <button onClick={() => abrirEdicaoManual(lote)} title="Corrigir números manualmente" style={{ marginTop: 6, padding: '3px 8px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 6, fontSize: 11, cursor: 'pointer', display: 'block', marginLeft: 'auto' }}>
+                  <button onClick={() => abrirEdicaoManual(lote)} title="Corrigir números manualmente" style={{ marginTop: 6, padding: '3px 8px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 6, fontSize: 11, cursor: 'pointer', display: 'block', marginLeft: 'auto' }}>
                     ✏️ Corrigir
                   </button>
                 )}
@@ -359,7 +359,7 @@ export default function FilaEntregas() {
                 <span style={{ color: '#8b9bb4', fontWeight: 500 }}>Progresso</span>
                 <span style={{ color: progresso === 100 ? '#34d399' : '#60a5fa', fontWeight: 500 }}>{entregues}/{lote.total_contratos} entregues · {progresso}%</span>
               </div>
-              <div style={{ background: 'rgba(148,163,184,0.14)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
                 <div style={{ width: `${progresso}%`, height: '100%', background: progresso === 100 ? '#34d399' : '#60a5fa', borderRadius: 6, transition: 'width 0.4s' }} />
               </div>
             </div>
@@ -372,7 +372,7 @@ export default function FilaEntregas() {
                 ['Pra validar', validados, validados > 0 ? '#fbbf24' : '#8b9bb4'],
                 ['Aguardando', pendentesAssinatura, pendentesAssinatura > 0 ? '#60a5fa' : '#8b9bb4'],
               ].map(([l, v, c]) => (
-                <div key={l} style={{ background: '#0d1526', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                <div key={l} style={{ background: '#171c26', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: c, opacity: 0.75, marginBottom: 2 }}>{l}</div>
                   <div style={{ fontSize: 18, fontWeight: 500, color: c }}>{v}</div>
                 </div>
@@ -390,7 +390,7 @@ export default function FilaEntregas() {
                   const emValidacao = c.status === 'em_validacao'
                   const validando = validandoCliente[c.id]
                   return (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: clienteAberto === c.id ? 'rgba(96,165,250,.12)' : '#0d1526', borderRadius: 6, marginBottom: 4, border: clienteAberto === c.id ? '1px solid #60a5fa' : '1px solid transparent', gap: 6 }}>
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: clienteAberto === c.id ? 'rgba(96,165,250,.12)' : '#171c26', borderRadius: 6, marginBottom: 4, border: clienteAberto === c.id ? '1px solid #60a5fa' : '1px solid transparent', gap: 6 }}>
                       <span onClick={() => abrirPainelCliente(c.id)} style={{ fontSize: 12, color: '#60a5fa', flex: 1, cursor: 'pointer', textDecoration: 'underline' }}>
                         🔍 {c.nome}
                       </span>
@@ -446,12 +446,12 @@ export default function FilaEntregas() {
               <textarea rows={2} value={lote.observacao_entrega || ''} placeholder="Ex: docs OK, contratos validados..."
                 onChange={e => atualizar(lote.id, { observacao_entrega: e.target.value })}
                 onBlur={e => salvarCampo(lote.id, { observacao_entrega: e.target.value })}
-                style={{ width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
 
             <button onClick={() => tentarEntregar(lote)}
               disabled={!podeEntregar}
-              style={{ width: '100%', padding: '12px', background: podeEntregar ? '#34d399' : '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: podeEntregar ? 'pointer' : 'not-allowed' }}>
+              style={{ width: '100%', padding: '12px', background: podeEntregar ? '#34d399' : '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: podeEntregar ? 'pointer' : 'not-allowed' }}>
               {!linkValido ? '🔴 Cole o link do Drive primeiro' : validados === 0 ? '⏳ Nenhum cliente pronto pra entregar' : completo ? '✅ Entregar lote completo' : `⚠️ Entregar parcial (${validados}/${lote.total_contratos})`}
             </button>
             {salvando[lote.id] && <div style={{ fontSize: 11, color: '#64748b', marginTop: 6, textAlign: 'right' }}>Salvando...</div>}
@@ -461,10 +461,10 @@ export default function FilaEntregas() {
 
       {/* PAINEL LATERAL DO CLIENTE */}
       {clienteAberto && (
-        <div style={{ position: 'fixed', top: 0, right: 0, width: '50%', maxWidth: 600, height: '100vh', background: '#131e33', boxShadow: '-4px 0 20px rgba(148,163,184,0.20)', zIndex: 90, overflowY: 'auto', padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid rgba(148,163,184,0.12)' }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, width: '50%', maxWidth: 600, height: '100vh', background: '#232a37', boxShadow: '-4px 0 20px rgba(255,255,255,0.11)', zIndex: 90, overflowY: 'auto', padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>📋 Detalhes do cliente</div>
-            <button onClick={fecharPainelCliente} style={{ padding: '6px 12px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>✕ Fechar</button>
+            <button onClick={fecharPainelCliente} style={{ padding: '6px 12px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>✕ Fechar</button>
           </div>
 
           {carregandoCliente && <div style={{ textAlign: 'center', padding: 40, color: '#8b9bb4' }}>Carregando...</div>}
@@ -474,14 +474,14 @@ export default function FilaEntregas() {
               {/* FICHA CADASTRAL */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>Ficha cadastral</div>
-                <div style={{ background: '#0d1526', padding: 14, borderRadius: 8, fontSize: 13, lineHeight: 1.7 }}>
+                <div style={{ background: '#171c26', padding: 14, borderRadius: 8, fontSize: 13, lineHeight: 1.7 }}>
                   <div><strong>Nome:</strong> {clienteDetalhe.nome}</div>
                   <div><strong>CPF:</strong> {clienteDetalhe.cpf}</div>
                   <div><strong>RG:</strong> {clienteDetalhe.rg || '—'}</div>
                   <div><strong>Telefone:</strong> {clienteDetalhe.telefone}</div>
                   <div><strong>Endereço:</strong> {clienteDetalhe.rua}, {clienteDetalhe.numero} {clienteDetalhe.bairro ? `· ${clienteDetalhe.bairro}` : ''}</div>
                   <div><strong>Cidade/UF:</strong> {clienteDetalhe.cidade}/{clienteDetalhe.uf} · CEP {clienteDetalhe.cep}</div>
-                  <div style={{ marginTop: 6, paddingTop: 6, borderTop: '0.5px solid rgba(148,163,184,0.12)' }}>
+                  <div style={{ marginTop: 6, paddingTop: 6, borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
                     <strong>🤰 DPP:</strong> {clienteDetalhe.data_prevista_parto ? new Date(clienteDetalhe.data_prevista_parto + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
                     {' · '}
                     <strong>Meses:</strong> {clienteDetalhe.meses_gravidez || '—'}
@@ -501,11 +501,11 @@ export default function FilaEntregas() {
                     {Object.entries(clienteDetalhe.documentos).filter(([k,v]) => v).map(([nome, url]) => {
                       const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço' }
                       return (
-                        <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#0d1526', borderRadius: 8 }}>
+                        <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#171c26', borderRadius: 8 }}>
                           <span style={{ fontSize: 13, color: '#e6edf7' }}>{labels[nome] || nome}</span>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <a href={url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: 'rgba(96,165,250,.12)', color: '#60a5fa', border: '0.5px solid #60a5fa', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Ver</a>
-                            <a href={url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#34d399', color: '#131e33', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar</a>
+                            <a href={url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#34d399', color: '#232a37', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar</a>
                           </div>
                         </div>
                       )
@@ -532,8 +532,8 @@ export default function FilaEntregas() {
                       <div key={d.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(52,211,153,.14)', borderRadius: 8 }}>
                         <span style={{ fontSize: 13, color: '#e6edf7' }}>{d.nome}</span>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <a href={d.url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#131e33', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Ver</a>
-                          <a href={d.url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#34d399', color: '#131e33', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar PDF</a>
+                          <a href={d.url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#232a37', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Ver</a>
+                          <a href={d.url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#34d399', color: '#232a37', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar PDF</a>
                         </div>
                       </div>
                     ))}
@@ -575,8 +575,8 @@ export default function FilaEntregas() {
 
       {/* MODAL EDIÇÃO MANUAL DO LOTE */}
       {editandoLote && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, width: '90%', maxWidth: 480 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 12, width: '90%', maxWidth: 480 }}>
             <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>✏️ Corrigir números do lote</div>
             <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 16 }}>Lote do <strong>{editandoLote.advogados?.nome_completo}</strong></div>
             <div style={{ background: 'rgba(251,191,36,.12)', padding: 10, borderRadius: 6, fontSize: 11, color: '#fbbf24', marginBottom: 16 }}>
@@ -598,9 +598,9 @@ export default function FilaEntregas() {
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditandoLote(null)} disabled={salvandoEdicao} style={{ padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setEditandoLote(null)} disabled={salvandoEdicao} style={{ padding: '8px 14px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={salvarEdicaoManual} disabled={salvandoEdicao}
-                style={{ padding: '8px 14px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: salvandoEdicao ? 'not-allowed' : 'pointer', opacity: salvandoEdicao ? 0.5 : 1 }}>
+                style={{ padding: '8px 14px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: salvandoEdicao ? 'not-allowed' : 'pointer', opacity: salvandoEdicao ? 0.5 : 1 }}>
                 {salvandoEdicao ? 'Salvando...' : 'Salvar correção'}
               </button>
             </div>
@@ -610,8 +610,8 @@ export default function FilaEntregas() {
 
       {/* MODAL DEVOLUÇÃO */}
       {devolvendo && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, width: '90%', maxWidth: 500 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 12, width: '90%', maxWidth: 500 }}>
             <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>↩️ Devolver pra reemissão</div>
             <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 14 }}>Cliente: <strong>{devolvendo.cliente.nome}</strong></div>
             <label style={{ fontSize: 12, color: '#e6edf7', fontWeight: 500, marginBottom: 4, display: 'block' }}>Motivo da devolução *</label>
@@ -621,9 +621,9 @@ export default function FilaEntregas() {
               ⚠️ Cliente vai voltar pra fila de emissão. Vendedora será notificada e tem 24h pra reabordar.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDevolvendo(null)} disabled={salvandoDevolucao} style={{ padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setDevolvendo(null)} disabled={salvandoDevolucao} style={{ padding: '8px 14px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={confirmarDevolucao} disabled={salvandoDevolucao || !motivoDevolucao.trim()}
-                style={{ padding: '8px 14px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: salvandoDevolucao || !motivoDevolucao.trim() ? 'not-allowed' : 'pointer', opacity: salvandoDevolucao || !motivoDevolucao.trim() ? 0.5 : 1 }}>
+                style={{ padding: '8px 14px', background: '#f87171', color: '#232a37', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: salvandoDevolucao || !motivoDevolucao.trim() ? 'not-allowed' : 'pointer', opacity: salvandoDevolucao || !motivoDevolucao.trim() ? 0.5 : 1 }}>
                 {salvandoDevolucao ? 'Devolvendo...' : 'Confirmar devolução'}
               </button>
             </div>
@@ -633,8 +633,8 @@ export default function FilaEntregas() {
 
       {/* MODAL ENTREGA PARCIAL */}
       {confirmandoEntrega && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, width: '90%', maxWidth: 540 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 12, width: '90%', maxWidth: 540 }}>
             <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>⚠️ Entrega parcial</div>
             <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 14 }}>
               Lote do <strong>{confirmandoEntrega.advogados?.nome_completo}</strong> ainda não está completo.
@@ -647,16 +647,16 @@ export default function FilaEntregas() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               <button onClick={() => executarEntrega(confirmandoEntrega, true)} disabled={salvandoEntrega}
-                style={{ padding: 12, background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left' }}>
+                style={{ padding: 12, background: '#f87171', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left' }}>
                 ❌ Cancelar pendentes (advogado fechou o lote, sem mais clientes)
               </button>
               <button onClick={() => executarEntrega(confirmandoEntrega, false)} disabled={salvandoEntrega}
-                style={{ padding: 12, background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left' }}>
+                style={{ padding: 12, background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left' }}>
                 ⏳ Manter pendentes ativos (advogado aceita receber depois quando completar)
               </button>
             </div>
             <button onClick={() => setConfirmandoEntrega(null)} disabled={salvandoEntrega}
-              style={{ width: '100%', padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              style={{ width: '100%', padding: '8px 14px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
               Cancelar
             </button>
             {salvandoEntrega && <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, textAlign: 'center' }}>Processando entrega...</div>}

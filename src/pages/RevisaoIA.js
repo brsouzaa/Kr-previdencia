@@ -64,12 +64,12 @@ const PRODUTO_ESTILO = {
   'Maternidade': { cor: '#f472b6', fundo: 'rgba(167,139,250,.14)', label: 'Maternidade' },
   'Maternidade Mãe': { cor: '#fbbf24', fundo: 'rgba(251,191,36,.12)', label: 'Maternidade Mãe' },
   'Gestante até 5 meses': { cor: '#60a5fa', fundo: 'rgba(96,165,250,.10)', label: 'Gestante até 5 meses' },
-  'Pensão por Morte': { cor: '#3F5A78', fundo: '#1a2742', label: 'Pensão por Morte' },
+  'Pensão por Morte': { cor: '#3F5A78', fundo: '#2b3340', label: 'Pensão por Morte' },
   'BPC': { cor: '#34d399', fundo: 'rgba(52,211,153,.14)', label: 'BPC' },
   'Auxilio Acidente': { cor: '#fbbf24', fundo: 'rgba(251,191,36,.12)', label: 'Auxílio Acidente' },
 }
 function estiloProduto(produto) {
-  return PRODUTO_ESTILO[produto] || { cor: '#8b9bb4', fundo: '#1a2742', label: produto || 'Sem produto' }
+  return PRODUTO_ESTILO[produto] || { cor: '#8b9bb4', fundo: '#2b3340', label: produto || 'Sem produto' }
 }
 // Lista de campos de anexo conforme o produto do cliente
 function docsDoProduto(produto) {
@@ -265,7 +265,7 @@ export default function RevisaoIA() {
           <AbaProduto
             ativo={filtroProduto === 'todos'}
             onClick={() => setFiltroProduto('todos')}
-            cor="#c6d2e4" fundo="#1a2742"
+            cor="#c6d2e4" fundo="#2b3340"
             label={`Todos (${clientes.length})`}
           />
           {produtosNaFila.map(prod => {
@@ -291,7 +291,7 @@ export default function RevisaoIA() {
         {/* Lista */}
         <div>
           {clientesFiltrados.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8b9bb4', background: '#131e33', borderRadius: 8, border: '1px solid rgba(148,163,184,0.10)' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: '#8b9bb4', background: '#232a37', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
               ✅ Nenhum cliente da IA aguardando revisão
             </div>
           ) : (
@@ -303,8 +303,8 @@ export default function RevisaoIA() {
                 return (
                   <div key={c.id} onClick={() => abrirCliente(c)}
                     style={{
-                      padding: 14, background: sel ? 'rgba(96,165,250,.10)' : '#131e33',
-                      border: sel ? '2px solid #60a5fa' : '1px solid rgba(148,163,184,0.12)',
+                      padding: 14, background: sel ? 'rgba(96,165,250,.10)' : '#232a37',
+                      border: sel ? '2px solid #60a5fa' : '1px solid rgba(255,255,255,0.07)',
                       borderLeft: `4px solid ${est.cor}`,
                       borderRadius: 8, cursor: 'pointer'
                     }}>
@@ -334,7 +334,7 @@ export default function RevisaoIA() {
 
         {/* Painel detalhe */}
         {selecionado && (
-          <div style={{ background: '#131e33', padding: 20, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)' }}>
+          <div style={{ background: '#232a37', padding: 20, borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: 20 }}>{selecionado.nome}</h2>
@@ -380,7 +380,7 @@ export default function RevisaoIA() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
                     {selecionado.prints_atendimento_ia.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                        <img src={url} alt={`print${i}`} style={{ height: 80, borderRadius: 4, border: '1px solid rgba(148,163,184,0.14)' }} />
+                        <img src={url} alt={`print${i}`} style={{ height: 80, borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }} />
                       </a>
                     ))}
                   </div>
@@ -406,7 +406,7 @@ export default function RevisaoIA() {
             <Section titulo="Anexar documentos">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
                 {docsDoProduto(selecionado.produto).map(t => (
-                  <div key={t.key} style={{ padding: 8, background: '#0d1526', borderRadius: 4, fontSize: 11 }}>
+                  <div key={t.key} style={{ padding: 8, background: '#171c26', borderRadius: 4, fontSize: 11 }}>
                     <div style={{ marginBottom: 4, color: '#8b9bb4', fontWeight: 600 }}>{t.label}</div>
                     {docsNovos[t.key] ? (
                       <div style={{ color: '#34d399' }}>✓ enviado</div>
@@ -419,20 +419,20 @@ export default function RevisaoIA() {
               </div>
               {Object.keys(docsNovos).length > 0 && (
                 <button onClick={salvarDocs} disabled={salvando}
-                  style={{ marginTop: 12, padding: '8px 16px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                  style={{ marginTop: 12, padding: '8px 16px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
                   💾 Salvar {Object.keys(docsNovos).length} doc(s)
                 </button>
               )}
             </Section>
 
             {/* Ações */}
-            <div style={{ marginTop: 20, display: 'flex', gap: 8, paddingTop: 16, borderTop: '1px solid rgba(148,163,184,0.12)' }}>
+            <div style={{ marginTop: 20, display: 'flex', gap: 8, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
               <button onClick={validar} disabled={salvando}
-                style={{ flex: 1, padding: '12px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                style={{ flex: 1, padding: '12px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                 ✅ Validar e enviar pra Pós-venda
               </button>
               <button onClick={() => setModalBarrar(true)} disabled={salvando}
-                style={{ flex: 1, padding: '12px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                style={{ flex: 1, padding: '12px', background: '#f87171', color: '#232a37', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                 ❌ Barrar
               </button>
             </div>
@@ -442,8 +442,8 @@ export default function RevisaoIA() {
 
       {/* Modal Barrar */}
       {modalBarrar && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 8, maxWidth: 500, width: '90%' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 8, maxWidth: 500, width: '90%' }}>
             <h3 style={{ marginTop: 0 }}>Barrar {selecionado?.nome}?</h3>
             <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 12 }}>
               Isso vai cancelar o contrato no ZapSign e liberar a vaga do advogado.
@@ -459,11 +459,11 @@ export default function RevisaoIA() {
               style={{ width: '100%', padding: 8, marginTop: 4, marginBottom: 12, border: '1px solid rgba(0,0,0,0.45)', borderRadius: 4 }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setModalBarrar(false); setMotivoBarrar(''); setObsBarrar('') }}
-                style={{ flex: 1, padding: 10, background: '#1a2742', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 10, background: '#2b3340', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button onClick={barrar} disabled={!motivoBarrar || salvando}
-                style={{ flex: 1, padding: 10, background: !motivoBarrar ? '#64748b' : '#f87171', color: '#131e33', border: 'none', borderRadius: 4, cursor: motivoBarrar ? 'pointer' : 'not-allowed' }}>
+                style={{ flex: 1, padding: 10, background: !motivoBarrar ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 4, cursor: motivoBarrar ? 'pointer' : 'not-allowed' }}>
                 Confirmar barragem
               </button>
             </div>
@@ -479,8 +479,8 @@ function AbaProduto({ ativo, onClick, cor, fundo, label }) {
     <button onClick={onClick}
       style={{
         padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        borderRadius: 20, border: `1px solid ${ativo ? cor : 'rgba(148,163,184,0.16)'}`,
-        background: ativo ? fundo : '#131e33', color: ativo ? cor : '#8b9bb4'
+        borderRadius: 20, border: `1px solid ${ativo ? cor : 'rgba(255,255,255,0.09)'}`,
+        background: ativo ? fundo : '#232a37', color: ativo ? cor : '#8b9bb4'
       }}>
       {label}
     </button>
@@ -489,7 +489,7 @@ function AbaProduto({ ativo, onClick, cor, fundo, label }) {
 
 function Card({ label, valor, subtitulo, cor }) {
   return (
-    <div style={{ background: '#131e33', padding: '12px 16px', borderRadius: 6, border: '1px solid rgba(148,163,184,0.12)', minWidth: 100 }}>
+    <div style={{ background: '#232a37', padding: '12px 16px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.07)', minWidth: 100 }}>
       <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color: cor, marginTop: 2 }}>{valor}</div>
       <div style={{ fontSize: 10, color: '#8b9bb4' }}>{subtitulo}</div>
@@ -508,7 +508,7 @@ function Section({ titulo, children }) {
 
 function Linha({ label, valor }) {
   return (
-    <div style={{ display: 'flex', fontSize: 13, padding: '4px 0', borderBottom: '1px solid rgba(148,163,184,0.08)' }}>
+    <div style={{ display: 'flex', fontSize: 13, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
       <div style={{ width: 140, color: '#8b9bb4' }}>{label}</div>
       <div style={{ flex: 1, color: '#222' }}>{valor}</div>
     </div>

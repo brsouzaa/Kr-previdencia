@@ -3,19 +3,19 @@ import { supabase } from '../lib/supabase'
 
 const s = {
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 },
-  cardMetric: { background: '#131e33', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(148,163,184,0.12)' },
+  cardMetric: { background: '#232a37', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(255,255,255,0.07)' },
   cardLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, fontWeight: 500 },
   cardValue: { fontSize: 26, fontWeight: 500 },
   cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  block: { background: '#131e33', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 16 },
+  block: { background: '#232a37', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(255,255,255,0.07)', marginBottom: 16 },
   blockTitle: { fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 14 },
-  rankRow: { display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 90px', gap: 10, alignItems: 'center', padding: '10px 6px', borderBottom: '0.5px solid rgba(148,163,184,0.08)' },
+  rankRow: { display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 90px', gap: 10, alignItems: 'center', padding: '10px 6px', borderBottom: '0.5px solid rgba(255,255,255,0.05)' },
   rankPos: (top) => ({
     width: 28, height: 28, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 12, fontWeight: 600,
-    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : '#1a2742',
-    color: top <= 3 ? '#131e33' : '#8b9bb4',
+    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : '#2b3340',
+    color: top <= 3 ? '#232a37' : '#8b9bb4',
   }),
   alertBox: (cor, bg) => ({ background: bg, border: `1px solid ${cor}40`, borderRadius: 10, padding: '10px 12px', fontSize: 12, color: cor, marginBottom: 8 }),
 }
@@ -175,30 +175,30 @@ export default function RankingProducao() {
       <div style={s.block}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>🏆 Ranking completo</div>
-          <div style={{ display: 'flex', gap: 4, background: '#0d1526', borderRadius: 8, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 4, background: '#171c26', borderRadius: 8, padding: 3 }}>
             {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([k, label]) => (
               <button key={k} onClick={() => { setPeriodo(k); setRankingCustom(null) }}
                 style={{
                   padding: '6px 14px', fontSize: 12, fontWeight: 500,
                   border: 'none', cursor: 'pointer', borderRadius: 6,
-                  background: periodo === k ? '#131e33' : 'transparent',
+                  background: periodo === k ? '#232a37' : 'transparent',
                   color: periodo === k ? '#60a5fa' : '#8b9bb4',
-                  boxShadow: periodo === k ? '0 1px 3px rgba(148,163,184,0.10)' : 'none',
+                  boxShadow: periodo === k ? '0 1px 3px rgba(255,255,255,0.06)' : 'none',
                 }}>{label}</button>
             ))}
             <button onClick={() => setModalCustom(true)}
               style={{
                 padding: '6px 14px', fontSize: 12, fontWeight: 500,
                 border: 'none', cursor: 'pointer', borderRadius: 6,
-                background: periodo === 'custom' ? '#131e33' : 'transparent',
+                background: periodo === 'custom' ? '#232a37' : 'transparent',
                 color: periodo === 'custom' ? '#60a5fa' : '#8b9bb4',
-                boxShadow: periodo === 'custom' ? '0 1px 3px rgba(148,163,184,0.10)' : 'none',
+                boxShadow: periodo === 'custom' ? '0 1px 3px rgba(255,255,255,0.06)' : 'none',
               }}>📅 {periodo === 'custom' && rankingCustom ? `${dataInicio.split('-').reverse().slice(0,2).join('/')} → ${dataFim.split('-').reverse().slice(0,2).join('/')}` : 'Personalizado'}</button>
           </div>
         </div>
 
         {/* Header */}
-        <div style={{ ...s.rankRow, fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(148,163,184,0.14)', paddingBottom: 8 }}>
+        <div style={{ ...s.rankRow, fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}>
           <div></div>
           <div>Vendedora</div>
           <div style={{ textAlign: 'right' }}>Assinados</div>
@@ -237,7 +237,7 @@ export default function RankingProducao() {
           )
         })}
 
-        <div style={{ marginTop: 14, padding: '10px 12px', background: '#0d1526', borderRadius: 8, fontSize: 11, color: '#8b9bb4', lineHeight: 1.5 }}>
+        <div style={{ marginTop: 14, padding: '10px 12px', background: '#171c26', borderRadius: 8, fontSize: 11, color: '#8b9bb4', lineHeight: 1.5 }}>
           <strong>Faixas:</strong> 1-15 contratos R$15 · 16-40 contratos R$17 · 41+ R$20 (lote do mês inteiro pelo mesmo valor) ·
           <strong>Desempate:</strong> menor tempo médio entre cadastro e assinatura
         </div>
@@ -245,8 +245,8 @@ export default function RankingProducao() {
 
       {/* MODAL FILTRO PERSONALIZADO */}
       {modalCustom && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#131e33', padding: 24, borderRadius: 12, width: '90%', maxWidth: 440 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#232a37', padding: 24, borderRadius: 12, width: '90%', maxWidth: 440 }}>
             <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>📅 Filtro de período personalizado</div>
             <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 16 }}>Veja produção das vendedoras em qualquer intervalo</div>
 
@@ -271,16 +271,16 @@ export default function RankingProducao() {
                 <button onClick={fecharCustom} style={{ padding: '8px 14px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Limpar filtro</button>
               )}
               <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                <button onClick={() => setModalCustom(false)} disabled={loadingCustom} style={{ padding: '8px 14px', background: '#1a2742', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => setModalCustom(false)} disabled={loadingCustom} style={{ padding: '8px 14px', background: '#2b3340', color: '#8b9bb4', border: 'none', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                 <button onClick={aplicarFiltroCustom} disabled={loadingCustom || !dataInicio || !dataFim}
-                  style={{ padding: '8px 14px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: loadingCustom ? 'not-allowed' : 'pointer', opacity: loadingCustom || !dataInicio || !dataFim ? 0.5 : 1 }}>
+                  style={{ padding: '8px 14px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: loadingCustom ? 'not-allowed' : 'pointer', opacity: loadingCustom || !dataInicio || !dataFim ? 0.5 : 1 }}>
                   {loadingCustom ? 'Carregando...' : 'Aplicar'}
                 </button>
               </div>
             </div>
 
             {/* Atalhos rápidos */}
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid rgba(148,163,184,0.12)' }}>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
               <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 6 }}>Atalhos rápidos:</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {[
@@ -309,7 +309,7 @@ export default function RankingProducao() {
                     setDataFim(hoje.toISOString().slice(0,10))
                   }],
                 ].map(([label, fn]) => (
-                  <button key={label} onClick={fn} style={{ padding: '4px 10px', background: '#0d1526', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>{label}</button>
+                  <button key={label} onClick={fn} style={{ padding: '4px 10px', background: '#171c26', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>{label}</button>
                 ))}
               </div>
             </div>

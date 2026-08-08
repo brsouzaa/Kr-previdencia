@@ -11,13 +11,13 @@ const PROD_STYLE = {
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' },
-  metric: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: '12px 14px' },
+  metric: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px' },
   metricLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
   metricValue: { fontSize: 24, fontWeight: 500, color: '#e6edf7' },
-  tableWrap: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden' },
-  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#0d1526', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
-  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', fontSize: 13, color: '#e6edf7' },
-  tag: (p) => ({ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500, background: PROD_STYLE[p]?.bg || '#1a2742', color: PROD_STYLE[p]?.color || '#8b9bb4', display: 'inline-block' }),
+  tableWrap: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' },
+  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#171c26', borderBottom: '0.5px solid rgba(255,255,255,0.07)' },
+  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', fontSize: 13, color: '#e6edf7' },
+  tag: (p) => ({ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500, background: PROD_STYLE[p]?.bg || '#2b3340', color: PROD_STYLE[p]?.color || '#8b9bb4', display: 'inline-block' }),
   loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
 }
 

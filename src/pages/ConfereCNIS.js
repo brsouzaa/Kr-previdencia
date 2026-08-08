@@ -13,7 +13,7 @@ const MAP_V = {
   APTA: { label: 'Apta', cor: '#34d399', bg: 'rgba(52,211,153,.14)' },
   NAO_CLIENTE: { label: 'Não cliente', cor: '#f87171', bg: 'rgba(248,113,113,.14)' },
   APTA_CONFERIR_GERID: { label: 'Apta · conferir GERID', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)' },
-  HUMANO: { label: 'Humano', cor: '#8b9bb4', bg: '#1a2742' },
+  HUMANO: { label: 'Humano', cor: '#8b9bb4', bg: '#2b3340' },
 }
 const MAQUINA_PASSA = ['APTA', 'APTA_CONFERIR_GERID'] // maquina deixaria seguir como cliente
 
@@ -50,14 +50,14 @@ const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
   sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 16 },
   resumo: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 },
-  kpi: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
+  kpi: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
   kpiNum: { fontSize: 22, fontWeight: 700, color: '#e6edf7' },
   kpiLbl: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
   kpiPerigo: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #f87171', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
-  tabela: { width: '100%', borderCollapse: 'collapse', background: '#131e33', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(148,163,184,0.14)' },
-  th: { textAlign: 'left', fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(148,163,184,0.12)', background: '#0f1930' },
-  td: { fontSize: 13, color: '#222', padding: '10px 12px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', verticalAlign: 'middle' },
-  badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#8b9bb4', background: (MAP_V[v] || {}).bg || '#1a2742' }),
+  tabela: { width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' },
+  th: { textAlign: 'left', fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1e242f' },
+  td: { fontSize: 13, color: '#222', padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
+  badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#8b9bb4', background: (MAP_V[v] || {}).bg || '#2b3340' }),
   badgeH: (bg, cor) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: cor, background: bg }),
   link: { fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
   linhaPerigo: { background: 'rgba(248,113,113,.14)' },
@@ -132,13 +132,13 @@ export default function ConfereCNIS() {
         <span style={{ fontSize: 12, color: '#8b9bb4' }}>Analisados em:</span>
         {OPCOES_DATA.map(([v, lbl]) => (
           <button key={v} onClick={() => setFiltroData(v)}
-            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: filtroData === v ? '0.5px solid #60a5fa' : '0.5px solid rgba(148,163,184,0.20)', background: filtroData === v ? '#60a5fa' : '#131e33', color: filtroData === v ? '#131e33' : '#8b9bb4' }}>
+            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: filtroData === v ? '0.5px solid #60a5fa' : '0.5px solid rgba(255,255,255,0.11)', background: filtroData === v ? '#60a5fa' : '#232a37', color: filtroData === v ? '#232a37' : '#8b9bb4' }}>
             {lbl}
           </button>
         ))}
         {filtroData === 'custom' && (<>
-          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' }} />
-          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' }} />
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
         </>)}
       </div>
 

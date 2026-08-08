@@ -22,13 +22,13 @@ function faltamProxFaixa(qtd) {
 
 const s = {
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 },
-  cardMetric: { background: '#131e33', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(148,163,184,0.12)' },
+  cardMetric: { background: '#232a37', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(255,255,255,0.07)' },
   cardLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, fontWeight: 500 },
   cardValue: { fontSize: 28, fontWeight: 500 },
   cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  block: { background: '#131e33', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 16 },
+  block: { background: '#232a37', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(255,255,255,0.07)', marginBottom: 16 },
   blockTitle: { fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 14 },
-  bonusBig: { background: 'linear-gradient(135deg, #60a5fa 0%, #60a5fa 100%)', borderRadius: 16, padding: '1.5rem', color: '#131e33', marginBottom: 16, boxShadow: '0 4px 14px rgba(96,165,250,0.25)' },
+  bonusBig: { background: 'linear-gradient(135deg, #60a5fa 0%, #60a5fa 100%)', borderRadius: 16, padding: '1.5rem', color: '#232a37', marginBottom: 16, boxShadow: '0 4px 14px rgba(96,165,250,0.25)' },
   bonusBigLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9, marginBottom: 6 },
   bonusBigValue: { fontSize: 36, fontWeight: 600, marginBottom: 8 },
   bonusBigSub: { fontSize: 13, opacity: 0.9 },
@@ -44,12 +44,12 @@ const s = {
     width: 32, height: 32, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 13, fontWeight: 600, flexShrink: 0,
-    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#60a5fa' : '#1a2742'),
-    color: top <= 3 || destacado ? '#131e33' : '#8b9bb4',
+    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#60a5fa' : '#2b3340'),
+    color: top <= 3 || destacado ? '#232a37' : '#8b9bb4',
   }),
   toast: {
     position: 'fixed', top: 20, right: 20, zIndex: 9999,
-    background: '#34d399', color: '#131e33', padding: '12px 18px',
+    background: '#34d399', color: '#232a37', padding: '12px 18px',
     borderRadius: 10, fontSize: 13, fontWeight: 500,
     boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
     animation: 'slideIn 0.4s ease-out',
@@ -208,7 +208,7 @@ export default function MeuDesempenho() {
             ['Semana', minhaPosicaoSem, ranking.length],
             ['Mês', minhaPosicaoMes, ranking.length],
           ].map(([label, pos, total]) => (
-            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#0d1526', borderRadius: 10 }}>
+            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#171c26', borderRadius: 10 }}>
               <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
               <div style={{ fontSize: 22, fontWeight: 600, color: pos === 1 ? '#FFD700' : pos === 2 ? '#8b9bb4' : pos === 3 ? '#CD7F32' : '#60a5fa' }}>
                 {pos}º
@@ -223,15 +223,15 @@ export default function MeuDesempenho() {
       <div style={s.block}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>🏆 Top 4 vendedores</div>
-          <div style={{ display: 'flex', gap: 4, background: '#0d1526', borderRadius: 8, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 4, background: '#171c26', borderRadius: 8, padding: 3 }}>
             {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([k, label]) => (
               <button key={k} onClick={() => setPeriodoRanking(k)}
                 style={{
                   padding: '6px 12px', fontSize: 12, fontWeight: 500,
                   border: 'none', cursor: 'pointer', borderRadius: 6,
-                  background: periodoRanking === k ? '#131e33' : 'transparent',
+                  background: periodoRanking === k ? '#232a37' : 'transparent',
                   color: periodoRanking === k ? '#60a5fa' : '#8b9bb4',
-                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(148,163,184,0.10)' : 'none',
+                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(255,255,255,0.06)' : 'none',
                 }}>{label}</button>
             ))}
           </div>

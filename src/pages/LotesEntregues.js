@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
-  cardNovo: { background: '#131e33', border: '1.5px solid #34d399', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(59,109,17,0.08)' },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardNovo: { background: '#232a37', border: '1.5px solid #34d399', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(59,109,17,0.08)' },
   badge: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
 }
 
@@ -63,13 +63,13 @@ export default function LotesEntregues() {
             {novos.length > 0 && <span style={{ marginLeft: 8, color: '#34d399', fontWeight: 500 }}>· {novos.length} nov{novos.length !== 1 ? 'os' : 'o'}</span>}
           </div>
         </div>
-        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
+        <button onClick={fetch} style={{ padding: '8px 14px', fontSize: 13, background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
           ↻ Atualizar
         </button>
       </div>
 
       {lotes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.06)' }}>
           📭 Nenhum lote liberado ainda.
           <div style={{ fontSize: 12, marginTop: 8 }}>
             Quando a Sthefany validar e liberar lotes seus, eles aparecem aqui.
@@ -99,7 +99,7 @@ export default function LotesEntregues() {
                       )}
                     </div>
 
-                    <div style={{ background: '#0d1526', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                    <div style={{ background: '#171c26', borderRadius: 8, padding: 10, marginBottom: 8 }}>
                       <div style={{ fontSize: 12, color: '#8b9bb4' }}>
                         <strong>{validados}</strong> de <strong>{totalLote}</strong> contratos liberados pra entrega
                       </div>

@@ -26,8 +26,8 @@ export default function ModalEmailNotificacao({ onClose }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(148,163,184,0.08)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: '#131e33', borderRadius: 16, padding: '2rem', width: '100%', maxWidth: 420 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#232a37', borderRadius: 16, padding: '2rem', width: '100%', maxWidth: 420 }}>
         <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>📬</div>
         <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7', marginBottom: 8, textAlign: 'center' }}>
           Cadastre seu e-mail de notificações
@@ -44,11 +44,11 @@ export default function ModalEmailNotificacao({ onClose }) {
             onChange={e => { setEmail(e.target.value); setErro('') }}
             placeholder="seu@email.com"
             required
-            style={{ width: '100%', padding: '11px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+            style={{ width: '100%', padding: '11px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
           />
           {erro && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>{erro}</div>}
 
-          <button type="submit" disabled={!email || salvando} style={{ width: '100%', padding: '12px', background: email && !salvando ? '#60a5fa' : '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: email && !salvando ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
+          <button type="submit" disabled={!email || salvando} style={{ width: '100%', padding: '12px', background: email && !salvando ? '#60a5fa' : '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: email && !salvando ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
             {salvando ? 'Salvando...' : 'Salvar e-mail'}
           </button>
           <button type="button" onClick={pularPorAgora} style={{ width: '100%', padding: '10px', background: 'none', border: 'none', fontSize: 13, color: '#64748b', cursor: 'pointer' }}>

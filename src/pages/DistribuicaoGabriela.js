@@ -85,8 +85,8 @@ export default function DistribuicaoGabriela() {
 
       {/* Card principal: status + botão */}
       <div style={{
-        background: '#131e33', padding: 24, borderRadius: 8,
-        border: '1px solid rgba(148,163,184,0.12)', marginBottom: 16,
+        background: '#232a37', padding: 24, borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.07)', marginBottom: 16,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16
       }}>
         <div>
@@ -108,7 +108,7 @@ export default function DistribuicaoGabriela() {
           style={{
             padding: '14px 28px',
             background: ativo ? '#f87171' : '#34d399',
-            color: '#131e33', border: 'none', borderRadius: 6,
+            color: '#232a37', border: 'none', borderRadius: 6,
             fontSize: 14, fontWeight: 600,
             cursor: salvando ? 'wait' : 'pointer',
             opacity: salvando ? 0.6 : 1,
@@ -120,7 +120,7 @@ export default function DistribuicaoGabriela() {
       </div>
 
       {/* Estatísticas últimos 7d */}
-      <div style={{ background: '#131e33', padding: 20, borderRadius: 8, border: '1px solid rgba(148,163,184,0.12)', marginBottom: 16 }}>
+      <div style={{ background: '#232a37', padding: 20, borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)', marginBottom: 16 }}>
         <h2 style={{ fontSize: 14, margin: '0 0 14px 0', color: '#8b9bb4' }}>📊 Atribuições nos últimos 7 dias</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
           <Card label="→ Gabriela (regra IA)" valor={contagem.regra_gabriela_ia} cor="#60a5fa" />
@@ -130,7 +130,7 @@ export default function DistribuicaoGabriela() {
       </div>
 
       {/* Bloco explicativo */}
-      <div style={{ background: 'rgba(251,191,36,.12)', padding: 16, borderRadius: 8, border: '1px solid rgba(148,163,184,0.10)', fontSize: 12, color: '#8b9bb4', lineHeight: 1.6 }}>
+      <div style={{ background: 'rgba(251,191,36,.12)', padding: 16, borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', fontSize: 12, color: '#8b9bb4', lineHeight: 1.6 }}>
         <strong style={{ color: '#c6d2e4' }}>Como funciona:</strong>
         <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
           <li>Cliente da IA com gestação ≥ 6 meses + switch ATIVO → vai pra qualquer lote da Gabriela em <code>a_entregar</code> com vaga.</li>

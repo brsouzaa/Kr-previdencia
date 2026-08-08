@@ -31,20 +31,20 @@ const s = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', letterSpacing: '-0.3px' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' },
-  metric: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 10, padding: '12px 14px' },
+  metric: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px' },
   metricLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
   metricValue: { fontSize: 24, fontWeight: 500, color: '#e6edf7' },
   filters: { display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' },
-  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' },
-  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' },
-  btnAdd: { padding: '8px 16px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  tableWrap: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden' },
-  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#0d1526', borderBottom: '0.5px solid rgba(148,163,184,0.12)' },
-  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', fontSize: 13, color: '#e6edf7', verticalAlign: 'middle' },
-  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#1a2742', color: STATUS[st]?.color || '#8b9bb4' }),
+  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' },
+  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' },
+  btnAdd: { padding: '8px 16px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  tableWrap: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' },
+  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#171c26', borderBottom: '0.5px solid rgba(255,255,255,0.07)' },
+  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', fontSize: 13, color: '#e6edf7', verticalAlign: 'middle' },
+  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#2b3340', color: STATUS[st]?.color || '#8b9bb4' }),
   dot: (st) => ({ width: 7, height: 7, borderRadius: '50%', background: STATUS[st]?.color || '#8b9bb4', display: 'inline-block' }),
-  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#1a2742', color: TITULOS_CLASS[t]?.color || '#8b9bb4', whiteSpace: 'nowrap' }),
-  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#1a2742', color: PROD_CLASS[p]?.color || '#8b9bb4', display: 'inline-block' }),
+  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#2b3340', color: TITULOS_CLASS[t]?.color || '#8b9bb4', whiteSpace: 'nowrap' }),
+  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#2b3340', color: PROD_CLASS[p]?.color || '#8b9bb4', display: 'inline-block' }),
   loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
 }
 
@@ -131,7 +131,7 @@ export default function Advogados() {
             <tbody>
               {filtered.map(a => (
                 <tr key={a.id} onClick={() => setDetalhe(a)} style={{ cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#0d1526'}
+                  onMouseEnter={e => e.currentTarget.style.background = '#171c26'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 500 }}>{a.nome_completo}</div>

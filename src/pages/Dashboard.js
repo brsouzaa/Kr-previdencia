@@ -21,7 +21,7 @@ const PROD_STYLE = {
 }
 
 const STATUS_LOTE = {
-  emitir_contrato: { bg: '#1a2742', color: '#8b9bb4', label: 'Emitir contrato' },
+  emitir_contrato: { bg: '#2b3340', color: '#8b9bb4', label: 'Emitir contrato' },
   nao_assinou: { bg: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Não assinou' },
   assinar_contrato: { bg: 'rgba(167,139,250,.14)', color: '#a78bfa', label: 'Assinar contrato' },
   a_entregar: { bg: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'A entregar' },
@@ -57,7 +57,7 @@ export default function Dashboard() {
   if (profile && ['supervisor_producao','produtor','vendedor_operador'].includes(profile.role)) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
-        <div style={{ background: '#131e33', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ background: '#232a37', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
           <div style={{ fontSize: 16, fontWeight: 500, color: '#e6edf7', marginBottom: 6 }}>Acesso restrito</div>
           <div style={{ fontSize: 13, color: '#8b9bb4', lineHeight: 1.6 }}>
@@ -316,7 +316,7 @@ export default function Dashboard() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
-  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '14px 16px' }
+  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
@@ -371,11 +371,11 @@ export default function Dashboard() {
 
       {/* Métricas de reposição aprovadas (só admin) */}
       {profile?.role === 'admin' && (
-        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 12, padding: '14px 16px', marginBottom: '1.25rem' }}>
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '14px 16px', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔄 Reposições aprovadas</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 0, border: '0.5px solid rgba(148,163,184,0.16)', borderRadius: 7, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', gap: 0, border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 7, overflow: 'hidden' }}>
                 {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, lbl]) => (
                   <button
                     key={val}
@@ -383,10 +383,10 @@ export default function Dashboard() {
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,
-                      background: repPeriodo === val ? '#60a5fa' : '#131e33',
-                      color: repPeriodo === val ? '#131e33' : '#8b9bb4',
+                      background: repPeriodo === val ? '#60a5fa' : '#232a37',
+                      color: repPeriodo === val ? '#232a37' : '#8b9bb4',
                       border: 'none',
-                      borderRight: val !== 'mes' ? '0.5px solid rgba(148,163,184,0.16)' : 'none',
+                      borderRight: val !== 'mes' ? '0.5px solid rgba(255,255,255,0.09)' : 'none',
                       cursor: 'pointer',
                       fontWeight: repPeriodo === val ? 500 : 400,
                     }}
@@ -400,22 +400,22 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: rankingRepVendedora.length > 0 ? 12 : 0 }}>
-            <div style={{ padding: '10px 12px', background: '#0f1930', borderRadius: 8 }}>
+            <div style={{ padding: '10px 12px', background: '#1e242f', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Aprovadas</div>
               <div style={{ fontSize: 22, fontWeight: 500, color: '#e6edf7' }}>{reposicoesAprovadas.length}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>solicitaç{reposicoesAprovadas.length !== 1 ? 'ões' : 'ão'}</div>
             </div>
-            <div style={{ padding: '10px 12px', background: '#0f1930', borderRadius: 8 }}>
+            <div style={{ padding: '10px 12px', background: '#1e242f', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Contratos grátis</div>
               <div style={{ fontSize: 22, fontWeight: 500, color: '#e6edf7' }}>{reposicoesAprovadasQtd}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>repostos</div>
             </div>
-            <div style={{ padding: '10px 12px', background: '#0f1930', borderRadius: 8 }}>
+            <div style={{ padding: '10px 12px', background: '#1e242f', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Taxa de reposição</div>
               <div style={{ fontSize: 22, fontWeight: 500, color: alertaRep.cor }}>{taxaReposicao.toFixed(1)}%</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>sobre {contratosVendidosPeriodoRep} vendidos</div>
             </div>
-            <div style={{ padding: '10px 12px', background: '#0f1930', borderRadius: 8 }}>
+            <div style={{ padding: '10px 12px', background: '#1e242f', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>CAC desperdiçado</div>
               <div style={{ fontSize: 22, fontWeight: 500, color: '#f87171' }}>{fmt(reposicoesCustoCAC)}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>~R$100/contrato</div>
@@ -425,7 +425,7 @@ export default function Dashboard() {
           {(rankingRepVendedora.length > 0 || rankingRepAdvogado.length > 0) && (
             <button
               onClick={() => setRepExpandido(!repExpandido)}
-              style={{ width: '100%', padding: '7px 10px', marginTop: 8, background: '#0f1930', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 7, fontSize: 12, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ width: '100%', padding: '7px 10px', marginTop: 8, background: '#1e242f', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 7, fontSize: 12, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span>📊 Ver detalhes por vendedora e advogado</span>
               <span>{repExpandido ? '▲' : '▼'}</span>
@@ -435,10 +435,10 @@ export default function Dashboard() {
           {repExpandido && (
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
               {rankingRepVendedora.length > 0 && (
-                <div style={{ background: '#0f1930', borderRadius: 8, padding: 12 }}>
+                <div style={{ background: '#1e242f', borderRadius: 8, padding: 12 }}>
                   <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Top vendedoras (reposições pedidas)</div>
                   {rankingRepVendedora.map((v, i) => (
-                    <div key={v.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(148,163,184,0.08)' : 'none' }}>
+                    <div key={v.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(255,255,255,0.05)' : 'none' }}>
                       <span style={{ fontSize: 13, color: '#e6edf7' }}>{i + 1}. {v.nome}</span>
                       <span style={{ fontSize: 12, color: '#8b9bb4' }}>{v.contratos} contrato{v.contratos !== 1 ? 's' : ''} · {v.qtd} pedido{v.qtd !== 1 ? 's' : ''}</span>
                     </div>
@@ -446,10 +446,10 @@ export default function Dashboard() {
                 </div>
               )}
               {rankingRepAdvogado.length > 0 && (
-                <div style={{ background: '#0f1930', borderRadius: 8, padding: 12 }}>
+                <div style={{ background: '#1e242f', borderRadius: 8, padding: 12 }}>
                   <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Top advogados (mais reposições recebidas)</div>
                   {rankingRepAdvogado.map((a, i) => (
-                    <div key={a.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(148,163,184,0.08)' : 'none' }}>
+                    <div key={a.nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '0.5px solid rgba(255,255,255,0.05)' : 'none' }}>
                       <span style={{ fontSize: 13, color: '#e6edf7' }}>{i + 1}. {a.nome}</span>
                       <span style={{ fontSize: 12, color: '#8b9bb4' }}>{a.contratos} contrato{a.contratos !== 1 ? 's' : ''} · {a.qtd} pedido{a.qtd !== 1 ? 's' : ''}</span>
                     </div>
@@ -464,7 +464,7 @@ export default function Dashboard() {
       {/* Cards de status clicáveis */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
-          ['emitir_contrato', 'Emitir contrato', financeiro.emitir_contrato, '#8b9bb4', '#1a2742'],
+          ['emitir_contrato', 'Emitir contrato', financeiro.emitir_contrato, '#8b9bb4', '#2b3340'],
           ['assinar_contrato', 'Assinar contrato', financeiro.assinar_contrato, '#a78bfa', 'rgba(167,139,250,.14)'],
           ['a_entregar', 'A entregar', financeiro.a_entregar, '#60a5fa', 'rgba(96,165,250,.12)'],
           ['entregue', 'Entregue', financeiro.entregue, '#fbbf24', 'rgba(251,191,36,.12)'],
@@ -473,7 +473,7 @@ export default function Dashboard() {
           ['nao_assinou', 'Não assinou', financeiro.nao_assinou, '#f87171', 'rgba(248,113,113,.14)'],
         ].map(([st, label, valor, cor, bg]) => (
           <div key={st} onClick={() => setModalStatus(st === modalStatus ? null : st)}
-            style={{ background: modalStatus === st ? bg : '#131e33', border: `${modalStatus === st ? 2 : 0.5}px solid ${cor}${modalStatus === st ? '' : '40'}`, borderRadius: 12, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }}>
+            style={{ background: modalStatus === st ? bg : '#232a37', border: `${modalStatus === st ? 2 : 0.5}px solid ${cor}${modalStatus === st ? '' : '40'}`, borderRadius: 12, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <div style={{ fontSize: 11, color: cor, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.9 }}>{label}</div>
               <span style={{ background: bg, color: cor, fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 20 }}>{contagem[st]}</span>
@@ -485,7 +485,7 @@ export default function Dashboard() {
 
       {/* Modal inline de lotes por status */}
       {modalStatus && (
-        <div style={{ background: '#131e33', border: `1.5px solid ${STATUS_LOTE[modalStatus]?.color}40`, borderRadius: 14, padding: '1.25rem', marginBottom: '1.25rem' }}>
+        <div style={{ background: '#232a37', border: `1.5px solid ${STATUS_LOTE[modalStatus]?.color}40`, borderRadius: 14, padding: '1.25rem', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
               <span style={{ fontSize: 14, fontWeight: 500, color: STATUS_LOTE[modalStatus]?.color }}>{STATUS_LOTE[modalStatus]?.label}</span>
@@ -501,9 +501,9 @@ export default function Dashboard() {
             const alerta = modalStatus === 'a_entregar' && dias >= 3
             const ehReposicao = lote.tipo === 'reposicao'
             return (
-              <div key={lote.id} style={{ border: `${ehReposicao ? '2px' : '0.5px'} solid ${ehReposicao ? '#fbbf24' : alerta ? '#f87171' : 'rgba(148,163,184,0.12)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: ehReposicao ? 'rgba(251,191,36,.12)' : alerta ? '#FCEBEB40' : '#0d1526' }}>
+              <div key={lote.id} style={{ border: `${ehReposicao ? '2px' : '0.5px'} solid ${ehReposicao ? '#fbbf24' : alerta ? '#f87171' : 'rgba(255,255,255,0.07)'}`, borderRadius: 10, padding: 12, marginBottom: 10, background: ehReposicao ? 'rgba(251,191,36,.12)' : alerta ? '#FCEBEB40' : '#171c26' }}>
                 {ehReposicao && (
-                  <div style={{ background: '#fbbf24', color: '#131e33', padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, marginBottom: 8, display: 'inline-block', letterSpacing: '0.3px' }}>
+                  <div style={{ background: '#fbbf24', color: '#232a37', padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, marginBottom: 8, display: 'inline-block', letterSpacing: '0.3px' }}>
                     🔄 REPOSIÇÃO · 24H
                   </div>
                 )}
@@ -536,9 +536,9 @@ export default function Dashboard() {
                       width: '100%',
                       padding: '6px 10px',
                       marginBottom: 8,
-                      background: loteExpandido[lote.id]?.aberto ? '#131e33' : '#1a2742',
+                      background: loteExpandido[lote.id]?.aberto ? '#232a37' : '#2b3340',
                       color: '#8b9bb4',
-                      border: '0.5px solid rgba(148,163,184,0.14)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
                       borderRadius: 7,
                       fontSize: 11,
                       cursor: 'pointer',
@@ -554,7 +554,7 @@ export default function Dashboard() {
 
                 {/* Lista expandida de contratos do lote */}
                 {loteExpandido[lote.id]?.aberto && (
-                  <div style={{ background: '#0f1930', border: '0.5px solid rgba(148,163,184,0.10)', borderRadius: 7, padding: 8, marginBottom: 8 }}>
+                  <div style={{ background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: 7, padding: 8, marginBottom: 8 }}>
                     {loteExpandido[lote.id]?.loading && <div style={{ fontSize: 11, color: '#8b9bb4', textAlign: 'center', padding: 8 }}>Carregando...</div>}
                     {!loteExpandido[lote.id]?.loading && loteExpandido[lote.id]?.contratos?.length === 0 && (
                       <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', padding: 8 }}>Nenhum contrato neste lote</div>
@@ -563,7 +563,7 @@ export default function Dashboard() {
                       const ehAssinado = c.status === 'assinado'
                       const corStatus = ehAssinado ? '#34d399' : c.status === 'expirado' || c.status === 'cancelado' ? '#f87171' : '#8b9bb4'
                       return (
-                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 6px', borderBottom: idx < loteExpandido[lote.id].contratos.length - 1 ? '0.5px solid rgba(148,163,184,0.08)' : 'none', gap: 8 }}>
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 6px', borderBottom: idx < loteExpandido[lote.id].contratos.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none', gap: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, color: '#e6edf7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {ehAssinado && <span style={{ color: '#34d399', marginRight: 4 }}>✓</span>}
@@ -625,7 +625,7 @@ export default function Dashboard() {
                       <button onClick={() => mudarStatusLote(lote.id, 'inadimplente')} style={{ padding: '7px 10px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid #f87171', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
                         Inadimp.
                       </button>
-                      <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ padding: '7px 10px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                      <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ padding: '7px 10px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
                         Voltar
                       </button>
                     </>
@@ -638,7 +638,7 @@ export default function Dashboard() {
                       <select
                         onChange={(e) => { if (e.target.value) { mudarStatusLote(lote.id, e.target.value); e.target.value = '' } }}
                         defaultValue=""
-                        style={{ padding: '7px 10px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
+                        style={{ padding: '7px 10px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
                       >
                         <option value="" disabled>Mover para...</option>
                         <option value="emitir_contrato">📝 Emitir contrato</option>
@@ -657,7 +657,7 @@ export default function Dashboard() {
                       <select
                         onChange={(e) => { if (e.target.value) { mudarStatusLote(lote.id, e.target.value); e.target.value = '' } }}
                         defaultValue=""
-                        style={{ padding: '7px 10px', background: '#131e33', color: '#8b9bb4', border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
+                        style={{ padding: '7px 10px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}
                       >
                         <option value="" disabled>Mover para...</option>
                         <option value="emitir_contrato">📝 Emitir contrato</option>
@@ -669,7 +669,7 @@ export default function Dashboard() {
                     </>
                   )}
                   {modalStatus === 'pago' && (
-                    <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ padding: '7px 10px', background: '#1a2742', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                    <button onClick={() => mudarStatusLote(lote.id, 'entregue')} style={{ padding: '7px 10px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
                       Desfazer pagamento
                     </button>
                   )}
@@ -704,14 +704,14 @@ export default function Dashboard() {
                 {atrasadosEmissao.map(lote => {
                   const dias = diasDesde(lote.data_compra)
                   return (
-                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#1a2742', borderRadius: 8, marginBottom: 6, border: '0.5px solid #5F5E5A40' }}>
+                    <div key={lote.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#2b3340', borderRadius: 8, marginBottom: 6, border: '0.5px solid #5F5E5A40' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{lote.advogados?.nome_completo}</div>
                         <div style={{ fontSize: 11, color: '#8b9bb4' }}>{lote.total_contratos} contrato{lote.total_contratos!==1?'s':''} · {fmt(lote.valor_total)}{(profile?.role === 'admin' || profile?.role === 'analista') ? ` · ${lote.profiles?.nome}` : ''}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: dias === 0 ? '#8b9bb4' : '#f87171' }}>{dias === 0 ? 'Hoje' : `${dias} dia${dias!==1?'s':''} sem emitir`}</div>
-                        <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ fontSize: 11, padding: '3px 8px', background: '#a78bfa', color: '#131e33', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                        <button onClick={() => mudarStatusLote(lote.id, 'assinar_contrato')} style={{ fontSize: 11, padding: '3px 8px', background: '#a78bfa', color: '#232a37', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
                           Marcar emitido
                         </button>
                       </div>
@@ -736,7 +736,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#f87171' }}>{dias} dia{dias!==1?'s':''} sem assinar</div>
-                        <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ fontSize: 11, padding: '3px 8px', background: '#a78bfa', color: '#131e33', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                        <button onClick={() => mudarStatusLote(lote.id, 'a_entregar')} style={{ fontSize: 11, padding: '3px 8px', background: '#a78bfa', color: '#232a37', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
                           Contrato assinado
                         </button>
                       </div>
@@ -764,7 +764,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ fontSize: 11, color: '#f87171', fontWeight: 500 }}>{restam === 0 ? 'Vira inadimp. hoje' : `${restam}d restante${restam!==1?'s':''}`}</div>
-                        <button onClick={() => setModalComprovante(lote)} style={{ fontSize: 11, padding: '3px 8px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
+                        <button onClick={() => setModalComprovante(lote)} style={{ fontSize: 11, padding: '3px 8px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 5, cursor: 'pointer', marginTop: 4 }}>
                           Marcar pago
                         </button>
                       </div>
@@ -779,7 +779,7 @@ export default function Dashboard() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 8, marginBottom: periodo === 'custom' ? '0.5rem' : '1.25rem', flexWrap: 'wrap' }}>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' }} value={periodo} onChange={e => { setPeriodo(e.target.value); if(e.target.value !== 'custom') { setDataInicio(''); setDataFim('') } }}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' }} value={periodo} onChange={e => { setPeriodo(e.target.value); if(e.target.value !== 'custom') { setDataInicio(''); setDataFim('') } }}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
@@ -787,19 +787,19 @@ export default function Dashboard() {
           <option value="custom">Período personalizado</option>
         </select>
         {(profile?.role === 'admin' || profile?.role === 'analista') && (
-          <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' }} value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}>
+          <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' }} value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}>
             <option value="">Todos os vendedores</option>
             {vendedores.map(v => <option key={v.id}>{v.nome}</option>)}
           </select>
         )}
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos produtos</option>
           <option value="Maternidade">Maternidade</option>
           <option value="Pensão por Morte">Pensão por Morte</option>
           <option value="BPC">BPC</option>
           <option value="Auxilio Acidente">Aux. Acidente</option>
         </select>
-        <div style={{ padding: '8px 12px', background: '#1a2742', borderRadius: 8, fontSize: 13, color: '#8b9bb4', display: 'flex', alignItems: 'center' }}>
+        <div style={{ padding: '8px 12px', background: '#2b3340', borderRadius: 8, fontSize: 13, color: '#8b9bb4', display: 'flex', alignItems: 'center' }}>
           {comprasFiltradasFaturaveis.length} contrato{comprasFiltradasFaturaveis.length!==1?'s':''}
         </div>
       </div>
@@ -807,10 +807,10 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: 13, color: '#8b9bb4' }}>De</div>
           <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' }} />
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' }} />
           <div style={{ fontSize: 13, color: '#8b9bb4' }}>até</div>
           <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)}
-            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, background: '#131e33', color: '#e6edf7', outline: 'none' }} />
+            style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' }} />
           {dataInicio && dataFim && (
             <div style={{ padding: '8px 12px', background: 'rgba(96,165,250,.12)', borderRadius: 8, fontSize: 12, color: '#60a5fa', fontWeight: 500 }}>
               {dataInicio} → {dataFim}
@@ -832,7 +832,7 @@ export default function Dashboard() {
                   <span style={{ color: PROD_STYLE[p]?.color, fontWeight: 500 }}>{p==='Auxilio Acidente'?'Aux. Acidente':p}</span>
                   <span style={{ fontWeight: 500 }}>{qtd} <span style={{ color: '#64748b', fontWeight: 400 }}>({pct}%)</span></span>
                 </div>
-                <div style={{ background: '#1a2742', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                <div style={{ background: '#2b3340', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: PROD_STYLE[p]?.color, borderRadius: 4, transition: 'width 0.4s' }}></div>
                 </div>
               </div>
@@ -845,7 +845,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>Ranking de vendedoras</div>
             {ranking.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhuma venda no período</div>}
             {ranking.map(([nome, qtd], i) => (
-              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i===0?'rgba(251,191,36,.12)':'#0d1526', borderRadius: 8 }}>
+              <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: i===0?'rgba(251,191,36,.12)':'#171c26', borderRadius: 8 }}>
                 <div style={{ fontSize: 18, width: 28 }}>{MEDAL[i]||`${i+1}º`}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{nome}</div>
@@ -864,7 +864,7 @@ export default function Dashboard() {
           {advCriticos.map(a => {
             const dias = diasDesde(a.ultima_compra)
             return (
-              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid rgba(148,163,184,0.10)' }}>
+              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{a.nome_completo}</div>
                   <div style={{ fontSize: 11, color: '#8b9bb4' }}>{a.oab}{profile?.role==='admin'?` · ${a.profiles?.nome||'—'}`:''}</div>
@@ -883,7 +883,7 @@ export default function Dashboard() {
         <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>Histórico de vendas por dia</div>
         {diasOrdenados.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhuma venda no período</div>}
         {diasOrdenados.map(([data, info]) => (
-          <div key={data} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '0.5px solid rgba(148,163,184,0.10)' }}>
+          <div key={data} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{data}</div>
               <div style={{ fontSize: 13, color: '#60a5fa', fontWeight: 500 }}>{info.total} contrato{info.total!==1?'s':''} · {fmt(info.total*299)}</div>

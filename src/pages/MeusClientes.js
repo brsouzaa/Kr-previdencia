@@ -17,7 +17,7 @@ const STATUS_INFO = {
   devolvido_correcao_doc:  { label: 'Devolvido — bônus descontado!', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
   devolvido_reemissao:     { label: 'Devolvido — bônus descontado!', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
   expirado:                { label: 'Expirou sem assinar', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⌛' },
-  cancelado:               { label: 'Cancelado', cor: '#8b9bb4', bg: '#1a2742', icon: '❌' },
+  cancelado:               { label: 'Cancelado', cor: '#8b9bb4', bg: '#2b3340', icon: '❌' },
 }
 
 const TIPOS_DOC = [
@@ -29,12 +29,12 @@ const TIPOS_DOC = [
 ]
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
-  cardAlerta: { background: '#131e33', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.08)' },
-  search: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#131e33', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardAlerta: { background: '#232a37', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.08)' },
+  search: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
   filtroChip: (ativo, cor, bg) => ({
     padding: '6px 12px', fontSize: 12, borderRadius: 16,
-    background: ativo ? cor : bg, color: ativo ? '#131e33' : cor,
+    background: ativo ? cor : bg, color: ativo ? '#232a37' : cor,
     border: `1px solid ${cor}40`, cursor: 'pointer', fontWeight: 500,
   }),
   badgeStatus: (cor, bg) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg }),
@@ -211,7 +211,7 @@ export default function MeusClientes() {
           </div>
           <div style={{ fontSize: 13, color: '#8b9bb4' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
         </div>
-        <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#131e33', border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
+        <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
           ↻ Atualizar
         </button>
       </div>
@@ -227,7 +227,7 @@ export default function MeusClientes() {
           </div>
           <button onClick={() => setFiltroStatus(devolvidos[0].status)}
             style={{
-              padding: '8px 14px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8,
+              padding: '8px 14px', background: '#f87171', color: '#232a37', border: 'none', borderRadius: 8,
               fontSize: 12, fontWeight: 500, cursor: 'pointer'
             }}>
             👉 Ver clientes devolvidos
@@ -253,7 +253,7 @@ export default function MeusClientes() {
       </div>
 
       {filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#131e33', borderRadius: 14, border: '0.5px solid rgba(148,163,184,0.10)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.06)' }}>
           {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado.'}
         </div>
       ) : filtrados.map(c => {
@@ -317,7 +317,7 @@ export default function MeusClientes() {
                     <div style={{
                       padding: '8px 10px', borderRadius: 6, marginBottom: 10,
                       background: t.urgente ? '#f87171' : 'rgba(251,191,36,.12)',
-                      color: t.urgente ? '#131e33' : '#fbbf24',
+                      color: t.urgente ? '#232a37' : '#fbbf24',
                       fontSize: 12, fontWeight: 500, textAlign: 'center'
                     }}>
                       {t.texto}
@@ -333,11 +333,11 @@ export default function MeusClientes() {
                       O bônus desse cliente foi descontado. Edite os documentos abaixo, depois clique em "✅ Marcar corrigido" pra recuperar o bônus.
                     </div>
                     <button onClick={() => setEditandoDocsId(c.id)}
-                      style={{ width: '100%', padding: '10px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 6 }}>
+                      style={{ width: '100%', padding: '10px', background: '#f87171', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 6 }}>
                       📎 Editar documentos
                     </button>
                     <button onClick={() => marcarCorrigido(c)}
-                      style={{ width: '100%', padding: '10px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      style={{ width: '100%', padding: '10px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                       ✅ Marcar corrigido — recuperar bônus
                     </button>
                   </>
@@ -347,7 +347,7 @@ export default function MeusClientes() {
                       O bônus desse cliente foi descontado. O contrato precisa ser refeito — clique abaixo pra mandar pra supervisão emitir novamente. <strong>O novo contrato vai pra outro advogado da fila.</strong> Quando o cliente assinar de novo, o bônus volta.
                     </div>
                     <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
-                      style={{ width: '100%', padding: '10px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
+                      style={{ width: '100%', padding: '10px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
                       {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Reiniciar fluxo'}
                     </button>
                   </>
@@ -356,7 +356,7 @@ export default function MeusClientes() {
             )}
 
             {c.observacao && (
-              <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 8, padding: '6px 10px', background: '#0d1526', borderRadius: 6, fontStyle: 'italic' }}>
+              <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 8, padding: '6px 10px', background: '#171c26', borderRadius: 6, fontStyle: 'italic' }}>
                 "{c.observacao}"
               </div>
             )}
@@ -369,7 +369,7 @@ export default function MeusClientes() {
                   📎 Ver/{editavel ? 'editar' : ''} documentos
                 </button>
               ) : (
-                <div style={{ marginTop: 8, padding: 12, background: '#0d1526', borderRadius: 8 }}>
+                <div style={{ marginTop: 8, padding: 12, background: '#171c26', borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#8b9bb4' }}>
                       Documentos {!editavel && '(somente leitura)'}
@@ -403,15 +403,15 @@ export default function MeusClientes() {
             {c.status === 'emitido' && c.link_assinatura && (
               <div style={{ marginTop: 12, padding: 10, background: 'rgba(96,165,250,.12)', borderRadius: 8 }}>
                 <div style={{ fontSize: 11, color: '#60a5fa', marginBottom: 6, fontWeight: 500 }}>📨 Link de assinatura — envie pro cliente:</div>
-                <div style={{ background: '#131e33', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#60a5fa', wordBreak: 'break-all', marginBottom: 8, border: '0.5px solid rgba(148,163,184,0.10)' }}>
+                <div style={{ background: '#232a37', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#60a5fa', wordBreak: 'break-all', marginBottom: 8, border: '0.5px solid rgba(255,255,255,0.06)' }}>
                   {c.link_assinatura}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => copiarLink(c)} style={{ flex: 1, padding: '8px', background: copiadoId === c.id ? '#34d399' : '#60a5fa', color: '#131e33', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                  <button onClick={() => copiarLink(c)} style={{ flex: 1, padding: '8px', background: copiadoId === c.id ? '#34d399' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                     {copiadoId === c.id ? '✓ Copiado' : '📋 Copiar link'}
                   </button>
                   <a href={whatsappLink(c)} target="_blank" rel="noreferrer"
-                    style={{ flex: 1, padding: '8px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
+                    style={{ flex: 1, padding: '8px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
                     💬 Enviar WhatsApp
                   </a>
                 </div>
@@ -422,7 +422,7 @@ export default function MeusClientes() {
               <div style={{ marginTop: 10, padding: 10, background: 'rgba(248,113,113,.14)', borderRadius: 8 }}>
                 <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
                 <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
-                  style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#131e33', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
+                  style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
                   {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Solicitar nova emissão'}
                 </button>
               </div>

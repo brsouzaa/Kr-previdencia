@@ -138,7 +138,7 @@ export default function PosVendaHistorico() {
           <div style={{ ...cap, color: VERMELHO }}>❌ Barrados</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: VERMELHO }}>{mAtual.barrados}</div>
         </button>
-        <div style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14 }}>
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 }}>
           <div style={cap}>Taxa de aprovação</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: mAtual.taxa >= 80 ? VERDE : mAtual.taxa >= 60 ? LARANJA : VERMELHO }}>
             {mAtual.taxa}%
@@ -188,7 +188,7 @@ export default function PosVendaHistorico() {
           : listaFiltrada.map(c => {
             const barrado = c.resultado === 'barrado'
             return (
-              <div key={c.id} style={{ background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div key={c.id} style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 240 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -245,21 +245,21 @@ function RowBI({ label, a, b, suf = '', invert = false }) {
 }
 
 const cap = { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase' }
-const vazio = { background: '#131e33', padding: 24, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(148,163,184,0.12)', color: '#8b9bb4', fontSize: 13 }
-const bi = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14 }
+const vazio = { background: '#232a37', padding: 24, textAlign: 'center', borderRadius: 12, border: '0.5px solid rgba(255,255,255,0.07)', color: '#8b9bb4', fontSize: 13 }
+const bi = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 }
 const biTitle = { fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }
-const dateInput = { border: '1px solid rgba(148,163,184,0.20)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }
+const dateInput = { border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }
 
 function pill(ativo) {
   return {
-    background: ativo ? AZUL : '#131e33', color: ativo ? '#131e33' : '#8b9bb4',
-    border: `1px solid ${ativo ? AZUL : 'rgba(148,163,184,0.20)'}`, borderRadius: 20,
+    background: ativo ? AZUL : '#232a37', color: ativo ? '#232a37' : '#8b9bb4',
+    border: `1px solid ${ativo ? AZUL : 'rgba(255,255,255,0.11)'}`, borderRadius: 20,
     padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
   }
 }
-function statCard(ativo, cor = AZUL, bg = '#131e33') {
+function statCard(ativo, cor = AZUL, bg = '#232a37') {
   return {
-    background: ativo ? bg : '#131e33', border: `1px solid ${ativo ? cor : 'rgba(148,163,184,0.14)'}`,
+    background: ativo ? bg : '#232a37', border: `1px solid ${ativo ? cor : 'rgba(255,255,255,0.08)'}`,
     borderRadius: 12, padding: 14, cursor: 'pointer', textAlign: 'left',
   }
 }

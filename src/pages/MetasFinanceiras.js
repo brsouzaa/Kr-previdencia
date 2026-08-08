@@ -99,7 +99,7 @@ export default function MetasFinanceiras() {
     setIaLoading(false)
   }
 
-  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1rem 1.25rem' }
+  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem 1.25rem' }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 0 40px' }}>
@@ -121,7 +121,7 @@ export default function MetasFinanceiras() {
             <div key={m.mes} style={{
               ...card, padding: '10px 14px',
               border: ehAtual ? `1.5px solid ${AZUL}` : card.border,
-              background: ehAtual ? 'rgba(96,165,250,.10)' : '#131e33',
+              background: ehAtual ? 'rgba(96,165,250,.10)' : '#232a37',
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: ehAtual ? AZUL : '#8b9bb4' }}>
                 {MES_CURTO[d.getMonth()]}/{String(d.getFullYear()).slice(2)}{ehAtual ? ' • agora' : ''}
@@ -151,7 +151,7 @@ export default function MetasFinanceiras() {
                 · projeção do mês no ritmo atual: <b style={{ color: projecaoReceita >= metaFat ? VERDE : VERMELHO }}>{fmtK(projecaoReceita)}</b>
               </span>
             </div>
-            <div style={{ height: 14, background: 'rgba(148,163,184,0.08)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ height: 14, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
               <div style={{ width: `${Math.min(metaFat > 0 ? receita / metaFat * 100 : 0, 100)}%`, height: '100%', background: VERDE, borderRadius: 8 }} />
               <div style={{ position: 'absolute', left: `${Math.min(fracao * 100, 100)}%`, top: 0, bottom: 0, width: 2, background: '#e6edf7', opacity: 0.5 }} />
             </div>
@@ -168,7 +168,7 @@ export default function MetasFinanceiras() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 3, flexWrap: 'wrap', gap: 4 }}>
                   <span style={{ fontWeight: 600, color: '#c6d2e4' }}>
                     {r.nome}
-                    <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: '#131e33', background: r.corZona, borderRadius: 6, padding: '2px 7px' }}>{r.zona}</span>
+                    <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: '#232a37', background: r.corZona, borderRadius: 6, padding: '2px 7px' }}>{r.zona}</span>
                   </span>
                   <span style={{ color: '#8b9bb4' }}>
                     {fmt(r.gasto)} · <b style={{ color: r.corZona }}>{r.pctMeta.toFixed(1)}%</b> da meta
@@ -176,7 +176,7 @@ export default function MetasFinanceiras() {
                     {r.saud == null && <span style={{ color: '#8b9bb4' }}> · teto {r.tol}%</span>}
                   </span>
                 </div>
-                <div style={{ height: 10, background: 'rgba(148,163,184,0.08)', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ height: 10, background: 'rgba(255,255,255,0.05)', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
                   <div style={{ width: `${Math.min(r.pctMeta / r.tol * 100, 100)}%`, height: '100%', background: r.corZona, borderRadius: 6 }} />
                   {r.saud != null && <div style={{ position: 'absolute', left: `${r.saud / r.tol * 100}%`, top: 0, bottom: 0, width: 2, background: VERDE_ESCURO, opacity: 0.7 }} title={`saudável ${r.saud}%`} />}
                   {r.alvo != null && <div style={{ position: 'absolute', left: `${r.alvo / r.tol * 100}%`, top: 0, bottom: 0, width: 2, background: VERDE, opacity: 0.7 }} title={`alvo ${r.alvo}%`} />}
@@ -197,12 +197,12 @@ export default function MetasFinanceiras() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <b style={{ fontSize: 14 }}>🤖 Análise estratégica por IA</b>
               <button onClick={pedirAnaliseIA} disabled={iaLoading}
-                style={{ fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: `1px solid ${ROXO}`, background: iaLoading ? 'rgba(167,139,250,.14)' : '#131e33', color: ROXO, cursor: 'pointer' }}>
+                style={{ fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: `1px solid ${ROXO}`, background: iaLoading ? 'rgba(167,139,250,.14)' : '#232a37', color: ROXO, cursor: 'pointer' }}>
                 {iaLoading ? 'Analisando…' : ia ? '↻ Analisar de novo' : 'Gerar análise'}
               </button>
             </div>
             {ia ? (
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: '#c6d2e4', marginTop: 10, lineHeight: 1.6, background: '#0f1930', borderRadius: 10, padding: '12px 14px' }}>{ia}</div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: '#c6d2e4', marginTop: 10, lineHeight: 1.6, background: '#1e242f', borderRadius: 10, padding: '12px 14px' }}>{ia}</div>
             ) : (
               <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 8 }}>
                 A IA lê a escada de metas, as réguas e a DRE dos últimos meses e devolve: diagnóstico com números, top 3 ações da semana e o maior risco. Clique pra gerar.

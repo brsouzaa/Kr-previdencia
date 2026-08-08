@@ -22,14 +22,14 @@ const GRUPO_INFO = {
 }
 const STATUS_INFO = {
   aguardando_aprovacao: { label: 'Aguard. aprovação', bg: 'rgba(251,191,36,.12)', cor: LARANJA },
-  incompleto: { label: 'Incompleto (c/ solicitante)', bg: '#1a2742', cor: '#8b9bb4' },
+  incompleto: { label: 'Incompleto (c/ solicitante)', bg: '#2b3340', cor: '#8b9bb4' },
   ajuste_solicitado: { label: 'Ajuste solicitado', bg: 'rgba(251,191,36,.12)', cor: LARANJA },
   vencido: { label: 'Vencido', bg: 'rgba(248,113,113,.14)', cor: VERMELHO },
   aprovado: { label: 'Aprovado (a pagar)', bg: 'rgba(96,165,250,.12)', cor: AZUL },
   aguardando_pagamento: { label: 'Aguard. pagamento', bg: 'rgba(96,165,250,.12)', cor: AZUL },
   pago: { label: 'Pago', bg: 'rgba(52,211,153,.14)', cor: VERDE },
   recusado: { label: 'Recusado', bg: 'rgba(248,113,113,.14)', cor: VERMELHO },
-  cancelado: { label: 'Cancelado', bg: '#1a2742', cor: '#8b9bb4' },
+  cancelado: { label: 'Cancelado', bg: '#2b3340', cor: '#8b9bb4' },
 }
 
 const fmt = v => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -56,7 +56,7 @@ export default function DespesasCustos() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {[['contas', '📑 Contas'], ['nova', '➕ Nova despesa'], ['recorrentes', '🔁 Fixas & Recorrentes']].map(([k, l]) => (
-          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#e6edf7', color: '#131e33', borderColor: '#e6edf7' } : undefined}>{l}</button>
+          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#e6edf7', color: '#232a37', borderColor: '#e6edf7' } : undefined}>{l}</button>
         ))}
       </div>
 
@@ -203,7 +203,7 @@ function Contas({ profile }) {
         <div className="dc-kpi" style={{ borderTopColor: AZUL }}>
           <span className="dc-kpi-t">A pagar</span><b>{fmt(kpis.aPagar)}</b><span className="dc-kpi-s">{kpis.qA} conta(s)</span>
         </div>
-        <div className="dc-kpi" style={{ borderTopColor: VERMELHO, background: kpis.qAtr ? 'rgba(248,113,113,.14)' : '#131e33' }}>
+        <div className="dc-kpi" style={{ borderTopColor: VERMELHO, background: kpis.qAtr ? 'rgba(248,113,113,.14)' : '#232a37' }}>
           <span className="dc-kpi-t" style={{ color: VERMELHO }}>Atrasado</span>
           <b style={{ color: VERMELHO }}>{fmt(kpis.atrasado)}</b><span className="dc-kpi-s">{kpis.qAtr} conta(s)</span>
         </div>
@@ -263,7 +263,7 @@ function Contas({ profile }) {
               <tbody>
                 {filtradas.map(r => {
                   const atrasada = r.vencimento && r.vencimento < hojeStr && !['pago', 'cancelado', 'recusado'].includes(r.status)
-                  const st = STATUS_INFO[r.status] || { label: r.status, bg: '#1a2742', cor: '#8b9bb4' }
+                  const st = STATUS_INFO[r.status] || { label: r.status, bg: '#2b3340', cor: '#8b9bb4' }
                   const g = GRUPO_INFO[r.tipo_gasto]
                   const emAprovacao = r.status === 'aguardando_aprovacao'
                   const podePagar = ['aprovado', 'aguardando_pagamento', 'vencido'].includes(r.status)
@@ -310,7 +310,7 @@ function Contas({ profile }) {
                       </tr>
                       {exp && (
                         <tr>
-                          <td colSpan={7} style={{ background: '#0f1930', fontSize: 12.5, color: '#c6d2e4', padding: '10px 16px' }}>
+                          <td colSpan={7} style={{ background: '#1e242f', fontSize: 12.5, color: '#c6d2e4', padding: '10px 16px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '6px 18px' }}>
                               <span><b>Competência:</b> {r.competencia ? MESES[Number(String(r.competencia).slice(5, 7)) - 1] + '/' + String(r.competencia).slice(0, 4) : '—'}</span>
                               <span><b>Forma de pagamento:</b> {r.forma_pagamento || '—'}</span>
@@ -369,24 +369,24 @@ function Contas({ profile }) {
 function Frag({ children }) { return <>{children}</> }
 
 const css = `
-  .dc-aba{border:0.5px solid rgba(148,163,184,0.22);background:#131e33;color:#c6d2e4;border-radius:20px;padding:7px 15px;font-size:13px;font-weight:600;cursor:pointer}
+  .dc-aba{border:0.5px solid rgba(255,255,255,0.12);background:#232a37;color:#c6d2e4;border-radius:20px;padding:7px 15px;font-size:13px;font-weight:600;cursor:pointer}
   .dc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
-  .dc-kpi{background:#131e33;border:0.5px solid rgba(148,163,184,0.14);border-top:3px solid #64748b;border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+  .dc-kpi{background:#232a37;border:0.5px solid rgba(255,255,255,0.08);border-top:3px solid #64748b;border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
   .dc-kpi-t{font-size:11px;text-transform:uppercase;color:#8b9bb4;font-weight:700;letter-spacing:0.4px}
   .dc-kpi b{font-size:19px;font-variant-numeric:tabular-nums;color:#e6edf7}
   .dc-kpi-s{font-size:11px;color:#8b9bb4}
   .dc-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .dc-in{padding:8px 10px;font-size:13px;border:0.5px solid rgba(148,163,184,0.22);border-radius:8px;background:#131e33;color:#e6edf7;outline:none}
-  .dc-tabela-wrap{background:#131e33;border:0.5px solid rgba(148,163,184,0.14);border-radius:14px;overflow-x:auto}
+  .dc-in{padding:8px 10px;font-size:13px;border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;background:#232a37;color:#e6edf7;outline:none}
+  .dc-tabela-wrap{background:#232a37;border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;overflow-x:auto}
   .dc-tabela{width:100%;border-collapse:collapse;font-size:13px}
-  .dc-tabela th{text-align:left;padding:10px 12px;border-bottom:2px solid rgba(148,163,184,0.12);color:#8b9bb4;font-size:11px;text-transform:uppercase;white-space:nowrap}
-  .dc-tabela td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);vertical-align:top}
-  .dc-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap;background:#1a2742;color:#c6d2e4}
-  .dc-btn{border:0.5px solid rgba(148,163,184,0.20);background:#131e33;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;margin-left:5px;color:#c6d2e4}
-  .dc-btn:hover{background:#1a2742}
+  .dc-tabela th{text-align:left;padding:10px 12px;border-bottom:2px solid rgba(255,255,255,0.07);color:#8b9bb4;font-size:11px;text-transform:uppercase;white-space:nowrap}
+  .dc-tabela td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);vertical-align:top}
+  .dc-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap;background:#2b3340;color:#c6d2e4}
+  .dc-btn{border:0.5px solid rgba(255,255,255,0.11);background:#232a37;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;margin-left:5px;color:#c6d2e4}
+  .dc-btn:hover{background:#2b3340}
   .dc-btn-ok{border-color:#34d399;color:#34d399;font-weight:600}
   .dc-btn-warn{border-color:#fbbf24;color:#fbbf24}
   .dc-btn-del{border-color:#f87171;color:#f87171}
-  .dc-vazio{background:#131e33;border:0.5px solid rgba(148,163,184,0.12);border-radius:14px;padding:26px;text-align:center;color:#8b9bb4;font-size:13px}
+  .dc-vazio{background:#232a37;border:0.5px solid rgba(255,255,255,0.07);border-radius:14px;padding:26px;text-align:center;color:#8b9bb4;font-size:13px}
   @media(max-width:720px){.dc-tabela th:nth-child(3),.dc-tabela td:nth-child(3){display:none}}
 `

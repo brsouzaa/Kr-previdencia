@@ -11,13 +11,13 @@ const COLS = [
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 },
-  col: { border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, overflow: 'hidden', background: '#131e33' },
-  header: (c) => ({ padding: '12px 14px', background: c.hBg, borderBottom: '0.5px solid rgba(148,163,184,0.12)', display: 'flex', alignItems: 'center', gap: 8 }),
+  col: { border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden', background: '#232a37' },
+  header: (c) => ({ padding: '12px 14px', background: c.hBg, borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 8 }),
   dot: (c) => ({ width: 8, height: 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }),
   hLabel: (c) => ({ fontSize: 13, fontWeight: 500, color: c.hColor }),
   hCount: { fontSize: 12, color: 'inherit', opacity: 0.7, marginLeft: 2 },
   hSub: (c) => ({ fontSize: 11, color: c.hColor, opacity: 0.8 }),
-  card: { padding: '10px 14px', borderBottom: '0.5px solid rgba(148,163,184,0.10)', cursor: 'pointer' },
+  card: { padding: '10px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', cursor: 'pointer' },
   cardName: { fontSize: 13, fontWeight: 500, color: '#e6edf7' },
   cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
   empty: { padding: '1.5rem', textAlign: 'center', fontSize: 13, color: '#64748b' },
@@ -62,7 +62,7 @@ export default function Funil() {
               ) : (
                 lista.map(a => (
                   <div key={a.id} style={s.card}
-                    onMouseEnter={e => e.currentTarget.style.background = '#0d1526'}
+                    onMouseEnter={e => e.currentTarget.style.background = '#171c26'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <div style={s.cardName}>{a.nome_completo}</div>
                     <div style={s.cardSub}>

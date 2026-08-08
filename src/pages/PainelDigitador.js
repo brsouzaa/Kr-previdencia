@@ -14,28 +14,28 @@ const s = {
   h1: { fontSize: 20, fontWeight: 600, marginBottom: 4 },
   sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 16 },
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 10, marginBottom: 16 },
-  card: (cor) => ({ border: '0.5px solid rgba(148,163,184,0.12)', borderLeft: `4px solid ${cor}`, borderRadius: 10, padding: '10px 12px', background: '#131e33' }),
+  card: (cor) => ({ border: '0.5px solid rgba(255,255,255,0.07)', borderLeft: `4px solid ${cor}`, borderRadius: 10, padding: '10px 12px', background: '#232a37' }),
   cardTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600, color: '#8b9bb4', marginBottom: 4 },
   cardNum: { fontSize: 22, fontWeight: 600, lineHeight: 1.1 },
   cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 3 },
   abas: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 },
-  aba: (on) => ({ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid ' + (on ? '#60a5fa' : 'rgba(148,163,184,0.16)'), background: on ? '#60a5fa' : '#131e33', color: on ? '#131e33' : '#c6d2e4' }),
-  box: { border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: 14, marginBottom: 12, background: '#131e33' },
+  aba: (on) => ({ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid ' + (on ? '#60a5fa' : 'rgba(255,255,255,0.09)'), background: on ? '#60a5fa' : '#232a37', color: on ? '#232a37' : '#c6d2e4' }),
+  box: { border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 12, background: '#232a37' },
   boxTitulo: { fontSize: 14, fontWeight: 600, marginBottom: 10 },
-  btn: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#131e33', marginRight: 6 },
-  btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(148,163,184,0.20)', background: '#131e33', color: '#c6d2e4', marginRight: 6 },
-  btnVerde: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#34d399', color: '#131e33', marginRight: 6 },
-  btnVermelho: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#f87171', color: '#131e33', marginRight: 6 },
-  input: { padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(148,163,184,0.20)', fontSize: 13, marginRight: 6 },
+  btn: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
+  btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#c6d2e4', marginRight: 6 },
+  btnVerde: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#34d399', color: '#232a37', marginRight: 6 },
+  btnVermelho: { padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#f87171', color: '#232a37', marginRight: 6 },
+  input: { padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.11)', fontSize: 13, marginRight: 6 },
   tag: (bg, cor) => ({ fontSize: 11, fontWeight: 700, background: bg, color: cor, borderRadius: 6, padding: '2px 8px', display: 'inline-block' }),
-  linha: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: '0.5px solid rgba(148,163,184,0.10)', flexWrap: 'wrap' },
+  linha: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' },
   mono: { fontFamily: 'monospace', fontSize: 12 },
-  toggleGrande: (on) => ({ padding: '14px 28px', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', border: 'none', background: on ? '#34d399' : '#f87171', color: '#131e33' }),
+  toggleGrande: (on) => ({ padding: '14px 28px', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', border: 'none', background: on ? '#34d399' : '#f87171', color: '#232a37' }),
   campoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 6, marginTop: 8 },
-  campo: { fontSize: 12, background: '#0f1930', borderRadius: 6, padding: '5px 8px' },
-  logRow: (nivel) => ({ fontSize: 12, fontFamily: 'monospace', padding: '5px 8px', borderRadius: 6, marginBottom: 3, background: nivel === 'erro' ? 'rgba(248,113,113,.14)' : '#0f1930', color: nivel === 'erro' ? '#f87171' : '#c6d2e4' }),
-  printImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)', cursor: 'pointer' },
-  chip: (on) => ({ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? '#60a5fa' : 'rgba(148,163,184,0.20)'), background: on ? 'rgba(96,165,250,.12)' : '#131e33', color: on ? '#60a5fa' : '#8b9bb4', marginRight: 6 }),
+  campo: { fontSize: 12, background: '#1e242f', borderRadius: 6, padding: '5px 8px' },
+  logRow: (nivel) => ({ fontSize: 12, fontFamily: 'monospace', padding: '5px 8px', borderRadius: 6, marginBottom: 3, background: nivel === 'erro' ? 'rgba(248,113,113,.14)' : '#1e242f', color: nivel === 'erro' ? '#f87171' : '#c6d2e4' }),
+  printImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', cursor: 'pointer' },
+  chip: (on) => ({ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? '#60a5fa' : 'rgba(255,255,255,0.11)'), background: on ? 'rgba(96,165,250,.12)' : '#232a37', color: on ? '#60a5fa' : '#8b9bb4', marginRight: 6 }),
 }
 
 const STATUS_SESSAO = {
@@ -248,8 +248,8 @@ export default function PainelDigitador() {
                   <strong>Lead #{reg.lead_id}</strong>{reg.cpf && <span style={s.mono}> · CPF {reg.cpf}</span>} · {fmtTs(reg.ts)}
                   {' '}<span style={reg.modo === 'producao' ? s.tag('rgba(52,211,153,.14)', '#34d399') : s.tag('rgba(96,165,250,.12)', '#60a5fa')}>{reg.modo === 'producao' ? 'ENVIADA' : 'SOMBRA'}</span>
                   {reg.protocolo && <span style={{ ...s.tag('rgba(96,165,250,.10)', '#60a5fa'), marginLeft: 6 }}>protocolo {reg.protocolo}</span>}
-                  {' '}<span style={s.tag('#0f1930', '#8b9bb4')}>RG: {reg.anexos_rg ?? 0} · Extrato: {reg.anexos_extrato ?? 0}</span>
-                  {reg.usuario && <span style={{ ...s.tag('#0f1930', '#8b9bb4'), marginLeft: 6 }}>{reg.usuario}</span>}
+                  {' '}<span style={s.tag('#1e242f', '#8b9bb4')}>RG: {reg.anexos_rg ?? 0} · Extrato: {reg.anexos_extrato ?? 0}</span>
+                  {reg.usuario && <span style={{ ...s.tag('#1e242f', '#8b9bb4'), marginLeft: 6 }}>{reg.usuario}</span>}
                   {reg.conferido && <span style={{ ...s.tag('rgba(52,211,153,.14)', '#34d399'), marginLeft: 6 }}>✓ correto ({reg.conferido_por})</span>}
                   {reg.problema && <span style={{ ...s.tag('rgba(248,113,113,.14)', '#f87171'), marginLeft: 6 }}>⚠ problema ({reg.conferido_por})</span>}
                 </div>
@@ -323,7 +323,7 @@ export default function PainelDigitador() {
             <div style={s.boxTitulo}>Logins e rodízio</div>
             {sessoes.length === 0 && <div style={{ color: '#8b9bb4', fontSize: 13 }}>Nenhum login cadastrado.</div>}
             {sessoes.map(x => {
-              const [bg, cor] = STATUS_SESSAO[x.status] || ['#1a2742', '#8b9bb4']
+              const [bg, cor] = STATUS_SESSAO[x.status] || ['#2b3340', '#8b9bb4']
               return (
                 <div key={x.usuario} style={s.linha}>
                   <div>
@@ -355,7 +355,7 @@ export default function PainelDigitador() {
                 <button style={s.btnG} onClick={() => setVncAberto(false)}>Fechar</button>
               </div>
               {control?.vnc_url
-                ? <iframe title="vnc" src={control.vnc_url} style={{ width: '100%', height: 560, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8 }} />
+                ? <iframe title="vnc" src={control.vnc_url} style={{ width: '100%', height: 560, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8 }} />
                 : <div style={{ fontSize: 13, color: '#f87171' }}>URL do VNC não configurada — preencha na aba Controle quando o VPS estiver no ar.</div>}
               <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 6 }}>Depois do login, o robô re-salva a sessão sozinho e o status volta pra "ativa".</div>
             </div>
@@ -416,7 +416,7 @@ export default function PainelDigitador() {
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Bloqueados por motivo:</div>
           {resumo?.bloqueados_por_motivo && Object.keys(resumo.bloqueados_por_motivo).length > 0
             ? Object.entries(resumo.bloqueados_por_motivo).sort((a, b) => b[1] - a[1]).map(([m, q]) => (
-                <div key={m} style={{ fontSize: 13, padding: '4px 0', borderBottom: '0.5px solid rgba(148,163,184,0.08)' }}>
+                <div key={m} style={{ fontSize: 13, padding: '4px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                   <strong>{q}</strong> — {m}
                 </div>
               ))

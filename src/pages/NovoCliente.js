@@ -4,20 +4,20 @@ import { useAuth } from '../lib/AuthContext'
 import UploadDocumento from '../components/UploadDocumento'
 
 const s = {
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
   label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 },
-  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box' },
-  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(148,163,184,0.20)', borderRadius: 8, color: '#c6d2e4', background: '#1a2742', outline: 'none', boxSizing: 'border-box' },
-  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box' },
-  select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
-  textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#131e33', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
+  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
+  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, color: '#c6d2e4', background: '#2b3340', outline: 'none', boxSizing: 'border-box' },
+  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
+  select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
+  textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 },
   grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
-  btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
-  btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
-  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(148,163,184,0.10)' },
+  btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
+  btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
+  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(255,255,255,0.06)' },
   hint: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
   hintErr: { fontSize: 11, color: '#f87171', marginTop: 4 },
   hintOk: { fontSize: 11, color: '#34d399', marginTop: 4 },
@@ -27,8 +27,8 @@ const s = {
   productCard: (ativo, cor) => ({
     flex: 1, padding: '14px 12px', textAlign: 'center', borderRadius: 10,
     cursor: 'pointer', fontWeight: 500, fontSize: 13,
-    background: ativo ? cor : '#131e33',
-    color: ativo ? '#131e33' : cor,
+    background: ativo ? cor : '#232a37',
+    color: ativo ? '#232a37' : cor,
     border: `1.5px solid ${cor}${ativo ? '' : '40'}`,
     transition: 'all 0.15s',
   }),
@@ -330,11 +330,11 @@ export default function NovoCliente({ onSucesso }) {
         <div style={{ fontSize: 14, color: '#8b9bb4', marginBottom: 4 }}>{salvo.nome}</div>
         <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 20 }}>Aguardando emissão pela supervisão. O link aparece em "Meus clientes" assim que estiver pronto.</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={novoCadastro} style={{ flex: 1, padding: '10px', background: '#60a5fa', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+          <button onClick={novoCadastro} style={{ flex: 1, padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             ➕ Novo cliente
           </button>
           {onSucesso && (
-            <button onClick={() => onSucesso()} style={{ flex: 1, padding: '10px', background: '#131e33', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            <button onClick={() => onSucesso()} style={{ flex: 1, padding: '10px', background: '#232a37', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
               📋 Ver meus clientes
             </button>
           )}
@@ -358,7 +358,7 @@ export default function NovoCliente({ onSucesso }) {
             <button key={p.key} onClick={() => set('produto', p.key)}
               style={{
                 padding: '20px 16px', textAlign: 'left', borderRadius: 10,
-                cursor: 'pointer', background: '#131e33',
+                cursor: 'pointer', background: '#232a37',
                 border: `1.5px solid ${p.cor}30`, color: '#e6edf7',
                 fontSize: 15, fontWeight: 500,
                 display: 'flex', alignItems: 'center', gap: 14,

@@ -205,7 +205,7 @@ export default function DashboardProducao() {
   const diasCorridosRestantes = Math.max(1, Math.ceil((fimMes - hoje) / (1000 * 60 * 60 * 24)))
   const diasUteisRestantes = Math.max(1, Math.round(diasCorridosRestantes * 5 / 7))
 
-  const card = { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '14px 16px' }
+  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
 
@@ -230,7 +230,7 @@ export default function DashboardProducao() {
             onClick={fetchDados}
             style={{
               padding: '8px 14px',
-              background: '#131e33',
+              background: '#232a37',
               color: '#60a5fa',
               border: '1px solid #60a5fa',
               borderRadius: 8,
@@ -247,7 +247,7 @@ export default function DashboardProducao() {
             style={{
               padding: '8px 14px',
               background: sincronizando ? '#64748b' : '#60a5fa',
-              color: '#131e33',
+              color: '#232a37',
               border: 'none',
               borderRadius: 8,
               fontSize: 13,
@@ -280,9 +280,9 @@ export default function DashboardProducao() {
                 fontSize: 12,
                 fontWeight: 500,
                 borderRadius: 8,
-                border: '0.5px solid rgba(148,163,184,0.20)',
-                background: periodo === p.k ? '#e6edf7' : '#131e33',
-                color: periodo === p.k ? '#131e33' : '#8b9bb4',
+                border: '0.5px solid rgba(255,255,255,0.11)',
+                background: periodo === p.k ? '#e6edf7' : '#232a37',
+                color: periodo === p.k ? '#232a37' : '#8b9bb4',
                 cursor: 'pointer',
               }}
             >
@@ -291,9 +291,9 @@ export default function DashboardProducao() {
           ))}
           {periodo === 'custom' && (
             <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 6 }}>
-              <input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' }} />
+              <input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
               <span style={{ fontSize: 12, color: '#8b9bb4' }}>→</span>
-              <input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(148,163,184,0.20)' }} />
+              <input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
             </span>
           )}
         </div>
@@ -350,22 +350,22 @@ export default function DashboardProducao() {
                     )}
                   </div>
                   {/* Barra geral */}
-                  <div style={{ height: 8, background: '#131e33', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
+                  <div style={{ height: 8, background: '#232a37', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
                     <div style={{ height: '100%', width: Math.min(100, pctTotal) + '%', background: corPct, transition: 'width 0.3s' }} />
                   </div>
                   {/* Detalhe por produto */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    <div style={{ background: '#131e33', padding: '10px 12px', borderRadius: 8 }}>
+                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
                       <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Maternidade</div>
                       <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesMat} / {meta.contratos_maternidade || 0}</div>
                       <div style={{ fontSize: 11, color: pctMat >= 90 ? '#34d399' : pctMat >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctMat}%</div>
                     </div>
-                    <div style={{ background: '#131e33', padding: '10px 12px', borderRadius: 8 }}>
+                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
                       <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>BPC</div>
                       <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesBPC} / {meta.contratos_bpc || 0}</div>
                       <div style={{ fontSize: 11, color: pctBPC >= 90 ? '#34d399' : pctBPC >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctBPC}%</div>
                     </div>
-                    <div style={{ background: '#131e33', padding: '10px 12px', borderRadius: 8 }}>
+                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
                       <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Aux. Acidente</div>
                       <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesAux} / {meta.contratos_aux || 0}</div>
                       <div style={{ fontSize: 11, color: pctAux >= 90 ? '#34d399' : pctAux >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctAux}%</div>
@@ -477,7 +477,7 @@ export default function DashboardProducao() {
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
                   <div style={{ fontSize: 11, color: '#8b9bb4' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Lote: {l.total_contratos} contratos</div>
                 </div>
-                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#131e33', flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} restante{restantes !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -499,7 +499,7 @@ export default function DashboardProducao() {
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
                   <div style={{ fontSize: 11, color: '#8b9bb4' }}>Prioridade desde {l.data_prioridade ? new Date(l.data_prioridade).toLocaleDateString('pt-BR') : '-'}</div>
                 </div>
-                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#131e33', flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} reemitir
                 </span>
               </div>
@@ -517,13 +517,13 @@ export default function DashboardProducao() {
           {expirandoEm3h.map(c => {
             const horasRestantes = Math.max(0, (new Date(c.data_expiracao).getTime() - Date.now()) / 3600000)
             return (
-              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#131e33', borderRadius: 8, marginBottom: 6 }}>
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#232a37', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{c.cliente_nome}</div>
                   <div style={{ fontSize: 11, color: '#8b9bb4' }}>📞 {c.cliente_telefone} · Adv: {c.advogados?.nome_completo}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#131e33' }}>
+                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37' }}>
                     {horasRestantes < 1 ? `${Math.round(horasRestantes * 60)}min` : `${horasRestantes.toFixed(1)}h`}
                   </span>
                   {c.cliente_telefone && (
@@ -531,7 +531,7 @@ export default function DashboardProducao() {
                       href={`https://wa.me/55${c.cliente_telefone.replace(/\D/g,'')}?text=${encodeURIComponent('Olá! Lembrete: seus documentos para assinatura estão prestes a expirar. Por favor, acesse: ' + c.link_assinatura)}`}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ padding: '4px 10px', background: '#25D366', color: '#131e33', textDecoration: 'none', borderRadius: 6, fontSize: 11, fontWeight: 500 }}
+                      style={{ padding: '4px 10px', background: '#25D366', color: '#232a37', textDecoration: 'none', borderRadius: 6, fontSize: 11, fontWeight: 500 }}
                     >
                       WhatsApp
                     </a>
@@ -553,12 +553,12 @@ export default function DashboardProducao() {
             const restantes = (l.total_contratos || 0) - (l.qtd_emitidos || 0)
             const diasAtraso = Math.floor((hoje - new Date(l.data_limite_entrega + 'T00:00:00')) / (24 * 3600000))
             return (
-              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#131e33', borderRadius: 8, marginBottom: 6 }}>
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#232a37', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{l.advogados?.nome_completo}</div>
                   <div style={{ fontSize: 11, color: '#8b9bb4' }}>Atrasado há {diasAtraso} dia{diasAtraso !== 1 ? 's' : ''} · Prazo era {new Date(l.data_limite_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
                 </div>
-                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#f87171', color: '#131e33', flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#f87171', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} restante{restantes !== 1 ? 's' : ''}
                 </span>
               </div>

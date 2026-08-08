@@ -21,21 +21,21 @@ const STATUS_STYLE = {
   em_andamento: { background: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Em andamento' },
   recuperado: { background: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Recuperado' },
   realocado: { background: 'rgba(96,165,250,.12)', color: '#60a5fa', label: 'Realocado' },
-  virou_reposicao: { background: '#1a2742', color: '#8b9bb4', label: 'Virou reposição' },
+  virou_reposicao: { background: '#2b3340', color: '#8b9bb4', label: 'Virou reposição' },
   perdido: { background: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Perdido' },
 }
 
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
   subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 20 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(148,163,184,0.14)', flexWrap: 'wrap' },
+  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '0.5px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
   tab: { padding: '10px 16px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
   tabActive: { color: '#34d399', borderBottomColor: '#34d399' },
-  card: { background: '#131e33', border: '0.5px solid rgba(148,163,184,0.14)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   label: { fontSize: 12, color: '#8b9bb4', fontWeight: 500, marginBottom: 4, display: 'block' },
-  input: { width: '100%', padding: '9px 11px', fontSize: 13, border: '0.5px solid rgba(148,163,184,0.22)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box', background: '#131e33' },
-  btnPrim: { padding: '9px 16px', background: '#34d399', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  btnDanger: { padding: '9px 16px', background: '#f87171', color: '#131e33', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  input: { width: '100%', padding: '9px 11px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, marginBottom: 12, boxSizing: 'border-box', background: '#232a37' },
+  btnPrim: { padding: '9px 16px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnDanger: { padding: '9px 16px', background: '#f87171', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
   meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
   nome: { fontSize: 14, fontWeight: 500, color: '#e6edf7' },
   status: { fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500 },
@@ -170,7 +170,7 @@ export default function ResgateVendedor() {
           <input style={s.input} value={busca} onChange={e => { setBusca(e.target.value); setClienteSel(null) }} placeholder="Digite ao menos 3 letras…" />
 
           {!clienteSel && clientes.map(c => (
-            <div key={c.id} onClick={() => setClienteSel(c)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: '0.5px solid rgba(148,163,184,0.12)', marginBottom: 6 }}>
+            <div key={c.id} onClick={() => setClienteSel(c)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.07)', marginBottom: 6 }}>
               <div style={s.nome}>{c.nome}</div>
               <div style={s.meta}>{c.cpf} · {c.advogados?.nome_completo || 'sem advogado'} · {c.status}</div>
             </div>
