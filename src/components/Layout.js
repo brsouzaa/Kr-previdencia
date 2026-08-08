@@ -111,7 +111,6 @@ const NAV_ADMIN = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'reposicoes', label: '🔄 Reposições' },
-  { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
   { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
