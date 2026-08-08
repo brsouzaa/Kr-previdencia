@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabase'
 import NotificacoesBell from './NotificacoesBell'
+import { carregarFonte, fundoMesh, fonte } from '../lib/tema'
+
+// ===== VISUAL ESCURO PREMIUM (v2) =====
+// Sidebar escura com glow, menu em grupos, fonte Inter, conteúdo claro com mesh.
+// TODAS as regras de acesso/injeção por ID foram preservadas na íntegra.
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): itens no menu por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -119,6 +124,7 @@ const NAV_ADMIN = [
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
   { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
+  { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
   { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
   { key: 'resgate', label: '🛟 Ala de resgate' },
   { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
@@ -136,14 +142,68 @@ const NAV_ADMIN = [
   { key: 'meulink', label: '🔗 Meu link' },
 ]
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
-  return isMobile
+// ===== agrupamento visual do menu (só organização — não muda acesso) =====
+const GRUPO_DE = {
+  dashboard: 'Gestão', painel_financeiro: 'Gestão', metas_financeiras: 'Gestão',
+  despesas: 'Gestão', recebimentos: 'Gestão', financeiro: 'Gestão', metas: 'Gestão',
+  bi: 'Gestão', equipe: 'Gestão', advogados: 'Gestão', funil: 'Gestão',
+  compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
+  revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA',
+  revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA',
+  painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
+  performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
+  simulacao_emprestimo: 'Operação IA',
+}
+const ORDEM_GRUPOS = ['Gestão', 'Operação IA', 'Produção']
+const grupoDe = (key) => GRUPO_DE[key] || 'Produção'
+
+const t = {
+  sidebar: {
+    width: 236, flexShrink: 0, display: 'flex', flexDirection: 'column',
+    background: '#0b1220',
+    backgroundImage: 'radial-gradient(500px 220px at 50% -60px, rgba(59,130,246,.22), transparent 70%)',
+    borderRight: '1px solid rgba(148,163,184,0.08)',
+    padding: '18px 12px 14px', height: '100vh', position: 'sticky', top: 0, overflowY: 'auto',
+  },
+  logoIco: {
+    width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center',
+    background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff',
+    fontWeight: 800, fontSize: 14, flexShrink: 0,
+    boxShadow: '0 0 0 1px rgba(255,255,255,.08), 0 4px 14px rgba(59,130,246,.45)',
+  },
+  grupo: {
+    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.4px',
+    color: '#4a5a76', padding: '14px 10px 6px',
+  },
+  item: (ativo) => ({
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+    width: '100%', padding: '9px 11px', borderRadius: 11, border: 'none',
+    textAlign: 'left', cursor: 'pointer', marginBottom: 2,
+    fontSize: 13, fontWeight: ativo ? 600 : 500, fontFamily: 'inherit',
+    color: ativo ? '#ffffff' : '#8b9bb4',
+    background: ativo ? 'linear-gradient(90deg, rgba(59,130,246,.20), rgba(59,130,246,.05))' : 'transparent',
+    boxShadow: ativo ? 'inset 0 0 0 1px rgba(96,165,250,.22)' : 'none',
+    transition: 'background .15s, color .15s',
+  }),
+  badgeVerde: {
+    background: 'rgba(52,211,153,.18)', color: '#34d399',
+    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+    boxShadow: 'inset 0 0 0 1px rgba(52,211,153,.35)', minWidth: 18, textAlign: 'center',
+  },
+  userBox: {
+    marginTop: 'auto', padding: '11px 10px', borderRadius: 12,
+    background: 'rgba(148,163,184,.06)', border: '1px solid rgba(148,163,184,.09)',
+  },
+  avatar: {
+    width: 32, height: 32, borderRadius: 999, display: 'grid', placeItems: 'center',
+    background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff',
+    fontWeight: 700, fontSize: 12, flexShrink: 0,
+  },
+}
+
+function iniciais(nome) {
+  const p = (nome || '?').trim().split(/\s+/)
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?'
 }
 
 export default function Layout({ children, page, setPage }) {
@@ -151,6 +211,8 @@ export default function Layout({ children, page, setPage }) {
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
   const [novosLotes, setNovosLotes] = useState(0)
+
+  useEffect(() => { carregarFonte() }, [])
 
   const navBase = profile?.role === 'admin' ? NAV_ADMIN
     : profile?.role === 'produtor' ? NAV_PRODUTOR
@@ -173,7 +235,7 @@ export default function Layout({ children, page, setPage }) {
     ? navBase.filter(n => !n.soCaptacao)
     : navBase
 
-  // Setor resgate: garante o item da ala no meno (independente do role base)
+  // Setor resgate: garante o item da ala no menu (independente do role base)
   if (profile?.setor === 'resgate' && !nav.some(n => n.key === 'resgate')) {
     nav = [{ key: 'resgate', label: '🛟 Ala de resgate' }, ...nav]
   }
@@ -274,90 +336,104 @@ export default function Layout({ children, page, setPage }) {
     return () => clearInterval(i)
   }, [profile, page])
 
+  const rotulo = profile?.role === 'admin' ? 'Administrador'
+    : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
+    : profile?.role === 'supervisor_visualizacao' ? 'Supervisor (Visualização)'
+    : profile?.role === 'analista' ? 'Analista'
+    : profile?.role === 'analista_ia' ? 'Analista IA'
+    : profile?.role === 'coordenador_b2c' ? `Coordenadora ${profile?.setor_responsavel === 'autonomos' ? 'Autônomos' : 'Captação'}`
+    : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
+    : profile?.role === 'produtor' ? 'Produtor'
+    : profile?.role === 'financeiro' ? 'Financeiro / Pagador'
+    : profile?.role === 'rh' ? 'RH'
+    : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
+    : profile?.role === 'agente_bf' ? 'Agente Bolsa Família'
+    : 'Vendedor'
+
+  // organiza em grupos (mantendo a ordem interna original de cada grupo)
+  const mostrarGrupos = nav.length > 6
+  const grupos = mostrarGrupos
+    ? ORDEM_GRUPOS.map(g => ({ nome: g, itens: nav.filter(n => grupoDe(n.key) === g) })).filter(g => g.itens.length > 0)
+    : [{ nome: null, itens: nav }]
+
+  const itemMenu = (n) => {
+    const ativo = page === n.key
+    const isLotesEntregues = n.key === 'lotes_entregues'
+    const showBadge = isLotesEntregues && novosLotes > 0 && page !== 'lotes_entregues'
+    return (
+      <button
+        key={n.key}
+        onClick={() => { setPage(n.key); setMenuOpen(false) }}
+        style={t.item(ativo)}
+        onMouseEnter={e => { if (!ativo) { e.currentTarget.style.background = 'rgba(96,165,250,.08)'; e.currentTarget.style.color = '#cfe0f5' } }}
+        onMouseLeave={e => { if (!ativo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8b9bb4' } }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
+        {showBadge && <span style={t.badgeVerde}>{novosLotes}</span>}
+      </button>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f8f6' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: fonte.familia, ...fundoMesh }}>
       {isMobile && menuOpen && (
-        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 299 }} />
+        <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(3,7,18,0.55)', zIndex: 299, backdropFilter: 'blur(2px)' }} />
       )}
 
       {(!isMobile || menuOpen) && (
         <div style={{
-          width: 220, background: '#fff',
-          borderRight: '0.5px solid rgba(0,0,0,0.1)',
-          display: 'flex', flexDirection: 'column',
-          padding: '1.25rem 0', flexShrink: 0,
-          ...(isMobile ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 300, boxShadow: '4px 0 20px rgba(0,0,0,0.15)' } : {})
+          ...t.sidebar,
+          ...(isMobile ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 300, boxShadow: '8px 0 40px rgba(0,0,0,0.5)' } : {}),
         }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#111', padding: '0 1.25rem 1.25rem', borderBottom: '0.5px solid rgba(0,0,0,0.08)', marginBottom: '0.75rem' }}>
-            KR <span style={{ color: '#185FA5' }}>Previdência</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 8px 16px' }}>
+            <div style={t.logoIco}>KR</div>
+            <div>
+              <div style={{ color: '#f1f5fb', fontWeight: 700, fontSize: 14.5, letterSpacing: '.1px' }}>KR Previdência</div>
+              <div style={{ color: '#647492', fontSize: 10, fontWeight: 600, letterSpacing: '1.6px', textTransform: 'uppercase' }}>CRM Operacional</div>
+            </div>
           </div>
-          {nav.map(n => {
-            const isLotesEntregues = n.key === 'lotes_entregues'
-            const showBadge = isLotesEntregues && novosLotes > 0 && page !== 'lotes_entregues'
-            return (
-              <button key={n.key} onClick={() => { setPage(n.key); setMenuOpen(false) }} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 1.25rem', fontSize: 13,
-                color: page === n.key ? '#185FA5' : '#555',
-                fontWeight: page === n.key ? 500 : 400,
-                background: page === n.key ? '#E6F1FB' : 'transparent',
-                cursor: 'pointer', textAlign: 'left',
-                border: 'none', borderLeftWidth: 2, borderLeftStyle: 'solid',
-                borderLeftColor: page === n.key ? '#185FA5' : 'transparent',
-                width: '100%'
-              }}>
-                <span>{n.label}</span>
-                {showBadge && (
-                  <span style={{
-                    background: '#3B6D11', color: '#fff',
-                    fontSize: 10, fontWeight: 600,
-                    padding: '2px 6px', borderRadius: 8,
-                    minWidth: 18, textAlign: 'center',
-                  }}>{novosLotes}</span>
-                )}
-              </button>
-            )
-          })}
-          <div style={{ marginTop: 'auto', padding: '1rem 1.25rem', borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 2 }}>{profile?.nome}</div>
+
+          {grupos.map(g => (
+            <div key={g.nome || 'menu'}>
+              {g.nome && <div style={t.grupo}>{g.nome}</div>}
+              {g.itens.map(itemMenu)}
+            </div>
+          ))}
+
+          <div style={t.userBox}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={t.avatar}>{iniciais(profile?.nome)}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: '#dbe6f5', fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.nome}</div>
+                <div style={{ color: '#647492', fontSize: 10.5 }}>{rotulo}</div>
+              </div>
               <NotificacoesBell onNavigate={(p) => setPage(p)} />
             </div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
-              {profile?.role === 'admin' ? 'Administrador'
-                : profile?.role === 'supervisor_producao' ? 'Supervisor de Produção'
-                : profile?.role === 'supervisor_visualizacao' ? 'Supervisor (Visualização)'
-                : profile?.role === 'analista' ? 'Analista'
-                : profile?.role === 'analista_ia' ? 'Analista IA'
-                : profile?.role === 'coordenador_b2c' ? `Coordenadora ${profile?.setor_responsavel === 'autonomos' ? 'Autônomos' : 'Captação'}`
-                : profile?.role === 'pos_venda' ? 'Pós-Venda / Qualidade'
-                : profile?.role === 'produtor' ? 'Produtor'
-                : profile?.role === 'financeiro' ? 'Financeiro / Pagador'
-                : profile?.role === 'rh' ? 'RH'
-                : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
-                : profile?.role === 'agente_bf' ? 'Agente Bolsa Família'
-                : 'Vendedor'}
-            </div>
-            <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Sair</button>
+            <button onClick={signOut} style={{ marginTop: 8, width: '100%', padding: '6px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,.25)', background: 'rgba(248,113,113,.08)', color: '#f87171', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Sair
+            </button>
           </div>
         </div>
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {isMobile && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
-            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111', padding: '4px 8px', lineHeight: 1, position: 'relative' }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#0b1220', borderBottom: '1px solid rgba(148,163,184,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
+            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#e6edf7', padding: '4px 8px', lineHeight: 1, position: 'relative' }}>
               ☰
               {novosLotes > 0 && (
-                <span style={{ position: 'absolute', top: 0, right: 0, background: '#3B6D11', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 6 }}>
+                <span style={{ position: 'absolute', top: 0, right: 0, background: '#34d399', color: '#052e1c', fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 6 }}>
                   {novosLotes}
                 </span>
               )}
             </button>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>KR <span style={{ color: '#185FA5' }}>Previdência</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ ...t.logoIco, width: 26, height: 26, fontSize: 11, borderRadius: 8 }}>KR</div>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#f1f5fb' }}>KR Previdência</div>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <NotificacoesBell onNavigate={(p) => { setPage(p); setMenuOpen(false) }} />
-              <button onClick={signOut} style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
+              <button onClick={signOut} style={{ fontSize: 12, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>Sair</button>
             </div>
           </div>
         )}
@@ -367,4 +443,14 @@ export default function Layout({ children, page, setPage }) {
       </div>
     </div>
   )
+}
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
 }
