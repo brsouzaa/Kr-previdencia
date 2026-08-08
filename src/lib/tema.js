@@ -35,14 +35,40 @@ export const fundoMesh = {
     'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.13), transparent 60%)',
 }
 
-// injeta a fonte Inter uma vez (chamado pelo Layout)
+// injeta a fonte Inter + CSS base do modo escuro uma vez (chamado pelo Layout)
 export function carregarFonte() {
-  if (document.getElementById('kr-fonte')) return
-  const l = document.createElement('link')
-  l.id = 'kr-fonte'
-  l.rel = 'stylesheet'
-  l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap'
-  document.head.appendChild(l)
+  if (!document.getElementById('kr-fonte')) {
+    const l = document.createElement('link')
+    l.id = 'kr-fonte'
+    l.rel = 'stylesheet'
+    l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap'
+    document.head.appendChild(l)
+  }
+  // base escura global: mata o "texto preto" dos controles nativos (input/select/textarea
+  // sem estilo próprio) e escurece scrollbar/datepicker. Inline styles continuam vencendo.
+  if (!document.getElementById('kr-base-escura')) {
+    const s = document.createElement('style')
+    s.id = 'kr-base-escura'
+    s.textContent = `
+      html { color-scheme: dark; }
+      body { color: #e6edf7; background: #0d1526; }
+      input, select, textarea {
+        background-color: #0f1930; color: #e6edf7;
+        border: 1px solid rgba(148,163,184,.25); border-radius: 8px;
+        color-scheme: dark; font-family: inherit;
+      }
+      select option { background: #131e33; color: #e6edf7; }
+      input::placeholder, textarea::placeholder { color: #64748b; }
+      input:focus, select:focus, textarea:focus {
+        outline: 2px solid rgba(96,165,250,.45); outline-offset: 1px;
+      }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: #2b3b58; border-radius: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      a { color: #60a5fa; }
+    `
+    document.head.appendChild(s)
+  }
 }
 
 // helpers de estilo prontos pra telas novas
