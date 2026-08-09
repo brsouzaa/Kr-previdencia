@@ -69,6 +69,23 @@ export default function PainelDigitador() {
   const [novaSenha, setNovaSenha] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [vncAberto, setVncAberto] = useState(false)
+  const [simul, setSimul] = useState(null)
+  const [sincronizando, setSincronizando] = useState(false)
+
+  const carregarSimul = useCallback(async () => {
+    const { data } = await supabase.rpc('simulacao_crefisa_resumo')
+    setSimul(data || null)
+  }, [])
+
+  const sincronizarAgora = async () => {
+    setSincronizando(true)
+    const { data, error } = await supabase.rpc('tecnologia_bf_sincronizar')
+    setSincronizando(false)
+    if (error) { alert('Erro ao sincronizar: ' + error.message); return }
+    const n = (data && (data.resgatados ?? data.total ?? data)) ?? '?'
+    alert('Sincronização rodada. Pré-aprovados levados pro funil: ' + n)
+    carregarSimul()
+  }
 
   const carregar = useCallback(async () => {
     const [c, se, hb, r] = await Promise.all([
@@ -115,11 +132,11 @@ export default function PainelDigitador() {
     setProblemas(data || [])
   }, [])
 
-  useEffect(() => { carregar(); carregarConfs(); carregarLogs(); carregarProblemas() }, []) // eslint-disable-line
+  useEffect(() => { carregar(); carregarSimul(); carregarConfs(); carregarLogs(); carregarProblemas() }, []) // eslint-disable-line
   useEffect(() => {
-    const id = setInterval(() => { carregar(); if (aba === 'conferencia') carregarConfs(); if (aba === 'erros') carregarLogs() }, 20000)
+    const id = setInterval(() => { carregar(); if (aba === 'simulacao') carregarSimul(); if (aba === 'conferencia') carregarConfs(); if (aba === 'erros') carregarLogs() }, 20000)
     return () => clearInterval(id)
-  }, [aba, carregar, carregarConfs, carregarLogs])
+  }, [aba, carregar, carregarSimul, carregarConfs, carregarLogs])
   useEffect(() => { carregarConfs() }, [filtroConf, filtroConfLogin]) // eslint-disable-line
   useEffect(() => { carregarLogs() }, [filtroNivel, filtroUsuario]) // eslint-disable-line
 
@@ -220,10 +237,95 @@ export default function PainelDigitador() {
 
       {/* ABAS */}
       <div style={s.abas}>
-        {[['conferencia', `✅ Conferência${conf.pendentes ? ` (${conf.pendentes})` : ''}`], ['controle', '🎛️ Controle'], ['logins', `🔑 Logins${caidas.length ? ` (${caidas.length}⚠)` : ''}`], ['erros', '🐞 Erros & Logs'], ['metricas', '📊 Métricas']].map(([k, l]) => (
-          <div key={k} style={s.aba(aba === k)} onClick={() => { setAba(k); if (k === 'erros') { carregarLogs(); carregarProblemas() } if (k === 'conferencia') carregarConfs() }}>{l}</div>
+        {[['simulacao', '🔮 Simulação Crefisa'], ['conferencia', `✅ Conferência${conf.pendentes ? ` (${conf.pendentes})` : ''}`], ['controle', '🎛️ Controle'], ['logins', `🔑 Logins${caidas.length ? ` (${caidas.length}⚠)` : ''}`], ['erros', '🐞 Erros & Logs'], ['metricas', '📊 Métricas']].map(([k, l]) => (
+          <div key={k} style={s.aba(aba === k)} onClick={() => { setAba(k); if (k === 'simulacao') carregarSimul(); if (k === 'erros') { carregarLogs(); carregarProblemas() } if (k === 'conferencia') carregarConfs() }}>{l}</div>
         ))}
       </div>
+
+      {/* ===== SIMULAÇÃO CREFISA (monitor da API que gera os pré-aprovados) ===== */}
+      {aba === 'simulacao' && (
+        <div>
+          {!simul ? <div style={s.box}>carregando…</div> : (() => {
+            const min = simul.minutos_desde_ultima
+            const roboOk = min != null && min < 30
+            const taxa = simul.taxa_aprovacao_pct
+            return (
+              <div>
+                <div style={s.cards}>
+                  <div style={s.card(roboOk ? '#34d399' : '#f87171')}>
+                    <div style={s.cardTop}>Robô simulador</div>
+                    <div style={{ ...s.cardNum, color: roboOk ? '#34d399' : '#f87171' }}>{roboOk ? 'SIMULANDO' : 'PARADO'}</div>
+                    <div style={s.cardSub}>{min == null ? 'sem simulação' : `última há ${min < 90 ? min + ' min' : Math.floor(min / 60) + 'h'}`}</div>
+                  </div>
+                  <div style={s.card('#60a5fa')}>
+                    <div style={s.cardTop}>Simuladas hoje</div>
+                    <div style={s.cardNum}>{simul.hoje ?? 0}</div>
+                    <div style={s.cardSub}>total geral: {(simul.total ?? 0).toLocaleString('pt-BR')}</div>
+                  </div>
+                  <div style={s.card('#34d399')}>
+                    <div style={s.cardTop}>Pré-aprovados</div>
+                    <div style={{ ...s.cardNum, color: '#34d399' }}>{(simul.pre_aprovados ?? 0).toLocaleString('pt-BR')}</div>
+                    <div style={s.cardSub}>taxa de aprovação: {taxa != null ? taxa + '%' : '—'}</div>
+                  </div>
+                  <div style={s.card('#f87171')}>
+                    <div style={s.cardTop}>Negados</div>
+                    <div style={{ ...s.cardNum, color: '#f87171' }}>{(simul.negados ?? 0).toLocaleString('pt-BR')}</div>
+                    <div style={s.cardSub}>{simul.por_status ? `em análise: ${simul.por_status.em_analise ?? 0} · vendidos: ${simul.por_status.vendido ?? 0}` : ''}</div>
+                  </div>
+                  <div style={s.card('#fbbf24')}>
+                    <div style={s.cardTop}>Em fila (análise)</div>
+                    <div style={{ ...s.cardNum, color: '#fbbf24' }}>{simul.em_fila ?? 0}</div>
+                    <div style={s.cardSub}>aguardando decisão da API</div>
+                  </div>
+                  <div style={s.card('#a78bfa')}>
+                    <div style={s.cardTop}>Ponte sim → funil</div>
+                    <div style={{ ...s.cardNum, color: '#a78bfa' }}>{(simul.bridge_no_funil ?? 0).toLocaleString('pt-BR')}</div>
+                    <div style={s.cardSub}>{simul.bridge_pre_aprovados_48h ?? 0} pré-aprovados nas últimas 48h</div>
+                  </div>
+                </div>
+
+                {!roboOk && (
+                  <div style={{ ...s.box, borderLeft: '4px solid #f87171', background: 'rgba(248,113,113,.08)' }}>
+                    <strong style={{ color: '#f87171' }}>⚠ Robô simulador parado</strong> — nenhuma simulação nova {min == null ? '' : `há ${min < 90 ? min + ' min' : Math.floor(min / 60) + 'h'}`}. A API Crefisa não está gerando pré-aprovados novos. Verifica o processo do simulador (é outro robô, separado do digitador).
+                  </div>
+                )}
+
+                <div style={s.box}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={s.boxTitulo}>Levar pré-aprovados pro funil</div>
+                      <div style={{ fontSize: 12, color: '#8b9bb4' }}>Roda o resgate manual — pega os pré-aprovados da simulação que ainda não entraram na fila e joga pro funil.</div>
+                    </div>
+                    <button style={{ ...s.btn, opacity: sincronizando ? 0.6 : 1 }} disabled={sincronizando} onClick={sincronizarAgora}>
+                      {sincronizando ? 'Sincronizando…' : '🔄 Sincronizar agora'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={s.box}>
+                  <div style={s.boxTitulo}>Últimas simulações</div>
+                  {(simul.ultimas || []).length === 0 ? <div style={{ fontSize: 13, color: '#8b9bb4' }}>nenhuma</div> : (simul.ultimas || []).map((u, i) => {
+                    const pre = u.status === 'pre_aprovado'
+                    const [bg, cor] = pre ? ['rgba(52,211,153,.14)', '#34d399'] : u.status === 'negado' ? ['rgba(248,113,113,.14)', '#f87171'] : ['rgba(96,165,250,.12)', '#60a5fa']
+                    return (
+                      <div key={i} style={s.linha}>
+                        <div>
+                          <strong>{u.nome || '—'}</strong> <span style={s.mono}>{u.cpf}</span>{' '}
+                          <span style={s.tag(bg, cor)}>{u.status}</span>
+                          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>{fmtTs(u.criado_em)}{u.motivo_negado ? ` · ${u.motivo_negado}` : ''}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: pre ? '#34d399' : '#8b9bb4' }}>
+                          {pre && u.valor_simulado ? 'R$ ' + Number(u.valor_simulado).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* ===== CONFERÊNCIA (pós-fato, 1 clique) ===== */}
       {aba === 'conferencia' && (
