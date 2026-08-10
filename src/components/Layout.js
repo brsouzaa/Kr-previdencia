@@ -26,6 +26,13 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// Clientes (consulta geral de clientes e documentos): item por ID
+const IDS_ACESSO_CLIENTES = [
+  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+]
+
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
@@ -309,6 +316,11 @@ export default function Layout({ children, page, setPage }) {
   // Confere CNIS (auditoria temporaria): Egle + Duda por ID
   if ((IDS_SUPERVISOR_BOARD.includes(profile?.id) || IDS_AGENTES_RETROATIVO.includes(profile?.id)) && !nav.some(n => n.key === 'confere_cnis')) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
+  }
+
+  // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana)
+  if (IDS_ACESSO_CLIENTES.includes(profile?.id) && !nav.some(n => n.key === 'clientes')) {
+    nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin

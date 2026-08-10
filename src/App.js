@@ -47,6 +47,7 @@ import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
 import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
 import PainelDigitador from './pages/PainelDigitador'
+import Clientes from './pages/Clientes'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -78,6 +79,12 @@ const IDS_OPERACAO_LICENCIADA = [
   'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (sup. Leandro)
   '5d8cf47f-47e8-4d15-a4b8-48308d4b0840', // Rafaelle (Leandro)
   '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
+]
+
+const IDS_ACESSO_CLIENTES = [
+  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
 ]
 
 function PortalRoute() {
@@ -128,6 +135,8 @@ const IDS_TIME_MARYANA = [
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
+  if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
   if (IDS_TIME_MARYANA.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt'].includes(page)) return true
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
@@ -210,6 +219,7 @@ function AppInner() {
     fila_digitacao: <FilaDigitacao />,
     confere_cnis: <ConfereCNIS />,
     painel_digitador: <PainelDigitador />,
+    clientes: <Clientes />,
     ranking: <RankingProducao />,
     entregas: <Entregas />,
     lotes_entregues: <LotesEntregues />,
