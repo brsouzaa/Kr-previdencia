@@ -143,6 +143,13 @@ function sugestaoPara(lead, linkCrefisa) {
   return map[lead.sub_estado] || `Oi ${nome}! 💗 Tudo bem? Vi que a gente parou no meio — posso te ajudar a continuar?`
 }
 
+// Deep-link pro Chatwoot (responder é lá, não pelo CRM) — mesmo padrão do Confere CNIS/CLT
+const CHATWOOT_BASE = 'https://crm.vendeaitecnologia.com.br'
+const CHATWOOT_ACC = '8918'
+function linkChatwoot(c) {
+  return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
+}
+
 const CORES = {
   vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
@@ -168,6 +175,9 @@ const s = {
   tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#fbbf24', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
   tagMotivo: { fontSize: 10, background: '#2b3340', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#a78bfa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
   btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   painelMotivos: { marginTop: 10, padding: 12, background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
@@ -313,18 +323,18 @@ export default function RevisaoIABolsaFamilia() {
     setLead(null); setTexto(''); setAnexos([]); carregar()
   }
 
-  // Pega o card (marca selo) sem mandar mensagem
-  async function marcarTratando(c) {
+  // Handoff IA<->humano: 'assumir' pausa a Ana (flag + label humano_assumiu), 'devolver' reativa.
+  // Mexe nos DOIS gates de uma vez via edge bf-handoff (banco + Chatwoot).
+  async function handoff(c, acao) {
     if (!c) return
-    await supabase.rpc('bf_marcar_tratando', { p_lead_id: c.id, p_agente_id: profile?.id })
-    setLead({ ...c, bf_em_tratamento: true, cliente_respondeu: false })
-    carregar()
-  }
-  // Solta o card (tira o selo)
-  async function soltarTratamento(c) {
-    if (!c) return
-    await supabase.rpc('bf_soltar_tratamento', { p_lead_id: c.id })
-    setLead({ ...c, bf_em_tratamento: false, cliente_respondeu: false })
+    setEnviando(true)
+    const { data, error } = await supabase.functions.invoke('bf-handoff', {
+      body: { lead_id: c.id, acao, agente_id: profile?.id },
+    })
+    setEnviando(false)
+    if (error || !data?.ok) { alert('Erro no handoff: ' + (error?.message || data?.erro || 'falhou')); return }
+    const pausar = acao === 'assumir'
+    setLead({ ...c, ana_pausada: pausar, bf_em_tratamento: pausar })
     carregar()
   }
 
@@ -451,6 +461,14 @@ export default function RevisaoIABolsaFamilia() {
                   </div>
                   {ehSupervisor && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
+                  {key !== 'NEGADO' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑 humano' : '🤖 IA'}</span>
+                      {c.chatwoot_conversation_id && (
+                        <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={s.cardChat} title="Abrir conversa no Chatwoot">💬</a>
+                      )}
+                    </div>
+                  )}
                   {key !== 'NEGADO' && seloTratamento(c)}
                 </div>
                 )
@@ -499,21 +517,23 @@ export default function RevisaoIABolsaFamilia() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              {lead.bf_em_tratamento ? (
-                <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-                  onClick={() => soltarTratamento(lead)}
-                >✋ Soltar (não estou mais nesse)</button>
-              ) : (
-                <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-                  onClick={() => marcarTratando(lead)}
-                >🙋 Estou nesse</button>
-              )}
-              {lead.bf_em_tratamento && lead.cliente_respondeu && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24', background: 'rgba(251,191,36,.12)', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
-              )}
+            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#a78bfa' : '#60a5fa' }}>
+                  {lead.ana_pausada ? '🧑 Humano no controle — IA pausada' : '🤖 IA ativa (Ana respondendo)'}
+                </span>
+                {lead.ana_pausada ? (
+                  <button style={{ fontSize: 12, padding: '7px 14px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => handoff(lead, 'devolver')}>🤖 Devolver pra IA</button>
+                ) : (
+                  <button style={{ fontSize: 12, padding: '7px 14px', background: '#a78bfa', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => handoff(lead, 'assumir')}>✋ Assumir (pausar IA)</button>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>
+                {lead.ana_pausada
+                  ? 'A Ana não responde enquanto você está no controle. Responda pelo Chatwoot. Clique em "Devolver pra IA" quando terminar.'
+                  : 'Ao responder no Chatwoot a IA pausa sozinha. Você também pode assumir aqui pra parar a Ana antes de escrever.'}
+                {lead.cliente_respondeu && <span style={{ color: '#fbbf24', fontWeight: 700 }}> · 💬 o cliente respondeu</span>}
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -535,11 +555,14 @@ export default function RevisaoIABolsaFamilia() {
               {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
             </div>
 
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>💬 Mensagem (sugerida pela IA — edite à vontade):</div>
-            <textarea style={s.textarea} value={texto} onChange={e => setTexto(e.target.value)} />
-            <button style={s.btnEnviar} onClick={() => disparar(null)} disabled={enviando}>
-              {enviando ? 'Enviando...' : '💗 Enviar como Ana'}
-            </button>
+            {linkChatwoot(lead) ? (
+              <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
+                style={{ display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' }}>
+                💬 Abrir conversa no Chatwoot
+              </a>
+            ) : (
+              <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
+            )}
 
             <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>Ações de etapa:</div>
             <div style={s.acoes}>
