@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { cores } from '../lib/tema'
@@ -63,6 +63,13 @@ const DOCS_POR_PRODUTO = {
 }
 
 const DOCS_BASE = ['rg_frente', 'rg_verso', 'comprovante_1', 'comprovante_2', 'comprovante_endereco']
+
+const PERIODOS = [
+  { chave: 'todos', label: 'Todo o período' },
+  { chave: '30', label: 'Últimos 30 dias' },
+  { chave: '90', label: 'Últimos 90 dias' },
+  { chave: '180', label: 'Últimos 6 meses' },
+]
 
 function chavesDe(produto) {
   return DOCS_POR_PRODUTO[produto] || DOCS_BASE
@@ -246,18 +253,41 @@ export default function Clientes() {
   const [prints, setPrints] = useState({})
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [periodo, setPeriodo] = useState('todos')
+  const [total, setTotal] = useState(0)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [filtroProduto, setFiltroProduto] = useState('todos')
   const [soDocumentos, setSoDocumentos] = useState(false)
   const [selecionado, setSelecionado] = useState(null)
 
+  const periodoRef = useRef(periodo)
+  periodoRef.current = periodo
+
   const fetchTudo = useCallback(async () => {
     setLoading(true)
-    const { data: cli } = await supabase
-      .from('clientes')
-      .select('*, profiles!clientes_vendedor_operador_id_fkey(nome)')
-      .order('created_at', { ascending: false })
-    setClientes(cli || [])
+    const p = periodoRef.current
+    const desde = p === 'todos' ? null : new Date(Date.now() - parseInt(p, 10) * 86400000)
+
+    let qCount = supabase.from('clientes').select('id', { count: 'exact', head: true })
+    let q = supabase.from('clientes').select('*, profiles!clientes_vendedor_operador_id_fkey(nome)')
+    if (desde) {
+      qCount = qCount.gte('created_at', desde.toISOString())
+      q = q.gte('created_at', desde.toISOString())
+    }
+    const { count } = await qCount
+    setTotal(count || 0)
+
+    // Carrega TODOS os clientes do período em blocos (Supabase limita a 1000 por consulta)
+    const todos = []
+    const TAM = 1000
+    let from = 0
+    for (;;) {
+      const { data } = await q.order('created_at', { ascending: false }).range(from, from + TAM - 1)
+      todos.push(...(data || []))
+      if (!data || data.length < TAM) break
+      from += TAM
+    }
+    setClientes(todos)
 
     const { data: ac } = await supabase
       .from('acompanhamento_mae')
@@ -274,7 +304,7 @@ export default function Clientes() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchTudo() }, [fetchTudo])
+  useEffect(() => { fetchTudo() }, [fetchTudo, periodo])
   useEffect(() => {
     const id = setInterval(fetchTudo, 30000)
     return () => clearInterval(id)
@@ -300,10 +330,14 @@ export default function Clientes() {
       if (soDocumentos && !temDoc(c)) return false
       if (busca.trim()) {
         const b = busca.trim().toLowerCase()
+        const bDig = b.replace(/\D/g, '')
         const cpfDig = (c.cpf || '').replace(/\D/g, '')
+        const telDig = (c.telefone || '').replace(/\D/g, '')
+        if (b === bDig && bDig) {
+          // busca por dígitos -> casa CPF ou telefone
+          return cpfDig.includes(bDig) || telDig.includes(bDig)
+        }
         return (c.nome || '').toLowerCase().includes(b)
-          || cpfDig.includes(b)
-          || (c.telefone || '').replace(/\D/g, '').includes(b.replace(/\D/g, ''))
       }
       return true
     })
@@ -328,7 +362,7 @@ export default function Clientes() {
         <div>
           <div style={{ fontSize: 20, fontWeight: 600, color: cores.texto, marginBottom: 4 }}>📋 Clientes</div>
           <div style={{ fontSize: 13, color: cores.suave }}>
-            {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} · {countComDoc} com documento{countComDoc !== 1 ? 's' : ''}
+            📊 {total} cliente{total !== 1 ? 's' : ''} no período{periodo !== 'todos' ? ' selecionado' : ''} · {countComDoc} com doc{countComDoc !== 1 ? 's' : ''}
             {profile?.nome ? ` · visto por ${profile.nome}` : ''}
           </div>
         </div>
@@ -341,6 +375,14 @@ export default function Clientes() {
         style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: `1px solid ${cores.cardBorda}`, borderRadius: 8, background: cores.card, outline: 'none', boxSizing: 'border-box', marginBottom: 12, color: cores.texto }}
         placeholder="🔍 Buscar por nome, CPF ou telefone..."
         value={busca} onChange={e => setBusca(e.target.value)} />
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        {PERIODOS.map(p => (
+          <button key={p.chave} style={s.chip(periodo === p.chave, '#38bdf8', 'rgba(56,189,248,.10)')} onClick={() => setPeriodo(p.chave)}>
+            🗓️ {p.label}
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         <button style={s.chip(filtroProduto === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroProduto('todos')}>Todos os produtos</button>
