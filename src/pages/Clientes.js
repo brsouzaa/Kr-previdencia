@@ -81,6 +81,165 @@ function tempoRelativo(dt) {
   return new Date(dt).toLocaleDateString('pt-BR')
 }
 
+function formatarDataBr(dt) {
+  if (!dt) return '—'
+  const d = new Date(dt.includes('T') ? dt : dt + 'T12:00:00')
+  if (isNaN(d.getTime())) return dt
+  return d.toLocaleDateString('pt-BR')
+}
+
+function Campo({ label, valor, cor }) {
+  if (valor === undefined || valor === null || valor === '') return null
+  return (
+    <div style={{ fontSize: 13, color: cor || '#cbd5e1', minWidth: 0 }}>
+      <div style={{ color: cores.suave, fontSize: 11, marginBottom: 1 }}>{label}</div>
+      <div style={{ wordBreak: 'break-word' }}>{valor}</div>
+    </div>
+  )
+}
+
+function DetalhesModal({ c, prints, onClose }) {
+  if (!c) return null
+  const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
+  const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
+  const docs = c.documentos || {}
+  const chaves = chavesDe(c.produto)
+  const anexados = chaves.filter(k => docs[k])
+  const faltantes = chaves.filter(k => !docs[k])
+  const printsCli = prints[c.id] || []
+  const temPrints = printsCli.some(p => p.gerid || p.cnis)
+  const endereco = [c.rua, c.numero, c.bairro].filter(Boolean).join(', ') || c.endereco || ''
+  const dadosProd = c.dados_produto && typeof c.dados_produto === 'object' ? c.dados_produto : {}
+  const LABELS_DADOS = {
+    data_nascimento_bebe: '👶 Nascimento do bebê',
+    ja_trabalhou_clt: '💼 Já trabalhou CLT',
+    trabalhava_no_nascimento: '💼 Trabalhava no nascimento',
+    nome_mae: '👩 Mãe',
+    cpf_mae: '🪪 CPF da mãe',
+    data_nascimento_mae: '🎂 Nascimento da mãe',
+    nome_pai: '👨 Pai',
+    cpf_pai: '🪪 CPF do pai',
+    nome_conjuge: '💍 Cônjuge',
+    quantidade_filhos: '👨‍👩‍👧 Filhos',
+  }
+
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const badge = (cor, bg, txt) => (
+    <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, color: cor, background: bg, whiteSpace: 'nowrap' }}>{txt}</span>
+  )
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,10,18,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: cores.card, border: `1px solid ${cores.cardBorda}`, borderRadius: 16, maxWidth: 780, width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '1.25rem', boxShadow: '0 20px 60px rgba(0,0,0,.5)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: cores.texto }}>{c.nome}</div>
+            <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 2 }}>{c.cpf} · {c.telefone}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            {badge(prod.cor, prod.bg, prod.label)}
+            {badge(info.cor, info.bg, `${info.icon} ${info.label}`)}
+          </div>
+        </div>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '6px 0 8px' }}>👤 Informações do cliente</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 16px' }}>
+          <Campo label="CPF" valor={c.cpf} />
+          <Campo label="Telefone" valor={c.telefone} />
+          <Campo label="E-mail" valor={c.email} />
+          <Campo label="NIS" valor={c.nis} />
+          <Campo label="Data do cadastro" valor={formatarDataBr(c.created_at)} />
+          <Campo label="Vendedor" valor={c.profiles?.nome} />
+          <Campo label="Parto previsto" valor={formatarDataBr(c.data_prevista_parto)} />
+          <Campo label="Produto" valor={prod.label} />
+          {endereco && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Campo label="Endereço" valor={endereco} />
+            </div>
+          )}
+          <Campo label="Cidade/UF" valor={[c.cidade, c.uf].filter(Boolean).join('/')} />
+          <Campo label="CEP" valor={c.cep} />
+        </div>
+
+        {Object.keys(dadosProd).length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>📋 Dados do produto</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 16px' }}>
+              {Object.entries(dadosProd).map(([k, v]) => (
+                <Campo key={k} label={LABELS_DADOS[k] || k.replace(/_/g, ' ')} valor={String(v)} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {(c.observacao || c.pos_venda_observacao) && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>💬 Observações</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {c.observacao && <div style={{ fontSize: 12.5, color: '#cbd5e1', padding: '6px 10px', background: 'rgba(255,255,255,.04)', borderRadius: 6, fontStyle: 'italic' }}>"{c.observacao}"</div>}
+              {c.pos_venda_observacao && <div style={{ fontSize: 12.5, color: '#cbd5e1', padding: '6px 10px', background: 'rgba(251,191,36,.08)', borderRadius: 6 }}>🛎️ Pós-venda: {c.pos_venda_observacao}</div>}
+            </div>
+          </>
+        )}
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>
+          📎 Documentos · {anexados.length}/{chaves.length}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {anexados.map(k => (
+            <a key={k} href={docs[k]} target="_blank" rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(52,211,153,.10)', color: '#34d399', textDecoration: 'none', border: '1px solid rgba(52,211,153,.25)' }}>
+              {DOC_LABELS[k] || k}
+            </a>
+          ))}
+          {temPrints && printsCli.filter(p => p.gerid || p.cnis).map((p, i) => (
+            <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
+              {p.gerid && (
+                <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                  🖨️ Print GERID
+                </a>
+              )}
+              {p.cnis && (
+                <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                  🖨️ Print CNIS
+                </a>
+              )}
+            </span>
+          ))}
+          {c.link_assinatura && (
+            <a href={c.link_assinatura} target="_blank" rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
+              📨 Contrato de assinatura
+            </a>
+          )}
+          {anexados.length === 0 && !temPrints && !c.link_assinatura && (
+            <span style={{ fontSize: 12.5, color: cores.suave }}>Nenhum documento anexado ainda.</span>
+          )}
+        </div>
+
+        {faltantes.length > 0 && (
+          <div style={{ marginTop: 10, fontSize: 11.5, color: cores.suave }}>
+            Faltando: {faltantes.map(k => DOC_LABELS[k] || k).join(', ')}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18, gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', fontSize: 13, background: 'rgba(255,255,255,.06)', border: `1px solid ${cores.cardBorda}`, borderRadius: 8, cursor: 'pointer', color: cores.texto }}>
+            ✕ Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Clientes() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -90,6 +249,7 @@ export default function Clientes() {
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [filtroProduto, setFiltroProduto] = useState('todos')
   const [soDocumentos, setSoDocumentos] = useState(false)
+  const [selecionado, setSelecionado] = useState(null)
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
@@ -228,15 +388,18 @@ export default function Clientes() {
         const totalDocs = anexados.length + printsCli.filter(p => p.gerid && p.cnis).length * 2 + (printsCli.some(p => p.gerid && !p.cnis) || printsCli.some(p => p.cnis && !p.gerid) ? 1 : 0) + (c.link_assinatura ? 1 : 0)
 
         return (
-          <div key={c.id} style={{ background: cores.card, border: `1px solid ${cores.cardBorda}`, borderLeft: `3px solid ${info.cor}`, borderRadius: 14, padding: '1rem', marginBottom: 10 }}>
+          <div key={c.id} onClick={() => setSelecionado(c)} style={{ background: cores.card, border: `1px solid ${cores.cardBorda}`, borderLeft: `3px solid ${info.cor}`, borderRadius: 14, padding: '1rem', marginBottom: 10, cursor: 'pointer', transition: 'border-color .15s, transform .1s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = cores.cardBorda }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: cores.texto, marginBottom: 2 }}>{c.nome}</div>
                 <div style={{ fontSize: 12, color: cores.suave }}>{c.cpf} · {c.telefone}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={s.badge(prod.cor, prod.bg)}>{prod.label}</span>
                 <span style={s.badge(info.cor, info.bg)}>{info.icon} {info.label}</span>
+                <span style={s.badge('#a78bfa', 'rgba(167,139,250,.12)' )}>👁 Ver detalhes</span>
               </div>
             </div>
 
@@ -271,7 +434,7 @@ export default function Clientes() {
             {(anexados.length > 0 || temPrints || c.link_assinatura) ? (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {anexados.map(k => (
-                  <a key={k} href={docs[k]} target="_blank" rel="noreferrer"
+                  <a key={k} href={docs[k]} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(52,211,153,.10)', color: '#34d399', textDecoration: 'none', border: '1px solid rgba(52,211,153,.25)' }}>
                     {DOC_LABELS[k] || k}
                   </a>
@@ -279,13 +442,13 @@ export default function Clientes() {
                 {printsCli.filter(p => p.gerid || p.cnis).map((p, i) => (
                   <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
                     {p.gerid && (
-                      <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer"
+                      <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                         🖨️ Print GERID
                       </a>
                     )}
                     {p.cnis && (
-                      <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer"
+                      <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                         🖨️ Print CNIS
                       </a>
@@ -293,7 +456,7 @@ export default function Clientes() {
                   </span>
                 ))}
                 {c.link_assinatura && (
-                  <a href={c.link_assinatura} target="_blank" rel="noreferrer"
+                  <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
                     📨 Contrato de assinatura
                   </a>
@@ -311,6 +474,10 @@ export default function Clientes() {
           </div>
         )
       })}
+
+      {selecionado && (
+        <DetalhesModal c={selecionado} prints={prints} onClose={() => setSelecionado(null)} />
+      )}
     </div>
   )
 }
