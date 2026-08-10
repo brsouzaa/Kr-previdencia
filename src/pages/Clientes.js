@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { cores } from '../lib/tema'
-import UploadDocumento from '../components/UploadDocumento'
 
 const URL_STORAGE = 'https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/comprovantes-mae/'
 
@@ -106,15 +105,59 @@ function Campo({ label, valor, cor }) {
   )
 }
 
+function SubstituirDocumento({ label, url, clienteId, chave, onSalvarDoc }) {
+  const [enviando, setEnviando] = useState(false)
+  const inputRef = useRef(null)
+
+  async function trocar(file) {
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { alert('Arquivo muito grande (máx 10MB)'); return }
+    const tipos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+    if (!tipos.includes(file.type)) { alert('Use JPG, PNG ou PDF'); return }
+    setEnviando(true)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase()
+      const nome = `${clienteId}/${chave}_${Date.now()}.${ext}`
+      const { error: eUp } = await supabase.storage.from('documentos-clientes').upload(nome, file, { upsert: true, contentType: file.type })
+      if (eUp) throw new Error(eUp.message)
+      const { data: pub } = supabase.storage.from('documentos-clientes').getPublicUrl(nome)
+      await onSalvarDoc(clienteId, chave, pub.publicUrl)
+    } catch (e) {
+      alert('Erro ao subir documento: ' + (e.message || e))
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, fontSize: 12 }}>
+      <span style={{ color: cores.suave, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      {url ? (
+        <>
+          <a href={url} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline', whiteSpace: 'nowrap' }}>✓ ver</a>
+          <button onClick={() => inputRef.current?.click()} disabled={enviando}
+            style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+            {enviando ? '⏳ subindo...' : '🔄 substituir'}
+          </button>
+        </>
+      ) : (
+        <button onClick={() => inputRef.current?.click()} disabled={enviando}
+          style={{ background: 'rgba(96,165,250,.12)', border: '1px solid rgba(96,165,250,.30)', color: '#60a5fa', borderRadius: 6, padding: '3px 8px', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
+          {enviando ? '⏳ subindo...' : '➕ anexar'}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf" style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) trocar(f) }} />
+    </div>
+  )
+}
+
 function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
-  const [mostrarUpload, setMostrarUpload] = useState(false)
   if (!c) return null
   const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
   const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
   const docs = c.documentos || {}
   const chaves = chavesDe(c.produto)
   const anexados = chaves.filter(k => docs[k])
-  const faltantes = chaves.filter(k => !docs[k])
   const printsCli = prints[c.id] || []
   const temPrints = printsCli.some(p => p.gerid || p.cnis)
   const endereco = [c.rua, c.numero, c.bairro].filter(Boolean).join(', ') || c.endereco || ''
@@ -199,63 +242,37 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
         <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>
           📎 Documentos · {anexados.length}/{chaves.length}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {anexados.map(k => (
-            <a key={k} href={docs[k]} target="_blank" rel="noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(52,211,153,.10)', color: '#34d399', textDecoration: 'none', border: '1px solid rgba(52,211,153,.25)' }}>
-              {DOC_LABELS[k] || k}
-            </a>
+        <div>
+          {chaves.map(k => (
+            <SubstituirDocumento key={k} label={DOC_LABELS[k] || k} url={docs[k]} clienteId={c.id} chave={k} onSalvarDoc={onSalvarDoc} />
           ))}
-          {temPrints && printsCli.filter(p => p.gerid || p.cnis).map((p, i) => (
-            <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
-              {p.gerid && (
-                <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
-                  🖨️ Print GERID
-                </a>
-              )}
-              {p.cnis && (
-                <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
-                  🖨️ Print CNIS
-                </a>
-              )}
-            </span>
-          ))}
-          {c.link_assinatura && (
-            <a href={c.link_assinatura} target="_blank" rel="noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
-              📨 Contrato de assinatura
-            </a>
-          )}
-          {anexados.length === 0 && !temPrints && !c.link_assinatura && (
-            <span style={{ fontSize: 12.5, color: cores.suave }}>Nenhum documento anexado ainda.</span>
-          )}
         </div>
 
-        {faltantes.length > 0 && (
-          <div style={{ marginTop: 10, fontSize: 11.5, color: cores.suave }}>
-            Faltando: {faltantes.map(k => DOC_LABELS[k] || k).join(', ')}
-          </div>
-        )}
-
-        {faltantes.length > 0 && (
-          <>
-            <button onClick={() => setMostrarUpload(v => !v)}
-              style={{ marginTop: 12, padding: '8px 14px', fontSize: 12.5, background: 'rgba(96,165,250,.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,.30)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
-              {mostrarUpload ? '✕ Cancelar' : `➕ Adicionar ${faltantes.length} documento${faltantes.length !== 1 ? 's' : ''} faltante${faltantes.length !== 1 ? 's' : ''}`}
-            </button>
-            {mostrarUpload && (
-              <div style={{ marginTop: 12, padding: '1rem', background: 'rgba(255,255,255,.03)', border: `1px solid ${cores.cardBorda}`, borderRadius: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
-                  ⬆️ Anexar documento (JPG, PNG ou PDF · máx 10MB)
-                </div>
-                {faltantes.map(k => (
-                  <UploadDocumento key={k} label={DOC_LABELS[k] || k} obrigatorio={false} clienteId={c.id} chave={k} valorInicial={null} onChange={url => onSalvarDoc(c.id, k, url)} />
-                ))}
-              </div>
+        {(temPrints || c.link_assinatura) && (
+          <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {temPrints && printsCli.filter(p => p.gerid || p.cnis).map((p, i) => (
+              <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
+                {p.gerid && (
+                  <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                    🖨️ Print GERID
+                  </a>
+                )}
+                {p.cnis && (
+                  <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                    🖨️ Print CNIS
+                  </a>
+                )}
+              </span>
+            ))}
+            {c.link_assinatura && (
+              <a href={c.link_assinatura} target="_blank" rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
+                📨 Contrato de assinatura
+              </a>
             )}
-          </>
+          </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18, gap: 8 }}>
@@ -280,12 +297,14 @@ export default function Clientes() {
   const [filtroProduto, setFiltroProduto] = useState('todos')
   const [soDocumentos, setSoDocumentos] = useState(false)
   const [selecionado, setSelecionado] = useState(null)
+  const [limite, setLimite] = useState(80)
+  const carregouRef = useRef(false)
 
   const periodoRef = useRef(periodo)
   periodoRef.current = periodo
 
   const fetchTudo = useCallback(async () => {
-    setLoading(true)
+    if (!carregouRef.current) setLoading(true)
     const p = periodoRef.current
     const desde = p === 'todos' ? null : new Date(Date.now() - parseInt(p, 10) * 86400000)
 
@@ -309,6 +328,7 @@ export default function Clientes() {
       from += TAM
     }
     setClientes(todos)
+    carregouRef.current = true
 
     const { data: ac } = await supabase
       .from('acompanhamento_mae')
@@ -325,9 +345,13 @@ export default function Clientes() {
     setLoading(false)
   }, [])
 
+  useEffect(() => { carregouRef.current = false; setLimite(80) }, [periodo])
   useEffect(() => { fetchTudo() }, [fetchTudo, periodo])
   useEffect(() => {
-    const id = setInterval(fetchTudo, 30000)
+    // Refresca só quando a aba está visível, pra não pesar no background
+    const id = setInterval(() => {
+      if (!document.hidden) fetchTudo()
+    }, 60000)
     return () => clearInterval(id)
   }, [fetchTudo])
 
@@ -342,38 +366,54 @@ export default function Clientes() {
     setSelecionado(prev => prev && prev.id === clienteId ? { ...prev, documentos: novosDocs } : prev)
   }
 
-  const temDoc = (c) => {
+  const temDoc = useCallback((c) => {
     const docs = c.documentos || {}
     const anexados = chavesDe(c.produto).filter(k => docs[k])
     const temPrints = (prints[c.id] || []).some(p => p.gerid || p.cnis)
     return anexados.length > 0 || temPrints || !!c.link_assinatura
-  }
+  }, [prints])
 
-  const produtos = Array.from(new Set(clientes.map(c => c.produto).filter(Boolean))).sort()
-  const statuses = Array.from(new Set(clientes.map(c => c.status).filter(Boolean)))
-  const countsStatus = {}
-  statuses.forEach(st => { countsStatus[st] = clientes.filter(c => c.status === st).length })
-  const countComDoc = clientes.filter(temDoc).length
+  const produtos = useMemo(
+    () => Array.from(new Set(clientes.map(c => c.produto).filter(Boolean))).sort(),
+    [clientes]
+  )
+  const statuses = useMemo(
+    () => Array.from(new Set(clientes.map(c => c.status).filter(Boolean))),
+    [clientes]
+  )
+  const countsStatus = useMemo(() => {
+    const m = {}
+    statuses.forEach(st => { m[st] = clientes.filter(c => c.status === st).length })
+    return m
+  }, [clientes, statuses])
+  const countComDoc = useMemo(() => clientes.filter(temDoc).length, [clientes, temDoc])
 
-  const filtrados = clientes
-    .filter(c => {
-      if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
-      if (filtroProduto !== 'todos' && c.produto !== filtroProduto) return false
-      if (soDocumentos && !temDoc(c)) return false
-      if (busca.trim()) {
-        const b = busca.trim().toLowerCase()
-        const bDig = b.replace(/\D/g, '')
-        const cpfDig = (c.cpf || '').replace(/\D/g, '')
-        const telDig = (c.telefone || '').replace(/\D/g, '')
-        if (b === bDig && bDig) {
-          // busca por dígitos -> casa CPF ou telefone
-          return cpfDig.includes(bDig) || telDig.includes(bDig)
+  const filtrados = useMemo(() => {
+    return clientes
+      .filter(c => {
+        if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
+        if (filtroProduto !== 'todos' && c.produto !== filtroProduto) return false
+        if (soDocumentos && !temDoc(c)) return false
+        if (busca.trim()) {
+          const b = busca.trim().toLowerCase()
+          const bDig = b.replace(/\D/g, '')
+          const cpfDig = (c.cpf || '').replace(/\D/g, '')
+          const telDig = (c.telefone || '').replace(/\D/g, '')
+          if (b === bDig && bDig) {
+            // busca por dígitos -> casa CPF ou telefone
+            return cpfDig.includes(bDig) || telDig.includes(bDig)
+          }
+          return (c.nome || '').toLowerCase().includes(b)
         }
-        return (c.nome || '').toLowerCase().includes(b)
-      }
-      return true
-    })
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        return true
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }, [clientes, prints, busca, filtroStatus, filtroProduto, soDocumentos, temDoc])
+
+  useEffect(() => { setLimite(80) }, [busca, filtroStatus, filtroProduto, soDocumentos, periodo])
+
+  const visiveis = filtrados.slice(0, limite)
+  const restantes = filtrados.length - visiveis.length
 
   const s = {
     chip: (ativo, cor, bg) => ({
@@ -451,7 +491,8 @@ export default function Clientes() {
         <div style={{ textAlign: 'center', padding: '3rem', color: cores.suave, background: cores.card, borderRadius: 14, border: `1px solid ${cores.cardBorda}` }}>
           {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado.'}
         </div>
-      ) : filtrados.map(c => {
+      ) : <><div style={{ fontSize: 11.5, color: cores.suave, marginBottom: 8 }}>Mostrando {visiveis.length} de {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}</div>
+      {visiveis.map(c => {
         const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
         const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
         const docs = c.documentos || {}
@@ -548,7 +589,13 @@ export default function Clientes() {
           </div>
         )
       })}
-
+      {restantes > 0 && (
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <button onClick={() => setLimite(l => l + 200)} style={{ padding: '10px 20px', fontSize: 13, background: 'rgba(56,189,248,.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,.30)', borderRadius: 10, cursor: 'pointer', fontWeight: 500 }}>
+            Ver mais {Math.min(restantes, 200)} cliente{Math.min(restantes, 200) !== 1 ? 's' : ''} ({restantes} restante{restantes !== 1 ? 's' : ''})
+          </button>
+        </div>
+      )}</>}
       {selecionado && (
         <DetalhesModal c={selecionado} prints={prints} onClose={() => setSelecionado(null)} onSalvarDoc={salvarDocumento} />
       )}
