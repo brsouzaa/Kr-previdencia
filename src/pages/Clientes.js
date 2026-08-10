@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { cores } from '../lib/tema'
+import UploadDocumento from '../components/UploadDocumento'
 
 const URL_STORAGE = 'https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/comprovantes-mae/'
 
@@ -105,7 +106,8 @@ function Campo({ label, valor, cor }) {
   )
 }
 
-function DetalhesModal({ c, prints, onClose }) {
+function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
+  const [mostrarUpload, setMostrarUpload] = useState(false)
   if (!c) return null
   const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
   const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
@@ -237,6 +239,25 @@ function DetalhesModal({ c, prints, onClose }) {
           </div>
         )}
 
+        {faltantes.length > 0 && (
+          <>
+            <button onClick={() => setMostrarUpload(v => !v)}
+              style={{ marginTop: 12, padding: '8px 14px', fontSize: 12.5, background: 'rgba(96,165,250,.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,.30)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
+              {mostrarUpload ? '✕ Cancelar' : `➕ Adicionar ${faltantes.length} documento${faltantes.length !== 1 ? 's' : ''} faltante${faltantes.length !== 1 ? 's' : ''}`}
+            </button>
+            {mostrarUpload && (
+              <div style={{ marginTop: 12, padding: '1rem', background: 'rgba(255,255,255,.03)', border: `1px solid ${cores.cardBorda}`, borderRadius: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
+                  ⬆️ Anexar documento (JPG, PNG ou PDF · máx 10MB)
+                </div>
+                {faltantes.map(k => (
+                  <UploadDocumento key={k} label={DOC_LABELS[k] || k} obrigatorio={false} clienteId={c.id} chave={k} valorInicial={null} onChange={url => onSalvarDoc(c.id, k, url)} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18, gap: 8 }}>
           <button onClick={onClose} style={{ padding: '8px 18px', fontSize: 13, background: 'rgba(255,255,255,.06)', border: `1px solid ${cores.cardBorda}`, borderRadius: 8, cursor: 'pointer', color: cores.texto }}>
             ✕ Fechar
@@ -309,6 +330,17 @@ export default function Clientes() {
     const id = setInterval(fetchTudo, 30000)
     return () => clearInterval(id)
   }, [fetchTudo])
+
+  const salvarDocumento = async (clienteId, chave, url) => {
+    if (!url) return
+    const cli = clientes.find(x => x.id === clienteId)
+    if (!cli) return
+    const novosDocs = { ...(cli.documentos || {}), [chave]: url }
+    const { error } = await supabase.from('clientes').update({ documentos: novosDocs }).eq('id', clienteId)
+    if (error) { alert('Erro ao salvar documento: ' + error.message); return }
+    await fetchTudo()
+    setSelecionado(prev => prev && prev.id === clienteId ? { ...prev, documentos: novosDocs } : prev)
+  }
 
   const temDoc = (c) => {
     const docs = c.documentos || {}
@@ -518,7 +550,7 @@ export default function Clientes() {
       })}
 
       {selecionado && (
-        <DetalhesModal c={selecionado} prints={prints} onClose={() => setSelecionado(null)} />
+        <DetalhesModal c={selecionado} prints={prints} onClose={() => setSelecionado(null)} onSalvarDoc={salvarDocumento} />
       )}
     </div>
   )
