@@ -151,6 +151,8 @@ export default function RevisaoIAGestante() {
   }, [lead, recarregarConversa])
 
   const distribuir = async () => {
+    const semDono = board.filter(c => !c.bf_agente_id && ['CADASTRO', 'PRECISA_HUMANO', 'FALHA_EMISSAO', 'AGUARD_ASSINATURA'].includes(c.coluna)).length
+    if (!window.confirm(`⚖️ Distribuir ${semDono} atendimentos SEM DONO (cadastros e críticos) entre Letícia e Gislaine?\n\nAssinados, conversas com a IA e perdidos NÃO são distribuídos.\n\nTem certeza?`)) return
     const { data } = await supabase.rpc('gestante_atribuir_agentes')
     alert(data?.ok ? `✅ ${data.atribuidos} distribuídos no time` : (data?.erro || 'Erro'))
     carregar()
