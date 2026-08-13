@@ -381,6 +381,9 @@ export default function RevisaoIABolsaFamilia() {
   }
 
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
+  // e SEMPRE quem já mandou TODA a documentação (docs_completos) — parado ou não, em qualquer etapa.
+  if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
   if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
   else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
@@ -390,7 +393,7 @@ export default function RevisaoIABolsaFamilia() {
     <div>
       <div style={s.title}>🩷 Revisão IA — Bolsa Família</div>
       <div style={s.sub}>
-        {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Seus clientes do funil. Vermelho = travou, entre e destrave.'}
+        {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
       </div>
 
       <div style={s.topo}>
