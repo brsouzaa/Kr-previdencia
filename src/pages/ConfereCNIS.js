@@ -56,7 +56,7 @@ const s = {
   kpiPerigo: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #f87171', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
   tabela: { width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' },
   th: { textAlign: 'left', fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1e242f' },
-  td: { fontSize: 13, color: '#222', padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
+  td: { fontSize: 13, color: '#e6edf7', padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
   badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#8b9bb4', background: (MAP_V[v] || {}).bg || '#2b3340' }),
   badgeH: (bg, cor) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: cor, background: bg }),
   link: { fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
@@ -113,7 +113,10 @@ export default function ConfereCNIS() {
   const decisaoHumanaCel = (l) => {
     if (!l.decisao_humana) return <span style={{ color: '#64748b' }}>⏳ aguardando análise</span>
     if (l.decisao_humana === 'true') return <span style={s.badgeH('rgba(52,211,153,.14)', '#34d399')}>✅ Apta (cliente)</span>
-    return <span style={s.badgeH('rgba(248,113,113,.14)', '#f87171')}>⛔ Não cliente{l.motivo_reprovacao ? ` · ${l.motivo_reprovacao}` : ''}</span>
+    return (<>
+      <span style={s.badgeH('rgba(248,113,113,.14)', '#f87171')}>⛔ Não cliente</span>
+      {l.motivo_reprovacao ? <span style={{ color: '#8b9bb4', fontSize: 12, marginLeft: 6 }}>{l.motivo_reprovacao}</span> : null}
+    </>)
   }
   const bateuCel = (l) => {
     const c = classificar(l)
@@ -137,8 +140,8 @@ export default function ConfereCNIS() {
           </button>
         ))}
         {filtroData === 'custom' && (<>
-          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
-          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#e6edf7', colorScheme: 'dark' }} />
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#e6edf7', colorScheme: 'dark' }} />
         </>)}
       </div>
 
