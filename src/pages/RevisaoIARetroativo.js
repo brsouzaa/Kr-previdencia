@@ -99,18 +99,11 @@ function fmtParado(min) {
   return `${Math.floor(min / 1440)}d`
 }
 
-function sugestaoPara(lead) {
-  const nome = primeiroNome(lead.nome)
-  const map = {
-    PEDIU_CNIS: `${nome}, pra eu confirmar o seu direito só falta o seu extrato CNIS 📄 Você consegue me mandar? Se tiver dúvida de como tirar, eu te ajudo passo a passo 💗`,
-    PITCH_LIBERADO: `${nome}, boa notícia! ✅ Analisamos o seu CNIS e está tudo certo pra seguir. Posso te explicar os próximos passos?`,
-    CAD_ENDERECO: `${nome}, me passa seu CEP e o número da sua casa? 📍 É o primeiro passo do cadastro, rapidinho! 💗`,
-    CAD_RG: `${nome}, me manda as fotos do seu RG? Primeiro a FRENTE, depois o VERSO 🪪 Falta pouquinho! 💗`,
-    CAD_COMPROVANTE: `${nome}, agora me manda o documento do seu bebê (certidão de nascimento) 📜 Tá quase! 💗`,
-    CAD_FINAL: `${nome}, última etapa! 🎉 Me confirma seu CPF, o número do seu RG e seu nome completo (igualzinho ao documento) que eu finalizo seu cadastro 💗`,
-    AGUARDANDO_ASSINATURA: `${nome}, seu contrato já está prontinho esperando sua assinatura ✍️ É só clicar no link que te mandei. Qualquer dúvida me chama! 💗`,
-  }
-  return map[lead.coluna] || `Oi ${nome}! 💗 Tudo bem? Vi que a gente parou no meio — posso te ajudar a continuar?`
+// Responder é no Chatwoot (a IA pausa sozinha quando humano responde lá) — mesmo padrão do Revisão BF.
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
+const CHATWOOT_ACC = '1'
+function linkChatwoot(c) {
+  return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 }
 
 const CORES = {
@@ -191,7 +184,6 @@ export default function RevisaoIARetroativo() {
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
-  const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -276,7 +268,6 @@ export default function RevisaoIARetroativo() {
 
   const abrirLead = async (l) => {
     setLead(l)
-    setTexto(sugestaoPara(l))
     setMensagens([])
     setAnexos([])
     setCarregandoAnexos(true)
@@ -290,26 +281,8 @@ export default function RevisaoIARetroativo() {
     return () => clearInterval(t)
   }, [lead, recarregarConversa])
 
-  const fechar = () => { setLead(null); setMensagens([]); setTexto(''); setAnexos([]) }
+  const fechar = () => { setLead(null); setMensagens([]); setAnexos([]) }
 
-  const enviarComoAna = async () => {
-    if (!lead || !texto.trim() || enviando) return
-    setEnviando(true)
-    try {
-      const sugestaoOriginal = sugestaoPara(lead)
-      const { error } = await supabase.functions.invoke('bf-disparar-mensagem', {
-        body: {
-          lead_id: lead.id,
-          texto: texto.trim(),
-          agente_id: profile.id,
-          sugestao_ia: sugestaoOriginal,
-          editado: texto.trim() !== sugestaoOriginal,
-        },
-      })
-      if (error) { alert('Erro ao enviar: ' + (error.message || 'tente de novo')) }
-      else { fechar(); carregar() }
-    } finally { setEnviando(false) }
-  }
 
   // Pega o card (marca selo) sem mandar mensagem
   const marcarTratando = async (l) => {
@@ -440,7 +413,7 @@ export default function RevisaoIARetroativo() {
               <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && !veTodasColunas && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
               {cards.map(l => (
                 <div key={l.id} draggable
-                  onDragStart={() => setArrastando(l.id)}
+                  onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(l.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(l.id) }}
                   onDragEnd={() => setArrastando(null)}
                   style={{ ...s.card, ...(CORES[l.cor] || CORES.normal), cursor: 'grab' }}
                   onClick={() => abrirLead(l)}>
@@ -454,6 +427,11 @@ export default function RevisaoIARetroativo() {
                   </div>
                   {(l.coluna === 'REPROVADO' || l.coluna === 'NEGADO') && l.cnis_reprovado_motivo && (
                     <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
+                  )}
+                  {l.chatwoot_conversation_id && (
+                    <a href={linkChatwoot(l)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}
+                      style={{ fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '1px 7px', fontWeight: 700, display: 'inline-block', marginTop: 4 }}
+                      title="Abrir conversa no Chatwoot">💬</a>
                   )}
                   {seloTratamento(l)}
                 </div>
@@ -577,10 +555,14 @@ export default function RevisaoIARetroativo() {
               </div>
             )}
 
-            <textarea style={s.textarea} value={texto} onChange={e => setTexto(e.target.value)} placeholder="Mensagem que a Ana vai enviar..." />
-            <button style={s.btnEnviar} disabled={enviando || !texto.trim()} onClick={enviarComoAna}>
-              {enviando ? 'Enviando...' : '💬 Enviar como Ana'}
-            </button>
+            {linkChatwoot(lead) ? (
+              <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
+                style={{ display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' }}>
+                💬 Abrir conversa no Chatwoot
+              </a>
+            ) : (
+              <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
+            )}
           </div>
         </div>
       )}
