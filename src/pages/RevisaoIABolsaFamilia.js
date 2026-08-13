@@ -211,6 +211,8 @@ export default function RevisaoIABolsaFamilia() {
   const ehSupervisor = ehAdmin || ehSupervisorOp || ehSupervisorTime
 
   const [board, setBoard] = useState([])
+  const [robo, setRobo] = useState({ ligado: true, vivo: true })   // contexto do robô digitador (pra coluna A digitar)
+  const [limiarManual, setLimiarManual] = useState(30)             // min na fila sem robô digitar -> pode digitar manual
   const [soVermelhos, setSoVermelhos] = useState(false)
   const [arrastando, setArrastando] = useState(null)
   const [agentes, setAgentes] = useState([])
@@ -236,12 +238,21 @@ export default function RevisaoIABolsaFamilia() {
     const p_agente = ehSupervisor ? (filtroAgente || null) : profile.id
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const { data } = await supabase.rpc('bf_board', {
-      p_agente,
-      p_entrada_de: fe.de ? fe.de.toISOString() : null,
-      p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
-      p_ativ_de: fa.de ? fa.de.toISOString() : null,
-      p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
+    const [{ data }, ctl, hb] = await Promise.all([
+      supabase.rpc('bf_board', {
+        p_agente,
+        p_entrada_de: fe.de ? fe.de.toISOString() : null,
+        p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
+        p_ativ_de: fa.de ? fa.de.toISOString() : null,
+        p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
+      }),
+      supabase.from('digitador_control').select('ligado').eq('id', 1).single(),
+      supabase.from('digitador_heartbeat').select('ultimo_ping').order('ultimo_ping', { ascending: false }).limit(1),
+    ])
+    const ping = (hb.data || [])[0]?.ultimo_ping
+    setRobo({
+      ligado: ctl.data ? ctl.data.ligado !== false : true,
+      vivo: !!ping && (Date.now() - new Date(ping).getTime()) < 120000,
     })
     // Operação licenciada só enxerga os leads da própria operação
     const rows = (data || []).filter(l =>
@@ -255,6 +266,8 @@ export default function RevisaoIABolsaFamilia() {
   useEffect(() => {
     supabase.from('app_config').select('valor').eq('chave', 'bf_link_crefisa').single()
       .then(({ data }) => setLinkCrefisa(data?.valor || ''))
+    supabase.from('app_config').select('valor').eq('chave', 'bf_digitar_manual_min').single()
+      .then(({ data }) => { const v = parseInt(data?.valor, 10); if (v > 0) setLimiarManual(v) })
     const idsAgentes = ehAdmin ? IDS_AGENTES_BF : (ehSupervisorOp ? (OPERACAO_VENDEDORAS[minhaOp] || []) : (meuTime || []))
     if (idsAgentes.length) {
       supabase.from('profiles').select('id, nome').in('id', idsAgentes).order('nome')
@@ -355,6 +368,54 @@ export default function RevisaoIABolsaFamilia() {
     const { data } = await supabase.rpc('bf_atribuir_agentes')
     alert(data?.ok ? `✅ ${data.atribuidos} leads distribuídos` : (data?.erro || 'Erro'))
     carregar()
+  }
+
+  // ===== Status de DIGITAÇÃO no card "A digitar" (pedido 13/08) =====
+  // O atendente precisa saber: já digitada? robô falhou (motivo)? bloqueada na fila (motivo)?
+  // ou aguardando robô (timer) — e após X min sem digitar, PODE DIGITAR MANUAL.
+  const tagDig = (bg, cor, txt) => (
+    <div style={{ fontSize: 10, background: bg, color: cor, borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 }}>{txt}</div>
+  )
+  function statusDigitacao(c) {
+    if (c.dig_protocolo || c.dig_em) {
+      return tagDig('rgba(52,211,153,.16)', '#34d399', `🤖✅ DIGITADA pelo robô${c.dig_protocolo ? ` · prot. ${c.dig_protocolo}` : ''}`)
+    }
+    if (['erro', 'revisar', 'revisar_humano', 'faltando_dados'].includes(c.dig_status)) {
+      return (
+        <>
+          {tagDig('rgba(248,113,113,.16)', '#f87171', `🤖❌ robô NÃO digitou — ${(c.dig_detalhe || c.dig_status).slice(0, 60)}`)}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 DIGITAR MANUAL')}
+        </>
+      )
+    }
+    if (c.fila_apto === false) {
+      return tagDig('rgba(251,191,36,.14)', '#fbbf24', `🚫 fora da fila do robô — ${(c.fila_motivo || 'dados faltando').slice(0, 60)}`)
+    }
+    if (!robo.vivo) {
+      return (
+        <>
+          {tagDig('rgba(248,113,113,.16)', '#f87171', '🤖 robô SEM SINAL')}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 PODE DIGITAR MANUAL')}
+        </>
+      )
+    }
+    if (!robo.ligado) {
+      return (
+        <>
+          {tagDig('rgba(251,191,36,.14)', '#fbbf24', '⏸ fila do robô PAUSADA')}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 PODE DIGITAR MANUAL')}
+        </>
+      )
+    }
+    if (c.minutos_parado >= limiarManual) {
+      return (
+        <>
+          {tagDig('rgba(251,191,36,.14)', '#fbbf24', `⏱ na fila do robô há ${c.minutos_parado} min e nada`)}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', `🖐 PODE DIGITAR MANUAL (+${limiarManual}min)`)}
+        </>
+      )
+    }
+    return tagDig('rgba(96,165,250,.12)', '#60a5fa', `🤖 na fila do robô · ${c.minutos_parado} min ⏱`)
   }
 
   // Selo de tratamento no card, respeitando quem está olhando
@@ -465,6 +526,8 @@ export default function RevisaoIABolsaFamilia() {
                   </div>
                   {ehSupervisor && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
+                  {key === 'DOCS_COMPLETOS' && statusDigitacao(c)}
+                  {key === 'DOCS_COMPLETOS' && c.fila_aviso && <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>⚠ conferir CPF do extrato após digitar</div>}
                   {key !== 'NEGADO' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                       <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑 humano' : '🤖 IA'}</span>
@@ -499,6 +562,14 @@ export default function RevisaoIABolsaFamilia() {
               <div>📄 Extrato: {lead.doc_extrato ? '✅' : '❌'}</div>
             </div>
 
+            {lead.sub_estado === 'DOCS_COMPLETOS' && (
+              <div style={{ background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#8b9bb4', marginBottom: 4 }}>🤖 Digitação (robô)</div>
+                {statusDigitacao(lead)}
+                {lead.dig_detalhe && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>detalhe: {lead.dig_detalhe}</div>}
+                {lead.fila_aviso && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4 }}>⚠ {lead.fila_aviso}</div>}
+              </div>
+            )}
             <div style={s.anexoBox}>
               <div style={s.anexoLabel}>
                 📎 Anexos {carregandoAnexos ? '(carregando...)' : `(${anexos.length})`}
