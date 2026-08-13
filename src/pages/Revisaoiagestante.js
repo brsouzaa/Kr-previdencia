@@ -1,0 +1,300 @@
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+
+// ===== Revisão IA — Gestante (13/08) =====
+// Board de gestantes (5+ meses e <5 juntas, com destaque 🤰). Colunas DERIVADAS do estado real
+// (lead + contrato no CRM): o card muda de coluna sozinho — por isso NÃO tem arrastar aqui.
+// Críticos (falha de emissão c/ motivo, link expirado, aguard. assinatura) são AUTO-ATRIBUÍDOS
+// ao time e SEMPRE visíveis pra vendedora dona. Supervisora: Maryana (distribui e toma atendimento).
+
+const ID_MARYANA = 'be98f268-314f-4114-acc3-7bb9ce7635fd'
+const TIME_GESTANTE = [
+  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+]
+
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br'
+const CHATWOOT_ACC = '1'
+const linkChatwoot = (c) => c?.chatwoot_conversation_id
+  ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
+
+const COLUNAS = [
+  ['CONVERSA', '💬 Em conversa (IA)'],
+  ['CADASTRO', '📋 Coletando cadastro'],
+  ['PRECISA_HUMANO', '🙋 Precisa humano'],
+  ['FALHA_EMISSAO', '🛑 FALHA na emissão'],
+  ['AGUARD_ASSINATURA', '✍️ Aguard. assinatura'],
+  ['LINK_EXPIRADO', '⏰ Link EXPIRADO'],
+  ['ASSINADO', '✅ Assinados'],
+  ['PERDIDO', '❌ Perdidos'],
+  ['OUTROS', '❓ Outros'],
+]
+const COLUNAS_CRITICAS = ['FALHA_EMISSAO', 'AGUARD_ASSINATURA', 'LINK_EXPIRADO', 'PRECISA_HUMANO']
+
+const CORES = {
+  vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
+  amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
+  verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
+  normal: { border: '0.5px solid rgba(255,255,255,0.08)', background: '#232a37' },
+}
+
+const s = {
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
+  topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
+  kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
+  board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
+  col: { minWidth: 235, maxWidth: 235, background: '#2b3340', borderRadius: 10, padding: 8, flexShrink: 0 },
+  colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
+  card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
+  cardMeta: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  badge5: { fontSize: 10, background: 'rgba(244,114,182,.20)', color: '#f472b6', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
+  badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.16)', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#a78bfa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
+  tagFalha: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
+  modal: { background: '#232a37', borderRadius: 14, width: '100%', maxWidth: 620, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#1e242f', borderRadius: 10, padding: 12, marginBottom: 12 },
+  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#2b3340', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  btnVerde: { display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' },
+  btn: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
+  btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', marginRight: 6 },
+}
+
+function fmtParado(min) {
+  if (min == null) return '—'
+  if (min < 60) return `${min} min`
+  if (min < 1440) return `${Math.floor(min / 60)}h`
+  return `${Math.floor(min / 1440)}d`
+}
+
+export default function RevisaoIAGestante() {
+  const { profile } = useAuth()
+  const ehSupervisor = profile?.role === 'admin' || profile?.id === ID_MARYANA
+  const [board, setBoard] = useState([])
+  const [soVermelhos, setSoVermelhos] = useState(false)
+  const [filtroAgente, setFiltroAgente] = useState('')
+  const [agentes, setAgentes] = useState([])
+  const [lead, setLead] = useState(null)
+  const [mensagens, setMensagens] = useState([])
+  const [agindo, setAgindo] = useState(false)
+
+  const carregar = useCallback(async () => {
+    if (!profile?.id) return
+    const { data } = await supabase.rpc('gestante_board', {
+      p_agente: ehSupervisor ? (filtroAgente || null) : profile.id,
+    })
+    setBoard(data || [])
+  }, [profile, ehSupervisor, filtroAgente])
+
+  useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
+  useEffect(() => {
+    if (!ehSupervisor) return
+    supabase.from('profiles').select('id, nome').in('id', TIME_GESTANTE).order('nome')
+      .then(({ data }) => setAgentes(data || []))
+  }, [ehSupervisor])
+
+  const recarregarConversa = useCallback(async (l) => {
+    if (!l?.chatwoot_conversation_id) { setMensagens([]); return }
+    const { data: res } = await supabase.functions.invoke('bf-conversa', {
+      body: { conversation_id: l.chatwoot_conversation_id, limit: 12 },
+    })
+    if (res?.ok) setMensagens(res.mensagens || [])
+  }, [])
+
+  const abrirCard = async (l) => { setLead(l); setMensagens([]); recarregarConversa(l) }
+
+  const distribuir = async () => {
+    const { data } = await supabase.rpc('gestante_atribuir_agentes')
+    alert(data?.ok ? `✅ ${data.atribuidos} distribuídos no time` : (data?.erro || 'Erro'))
+    carregar()
+  }
+
+  // Supervisora toma o atendimento pra ela (tira do vendedor)
+  const puxarPraMim = async (l) => {
+    if (!l) return
+    setAgindo(true)
+    await supabase.rpc('gestante_reatribuir', { p_lead_id: l.id, p_agente_id: profile.id })
+    await supabase.rpc('bf_marcar_tratando', { p_lead_id: l.id, p_agente_id: profile.id })
+    setAgindo(false)
+    setLead({ ...l, bf_agente_id: profile.id, agente_nome: profile.nome, bf_em_tratamento: true })
+    carregar()
+  }
+
+  // Supervisora distribui um caso pra alguem do time (triagem dos expirados)
+  const redistribuir = async (l, agenteId) => {
+    if (!l || !agenteId) return
+    setAgindo(true)
+    const { data } = await supabase.rpc('gestante_reatribuir', { p_lead_id: l.id, p_agente_id: agenteId })
+    setAgindo(false)
+    if (!data?.ok) { alert('Não foi: ' + (data?.erro || 'erro')); return }
+    const ag = agentes.find(a => a.id === agenteId)
+    setLead({ ...l, bf_agente_id: agenteId, agente_nome: ag?.nome || '' })
+    carregar()
+  }
+
+  // Handoff IA<->humano — mesmos 2 gates do BF (flag + label), via edge bf-handoff
+  const handoff = async (l, acao) => {
+    if (!l) return
+    setAgindo(true)
+    const { data, error } = await supabase.functions.invoke('bf-handoff', {
+      body: { lead_id: l.id, acao, agente_id: profile?.id },
+    })
+    setAgindo(false)
+    if (error || !data?.ok) { alert('Erro: ' + (error?.message || data?.erro || 'falhou')); return }
+    setLead({ ...l, ana_pausada: acao === 'assumir' })
+    carregar()
+  }
+
+  // Vendedora: só travados (amarelo/vermelho), em tratamento, e SEMPRE os críticos dela
+  let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  if (!ehSupervisor) {
+    visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna))
+  }
+  const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
+  const criticos = board.filter(c => ['FALHA_EMISSAO', 'LINK_EXPIRADO', 'AGUARD_ASSINATURA'].includes(c.coluna)).length
+  const cincoMais = board.filter(c => c.cinco_mais).length
+
+  return (
+    <div>
+      <div style={s.title}>🤰 Revisão IA — Gestante</div>
+      <div style={s.sub}>
+        {ehSupervisor
+          ? 'Funil gestante (5+ meses destacadas 🤰). Colunas mudam sozinhas conforme o contrato. Críticos são auto-atribuídos ao time.'
+          : 'Seus atendimentos: quem TRAVOU (🟡 10min · 🔴 20min) e SEMPRE os críticos seus — falha de emissão, link expirado e aguardando assinatura.'}
+      </div>
+
+      <div style={s.topo}>
+        <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
+          🔴 Só vermelhos ({totalVermelhos})
+        </button>
+        <span style={s.kpi}>Total: <strong>{board.length}</strong></span>
+        <span style={{ ...s.kpi, background: 'rgba(244,114,182,.12)', color: '#f472b6' }}>🤰 5+ meses: <strong>{cincoMais}</strong></span>
+        <span style={{ ...s.kpi, background: 'rgba(248,113,113,.12)', color: '#f87171' }}>🚨 Críticos: <strong>{criticos}</strong></span>
+        {ehSupervisor && (
+          <>
+            <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
+              <option value="">Todos os agentes</option>
+              {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+            </select>
+            <button style={s.chip} onClick={distribuir}>⚖️ Distribuir sem dono</button>
+          </>
+        )}
+        <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
+      </div>
+
+      <div style={s.board}>
+        {COLUNAS.map(([key, label]) => {
+          const cards = visiveis.filter(c => c.coluna === key)
+          const critica = COLUNAS_CRITICAS.includes(key) && key !== 'PRECISA_HUMANO'
+          if (key === 'OUTROS' && cards.length === 0) return null
+          return (
+            <div key={key} style={{ ...s.col, ...(critica ? { border: '2px solid #f87171' } : {}) }}>
+              <div style={{ ...s.colTitulo, ...(critica ? { color: '#f87171', fontWeight: 700 } : {}) }}>
+                <span>{label}</span><span>{cards.length}</span>
+              </div>
+              {cards.map(c => (
+                <div key={c.id} style={{ ...s.card, ...(CORES[c.cor] || CORES.normal) }} onClick={() => abrirCard(c)}>
+                  <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                    <span style={c.cinco_mais ? s.badge5 : s.badgeMenos5}>🤰 {c.meses != null ? `${c.meses}m` : '?'}{c.cinco_mais ? ' · 5+' : ''}</span>
+                    <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑' : '🤖'}</span>
+                    {c.chatwoot_conversation_id && (
+                      <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} style={s.cardChat}>💬</a>
+                    )}
+                  </div>
+                  <div style={s.cardMeta}>
+                    {c.cor === 'vermelho' ? '🔴 ' : c.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(c.minutos_parado)}
+                    {ehSupervisor && c.agente_nome ? ` · 👤 ${c.agente_nome}` : ''}
+                  </div>
+                  {key === 'FALHA_EMISSAO' && c.falha_motivo && <div style={s.tagFalha}>🛑 {c.falha_motivo}</div>}
+                  {key === 'LINK_EXPIRADO' && <div style={s.tagFalha}>⏰ reemitir/reenviar link</div>}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
+      {lead && (
+        <div style={s.overlay} onClick={() => setLead(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome || 'Sem nome'}</div>
+            <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
+              {(COLUNAS.find(c => c[0] === lead.coluna) || [])[1] || lead.coluna} · parada há {fmtParado(lead.minutos_parado)}
+            </div>
+
+            <div style={s.ficha}>
+              <div>🤰 Gestação: <strong style={{ color: lead.cinco_mais ? '#f472b6' : '#e6edf7' }}>{lead.meses != null ? `${lead.meses} meses` : '—'}{lead.cinco_mais ? ' (5+)' : ''}</strong></div>
+              <div>📞 {lead.tel || '—'}</div>
+              <div>📄 Contrato: {lead.status_contrato || '—'}</div>
+              <div>🕐 Emitido: {lead.emitido_em ? new Date(lead.emitido_em).toLocaleString('pt-BR') : '—'}</div>
+              {ehSupervisor && <div>👤 {lead.agente_nome || 'sem dono'}</div>}
+              <div>Etapa IA: {lead.estado || '—'}</div>
+            </div>
+
+            {lead.falha_motivo && (
+              <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10, fontWeight: 600 }}>
+                🛑 Falha na emissão: {lead.falha_motivo}
+              </div>
+            )}
+            {lead.link_assinatura && (
+              <div style={{ fontSize: 12, background: '#1e242f', borderRadius: 8, padding: 10, marginBottom: 10, wordBreak: 'break-all' }}>
+                🔗 Link de assinatura{lead.coluna === 'LINK_EXPIRADO' ? ' (EXPIRADO — precisa reemitir)' : ''}:<br />
+                <a href={lead.link_assinatura} target="_blank" rel="noreferrer" style={{ color: '#60a5fa' }}>{lead.link_assinatura}</a>
+              </div>
+            )}
+
+            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#a78bfa' : '#60a5fa' }}>
+                  {lead.ana_pausada ? '🧑 Humano no controle — IA pausada' : '🤖 IA ativa (Ana respondendo)'}
+                </span>
+                {lead.ana_pausada ? (
+                  <button style={s.btn} disabled={agindo} onClick={() => handoff(lead, 'devolver')}>🤖 Devolver pra IA</button>
+                ) : (
+                  <button style={{ ...s.btn, background: '#a78bfa' }} disabled={agindo} onClick={() => handoff(lead, 'assumir')}>✋ Assumir (pausar IA)</button>
+                )}
+              </div>
+            </div>
+
+            {linkChatwoot(lead)
+              ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={s.btnVerde}>💬 Abrir conversa no Chatwoot</a>
+              : <div style={{ fontSize: 12, color: '#f87171', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
+
+            <div style={s.msgs}>
+              {mensagens.map((m, i) => (
+                <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content}</div>
+              ))}
+              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {ehSupervisor && lead.bf_agente_id !== profile.id && (
+                <button style={{ ...s.btn, background: '#f472b6' }} disabled={agindo} onClick={() => puxarPraMim(lead)}>🙋 Puxar pra mim</button>
+              )}
+              {ehSupervisor && (
+                <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#1e242f', color: '#c6d2e4', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  value="" disabled={agindo} onChange={e => redistribuir(lead, e.target.value)}>
+                  <option value="">↪ Distribuir para…</option>
+                  {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                </select>
+              )}
+              <button style={s.btnG} onClick={() => setLead(null)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
