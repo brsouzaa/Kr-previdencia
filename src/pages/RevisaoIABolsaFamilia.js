@@ -452,7 +452,7 @@ export default function RevisaoIABolsaFamilia() {
               {cards.map(c => {
                 return (
                 <div key={c.id} draggable
-                  onDragStart={() => setArrastando(c.id)}
+                  onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(c.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(c.id) }}
                   onDragEnd={() => setArrastando(null)}
                   style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab' }}
                   onClick={() => abrirCard(c)}>
@@ -466,7 +466,7 @@ export default function RevisaoIABolsaFamilia() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                       <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑 humano' : '🤖 IA'}</span>
                       {c.chatwoot_conversation_id && (
-                        <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={s.cardChat} title="Abrir conversa no Chatwoot">💬</a>
+                        <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()} style={s.cardChat} title="Abrir conversa no Chatwoot">💬</a>
                       )}
                     </div>
                   )}
