@@ -10,16 +10,16 @@ import { useAuth } from '../lib/AuthContext'
 
 const ID_MARYANA = 'be98f268-314f-4114-acc3-7bb9ce7635fd'
 const TIME_GESTANTE = [
-  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
-  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
-const CHATWOOT_BASE = 'https://chat.grupookr.com.br'
-const CHATWOOT_ACC = '1'
+// DUAL-CHATWOOT: roteia pela conta do lead (8918=VendeAI legado, 1=grupookr)
+const CW_NOVO = { base: 'https://chat.grupookr.com.br', acc: '1' }
+const CW_LEGADO = { base: 'https://crm.vendeaitecnologia.com.br', acc: '8918' }
+const instDe = (c) => String(c?.chatwoot_account_id) === '8918' ? CW_LEGADO : CW_NOVO
 const linkChatwoot = (c) => c?.chatwoot_conversation_id
-  ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
+  ? `${instDe(c).base}/app/accounts/${instDe(c).acc}/conversations/${c.chatwoot_conversation_id}` : null
 
 const COLUNAS = [
   ['CONVERSA', '💬 Em conversa (IA)'],
@@ -107,7 +107,7 @@ export default function RevisaoIAGestante() {
   const recarregarConversa = useCallback(async (l) => {
     if (!l?.chatwoot_conversation_id) { setMensagens([]); return }
     const { data: res } = await supabase.functions.invoke('bf-conversa', {
-      body: { conversation_id: l.chatwoot_conversation_id, limit: 12 },
+      body: { conversation_id: l.chatwoot_conversation_id, account_id: l.chatwoot_account_id || 1, limit: 12 },
     })
     if (res?.ok) setMensagens(res.mensagens || [])
   }, [])
