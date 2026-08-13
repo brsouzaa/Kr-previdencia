@@ -144,8 +144,8 @@ function sugestaoPara(lead, linkCrefisa) {
 }
 
 // Deep-link pro Chatwoot (responder é lá, não pelo CRM) — mesmo padrão do Confere CNIS/CLT
-const CHATWOOT_BASE = 'https://crm.vendeaitecnologia.com.br'
-const CHATWOOT_ACC = '8918'
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
+const CHATWOOT_ACC = '1'
 function linkChatwoot(c) {
   return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 }
