@@ -8,6 +8,7 @@ export const IDS_AGENTES_BF = [
   '64ced61d-fdae-4399-97c9-900c59120fff', // Pamela
   '7ad37a1d-e5be-438c-9afd-982646d507d4', // Juliana (Ju Ferreira)
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
+  '2c71c435-f5c2-49cf-984b-3629438045d2', // Hellen (helenlima451)
 ]
 
 // Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
