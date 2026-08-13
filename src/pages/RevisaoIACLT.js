@@ -9,8 +9,8 @@ import { useAuth } from '../lib/AuthContext'
 // Coluna vem derivada do clt_board (catch-all OUTROS: card nunca some).
 // ============================================================
 
-const CHATWOOT_BASE = 'https://crm.vendeaitecnologia.com.br'
-const CHATWOOT_ACC = '8918'
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
+const CHATWOOT_ACC = '1'
 
 // Supervisores de board (Egle) — mesmo padrão das outras telas
 const IDS_SUPERVISOR_BOARD = [
