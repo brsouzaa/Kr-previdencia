@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase'
 // Sem remarcacao: o historico se constroi sozinho do trabalho normal da atendente.
 // Quando a concordancia estiver alta e os erros perigosos zerados por um periodo, liga-se o corte automatico.
 
-const CHATWOOT_BASE = 'https://crm.vendeaitecnologia.com.br'
-const ACCOUNT = '8918'
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
+const ACCOUNT = '1'
 
 const MAP_V = {
   APTA: { label: 'Apta', cor: '#34d399', bg: 'rgba(52,211,153,.14)' },
