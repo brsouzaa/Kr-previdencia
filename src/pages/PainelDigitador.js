@@ -87,17 +87,21 @@ export default function PainelDigitador() {
     carregarSimul()
   }
 
+  const [avisos, setAvisos] = useState([])
+
   const carregar = useCallback(async () => {
-    const [c, se, hb, r] = await Promise.all([
+    const [c, se, hb, r, av] = await Promise.all([
       supabase.from('digitador_control').select('*').eq('id', 1).single(),
       supabase.from('digitador_sessoes').select('*').order('usuario'),
       supabase.from('digitador_heartbeat').select('*').order('ultimo_ping', { ascending: false }).limit(1),
       supabase.rpc('digitador_resumo'),
+      supabase.rpc('digitador_fila_avisos'),
     ])
     setControl(c.data || null)
     setSessoes(se.data || [])
     setHeartbeat((hb.data || [])[0] || null)
     setResumo(r.data || null)
+    setAvisos(av.data || [])
   }, [])
 
   const carregarConfs = useCallback(async () => {
@@ -216,7 +220,10 @@ export default function PainelDigitador() {
         <div style={s.card('#60a5fa')}>
           <div style={s.cardTop}>Fila apta</div>
           <div style={s.cardNum}>{resumo?.fila_apto ?? '—'}</div>
-          <div style={s.cardSub}>robô reporta: {heartbeat?.fila_pendente ?? '—'}</div>
+          <div style={s.cardSub}>
+            robô reporta: {heartbeat?.fila_pendente ?? '—'}
+            {(resumo?.fila_com_aviso ?? 0) > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}> · ⚠ {resumo.fila_com_aviso} com aviso</span>}
+          </div>
         </div>
         <div style={s.card('#34d399')}>
           <div style={s.cardTop}>Digitados hoje</div>
@@ -330,6 +337,21 @@ export default function PainelDigitador() {
       {/* ===== CONFERÊNCIA (pós-fato, 1 clique) ===== */}
       {aba === 'conferencia' && (
         <div>
+          {avisos.length > 0 && (
+            <div style={{ ...s.box, borderLeft: '4px solid #fbbf24', background: 'rgba(251,191,36,.06)' }}>
+              <div style={{ ...s.boxTitulo, color: '#fbbf24' }}>⚠ Avisos da fila ({avisos.length}) — NÃO bloqueiam a digitação, conferir DEPOIS</div>
+              <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>Regra 13/08: CPF do extrato divergente não trava mais o robô. Ele digita normal e o caso aparece aqui pra conferência pós-digitação.</div>
+              {avisos.map(a => (
+                <div key={a.lead_id} style={s.linha}>
+                  <div>
+                    <strong>{a.nome || '—'}</strong> <span style={s.mono}>{a.cpf || ''}</span>{' '}
+                    <span style={s.tag(a.apto ? 'rgba(52,211,153,.14)' : 'rgba(139,155,180,.14)', a.apto ? '#34d399' : '#8b9bb4')}>{a.apto ? 'na fila' : 'bloqueado (outro motivo)'}</span>
+                    <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 2 }}>{a.aviso}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             {[['pendentes', `A conferir (${conf.pendentes ?? 0})`], ['problema', `Com problema (${conf.com_problema ?? 0})`], ['todos', 'Todas (produção)'], ['sombra', 'Sombra (testes)']].map(([k, l]) => (
               <span key={k} style={s.chip(filtroConf === k)} onClick={() => setFiltroConf(k)}>{l}</span>
