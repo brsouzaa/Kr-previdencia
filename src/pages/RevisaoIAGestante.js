@@ -14,12 +14,11 @@ const TIME_GESTANTE = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
-// DUAL-CHATWOOT: roteia pela conta do lead (8918=VendeAI legado, 1=grupookr)
-const CW_NOVO = { base: 'https://chat.grupookr.com.br', acc: '1' }
-const CW_LEGADO = { base: 'https://crm.vendeaitecnologia.com.br', acc: '8918' }
-const instDe = (c) => String(c?.chatwoot_account_id) === '8918' ? CW_LEGADO : CW_NOVO
+// SOMENTE Chatwoot novo (grupookr) — o board já filtra no banco; nada da VendeAI aqui.
+const CHATWOOT_BASE = 'https://chat.grupookr.com.br'
+const CHATWOOT_ACC = '1'
 const linkChatwoot = (c) => c?.chatwoot_conversation_id
-  ? `${instDe(c).base}/app/accounts/${instDe(c).acc}/conversations/${c.chatwoot_conversation_id}` : null
+  ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 
 const COLUNAS = [
   ['CONVERSA', '💬 Em conversa (IA)'],
@@ -71,6 +70,25 @@ const s = {
   btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', marginRight: 6 },
 }
 
+// Faixa de datas a partir do preset (mesmo padrao das outras Revisoes IA)
+function faixaData(preset, cDe, cAte) {
+  const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+  const hoje = ini(new Date())
+  const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1)
+  if (preset === 'hoje') return { de: hoje, ate: amanha }
+  if (preset === 'ontem') { const o = new Date(hoje); o.setDate(o.getDate() - 1); return { de: o, ate: hoje } }
+  if (preset === '7d') { const d = new Date(hoje); d.setDate(d.getDate() - 6); return { de: d, ate: amanha } }
+  if (preset === 'mes') { const d = new Date(hoje); d.setDate(d.getDate() - 29); return { de: d, ate: amanha } }
+  if (preset === 'custom') {
+    const de = cDe ? ini(cDe + 'T00:00:00') : null
+    let ate = null
+    if (cAte) { ate = ini(cAte + 'T00:00:00'); ate.setDate(ate.getDate() + 1) }
+    return { de, ate }
+  }
+  return { de: null, ate: null }
+}
+const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
+
 function fmtParado(min) {
   if (min == null) return '—'
   if (min < 60) return `${min} min`
@@ -83,6 +101,11 @@ export default function RevisaoIAGestante() {
   const ehSupervisor = profile?.role === 'admin' || profile?.id === ID_MARYANA
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
+  const [so5mais, setSo5mais] = useState(false)
+  const [filtroEntrada, setFiltroEntrada] = useState('tudo')
+  const [filtroAtividade, setFiltroAtividade] = useState('mes')
+  const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
+  const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
   const [filtroAgente, setFiltroAgente] = useState('')
   const [agentes, setAgentes] = useState([])
   const [lead, setLead] = useState(null)
@@ -91,11 +114,17 @@ export default function RevisaoIAGestante() {
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
+    const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
+    const fa = faixaData(filtroAtividade, ativDe, ativAte)
     const { data } = await supabase.rpc('gestante_board', {
       p_agente: ehSupervisor ? (filtroAgente || null) : profile.id,
+      p_entrada_de: fe.de ? fe.de.toISOString() : null,
+      p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
+      p_ativ_de: fa.de ? fa.de.toISOString() : null,
+      p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
     })
     setBoard(data || [])
-  }, [profile, ehSupervisor, filtroAgente])
+  }, [profile, ehSupervisor, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
   useEffect(() => {
@@ -107,12 +136,19 @@ export default function RevisaoIAGestante() {
   const recarregarConversa = useCallback(async (l) => {
     if (!l?.chatwoot_conversation_id) { setMensagens([]); return }
     const { data: res } = await supabase.functions.invoke('bf-conversa', {
-      body: { conversation_id: l.chatwoot_conversation_id, account_id: l.chatwoot_account_id || 1, limit: 12 },
+      body: { conversation_id: l.chatwoot_conversation_id, account_id: 1, limit: 12 },
     })
     if (res?.ok) setMensagens(res.mensagens || [])
   }, [])
 
   const abrirCard = async (l) => { setLead(l); setMensagens([]); recarregarConversa(l) }
+
+  // conversa em tempo real: recarrega a cada 8s enquanto o modal estiver aberto
+  useEffect(() => {
+    if (!lead) return
+    const t = setInterval(() => { recarregarConversa(lead) }, 8000)
+    return () => clearInterval(t)
+  }, [lead, recarregarConversa])
 
   const distribuir = async () => {
     const { data } = await supabase.rpc('gestante_atribuir_agentes')
@@ -158,6 +194,7 @@ export default function RevisaoIAGestante() {
 
   // Vendedora: só travados (amarelo/vermelho), em tratamento, e SEMPRE os críticos dela
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  if (so5mais) visiveis = visiveis.filter(c => c.cinco_mais)
   if (!ehSupervisor) {
     visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna))
   }
@@ -178,6 +215,23 @@ export default function RevisaoIAGestante() {
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
+        <button style={{ ...s.chip, ...(so5mais ? { background: '#f472b6', color: '#232a37', borderColor: '#f472b6' } : {}) }} onClick={() => setSo5mais(v => !v)}>
+          🤰 Só 5+ meses
+        </button>
+        <select style={s.chip} value={filtroEntrada} onChange={e => setFiltroEntrada(e.target.value)} title="Data de entrada do lead">
+          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
+        </select>
+        {filtroEntrada === 'custom' && (<>
+          <input type="date" style={s.chip} value={entradaDe} onChange={e => setEntradaDe(e.target.value)} />
+          <input type="date" style={s.chip} value={entradaAte} onChange={e => setEntradaAte(e.target.value)} />
+        </>)}
+        <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
+          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
+        </select>
+        {filtroAtividade === 'custom' && (<>
+          <input type="date" style={s.chip} value={ativDe} onChange={e => setAtivDe(e.target.value)} />
+          <input type="date" style={s.chip} value={ativAte} onChange={e => setAtivAte(e.target.value)} />
+        </>)}
         <span style={s.kpi}>Total: <strong>{board.length}</strong></span>
         <span style={{ ...s.kpi, background: 'rgba(244,114,182,.12)', color: '#f472b6' }}>🤰 5+ meses: <strong>{cincoMais}</strong></span>
         <span style={{ ...s.kpi, background: 'rgba(248,113,113,.12)', color: '#f87171' }}>🚨 Críticos: <strong>{criticos}</strong></span>
@@ -272,6 +326,11 @@ export default function RevisaoIAGestante() {
               ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={s.btnVerde}>💬 Abrir conversa no Chatwoot</a>
               : <div style={{ fontSize: 12, color: '#f87171', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4' }}>💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span></span>
+              <button style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, cursor: 'pointer' }}
+                onClick={() => recarregarConversa(lead)}>🔄 Atualizar conversa</button>
+            </div>
             <div style={s.msgs}>
               {mensagens.map((m, i) => (
                 <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content}</div>
