@@ -121,6 +121,7 @@ const NAV_ADMIN = [
   { key: 'reposicoes', label: '🔄 Reposições' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
+  { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' },
   { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
@@ -143,7 +144,7 @@ const GRUPO_DE = {
   despesas: 'Gestão', recebimentos: 'Gestão', financeiro: 'Gestão', metas: 'Gestão',
   bi: 'Gestão', equipe: 'Gestão', advogados: 'Gestão', funil: 'Gestão',
   compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
-  revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA',
+  revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
@@ -290,6 +291,7 @@ export default function Layout({ children, page, setPage }) {
     'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   ]
   if (IDS_TIME_MARYANA.includes(profile?.id)) {
+    if (!nav.some(n => n.key === 'revisao_ia_gestante')) nav = [...nav, { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' }]
     if (!nav.some(n => n.key === 'revisao_ia_bf')) nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
     if (!nav.some(n => n.key === 'revisao_ia_retroativo')) nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
     if (!nav.some(n => n.key === 'revisao_ia_clt')) nav = [...nav, { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' }]
