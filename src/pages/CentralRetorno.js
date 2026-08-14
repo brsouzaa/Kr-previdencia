@@ -6,11 +6,17 @@ import { supabase } from '../lib/supabase'
 // (push grátis + avisos pagos WhatsApp/SMS/Email do KR Chat/PWA).
 // Todo acesso a dados passa pela edge central-retorno (admin-only,
 // service role só no backend, segredos sempre mascarados ****ab12).
+// Paleta dos gráficos validada (CVD + contraste) contra o fundo grafite.
 // ═══════════════════════════════════════════════════════════════
 
-const ROSA = '#f472b6' // acento da marca (uso pontual — tela B2B)
-const CORES_CANAL = { whatsapp: '#34d399', sms: '#60a5fa', email: '#fbbf24' }
+const ROSA = '#f472b6' // acento da marca (UI, nunca série de dado)
+// séries de dado (validadas): canais e funil de e-mail
+const CORES_CANAL = { whatsapp: '#059669', sms: '#3b82f6', email: '#d97706' }
 const ICONE_CANAL = { whatsapp: '💬', sms: '📱', email: '✉️' }
+const CORES_EMAIL = { enviados: '#8b5cf6', entregues: '#059669', abertos: '#3b82f6', clicados: '#ec4899' }
+// status (reservadas pra estado, nunca série)
+const OK = '#34d399', ALERTA = '#fbbf24', ERRO = '#f87171', NEUTRO = '#8b9bb4'
+
 const GATES = [
   ['conversa_criada', 'Iniciou conversa'], ['oferta_vista', 'Viu a oferta'],
   ['rg_frente', 'RG frente'], ['rg_verso', 'RG verso'],
@@ -18,25 +24,80 @@ const GATES = [
 ]
 const REGRA_NEGOCIO = 'Limitador: 1 SMS + 1 WhatsApp pagos por lead/dia (3/semana cada); email até 5/dia. O aviso só é disparado quando existe mensagem real esperando na conversa.'
 
+// ───────────────────────── design system da tela ─────────────────────────
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 },
-  kpiNum: { fontSize: 22, fontWeight: 700, color: '#e6edf7' },
-  kpiLbl: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  title: { fontSize: 20, fontWeight: 600, color: '#e6edf7', letterSpacing: '-0.01em' },
+  sub: { fontSize: 13, color: '#8b9bb4', marginTop: 2, marginBottom: 16 },
+  // seção = bloco branco da tela (card grande com cabeçalho)
+  secao: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 16, marginBottom: 14 },
+  secaoHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' },
+  secaoTit: { fontSize: 13, fontWeight: 600, color: '#c6d2e4' },
+  secaoSub: { fontSize: 11, color: '#64748b' },
+  // KPI = tile interno (superfície mais escura que a seção)
+  kpi: { background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 14px', minWidth: 0 },
+  kpiLbl: { fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  kpiNum: { fontSize: 24, fontWeight: 700, color: '#e6edf7', fontVariantNumeric: 'tabular-nums', lineHeight: 1.25, marginTop: 2 },
+  kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4, lineHeight: 1.5 },
+  grid: (min = 150) => ({ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 10 }),
   input: { padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.13)', background: '#1e242f', color: '#e6edf7', width: '100%', boxSizing: 'border-box' },
   label: { fontSize: 11, color: '#8b9bb4', display: 'block', marginBottom: 3, marginTop: 8 },
   btn: (cor = '#60a5fa', solido = false) => ({
-    padding: '7px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer',
-    border: `1px solid ${cor}`, background: solido ? cor : 'transparent', color: solido ? '#1a202c' : cor,
+    padding: '7px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+    border: `1px solid ${cor}`, background: solido ? cor : 'transparent', color: solido ? '#10141b' : cor,
   }),
-  aviso: { fontSize: 12, color: '#fbbf24', background: 'rgba(251,191,36,.1)', border: '0.5px solid rgba(251,191,36,.35)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.5 },
-  th: { textAlign: 'left', fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '9px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1e242f' },
-  td: { fontSize: 13, color: '#e6edf7', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
+  chip: (ativo, cor = ROSA) => ({
+    padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+    border: ativo ? `1px solid ${cor}` : '0.5px solid rgba(255,255,255,0.11)',
+    background: ativo ? `${cor}22` : '#1e242f', color: ativo ? cor : '#8b9bb4',
+  }),
+  aviso: { fontSize: 12, color: '#fbbf24', background: 'rgba(251,191,36,.08)', border: '0.5px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '9px 12px', lineHeight: 1.5 },
+  erroBox: { fontSize: 12, color: ERRO, background: 'rgba(248,113,113,.08)', border: '0.5px solid rgba(248,113,113,.35)', borderRadius: 10, padding: '9px 12px' },
+  th: { textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '9px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' },
+  td: { fontSize: 13, color: '#e6edf7', padding: '9px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.05)', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' },
+  tabela: { width: '100%', borderCollapse: 'collapse' },
   badge: (cor, bg) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, color: cor, background: bg }),
+  vazio: { color: '#64748b', fontSize: 12, padding: '18px 0', textAlign: 'center' },
+  nota: { fontSize: 11, color: '#64748b', marginTop: 8 },
 }
 const fmtBR = (dt) => { if (!dt) return '—'; try { return new Date(dt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return dt } }
 const reais = (v) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
+
+function Secao({ icone, titulo, sub, acao, children, estilo }) {
+  return (
+    <div style={{ ...s.secao, ...(estilo || {}) }}>
+      {(titulo || acao) && (
+        <div style={s.secaoHead}>
+          <div>
+            <span style={s.secaoTit}>{icone ? `${icone} ` : ''}{titulo}</span>
+            {sub && <span style={{ ...s.secaoSub, marginLeft: 8 }}>{sub}</span>}
+          </div>
+          {acao}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+function Kpi({ label, valor, cor, sub, borda }) {
+  return (
+    <div style={{ ...s.kpi, ...(borda ? { border: `1px solid ${borda}55`, boxShadow: `inset 3px 0 0 ${borda}` } : {}) }}>
+      <div style={s.kpiLbl}>{label}</div>
+      <div style={{ ...s.kpiNum, color: cor || '#e6edf7' }}>{valor}</div>
+      {sub && <div style={s.kpiSub}>{sub}</div>}
+    </div>
+  )
+}
+function Legenda({ itens }) {
+  return (
+    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10 }}>
+      {itens.map(([cor, lbl]) => (
+        <span key={lbl} style={{ fontSize: 11, color: '#8b9bb4', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: cor, display: 'inline-block' }} />{lbl}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 async function chamar(acao, extra = {}) {
   const { data, error } = await supabase.functions.invoke('central-retorno', { body: { acao, ...extra } })
@@ -49,6 +110,7 @@ async function chamar(acao, extra = {}) {
   return data
 }
 
+// ═══════════════════════════ página ═══════════════════════════
 export default function CentralRetorno() {
   const [tela, setTela] = useState('painel')
   const [ov, setOv] = useState(null)
@@ -63,134 +125,135 @@ export default function CentralRetorno() {
     return () => clearInterval(t)
   }, [carregarOverview])
 
-  return (
-    <div>
-      <div style={s.title}>📣 Central de Retorno</div>
-      <div style={s.sub}>Retrabalho multicanal do KR Chat: push grátis + avisos pagos por WhatsApp, SMS e email. <span style={{ color: ROSA }}>●</span> Interface do sistema que roda sozinho no banco.</div>
+  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[['painel', '📊 Painel'], ['leads', '👥 Leads'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['fila', '📜 Fila / Log']].map(([k, lbl]) => (
+  return (
+    <div style={{ maxWidth: 1180 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={s.title}>📣 Central de Retorno</div>
+          <div style={s.sub}>Retrabalho multicanal do KR Chat — push grátis + avisos pagos por WhatsApp, SMS e e-mail.</div>
+        </div>
+      </div>
+
+      {/* sub-navegação: controle segmentado */}
+      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 16, flexWrap: 'wrap' }}>
+        {ABAS.map(([k, lbl]) => (
           <button key={k} onClick={() => setTela(k)}
-            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: tela === k ? `1px solid ${ROSA}` : '0.5px solid rgba(255,255,255,0.11)', background: tela === k ? 'rgba(244,114,182,.14)' : '#232a37', color: tela === k ? ROSA : '#8b9bb4' }}>
+            style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: 'none', background: tela === k ? '#323b4d' : 'transparent', color: tela === k ? '#e6edf7' : '#8b9bb4', boxShadow: tela === k ? `inset 0 -2px 0 ${ROSA}` : 'none' }}>
             {lbl}
           </button>
         ))}
       </div>
 
-      {erro && <div style={{ ...s.aviso, color: '#f87171', borderColor: 'rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)', marginBottom: 12 }}>⚠ {erro}</div>}
+      {erro && <div style={{ ...s.erroBox, marginBottom: 12 }}>⚠ {erro}</div>}
       {!ov && !erro && <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div>}
 
       {ov && tela === 'painel' && <Painel ov={ov} />}
       {tela === 'leads' && <Leads />}
       {ov && tela === 'conectores' && <Conectores ov={ov} recarregar={carregarOverview} />}
       {tela === 'campanhas' && <Campanhas />}
+      {tela === 'email' && <Email />}
       {tela === 'fila' && <Fila />}
     </div>
   )
 }
 
-// ═══════════════ TELA 2 — PAINEL (home) ═══════════════
+// ═══════════════ PAINEL (home) ═══════════════
 function Painel({ ov }) {
   const hoje = new Date().toLocaleDateString('en-CA')
   const ontem = new Date(Date.now() - 86400000).toLocaleDateString('en-CA')
   const custosHoje = (ov.custos14 || []).filter(c => String(c.dia).slice(0, 10) === hoje)
   const custoTotalHoje = custosHoje.reduce((a, c) => a + Number(c.custo_reais || 0), 0)
+  const enviosHoje = custosHoje.reduce((a, c) => a + Number(c.envios || 0), 0)
   const pushHoje = (ov.push14 || []).find(p => String(p.dia).slice(0, 10) === hoje) || {}
   const fHoje = (ov.funil || []).find(f => String(f.dia).slice(0, 10) === hoje) || {}
   const fOntem = (ov.funil || []).find(f => String(f.dia).slice(0, 10) === ontem) || {}
+  const filaHoje = ov.fila_hoje || []
 
-  // grafico 14 dias: custo/dia empilhado por canal
+  // série 14 dias: custo/dia empilhado por canal
   const dias = {}
   ;(ov.custos14 || []).forEach(c => {
     const d = String(c.dia).slice(0, 10)
     if (!dias[d]) dias[d] = {}
-    dias[d][c.canal] = Number(c.custo_reais || 0)
+    dias[d][c.canal] = { custo: Number(c.custo_reais || 0), envios: Number(c.envios || 0) }
   })
   const serie = Object.entries(dias).sort((a, b) => a[0] < b[0] ? -1 : 1).slice(-14)
-  const maxDia = Math.max(0.01, ...serie.map(([, v]) => Object.values(v).reduce((a, x) => a + x, 0)))
+  const maxDia = Math.max(0.01, ...serie.map(([, v]) => Object.values(v).reduce((a, x) => a + x.custo, 0)))
 
-  const linhaFunil = (lbl, a, b) => (
-    <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}>
-      <span style={{ color: '#c6d2e4' }}>{lbl}</span>
-      <span><span style={{ color: '#8b9bb4' }}>{b || 0}</span><span style={{ color: '#64748b', margin: '0 5px' }}>→</span><b style={{ color: '#e6edf7' }}>{a || 0}</b></span>
-    </div>
-  )
+  const linhaFunil = (lbl, a, b) => {
+    const va = Number(a || 0), vb = Number(b || 0)
+    const delta = va - vb
+    return (
+      <div key={lbl} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, alignItems: 'center', fontSize: 12, padding: '5px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+        <span style={{ color: '#c6d2e4' }}>{lbl}</span>
+        <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>ontem {vb}</span>
+        <b style={{ color: '#e6edf7', fontVariantNumeric: 'tabular-nums', minWidth: 34, textAlign: 'right' }}>{va}</b>
+        <span style={{ fontSize: 11, minWidth: 40, textAlign: 'right', color: delta > 0 ? OK : delta < 0 ? ERRO : '#64748b' }}>
+          {delta === 0 ? '=' : (delta > 0 ? '▲ ' : '▼ ') + Math.abs(delta)}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 12 }}>
-        <div style={s.card}>
-          <div style={s.kpiNum}>{custosHoje.reduce((a, c) => a + Number(c.envios || 0), 0)}</div>
-          <div style={s.kpiLbl}>Avisos pagos enviados hoje</div>
-          <div style={{ fontSize: 11, marginTop: 6 }}>
-            {custosHoje.length === 0 ? <span style={{ color: '#64748b' }}>nenhum envio pago hoje</span> :
-              custosHoje.map(c => <div key={c.canal} style={{ color: CORES_CANAL[c.canal] || '#8b9bb4' }}>{ICONE_CANAL[c.canal]} {c.canal}: {c.envios} · {reais(c.custo_reais)}</div>)}
-          </div>
-        </div>
-        <div style={s.card}>
-          <div style={{ ...s.kpiNum, color: custoTotalHoje > 0 ? '#fbbf24' : '#e6edf7' }}>{reais(custoTotalHoje)}</div>
-          <div style={s.kpiLbl}>Custo pago hoje</div>
-        </div>
-        <div style={s.card}>
-          <div style={{ ...s.kpiNum, color: '#34d399' }}>{pushHoje.entregues || 0}</div>
-          <div style={s.kpiLbl}>Pushes entregues hoje (grátis)</div>
-          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>👆 {pushHoje.clicados || 0} clicados · {pushHoje.telefones_alcancados || 0} pessoas</div>
-        </div>
-        <div style={s.card}>
-          <div style={{ ...s.kpiNum, color: '#60a5fa' }}>{(ov.fila_hoje || []).length}</div>
-          <div style={s.kpiLbl}>Itens na fila hoje</div>
-          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>
-            {['pendente', 'enviado', 'falhou', 'cancelado'].map(st => {
-              const n = (ov.fila_hoje || []).filter(f => f.status === st).length
-              return n ? <span key={st} style={{ marginRight: 8 }}>{st}: <b style={{ color: '#e6edf7' }}>{n}</b></span> : null
-            })}
-          </div>
-        </div>
+      <div style={{ ...s.grid(170), marginBottom: 14 }}>
+        <Kpi label="Avisos pagos hoje" valor={enviosHoje}
+          sub={custosHoje.length === 0 ? 'nenhum envio pago hoje' :
+            custosHoje.map(c => `${ICONE_CANAL[c.canal] || ''} ${c.canal}: ${c.envios}`).join(' · ')} />
+        <Kpi label="Custo pago hoje" valor={reais(custoTotalHoje)} cor={custoTotalHoje > 0 ? ALERTA : '#e6edf7'} />
+        <Kpi label="Pushes entregues hoje" valor={pushHoje.entregues || 0} cor={OK}
+          sub={`👆 ${pushHoje.clicados || 0} clicados · ${pushHoje.telefones_alcancados || 0} pessoas · grátis`} />
+        <Kpi label="Fila hoje" valor={filaHoje.length}
+          sub={['pendente', 'enviado', 'falhou', 'cancelado'].map(st => {
+            const n = filaHoje.filter(f => f.status === st).length
+            return n ? `${st}: ${n}` : null
+          }).filter(Boolean).join(' · ') || 'vazia'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
-        <div style={s.card}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 10 }}>💸 Custo por dia — últimos 14 dias (empilhado por canal)</div>
-          {serie.length === 0 ? <div style={{ color: '#64748b', fontSize: 12 }}>Sem envios pagos no período. Push (grátis) continua rodando.</div> : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 110 }}>
-              {serie.map(([d, v]) => {
-                const tot = Object.values(v).reduce((a, x) => a + x, 0)
-                return (
-                  <div key={d} title={`${d.slice(8)}/${d.slice(5, 7)} · ${reais(tot)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
-                    {['email', 'sms', 'whatsapp'].map(cn => v[cn] ? (
-                      <div key={cn} style={{ height: Math.max(2, (v[cn] / maxDia) * 92), background: CORES_CANAL[cn], borderRadius: 2, marginTop: 1 }} />
-                    ) : null)}
-                    <div style={{ fontSize: 9, color: '#64748b', textAlign: 'center', marginTop: 3 }}>{d.slice(8)}</div>
-                  </div>
-                )
-              })}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+        <Secao icone="💸" titulo="Custo por dia" sub="últimos 14 dias · empilhado por canal" estilo={{ marginBottom: 0 }}>
+          {serie.length === 0 ? <div style={s.vazio}>Sem envios pagos no período. O push (grátis) continua rodando.</div> : (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
+                {serie.map(([d, v]) => {
+                  const tot = Object.values(v).reduce((a, x) => a + x.custo, 0)
+                  const detalhe = Object.entries(v).map(([cn, x]) => `${cn}: ${x.envios} envio(s) · ${reais(x.custo)}`).join('\n')
+                  return (
+                    <div key={d} title={`${d.slice(8)}/${d.slice(5, 7)} — total ${reais(tot)}\n${detalhe}`}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minWidth: 10 }}>
+                      {['email', 'sms', 'whatsapp'].map(cn => v[cn] ? (
+                        <div key={cn} style={{ height: Math.max(3, (v[cn].custo / maxDia) * 98), background: CORES_CANAL[cn], borderRadius: '2px 2px 0 0', marginTop: 2 }} />
+                      ) : null)}
+                      <div style={{ fontSize: 9, color: '#64748b', textAlign: 'center', marginTop: 4 }}>{d.slice(8)}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <Legenda itens={[[CORES_CANAL.whatsapp, 'whatsapp'], [CORES_CANAL.sms, 'sms'], [CORES_CANAL.email, 'email']]} />
             </div>
           )}
-          <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 8 }}>
-            {Object.entries(CORES_CANAL).map(([cn, cor]) => <span key={cn} style={{ marginRight: 10 }}><span style={{ color: cor }}>■</span> {cn}</span>)}
-          </div>
-        </div>
-        <div style={s.card}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 10 }}>🔻 Funil do chat — hoje vs ontem</div>
+        </Secao>
+
+        <Secao icone="🔻" titulo="Funil do chat" sub="hoje vs ontem" estilo={{ marginBottom: 0 }}>
           {linhaFunil('Chegaram', fHoje.chegaram, fOntem.chegaram)}
           {linhaFunil('Deram telefone', fHoje.deram_telefone, fOntem.deram_telefone)}
           {linhaFunil('Aceitaram push', fHoje.aceitaram_push, fOntem.aceitaram_push)}
           {linhaFunil('Iniciaram conversa', fHoje.iniciaram_conversa, fOntem.iniciaram_conversa)}
           {linhaFunil('Viram oferta', fHoje.viram_oferta, fOntem.viram_oferta)}
           {linhaFunil('Docs completos', fHoje.docs_completos, fOntem.docs_completos)}
-          <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>ontem → hoje</div>
-        </div>
+        </Secao>
       </div>
     </div>
   )
 }
 
-// ═══════════════ TELA — LEADS DO SITE ═══════════════
+// ═══════════════ LEADS DO SITE ═══════════════
 const PRODUTOS = [['', 'Todos'], ['bolsa', '🩷 Bolsa'], ['gravida', '🤰 Grávida'], ['mae', '🤱 Mãe'], ['outro', 'Outro']]
 const NOME_GATE = { conversa_criada: 'iniciou conversa', oferta_vista: 'viu oferta', rg_frente: 'RG frente', rg_verso: 'RG verso', extrato: 'extrato', docs_completos: 'docs completos' }
-
 const OPCOES_PERIODO = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['30d', '30 dias'], ['custom', 'personalizado']]
-// faixa de datas do cadastro (ISO com fuso local do navegador)
+
 function faixaCadastro(preset, cDe, cAte) {
   const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
   const hoje = ini(new Date())
@@ -255,65 +318,67 @@ function Leads() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-        {PRODUTOS.map(([v, lbl]) => (
-          <button key={v} onClick={() => setProduto(v)}
-            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: produto === v ? `1px solid ${ROSA}` : '0.5px solid rgba(255,255,255,0.11)', background: produto === v ? 'rgba(244,114,182,.14)' : '#232a37', color: produto === v ? ROSA : '#8b9bb4' }}>
-            {lbl}{v && contagem[v] != null ? ` (${contagem[v]})` : ''}{!v && leads ? ` (${leads.length})` : ''}
-          </button>
-        ))}
-        <input style={{ ...s.input, width: 220 }} placeholder="🔎 nome, telefone ou email" value={busca} onChange={e => setBusca(e.target.value)} />
-        <button style={s.btn('#34d399', true)} disabled={!visiveis.length} onClick={exportar}>⬇️ Exportar planilha ({visiveis.length})</button>
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 12, color: '#8b9bb4' }}>Cadastro em:</span>
-        {OPCOES_PERIODO.map(([v, lbl]) => (
-          <button key={v} onClick={() => setPeriodo(v)}
-            style={{ padding: '5px 11px', fontSize: 12, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: periodo === v ? '1px solid #60a5fa' : '0.5px solid rgba(255,255,255,0.11)', background: periodo === v ? 'rgba(96,165,250,.14)' : '#232a37', color: periodo === v ? '#60a5fa' : '#8b9bb4' }}>
-            {lbl}
-          </button>
-        ))}
-        {periodo === 'custom' && (<>
-          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ ...s.input, width: 150, colorScheme: 'dark' }} />
-          <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
-          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ ...s.input, width: 150, colorScheme: 'dark' }} />
-        </>)}
-      </div>
-      {msg && <div style={{ ...s.aviso, color: '#f87171', borderColor: 'rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)', marginBottom: 10 }}>{msg}</div>}
-      <div style={{ ...s.aviso, marginBottom: 12 }}>ℹ️ Leads que se cadastraram na página (deram telefone). Email só aparece para quem a página coletar — hoje o funil ainda não pede email.</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-        <thead><tr>
-          <th style={s.th}>Nome</th><th style={s.th}>Telefone</th><th style={s.th}>Email</th>
-          <th style={s.th}>Produto</th><th style={s.th}>Cadastro</th><th style={s.th}>Último passo</th><th style={s.th}>Push</th>
-        </tr></thead>
-        <tbody>
-          {!leads && <tr><td style={s.td} colSpan={7}>Carregando...</td></tr>}
-          {leads && visiveis.length === 0 && <tr><td style={s.td} colSpan={7}>Nenhum lead nesse filtro.</td></tr>}
-          {visiveis.slice(0, 500).map(l => (
-            <tr key={l.telefone}>
-              <td style={s.td}>{l.nome || <span style={{ color: '#64748b' }}>—</span>}</td>
-              <td style={s.td}>{l.telefone}</td>
-              <td style={s.td}>{l.email || <span style={{ color: '#64748b' }}>—</span>}</td>
-              <td style={s.td}><span style={s.badge(ROSA, 'rgba(244,114,182,.12)')}>{l.produto}</span></td>
-              <td style={s.td}>{fmtBR(l.cadastrado_em)}</td>
-              <td style={{ ...s.td, color: '#8b9bb4', fontSize: 12 }}>{NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro'}</td>
-              <td style={s.td}>{l.push_aceito ? '🔔' : <span style={{ color: '#64748b' }}>—</span>}</td>
-            </tr>
+      <Secao icone="🔎" titulo="Filtros" sub="leads que se cadastraram na página (deram telefone)"
+        acao={<button style={s.btn(OK, true)} disabled={!visiveis.length} onClick={exportar}>⬇️ Exportar planilha ({visiveis.length})</button>}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+          {PRODUTOS.map(([v, lbl]) => (
+            <button key={v} onClick={() => setProduto(v)} style={s.chip(produto === v)}>
+              {lbl}{v && contagem[v] != null ? ` · ${contagem[v]}` : ''}{!v && leads ? ` · ${leads.length}` : ''}
+            </button>
           ))}
-        </tbody>
-      </table>
-      <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Tabela mostra até 500 linhas; a planilha exporta TODOS os {visiveis.length} do filtro atual (com busca aplicada).</div>
+          <span style={{ flex: 1 }} />
+          <input style={{ ...s.input, width: 220 }} placeholder="nome, telefone ou email" value={busca} onChange={e => setBusca(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: '#8b9bb4', marginRight: 2 }}>Cadastro em:</span>
+          {OPCOES_PERIODO.map(([v, lbl]) => (
+            <button key={v} onClick={() => setPeriodo(v)} style={s.chip(periodo === v, '#60a5fa')}>{lbl}</button>
+          ))}
+          {periodo === 'custom' && (<>
+            <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'dark' }} />
+            <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
+            <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'dark' }} />
+          </>)}
+        </div>
+        <div style={s.nota}>E-mail só aparece para quem a página coletar — hoje o funil ainda não pede e-mail.</div>
+      </Secao>
+
+      {msg && <div style={{ ...s.erroBox, marginBottom: 12 }}>{msg}</div>}
+
+      <Secao icone="👥" titulo="Leads" sub={leads ? `${visiveis.length} no filtro atual · tabela mostra até 500 · a planilha exporta todos` : 'carregando…'}>
+        <table style={s.tabela}>
+          <thead><tr>
+            <th style={s.th}>Nome</th><th style={s.th}>Telefone</th><th style={s.th}>Email</th>
+            <th style={s.th}>Produto</th><th style={s.th}>Cadastro</th><th style={s.th}>Último passo</th><th style={s.th}>Push</th>
+          </tr></thead>
+          <tbody>
+            {!leads && <tr><td style={s.td} colSpan={7}><div style={s.vazio}>Carregando...</div></td></tr>}
+            {leads && visiveis.length === 0 && <tr><td style={s.td} colSpan={7}><div style={s.vazio}>Nenhum lead nesse filtro.</div></td></tr>}
+            {visiveis.slice(0, 500).map(l => (
+              <tr key={l.telefone}>
+                <td style={s.td}>{l.nome || <span style={{ color: '#64748b' }}>—</span>}</td>
+                <td style={s.td}>{l.telefone}</td>
+                <td style={s.td}>{l.email || <span style={{ color: '#64748b' }}>—</span>}</td>
+                <td style={s.td}><span style={s.badge(ROSA, 'rgba(244,114,182,.12)')}>{l.produto}</span></td>
+                <td style={s.td}>{fmtBR(l.cadastrado_em)}</td>
+                <td style={{ ...s.td, color: '#8b9bb4', fontSize: 12 }}>{NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro'}</td>
+                <td style={s.td}>{l.push_aceito ? '🔔' : <span style={{ color: '#64748b' }}>—</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Secao>
     </div>
   )
 }
 
-// ═══════════════ TELA 1 — CONECTORES ═══════════════
+// ═══════════════ CONECTORES ═══════════════
 function Conectores({ ov, recarregar }) {
-  const [editando, setEditando] = useState(null) // conector em edição
+  const [editando, setEditando] = useState(null)
   const [form, setForm] = useState({})
   const [custom, setCustom] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const [teste, setTeste] = useState(null) // {conector, telefone, email, resultado, rodando}
+  const [teste, setTeste] = useState(null)
   const [msg, setMsg] = useState('')
 
   const abrirEdicao = (c) => { setEditando(c); setForm({ ...c.form }); setCustom(false); setMsg('') }
@@ -342,28 +407,29 @@ function Conectores({ ov, recarregar }) {
   return (
     <div>
       <div style={{ ...s.aviso, marginBottom: 14 }}>📏 {REGRA_NEGOCIO}</div>
-      {msg && <div style={{ ...s.aviso, color: '#f87171', borderColor: 'rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)', marginBottom: 10 }}>{msg}</div>}
+      {msg && <div style={{ ...s.erroBox, marginBottom: 10 }}>{msg}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+      <div style={s.grid(290)}>
         {(ov.conectores || []).map(c => (
-          <div key={c.id} style={{ ...s.card, borderColor: c.ativo ? 'rgba(52,211,153,.4)' : 'rgba(255,255,255,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div key={c.id} style={{ ...s.secao, marginBottom: 0, borderLeft: `3px solid ${c.ativo ? OK : 'rgba(255,255,255,0.12)'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7' }}>{ICONE_CANAL[c.tipo] || '🔌'} {c.nome}</div>
               <button onClick={() => toggle(c)} title={c.ativo ? 'Desativar' : 'Ativar'}
-                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: c.ativo ? '#34d399' : '#3a4353', position: 'relative' }}>
+                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: c.ativo ? OK : '#3a4353', position: 'relative', flexShrink: 0 }}>
                 <span style={{ position: 'absolute', top: 3, left: c.ativo ? 23 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left .15s' }} />
               </button>
             </div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', lineHeight: 1.7 }}>
-              tipo: <b style={{ color: CORES_CANAL[c.tipo] || '#e6edf7' }}>{c.tipo}</b> · prioridade: {c.prioridade} · custo: {c.custo_centavos > 0 ? reais(c.custo_centavos / 100) + '/envio' : 'grátis'}<br />
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              <span style={s.badge(CORES_CANAL[c.tipo] ? '#e6edf7' : '#8b9bb4', `${CORES_CANAL[c.tipo] || '#2b3340'}55`)}>{c.tipo}</span>
               {c.configurado
-                ? <span style={s.badge('#34d399', 'rgba(52,211,153,.14)')}>✓ credenciais salvas</span>
-                : <span style={s.badge('#fbbf24', 'rgba(251,191,36,.12)')}>⚠ falta conectar</span>}
-              {' '}{c.ativo
-                ? <span style={s.badge('#34d399', 'rgba(52,211,153,.14)')}>ON</span>
-                : <span style={s.badge('#8b9bb4', '#2b3340')}>OFF</span>}
+                ? <span style={s.badge(OK, 'rgba(52,211,153,.14)')}>✓ credenciais salvas</span>
+                : <span style={s.badge(ALERTA, 'rgba(251,191,36,.12)')}>⚠ falta conectar</span>}
+              <span style={s.badge(c.ativo ? OK : '#8b9bb4', c.ativo ? 'rgba(52,211,153,.14)' : '#2b3340')}>{c.ativo ? 'ON' : 'OFF'}</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 10 }}>
+              prioridade {c.prioridade} · {c.custo_centavos > 0 ? `${reais(c.custo_centavos / 100)}/envio` : 'grátis'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button style={s.btn('#60a5fa')} onClick={() => abrirEdicao(c)}>{c.configurado ? '✏️ Editar' : '🔗 Conectar'}</button>
               <button style={s.btn(ROSA)} onClick={() => setTeste({ conector: c, telefone: '', email: '', resultado: null, rodando: false })}>🧪 Testar envio</button>
             </div>
@@ -371,7 +437,6 @@ function Conectores({ ov, recarregar }) {
         ))}
       </div>
 
-      {/* ---- formulário de conexão (por tipo, esconde o JSON) ---- */}
       {editando && (
         <Modal titulo={`${ICONE_CANAL[editando.tipo] || '🔌'} ${editando.nome} — conexão`} fechar={() => setEditando(null)}>
           {!custom && editando.tipo === 'whatsapp' && (<>
@@ -430,22 +495,21 @@ function Conectores({ ov, recarregar }) {
             </div>
           </>)}
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 10 }}>Segredos salvos aparecem mascarados (****ab12). Deixe mascarado para manter o valor atual; digite um novo para substituir.</div>
-          {msg && <div style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>{msg}</div>}
-          <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'space-between' }}>
+          {msg && <div style={{ fontSize: 12, color: ERRO, marginTop: 8 }}>{msg}</div>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <button style={s.btn('#8b9bb4')} onClick={() => setCustom(v => !v)}>{custom ? '← Formulário simples' : '⚙️ Provedor customizado (avançado)'}</button>
             <div style={{ display: 'flex', gap: 8 }}>
               <button style={s.btn('#8b9bb4')} onClick={() => setEditando(null)}>Cancelar</button>
-              <button style={s.btn('#34d399', true)} disabled={salvando} onClick={salvar}>{salvando ? 'Salvando…' : '💾 Salvar'}</button>
+              <button style={s.btn(OK, true)} disabled={salvando} onClick={salvar}>{salvando ? 'Salvando…' : '💾 Salvar'}</button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* ---- teste de envio ---- */}
       {teste && (
         <Modal titulo={`🧪 Testar ${teste.conector.nome}`} fechar={() => setTeste(null)}>
           <div style={{ fontSize: 12, color: '#8b9bb4', lineHeight: 1.6 }}>
-            Insere um item real na fila com o SEU telefone, canal fixo <b style={{ color: CORES_CANAL[teste.conector.tipo] }}>{teste.conector.tipo}</b>, e chama o despacho de verdade (mesmo caminho do robô). O limitador vale para o teste também — 2º teste no mesmo dia pode sair como “cancelado: limitador”.
+            Insere um item real na fila com o SEU telefone, canal fixo <b style={{ color: '#e6edf7' }}>{teste.conector.tipo}</b>, e chama o despacho de verdade (mesmo caminho do robô). O limitador vale para o teste também — 2º teste no mesmo dia pode sair como “cancelado: limitador”.
           </div>
           <label style={s.label}>Telefone do operador (DDD + número)</label>
           <input style={s.input} placeholder="11999991234" value={teste.telefone} onChange={e => setTeste(t => ({ ...t, telefone: e.target.value }))} />
@@ -457,7 +521,7 @@ function Conectores({ ov, recarregar }) {
             <button style={s.btn(ROSA, true)} disabled={teste.rodando} onClick={rodarTeste}>{teste.rodando ? 'Disparando…' : '🚀 Disparar teste'}</button>
           </div>
           {teste.resultado && (
-            <pre style={{ marginTop: 12, background: '#1a202c', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 10, fontSize: 11, color: teste.resultado.error ? '#f87171' : '#c6d2e4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 220, overflow: 'auto' }}>
+            <pre style={{ marginTop: 12, background: '#1a202c', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 10, fontSize: 11, color: teste.resultado.error ? ERRO : '#c6d2e4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 220, overflow: 'auto' }}>
               {JSON.stringify(teste.resultado, null, 2)}
             </pre>
           )}
@@ -467,7 +531,7 @@ function Conectores({ ov, recarregar }) {
   )
 }
 
-// ═══════════════ TELA 3 — CAMPANHAS ═══════════════
+// ═══════════════ CAMPANHAS ═══════════════
 function Campanhas() {
   const [dados, setDados] = useState(null)
   const [nova, setNova] = useState(null)
@@ -480,18 +544,19 @@ function Campanhas() {
   }, [])
   useEffect(() => { carregar() }, [carregar])
 
-  // alvo estimado com debounce quando o segmento muda
+  const segKey = nova ? JSON.stringify([nova.gates, nova.funil, nova.min_h, nova.max_h]) : ''
   useEffect(() => {
-    if (!nova) return
+    if (!segKey) return
     setAlvo(null)
+    const seg = JSON.parse(segKey)
     const t = setTimeout(async () => {
       try {
-        const r = await chamar('campanha_alvo', { gates: nova.gates, funil: nova.funil === 'todos' ? null : nova.funil, min_h: nova.min_h, max_h: nova.max_h })
+        const r = await chamar('campanha_alvo', { gates: seg[0], funil: seg[1] === 'todos' ? null : seg[1], min_h: seg[2], max_h: seg[3] })
         setAlvo(r.alvo)
       } catch { setAlvo('?') }
     }, 500)
     return () => clearTimeout(t)
-  }, [nova?.gates, nova?.funil, nova?.min_h, nova?.max_h])
+  }, [segKey])
 
   const abrirNova = () => setNova({ nome: '', titulo: 'Você tem 1 mensagem não lida 💌', corpo: '{nome}, sua conversa ficou parada e seu atendimento está esperando. Toque para continuar!', gates: ['conversa_criada', 'oferta_vista'], funil: 'todos', min_h: 24, max_h: 168 })
   const mudaGate = (g) => setNova(n => ({ ...n, gates: n.gates.includes(g) ? n.gates.filter(x => x !== g) : [...n.gates, g] }))
@@ -508,7 +573,7 @@ function Campanhas() {
     setOcupado(true); setMsg('')
     try {
       let cid = id
-      if (!cid) { // nova, ainda não salva
+      if (!cid) {
         const r = await chamar('campanha_salvar', { ...nova, funil: nova.funil === 'todos' ? null : nova.funil }); cid = r.id
       }
       const r2 = await chamar('campanha_disparar', { id: cid })
@@ -518,19 +583,21 @@ function Campanhas() {
     setOcupado(false)
   }
 
-  const primeiroNome = 'Maria' // preview
+  const primeiroNome = 'Maria'
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: '#8b9bb4' }}>Campanhas de push (grátis) para reengajar quem parou no funil do chat.</div>
-        <button style={s.btn(ROSA, true)} onClick={abrirNova}>+ Nova campanha</button>
-      </div>
       {msg && <div style={{ ...s.aviso, marginBottom: 10 }}>{msg}</div>}
 
+      {!nova && (
+        <Secao icone="📢" titulo="Campanhas de push" sub="reengajar quem parou no funil do chat — grátis"
+          acao={<button style={s.btn(ROSA, true)} onClick={abrirNova}>+ Nova campanha</button>} estilo={{ paddingBottom: 6 }}>
+          <div />
+        </Secao>
+      )}
+
       {nova && (
-        <div style={{ ...s.card, marginBottom: 14, border: `1px solid ${ROSA}44` }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7', marginBottom: 4 }}>Nova campanha</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <Secao icone="✨" titulo="Nova campanha" acao={<button style={s.btn('#8b9bb4')} onClick={() => setNova(null)}>Cancelar</button>} estilo={{ border: `1px solid ${ROSA}44` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
             <div>
               <label style={s.label}>Nome (interno)</label>
               <input style={s.input} value={nova.nome} onChange={e => setNova(n => ({ ...n, nome: e.target.value }))} placeholder="ex: resgate docs parados 24-72h" />
@@ -541,7 +608,7 @@ function Campanhas() {
               <label style={s.label}>Onde pararam (gates)</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {GATES.map(([g, lbl]) => (
-                  <label key={g} style={{ fontSize: 12, color: nova.gates.includes(g) ? '#e6edf7' : '#8b9bb4', background: nova.gates.includes(g) ? 'rgba(244,114,182,.14)' : '#1e242f', border: nova.gates.includes(g) ? `1px solid ${ROSA}` : '0.5px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '5px 9px', cursor: 'pointer' }}>
+                  <label key={g} style={{ ...s.chip(nova.gates.includes(g)), display: 'inline-block' }}>
                     <input type="checkbox" style={{ display: 'none' }} checked={nova.gates.includes(g)} onChange={() => mudaGate(g)} />{lbl}
                   </label>
                 ))}
@@ -567,66 +634,195 @@ function Campanhas() {
               <label style={s.label}>Preview do push</label>
               <div style={{ background: '#1a202c', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 12 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: ROSA, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>💌</div>
-                  <div>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: ROSA, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>💌</div>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#e6edf7' }}>{(nova.titulo || '').replace('{nome}', primeiroNome)}</div>
                     <div style={{ fontSize: 12, color: '#c6d2e4' }}>{(nova.corpo || '').replace('{nome}', primeiroNome)}</div>
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>chat.maismaeauxilio.com.br · agora</div>
                   </div>
                 </div>
               </div>
-              <div style={{ marginTop: 14, ...s.card, background: '#1e242f', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase' }}>🎯 Alvo estimado</div>
-                <div style={{ fontSize: 30, fontWeight: 700, color: alvo === null ? '#64748b' : ROSA }}>{alvo === null ? '…' : alvo}</div>
-                <div style={{ fontSize: 11, color: '#8b9bb4' }}>pessoas com push aceito nesse segmento agora</div>
+              <div style={{ ...s.kpi, marginTop: 14, textAlign: 'center' }}>
+                <div style={s.kpiLbl}>🎯 Alvo estimado</div>
+                <div style={{ ...s.kpiNum, fontSize: 30, color: alvo === null ? '#64748b' : ROSA }}>{alvo === null ? '…' : alvo}</div>
+                <div style={s.kpiSub}>pessoas com push aceito nesse segmento agora</div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-                <button style={s.btn('#8b9bb4')} onClick={() => setNova(null)}>Cancelar</button>
                 <button style={s.btn('#60a5fa')} disabled={ocupado} onClick={salvarRascunho}>💾 Salvar rascunho</button>
                 <button style={s.btn(ROSA, true)} disabled={ocupado} onClick={() => disparar(null, nova.nome || 'sem nome', alvo)}>🚀 Disparar agora</button>
               </div>
             </div>
           </div>
-        </div>
+        </Secao>
       )}
 
       {dados?.rascunhos?.length > 0 && (
-        <div style={{ ...s.card, marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>📝 Rascunhos</div>
+        <Secao icone="📝" titulo="Rascunhos">
           {dados.rascunhos.map(r => (
-            <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '5px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
+            <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
               <span style={{ color: '#e6edf7' }}>{r.nome} <span style={{ color: '#64748b', fontSize: 11 }}>· {(r.gates || []).join(', ')} · {r.funil || 'todos'} · {r.parado_min_horas}-{r.parado_max_horas}h</span></span>
               <button style={s.btn(ROSA)} disabled={ocupado} onClick={() => disparar(r.id, r.nome, null)}>🚀 Disparar</button>
             </div>
           ))}
-        </div>
+        </Secao>
       )}
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-        <thead><tr>
-          <th style={s.th}>Campanha</th><th style={s.th}>Disparada</th><th style={s.th}>Enviados</th>
-          <th style={s.th}>Entregues</th><th style={s.th}>Clicados</th><th style={s.th}>Voltaram e avançaram</th>
-        </tr></thead>
-        <tbody>
-          {!dados && <tr><td style={s.td} colSpan={6}>Carregando...</td></tr>}
-          {dados && (dados.relatorio || []).length === 0 && <tr><td style={s.td} colSpan={6}>Nenhuma campanha disparada ainda.</td></tr>}
-          {(dados?.relatorio || []).map(c => (
-            <tr key={c.id}>
-              <td style={s.td}>{c.nome}</td>
-              <td style={s.td}>{fmtBR(c.disparada_em)}</td>
-              <td style={s.td}>{c.enviados ?? '—'}</td>
-              <td style={s.td}>{c.entregues}</td>
-              <td style={s.td}>{c.clicados}</td>
-              <td style={{ ...s.td, color: c.voltaram_e_avancaram > 0 ? '#34d399' : '#8b9bb4', fontWeight: 600 }}>{c.voltaram_e_avancaram}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Secao icone="📈" titulo="Campanhas disparadas" sub="resultado em até 48h após o disparo">
+        <table style={s.tabela}>
+          <thead><tr>
+            <th style={s.th}>Campanha</th><th style={s.th}>Disparada</th><th style={s.th}>Enviados</th>
+            <th style={s.th}>Entregues</th><th style={s.th}>Clicados</th><th style={s.th}>Voltaram e avançaram</th>
+          </tr></thead>
+          <tbody>
+            {!dados && <tr><td style={s.td} colSpan={6}><div style={s.vazio}>Carregando...</div></td></tr>}
+            {dados && (dados.relatorio || []).length === 0 && <tr><td style={s.td} colSpan={6}><div style={s.vazio}>Nenhuma campanha disparada ainda.</div></td></tr>}
+            {(dados?.relatorio || []).map(c => (
+              <tr key={c.id}>
+                <td style={s.td}>{c.nome}</td>
+                <td style={s.td}>{fmtBR(c.disparada_em)}</td>
+                <td style={s.td}>{c.enviados ?? '—'}</td>
+                <td style={s.td}>{c.entregues}</td>
+                <td style={s.td}>{c.clicados}</td>
+                <td style={{ ...s.td, color: c.voltaram_e_avancaram > 0 ? OK : '#8b9bb4', fontWeight: 600 }}>{c.voltaram_e_avancaram}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Secao>
     </div>
   )
 }
 
-// ═══════════════ TELA 4 — FILA / LOG ═══════════════
+// ═══════════════ E-MAIL (máquina de nutrição) ═══════════════
+const NOME_STATUS_FLUXO = { ativo: ['ativo', OK, 'rgba(52,211,153,.14)'], concluiu_etapa_chave: ['✅ converteu', OK, 'rgba(52,211,153,.14)'], optout: ['🚫 descadastrou', ERRO, 'rgba(248,113,113,.14)'], fim_do_prazo: ['⏳ fim de prazo', '#8b9bb4', '#2b3340'] }
+
+function Email() {
+  const [dados, setDados] = useState(null)
+  const [msg, setMsg] = useState('')
+  useEffect(() => {
+    let vivo = true
+    chamar('email_painel').then(r => { if (vivo) setDados(r) }).catch(e => { if (vivo) setMsg(String(e.message || e)) })
+    return () => { vivo = false }
+  }, [])
+
+  if (msg) return <div style={s.erroBox}>{msg}</div>
+  if (!dados) return <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div>
+
+  const hoje = new Date().toLocaleDateString('en-CA')
+  const saude = dados.saude14 || []
+  const d0 = saude.find(x => String(x.dia).slice(0, 10) === hoje) || { enviados: 0, entregues: 0, abertos: 0, clicados: 0, falhados: 0, taxa_entrega_pct: null, taxa_abertura_pct: null }
+  const corEntrega = d0.taxa_entrega_pct == null ? NEUTRO : d0.taxa_entrega_pct < 80 ? ERRO : d0.taxa_entrega_pct < 90 ? ALERTA : OK
+  const fx = dados.fluxo || { no_fluxo: {}, tabela: [] }
+  const noFluxoTotal = Object.values(fx.no_fluxo || {}).reduce((a, x) => a + x, 0)
+  const falhas = dados.falhas || []
+  const temSpam = falhas.some(f => f.tipo === 'complained')
+
+  // gráfico de linhas 14 dias
+  const serie = [...saude].sort((a, b) => String(a.dia) < String(b.dia) ? -1 : 1).slice(-14)
+  const W = 640, H = 150, PADX = 34, PADT = 10, PADB = 20
+  const maxV = Math.max(1, ...serie.map(x => Number(x.enviados || 0)))
+  const px = (i) => serie.length < 2 ? W / 2 : PADX + i * ((W - PADX - 8) / (serie.length - 1))
+  const py = (v) => PADT + (1 - Number(v || 0) / maxV) * (H - PADT - PADB)
+  const linha = (campo) => serie.map((x, i) => `${px(i)},${py(x[campo])}`).join(' ')
+  const gridVals = [0, Math.round(maxV / 2), maxV]
+
+  return (
+    <div>
+      <div style={{ ...s.grid(140), marginBottom: 14 }}>
+        <Kpi label="Enviados hoje" valor={d0.enviados} />
+        <Kpi label="Entregues" valor={d0.entregues} />
+        <Kpi label="Abertos" valor={d0.abertos} />
+        <Kpi label="Clicados" valor={d0.clicados} />
+        <Kpi label="Falhados" valor={d0.falhados} cor={d0.falhados > 0 ? ERRO : '#e6edf7'} borda={d0.falhados > 0 ? ERRO : null} />
+        <Kpi label="Taxa de entrega" valor={d0.taxa_entrega_pct == null ? '—' : `${d0.taxa_entrega_pct}%`} cor={corEntrega} borda={corEntrega} />
+        <Kpi label="Taxa de abertura" valor={d0.taxa_abertura_pct == null ? '—' : `${d0.taxa_abertura_pct}%`} />
+      </div>
+
+      <Secao icone="📈" titulo="Últimos 14 dias" sub="passe o mouse no gráfico pra ver as taxas do dia">
+        {serie.length === 0 ? <div style={s.vazio}>Sem envios ainda.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 780, display: 'block' }}>
+              {gridVals.map(v => (
+                <g key={v}>
+                  <line x1={PADX} x2={W - 8} y1={py(v)} y2={py(v)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                  <text x={PADX - 6} y={py(v) + 3} textAnchor="end" fontSize="8.5" fill="#64748b">{v}</text>
+                </g>
+              ))}
+              {['enviados', 'entregues', 'abertos', 'clicados'].map(campo => (
+                <polyline key={campo} points={linha(campo)} fill="none" stroke={CORES_EMAIL[campo]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              ))}
+              {serie.map((x, i) => (
+                <g key={String(x.dia)}>
+                  <rect x={px(i) - 11} y={0} width={22} height={H - PADB} fill="transparent">
+                    <title>{`${String(x.dia).slice(8, 10)}/${String(x.dia).slice(5, 7)} · enviados ${x.enviados} · entregues ${x.entregues} (${x.taxa_entrega_pct ?? '—'}%) · abertos ${x.abertos} (${x.taxa_abertura_pct ?? '—'}%) · clicados ${x.clicados} · falhados ${x.falhados}`}</title>
+                  </rect>
+                  <text x={px(i)} y={H - 7} textAnchor="middle" fontSize="8" fill="#64748b">{String(x.dia).slice(8, 10)}</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        )}
+        <Legenda itens={[[CORES_EMAIL.enviados, 'enviados'], [CORES_EMAIL.entregues, 'entregues'], [CORES_EMAIL.abertos, 'abertos'], [CORES_EMAIL.clicados, 'clicados']]} />
+      </Secao>
+
+      <Secao icone="🌊" titulo="Fluxo de nutrição" sub="a máquina de e-mail de até 5 meses por lead">
+        <div style={{ ...s.grid(170), marginBottom: 12 }}>
+          <Kpi label="No fluxo agora" valor={noFluxoTotal}
+            sub={Object.entries(fx.no_fluxo || {}).map(([f, n]) => `${f}: ${n}`).join(' · ') || 'ninguém ainda'} />
+          <Kpi label="✅ Saíram — converteram" valor={fx.convertidos || 0} cor={OK} borda={OK}
+            sub="completaram a etapa-chave — o número de sucesso da máquina" />
+          <Kpi label="🚫 Descadastros" valor={fx.optout || 0} cor={(fx.optout || 0) > 0 ? ERRO : '#e6edf7'} />
+          <Kpi label="⏳ Fim de prazo" valor={fx.fim_prazo || 0} cor="#8b9bb4" />
+        </div>
+        <div style={{ ...s.aviso, marginBottom: 12 }}>🤰 Grávida: fluxo máximo de 60 dias. Demais: 150 dias. Saída automática quando o lead completa a etapa-chave (mãe: CNIS · grávida/bolsa: documentação completa).</div>
+        {(fx.tabela || []).length > 0 && (
+          <div>
+            <table style={s.tabela}>
+              <thead><tr>
+                <th style={s.th}>Telefone</th><th style={s.th}>Funil</th><th style={s.th}>Dia do fluxo</th><th style={s.th}>Status</th><th style={s.th}>Inscrito</th>
+              </tr></thead>
+              <tbody>
+                {fx.tabela.map((r, i) => {
+                  const [lbl, cor, bg] = NOME_STATUS_FLUXO[r.status] || [r.status, '#8b9bb4', '#2b3340']
+                  return (
+                    <tr key={i}>
+                      <td style={s.td}>{r.telefone}</td>
+                      <td style={s.td}><span style={s.badge(ROSA, 'rgba(244,114,182,.12)')}>{r.funil || '—'}</span></td>
+                      <td style={s.td}>dia {r.dia_fluxo}</td>
+                      <td style={s.td}><span style={s.badge(cor, bg)}>{lbl}</span></td>
+                      <td style={s.td}>{fmtBR(r.inscrito_em)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <div style={s.nota}>Últimos 200 inscritos no fluxo.</div>
+          </div>
+        )}
+      </Secao>
+
+      <Secao icone="🩺" titulo="Falhas recentes" sub="bounce / spam — diagnóstico de reputação"
+        acao={temSpam ? <span style={s.badge(ERRO, 'rgba(248,113,113,.14)')}>⚠ ALERTA: alguém marcou SPAM</span> : null}>
+        {falhas.length === 0 ? <div style={s.vazio}>Nenhuma falha registrada. 👌</div> : (
+          <table style={s.tabela}>
+            <thead><tr><th style={s.th}>Destinatário</th><th style={s.th}>Tipo</th><th style={s.th}>Quando</th></tr></thead>
+            <tbody>
+              {falhas.map((f, i) => (
+                <tr key={i} style={f.tipo === 'complained' ? { background: 'rgba(248,113,113,.1)' } : undefined}>
+                  <td style={s.td}>{f.destinatario}</td>
+                  <td style={{ ...s.td, color: f.tipo === 'complained' ? ERRO : ALERTA, fontWeight: 600 }}>{f.tipo === 'complained' ? '🚨 marcou spam' : '↩ devolvido (bounce)'}</td>
+                  <td style={s.td}>{fmtBR(f.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Secao>
+    </div>
+  )
+}
+
+// ═══════════════ FILA / LOG ═══════════════
 function Fila() {
   const [linhas, setLinhas] = useState(null)
   const [fStatus, setFStatus] = useState('')
@@ -649,57 +845,58 @@ function Fila() {
     setOcupado(false)
   }
 
-  const corStatus = { enviado: ['#34d399', 'rgba(52,211,153,.14)'], pendente: ['#60a5fa', 'rgba(96,165,250,.14)'], falhou: ['#f87171', 'rgba(248,113,113,.14)'], cancelado: ['#8b9bb4', '#2b3340'] }
+  const corStatus = { enviado: [OK, 'rgba(52,211,153,.14)'], pendente: ['#60a5fa', 'rgba(96,165,250,.14)'], falhou: [ERRO, 'rgba(248,113,113,.14)'], cancelado: ['#8b9bb4', '#2b3340'] }
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-        <select style={{ ...s.input, width: 150 }} value={fStatus} onChange={e => setFStatus(e.target.value)}>
-          <option value="">status: todos</option><option>pendente</option><option>enviado</option><option>falhou</option><option>cancelado</option>
-        </select>
-        <select style={{ ...s.input, width: 150 }} value={fCanal} onChange={e => setFCanal(e.target.value)}>
-          <option value="">canal: todos</option><option>whatsapp</option><option>sms</option><option>email</option><option>auto</option>
-        </select>
-        <input type="date" style={{ ...s.input, width: 160, colorScheme: 'dark' }} value={fDia} onChange={e => setFDia(e.target.value)} />
-        <button style={s.btn('#fbbf24')} disabled={ocupado} onClick={reprocessar}>↩️ Reprocessar falhados</button>
-      </div>
-      {msg && <div style={{ ...s.aviso, marginBottom: 10 }}>{msg}</div>}
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-        <thead><tr>
-          <th style={s.th}>Telefone</th><th style={s.th}>Canal</th><th style={s.th}>Provider</th><th style={s.th}>Status</th>
-          <th style={s.th}>Custo</th><th style={s.th}>Criado</th><th style={s.th}>Enviado</th><th style={s.th}>Detalhe</th>
-        </tr></thead>
-        <tbody>
-          {!linhas && <tr><td style={s.td} colSpan={8}>Carregando...</td></tr>}
-          {linhas && linhas.length === 0 && <tr><td style={s.td} colSpan={8}>Fila vazia nesse filtro.</td></tr>}
-          {(linhas || []).map(r => {
-            const [cor, bg] = corStatus[r.status] || ['#8b9bb4', '#2b3340']
-            const det = r.resultado || {}
-            return (
-              <tr key={r.id}>
-                <td style={s.td}>{r.telefone}{det.teste ? ' 🧪' : ''}</td>
-                <td style={{ ...s.td, color: CORES_CANAL[r.canal] || '#e6edf7' }}>{ICONE_CANAL[r.canal] || ''} {r.canal}</td>
-                <td style={s.td}>{r.provider || '—'}</td>
-                <td style={s.td}><span style={s.badge(cor, bg)}>{r.status}</span></td>
-                <td style={s.td}>{r.custo_centavos > 0 ? reais(r.custo_centavos / 100) : '—'}</td>
-                <td style={s.td}>{fmtBR(r.criado_em)}</td>
-                <td style={s.td}>{fmtBR(r.enviado_em)}</td>
-                <td style={{ ...s.td, fontSize: 11, color: '#8b9bb4', maxWidth: 260 }}>
-                  {det.http ? `HTTP ${det.http} ` : ''}{det.motivo || det.erro || (det.resp ? String(det.resp).slice(0, 80) : '') || '—'}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Últimos 200 itens do filtro. Telefones mascarados por privacidade — o número completo nunca sai do banco.</div>
+      <Secao icone="📜" titulo="Fila de avisos" sub="últimos 200 itens do filtro · telefones mascarados por privacidade"
+        acao={<button style={s.btn(ALERTA)} disabled={ocupado} onClick={reprocessar}>↩️ Reprocessar falhados</button>}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+          <select style={{ ...s.input, width: 150 }} value={fStatus} onChange={e => setFStatus(e.target.value)}>
+            <option value="">status: todos</option><option>pendente</option><option>enviado</option><option>falhou</option><option>cancelado</option>
+          </select>
+          <select style={{ ...s.input, width: 150 }} value={fCanal} onChange={e => setFCanal(e.target.value)}>
+            <option value="">canal: todos</option><option>whatsapp</option><option>sms</option><option>email</option><option>auto</option>
+          </select>
+          <input type="date" style={{ ...s.input, width: 160, colorScheme: 'dark' }} value={fDia} onChange={e => setFDia(e.target.value)} />
+        </div>
+        {msg && <div style={{ ...s.aviso, marginBottom: 10 }}>{msg}</div>}
+        <table style={s.tabela}>
+          <thead><tr>
+            <th style={s.th}>Telefone</th><th style={s.th}>Canal</th><th style={s.th}>Provider</th><th style={s.th}>Status</th>
+            <th style={s.th}>Custo</th><th style={s.th}>Criado</th><th style={s.th}>Enviado</th><th style={s.th}>Detalhe</th>
+          </tr></thead>
+          <tbody>
+            {!linhas && <tr><td style={s.td} colSpan={8}><div style={s.vazio}>Carregando...</div></td></tr>}
+            {linhas && linhas.length === 0 && <tr><td style={s.td} colSpan={8}><div style={s.vazio}>Fila vazia nesse filtro.</div></td></tr>}
+            {(linhas || []).map(r => {
+              const [cor, bg] = corStatus[r.status] || ['#8b9bb4', '#2b3340']
+              const det = r.resultado || {}
+              return (
+                <tr key={r.id}>
+                  <td style={s.td}>{r.telefone}{det.teste ? ' 🧪' : ''}</td>
+                  <td style={s.td}>{ICONE_CANAL[r.canal] || ''} {r.canal}</td>
+                  <td style={s.td}>{r.provider || '—'}</td>
+                  <td style={s.td}><span style={s.badge(cor, bg)}>{r.status}</span></td>
+                  <td style={s.td}>{r.custo_centavos > 0 ? reais(r.custo_centavos / 100) : '—'}</td>
+                  <td style={s.td}>{fmtBR(r.criado_em)}</td>
+                  <td style={s.td}>{fmtBR(r.enviado_em)}</td>
+                  <td style={{ ...s.td, fontSize: 11, color: '#8b9bb4', maxWidth: 260 }}>
+                    {det.http ? `HTTP ${det.http} ` : ''}{det.motivo || det.erro || (det.resp ? String(det.resp).slice(0, 80) : '') || '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </Secao>
     </div>
   )
 }
 
-// ═══════════════ modal simples ═══════════════
+// ═══════════════ modal ═══════════════
 function Modal({ titulo, fechar, children }) {
   return (
-    <div onClick={fechar} style={{ position: 'fixed', inset: 0, background: 'rgba(10,14,20,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 16 }}>
+    <div onClick={fechar} style={{ position: 'fixed', inset: 0, background: 'rgba(10,14,20,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: 18, width: 560, maxWidth: '96vw', maxHeight: '88vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7' }}>{titulo}</div>
