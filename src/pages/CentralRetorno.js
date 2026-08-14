@@ -69,7 +69,7 @@ export default function CentralRetorno() {
       <div style={s.sub}>Retrabalho multicanal do KR Chat: push grátis + avisos pagos por WhatsApp, SMS e email. <span style={{ color: ROSA }}>●</span> Interface do sistema que roda sozinho no banco.</div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[['painel', '📊 Painel'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['fila', '📜 Fila / Log']].map(([k, lbl]) => (
+        {[['painel', '📊 Painel'], ['leads', '👥 Leads'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['fila', '📜 Fila / Log']].map(([k, lbl]) => (
           <button key={k} onClick={() => setTela(k)}
             style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: tela === k ? `1px solid ${ROSA}` : '0.5px solid rgba(255,255,255,0.11)', background: tela === k ? 'rgba(244,114,182,.14)' : '#232a37', color: tela === k ? ROSA : '#8b9bb4' }}>
             {lbl}
@@ -81,6 +81,7 @@ export default function CentralRetorno() {
       {!ov && !erro && <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div>}
 
       {ov && tela === 'painel' && <Painel ov={ov} />}
+      {tela === 'leads' && <Leads />}
       {ov && tela === 'conectores' && <Conectores ov={ov} recarregar={carregarOverview} />}
       {tela === 'campanhas' && <Campanhas />}
       {tela === 'fila' && <Fila />}
@@ -180,6 +181,91 @@ function Painel({ ov }) {
           <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>ontem → hoje</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ═══════════════ TELA — LEADS DO SITE ═══════════════
+const PRODUTOS = [['', 'Todos'], ['bolsa', '🩷 Bolsa'], ['gravida', '🤰 Grávida'], ['mae', '🤱 Mãe'], ['outro', 'Outro']]
+const NOME_GATE = { conversa_criada: 'iniciou conversa', oferta_vista: 'viu oferta', rg_frente: 'RG frente', rg_verso: 'RG verso', extrato: 'extrato', docs_completos: 'docs completos' }
+
+function Leads() {
+  const [leads, setLeads] = useState(null)
+  const [produto, setProduto] = useState('')
+  const [busca, setBusca] = useState('')
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    let vivo = true
+    setLeads(null)
+    chamar('leads_list', { produto: produto || undefined })
+      .then(r => { if (vivo) setLeads(r.leads) })
+      .catch(e => { if (vivo) setMsg(String(e.message || e)) })
+    return () => { vivo = false }
+  }, [produto])
+
+  const visiveis = (leads || []).filter(l => {
+    if (!busca) return true
+    const b = busca.toLowerCase()
+    return (l.nome || '').toLowerCase().includes(b) || (l.telefone || '').includes(b) || (l.email || '').toLowerCase().includes(b)
+  })
+  const contagem = {}
+  ;(leads || []).forEach(l => { contagem[l.produto] = (contagem[l.produto] || 0) + 1 })
+
+  const exportar = () => {
+    const cab = ['nome', 'telefone', 'email', 'produto', 'cadastrado_em', 'ultimo_passo', 'push_aceito']
+    const linhas = visiveis.map(l => [
+      l.nome || '', l.telefone || '', l.email || '', l.produto || '',
+      l.cadastrado_em ? new Date(l.cadastrado_em).toLocaleString('pt-BR') : '',
+      NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro',
+      l.push_aceito ? 'sim' : 'não',
+    ])
+    const esc = (v) => '"' + String(v).replace(/"/g, '""') + '"'
+    const csv = '﻿' + [cab, ...linhas].map(r => r.map(esc).join(';')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `leads_${produto || 'todos'}_${new Date().toLocaleDateString('en-CA')}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        {PRODUTOS.map(([v, lbl]) => (
+          <button key={v} onClick={() => setProduto(v)}
+            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: produto === v ? `1px solid ${ROSA}` : '0.5px solid rgba(255,255,255,0.11)', background: produto === v ? 'rgba(244,114,182,.14)' : '#232a37', color: produto === v ? ROSA : '#8b9bb4' }}>
+            {lbl}{v && contagem[v] != null ? ` (${contagem[v]})` : ''}{!v && leads ? ` (${leads.length})` : ''}
+          </button>
+        ))}
+        <input style={{ ...s.input, width: 220 }} placeholder="🔎 nome, telefone ou email" value={busca} onChange={e => setBusca(e.target.value)} />
+        <button style={s.btn('#34d399', true)} disabled={!visiveis.length} onClick={exportar}>⬇️ Exportar planilha ({visiveis.length})</button>
+      </div>
+      {msg && <div style={{ ...s.aviso, color: '#f87171', borderColor: 'rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)', marginBottom: 10 }}>{msg}</div>}
+      <div style={{ ...s.aviso, marginBottom: 12 }}>ℹ️ Leads que se cadastraram na página (deram telefone). Email só aparece para quem a página coletar — hoje o funil ainda não pede email.</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <thead><tr>
+          <th style={s.th}>Nome</th><th style={s.th}>Telefone</th><th style={s.th}>Email</th>
+          <th style={s.th}>Produto</th><th style={s.th}>Cadastro</th><th style={s.th}>Último passo</th><th style={s.th}>Push</th>
+        </tr></thead>
+        <tbody>
+          {!leads && <tr><td style={s.td} colSpan={7}>Carregando...</td></tr>}
+          {leads && visiveis.length === 0 && <tr><td style={s.td} colSpan={7}>Nenhum lead nesse filtro.</td></tr>}
+          {visiveis.slice(0, 500).map(l => (
+            <tr key={l.telefone}>
+              <td style={s.td}>{l.nome || <span style={{ color: '#64748b' }}>—</span>}</td>
+              <td style={s.td}>{l.telefone}</td>
+              <td style={s.td}>{l.email || <span style={{ color: '#64748b' }}>—</span>}</td>
+              <td style={s.td}><span style={s.badge(ROSA, 'rgba(244,114,182,.12)')}>{l.produto}</span></td>
+              <td style={s.td}>{fmtBR(l.cadastrado_em)}</td>
+              <td style={{ ...s.td, color: '#8b9bb4', fontSize: 12 }}>{NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro'}</td>
+              <td style={s.td}>{l.push_aceito ? '🔔' : <span style={{ color: '#64748b' }}>—</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Tabela mostra até 500 linhas; a planilha exporta TODOS os {visiveis.length} do filtro atual (com busca aplicada).</div>
     </div>
   )
 }
