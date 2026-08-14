@@ -590,6 +590,12 @@ export default function RevisaoIABolsaFamilia() {
           🎯 {ehSupervisor ? 'Esteira' : 'Minha Fila'} ({fila.length})
         </button>
         {ehSupervisor && (
+          <button onClick={() => setVista('cockpit')}
+            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'cockpit' ? 'rgba(96,165,250,.16)' : 'transparent', color: vAtiva === 'cockpit' ? '#60a5fa' : '#8b9bb4' }}>
+            🧭 Cockpit
+          </button>
+        )}
+        {ehSupervisor && (
           <button onClick={() => setVista('funil')}
             style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#323b4d' : 'transparent', color: vAtiva === 'funil' ? '#e6edf7' : '#8b9bb4' }}>
             📋 Funil (mapa)
@@ -744,6 +750,12 @@ export default function RevisaoIABolsaFamilia() {
       )}
 
       {vAtiva === 'vendas' && <PainelVendas profile={profile} ehSupervisor={ehSupervisor} />}
+
+      {vAtiva === 'cockpit' && ehSupervisor && (
+        <PainelCockpit board={board} vendas={vendasMinhas} fila={fila}
+          verFilaDe={(agId) => { setFiltroAgente(agId); setVista('fila') }}
+          abrirCard={abrirCard} linkChatwoot={linkChatwoot} />
+      )}
 
       {vAtiva === 'funil' && (
       <div style={s.board}>
@@ -1035,6 +1047,168 @@ function PainelVendas({ profile, ehSupervisor }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════ 🧭 COCKPIT DA SUPERVISÃO (F2) ═══════════════
+// Ferramenta de COBRANÇA da Egle: quem está abaixo da meta, quem tem cliente
+// esperando, onde a operação trava — com 1 clique pra cair na fila da pessoa.
+function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot }) {
+  const hoje0 = (() => { const x = new Date(); x.setHours(0, 0, 0, 0); return x })()
+  const tile = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }
+  const lbl = { fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const num = (cor = '#e6edf7') => ({ fontSize: 24, fontWeight: 700, color: cor, fontVariantNumeric: 'tabular-nums' })
+  const thC = { textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }
+  const tdC = { fontSize: 13, color: '#e6edf7', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', fontVariantNumeric: 'tabular-nums' }
+
+  // ---- agregados por vendedora (a tabela de cobrança) ----
+  const ag = {}
+  const pega = (id, nome) => {
+    if (!ag[id]) ag[id] = { id, nome: nome || '—', carteira: 0, filaN: 0, estourados: 0, esperando: 0, whats: 0, vHoje: 0, volHoje: 0, v35: 0 }
+    return ag[id]
+  }
+  board.forEach(c => {
+    if (!c.bf_agente_id) return
+    const a = pega(c.bf_agente_id, c.agente_nome)
+    a.carteira++
+    if (c.whats_pessoal) { a.whats++; return }
+    if (c.sub_estado === 'BF_CONCLUIDO' || SUB_ESTADOS_NEGADO.includes(c.sub_estado)) return
+    a.filaN++
+    if (nivelSla(c)[0] === '🔴') a.estourados++
+    if (c.cliente_respondeu) a.esperando++
+  })
+  vendas.forEach(v => {
+    if (!v.agente_id) return
+    const a = pega(v.agente_id, v.agente_nome)
+    a.v35++
+    if (new Date(v.criado_em) >= hoje0) { a.vHoje++; a.volHoje += Number(v.valor || 0) }
+  })
+  const linhas = Object.values(ag).sort((a, b) => b.vHoje - a.vHoje || b.v35 - a.v35)
+
+  // ---- topo: o estado da operação em 4 números ----
+  const semDono = board.filter(c => !c.bf_agente_id && c.sub_estado !== 'BF_CONCLUIDO' && !SUB_ESTADOS_NEGADO.includes(c.sub_estado)).length
+  const esperandoTotal = fila.filter(c => c.cliente_respondeu)
+  const estouradosTotal = fila.filter(c => nivelSla(c)[0] === '🔴').length
+  const vHojeTime = vendas.filter(v => new Date(v.criado_em) >= hoje0)
+  const volHojeTime = vHojeTime.reduce((a, v) => a + Number(v.valor || 0), 0)
+
+  // ---- gargalo: em que etapa a operação está travando (só quem estourou SLA) ----
+  const gargalo = {}
+  fila.forEach(c => {
+    if (nivelSla(c)[0] === '🟢') return
+    const k = (COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado
+    gargalo[k] = (gargalo[k] || 0) + 1
+  })
+  const gargaloOrd = Object.entries(gargalo).sort((a, b) => b[1] - a[1]).slice(0, 6)
+  const maxG = Math.max(1, ...gargaloOrd.map(([, n]) => n))
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 12 }}>
+        <div style={tile}>
+          <div style={lbl}>💰 Vendas do time hoje</div>
+          <div style={num(vHojeTime.length > 0 ? '#34d399' : '#e6edf7')}>{vHojeTime.length}</div>
+          <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>{'R$ ' + volHojeTime.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+        </div>
+        <div style={{ ...tile, ...(esperandoTotal.length > 0 ? { border: '1px solid rgba(248,113,113,.5)' } : {}) }}>
+          <div style={lbl}>💬 Clientes ESPERANDO resposta</div>
+          <div style={num(esperandoTotal.length > 0 ? '#f87171' : '#34d399')}>{esperandoTotal.length}</div>
+          <div style={{ fontSize: 10, color: '#64748b' }}>responderam e ninguém atendeu — cobre isso primeiro</div>
+        </div>
+        <div style={tile}>
+          <div style={lbl}>🔴 SLA estourado (2×+)</div>
+          <div style={num(estouradosTotal > 0 ? '#fbbf24' : '#34d399')}>{estouradosTotal}</div>
+          <div style={{ fontSize: 10, color: '#64748b' }}>na fila geral de {fila.length}</div>
+        </div>
+        <div style={{ ...tile, ...(semDono > 0 ? { border: '1px solid rgba(251,191,36,.5)' } : {}) }}>
+          <div style={lbl}>⚪ Sem dono</div>
+          <div style={num(semDono > 0 ? '#fbbf24' : '#34d399')}>{semDono}</div>
+          <div style={{ fontSize: 10, color: '#64748b' }}>use ⚖️ Distribuir no Funil (mapa)</div>
+        </div>
+      </div>
+
+      {/* A TABELA DE COBRANÇA — por vendedora, metas na linha */}
+      <div style={{ ...tile, marginBottom: 12, padding: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>👥 Por vendedora — metas: {META_VENDAS_DIA} vendas/dia · conversão ≥ {META_CONVERSAO_PCT}%</div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+            <thead><tr>
+              <th style={thC}>Vendedora</th>
+              <th style={thC}>Vendas hoje</th>
+              <th style={thC}>Volume hoje</th>
+              <th style={thC}>Conversão</th>
+              <th style={thC}>Carteira</th>
+              <th style={thC}>Fila</th>
+              <th style={thC}>💬 Esperando</th>
+              <th style={thC}>🔴 Estourado</th>
+              <th style={thC}>📲 Whats</th>
+              <th style={thC}></th>
+            </tr></thead>
+            <tbody>
+              {linhas.length === 0 && <tr><td style={tdC} colSpan={10}><div style={{ textAlign: 'center', color: '#64748b', padding: 10 }}>Sem leads atribuídos ainda.</div></td></tr>}
+              {linhas.map(a => {
+                const conv = a.carteira ? Math.round((a.v35 / a.carteira) * 100) : 0
+                const bateuDia = a.vHoje >= META_VENDAS_DIA
+                return (
+                  <tr key={a.id}>
+                    <td style={{ ...tdC, fontWeight: 600 }}>{a.nome}</td>
+                    <td style={tdC}>
+                      <span style={{ fontWeight: 800, color: bateuDia ? '#34d399' : a.vHoje > 0 ? '#e6edf7' : '#f87171' }}>{a.vHoje}</span>
+                      <span style={{ color: '#64748b', fontSize: 11 }}> / {META_VENDAS_DIA}</span>
+                      <div style={{ height: 4, width: 70, background: '#1a202c', borderRadius: 2, marginTop: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, (a.vHoje / META_VENDAS_DIA) * 100)}%`, background: bateuDia ? '#34d399' : '#f472b6' }} />
+                      </div>
+                    </td>
+                    <td style={{ ...tdC, color: '#fbbf24', fontWeight: 700 }}>{'R$ ' + a.volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td style={{ ...tdC, fontWeight: 800, color: conv >= META_CONVERSAO_PCT ? '#34d399' : conv >= META_CONVERSAO_PCT / 2 ? '#fbbf24' : '#f87171' }}>{conv}%</td>
+                    <td style={tdC}>{a.carteira}</td>
+                    <td style={tdC}>{a.filaN}</td>
+                    <td style={{ ...tdC, color: a.esperando > 0 ? '#f87171' : '#64748b', fontWeight: a.esperando > 0 ? 800 : 400 }}>{a.esperando}</td>
+                    <td style={{ ...tdC, color: a.estourados > 0 ? '#fbbf24' : '#64748b' }}>{a.estourados}</td>
+                    <td style={tdC}>{a.whats}</td>
+                    <td style={tdC}>
+                      <button onClick={() => verFilaDe(a.id)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, cursor: 'pointer', border: '1px solid #60a5fa', background: 'transparent', color: '#60a5fa' }}>ver fila →</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+        {/* onde a operação trava */}
+        <div style={{ ...tile, padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🚧 Onde está travando (SLA estourado por etapa)</div>
+          {gargaloOrd.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 10 }}>Nenhuma etapa estourada. 👌</div>}
+          {gargaloOrd.map(([etapa, n]) => (
+            <div key={etapa} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
+                <span style={{ color: '#c6d2e4' }}>{etapa}</span><b style={{ color: '#e6edf7' }}>{n}</b>
+              </div>
+              <div style={{ height: 6, background: '#1a202c', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(n / maxG) * 100}%`, background: '#fbbf24', borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* a lista de cobrança imediata: cliente esperando, do pior pro melhor */}
+        <div style={{ ...tile, padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🚨 Cobrança imediata — clientes esperando resposta</div>
+          {esperandoTotal.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 10 }}>Ninguém esperando. 👏</div>}
+          {[...esperandoTotal].sort((a, b) => b.minutos_parado - a.minutos_parado).slice(0, 10).map(c => (
+            <div key={c.id} onClick={() => abrirCard(c)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171', minWidth: 62 }}>⏱ {c.minutos_parado} min</span>
+              <span style={{ fontSize: 13, color: '#e6edf7', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome || 'Sem nome'}</span>
+              <span style={{ fontSize: 11, color: '#8b9bb4' }}>{c.agente_nome || '⚪ sem dono'}</span>
+              {c.chatwoot_conversation_id && <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 13, textDecoration: 'none' }} title="Abrir no Chatwoot">💬</a>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
