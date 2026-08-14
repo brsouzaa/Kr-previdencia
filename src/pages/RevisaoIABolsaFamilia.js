@@ -214,6 +214,7 @@ export default function RevisaoIABolsaFamilia() {
   const [robo, setRobo] = useState({ ligado: true, vivo: true })   // contexto do robô digitador (pra coluna A digitar)
   const [limiarManual, setLimiarManual] = useState(30)             // min na fila sem robô digitar -> pode digitar manual
   const [soVermelhos, setSoVermelhos] = useState(false)
+  const [vista, setVista] = useState('funil')                      // 'funil' | 'whats' (em tratamento no Whats pessoal)
   const [arrastando, setArrastando] = useState(null)
   const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
@@ -352,6 +353,47 @@ export default function RevisaoIABolsaFamilia() {
     carregar()
   }
 
+  // "Tô tratando no meu WhatsApp": tira o card do board (vai pra aba própria) e pausa a Ana.
+  // Devolver: religa a Ana e o card volta pro funil. O handoff pode falhar (ex: sem conversa
+  // no Chatwoot) sem travar a marcação — a Ana só age no Chatwoot mesmo.
+  async function marcarWhats(c) {
+    if (!c) return
+    if (!window.confirm(`📲 Marcar "${c.nome || 'lead'}" como EM TRATAMENTO NO SEU WHATSAPP?\n\nO card sai do board (vai pra aba 💬 Meu WhatsApp) e a Ana é pausada nesse cliente.`)) return
+    setEnviando(true)
+    try { await supabase.functions.invoke('bf-handoff', { body: { lead_id: c.id, acao: 'assumir', agente_id: profile?.id } }) } catch (_) { /* segue */ }
+    const { error } = await supabase.rpc('bf_whats_pessoal', { p_lead_id: c.id, p_ligar: true, p_agente: profile?.id })
+    setEnviando(false)
+    if (error) { alert('Erro ao marcar: ' + error.message); return }
+    setLead(null); carregar()
+  }
+  async function devolverWhats(c) {
+    if (!c) return
+    if (!window.confirm(`↩ Devolver "${c.nome || 'lead'}" pro board?\n\nA Ana volta a atender esse cliente no Chatwoot.`)) return
+    setEnviando(true)
+    const { error } = await supabase.rpc('bf_whats_pessoal', { p_lead_id: c.id, p_ligar: false, p_agente: profile?.id })
+    if (!error) { try { await supabase.functions.invoke('bf-handoff', { body: { lead_id: c.id, acao: 'devolver', agente_id: profile?.id } }) } catch (_) { /* segue */ } }
+    setEnviando(false)
+    if (error) { alert('Erro ao devolver: ' + error.message); return }
+    setLead(null); carregar()
+  }
+
+  // "Venda feita": pede o valor da proposta, grava em bf_vendas (1 por lead; re-registrar
+  // atualiza o valor), conclui o lead e alimenta o painel de Vendas. Nada de card sumir.
+  async function registrarVenda(c) {
+    if (!c) return
+    const raw = window.prompt(`💰 VENDA FEITA — ${c.nome || 'lead'}\n\nValor da proposta (R$):`, c.valor || '')
+    if (raw == null) return
+    const t = String(raw).replace('R$', '').trim()
+    const valor = t.includes(',') ? parseFloat(t.replace(/\./g, '').replace(',', '.')) : parseFloat(t)
+    if (!valor || isNaN(valor) || valor <= 0) { alert('Valor inválido. Ex: 601,55'); return }
+    if (!window.confirm(`Confirmar VENDA de R$ ${valor.toFixed(2).replace('.', ',')} para "${c.nome || 'lead'}"?\n\nO card vai pra coluna Concluído e a venda entra no painel 💰 Vendas.`)) return
+    setEnviando(true)
+    const { data, error } = await supabase.rpc('bf_venda_registrar', { p_lead_id: c.id, p_agente: profile?.id, p_valor: valor })
+    setEnviando(false)
+    if (error || data?.erro) { alert('Erro ao registrar: ' + (error?.message || data?.erro)); return }
+    setLead(null); carregar()
+  }
+
   // Nega o lead com um motivo (codigo estavel de MOTIVOS_NEGADO)
   async function negar(c, motivoCodigo) {
     if (!c || !motivoCodigo) return
@@ -441,7 +483,13 @@ export default function RevisaoIABolsaFamilia() {
     carregar()
   }
 
+  // Em tratamento no WhatsApp pessoal: fora do funil, aba própria.
+  // Atendente vê os DELA; supervisor/admin vê de todo o escopo do board.
+  const noWhats = board.filter(c => c.whats_pessoal)
+  const meusWhats = ehSupervisor ? noWhats : noWhats.filter(c => c.bf_agente_id === profile?.id)
+
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
+  visiveis = visiveis.filter(c => !c.whats_pessoal) // quem está no Whats pessoal não polui o funil
   // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
   // e SEMPRE quem já mandou TODA a documentação (docs_completos) — parado ou não, em qualquer etapa.
   if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
@@ -457,6 +505,22 @@ export default function RevisaoIABolsaFamilia() {
         {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
       </div>
 
+      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10 }}>
+        <button onClick={() => setVista('funil')}
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'funil' ? '#323b4d' : 'transparent', color: vista === 'funil' ? '#e6edf7' : '#8b9bb4' }}>
+          📋 Funil
+        </button>
+        <button onClick={() => setVista('whats')}
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vista === 'whats' ? '#34d399' : '#8b9bb4' }}>
+          💬 {ehSupervisor ? 'WhatsApp do time' : 'Meu WhatsApp'} ({meusWhats.length})
+        </button>
+        <button onClick={() => setVista('vendas')}
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'vendas' ? 'rgba(251,191,36,.16)' : 'transparent', color: vista === 'vendas' ? '#fbbf24' : '#8b9bb4' }}>
+          💰 Vendas
+        </button>
+      </div>
+
+      {vista === 'funil' && (
       <div style={s.topo}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
@@ -494,7 +558,47 @@ export default function RevisaoIABolsaFamilia() {
         )}
         <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
       </div>
+      )}
 
+      {vista === 'whats' && (
+        <div>
+          <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
+            Clientes em tratamento no WhatsApp pessoal — fora do funil, com a Ana pausada. Terminou? <b style={{ color: '#e6edf7' }}>Devolver pro board</b> religa a Ana e o card volta pras colunas.
+          </div>
+          {meusWhats.length === 0 && (
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+              Ninguém no WhatsApp pessoal agora. Pra levar um cliente pra cá, abra o card no funil e clique em “📲 Tratando no meu Whats”.
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+            {meusWhats.map(c => (
+              <div key={c.id} style={{ background: '#232a37', border: '1px solid rgba(52,211,153,.35)', borderLeft: '3px solid #34d399', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7', marginBottom: 2 }}>{c.nome || 'Sem nome'}</div>
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 6 }}>
+                  {c.valor ? `R$ ${c.valor} · ` : ''}{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}
+                  {c.whats_pessoal_em ? ` · no Whats desde ${new Date(c.whats_pessoal_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
+                </div>
+                {ehSupervisor && c.agente_nome && <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 6 }}>👤 {c.agente_nome}</div>}
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>
+                  📞 {c.tel || '—'} · {c.docs_completos ? '📄 docs completos' : `🪪 ${c.doc_rg_frente ? '✅' : '❌'}/${c.doc_rg_verso ? '✅' : '❌'} · 📄 ${c.doc_extrato ? '✅' : '❌'}`}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button style={{ fontSize: 12, padding: '6px 12px', background: '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => registrarVenda(c)}>💰 Venda feita</button>
+                  <button style={{ fontSize: 12, padding: '6px 12px', background: 'transparent', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(c)}>↩ Devolver pro board</button>
+                  {c.chatwoot_conversation_id && (
+                    <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" style={s.cardChat} title="Abrir conversa no Chatwoot">💬 Chatwoot</a>
+                  )}
+                  <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>🧑 Ana pausada</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {vista === 'vendas' && <PainelVendas profile={profile} ehSupervisor={ehSupervisor} />}
+
+      {vista === 'funil' && (
       <div style={s.board}>
         {colunasVisiveis.map(([key, label]) => {
           let cards = key === 'NEGADO'
@@ -544,6 +648,7 @@ export default function RevisaoIABolsaFamilia() {
           )
         })}
       </div>
+      )}
 
       {lead && (
         <div style={s.overlay} onClick={() => setLead(null)}>
@@ -611,6 +716,15 @@ export default function RevisaoIABolsaFamilia() {
               </div>
             </div>
 
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {!lead.whats_pessoal ? (
+                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#34d399', border: '1px solid #34d399', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => marcarWhats(lead)}>📲 Tratando no meu Whats</button>
+              ) : (
+                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(lead)}>↩ Devolver pro board</button>
+              )}
+              <button style={{ fontSize: 12, padding: '7px 14px', background: '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => registrarVenda(lead)}>💰 Venda feita</button>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4' }}>
                 💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span>
@@ -664,6 +778,117 @@ export default function RevisaoIABolsaFamilia() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ═══════════════ PAINEL DE VENDAS (💰) ═══════════════
+// Vendedora vê AS DELAS (contagem + volume emprestado); supervisor/admin vê tudo,
+// com quebra por vendedora e o toggle de "pago".
+function PainelVendas({ profile, ehSupervisor }) {
+  const [vendas, setVendas] = useState(null)
+  const [msg, setMsg] = useState('')
+
+  const carregarVendas = useCallback(async () => {
+    const { data, error } = await supabase.rpc('bf_vendas_painel', { p_agente: ehSupervisor ? null : (profile?.id || null) })
+    if (error) { setMsg(error.message); return }
+    setVendas(data || [])
+  }, [ehSupervisor, profile?.id])
+  useEffect(() => { carregarVendas() }, [carregarVendas])
+
+  const fmtV = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const dia0 = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+  const hoje0 = dia0(new Date())
+  const ontem0 = new Date(hoje0.getTime() - 86400000)
+  const sem0 = new Date(hoje0.getTime() - 6 * 86400000)
+  const mes0 = new Date(hoje0.getTime() - 29 * 86400000)
+  const lista = vendas || []
+  const filtra = (de, ate) => lista.filter(v => { const d = new Date(v.criado_em); return d >= de && (!ate || d < ate) })
+  const grupos = [
+    ['Hoje', filtra(hoje0)],
+    ['Ontem', filtra(ontem0, hoje0)],
+    ['Semana (7d)', filtra(sem0)],
+    ['Mês (30d)', filtra(mes0)],
+  ]
+  const soma = (l) => l.reduce((a, v) => a + Number(v.valor || 0), 0)
+
+  // quebra por vendedora no período do mês (só supervisão)
+  const porVendedora = {}
+  if (ehSupervisor) filtra(mes0).forEach(v => {
+    const n = v.agente_nome || '—'
+    if (!porVendedora[n]) porVendedora[n] = { qtd: 0, vol: 0 }
+    porVendedora[n].qtd++; porVendedora[n].vol += Number(v.valor || 0)
+  })
+
+  const togglePago = async (v) => {
+    await supabase.rpc('bf_venda_pagar', { p_venda_id: v.id, p_pago: !v.pago })
+    carregarVendas()
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
+        {ehSupervisor ? 'Todas as vendas registradas pelo botão 💰 Venda feita.' : 'Suas vendas registradas pelo botão 💰 Venda feita — contagem e volume emprestado.'}
+      </div>
+      {msg && <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.08)', border: '0.5px solid rgba(248,113,113,.35)', borderRadius: 10, padding: '9px 12px', marginBottom: 10 }}>{msg}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
+        {grupos.map(([lbl, l]) => (
+          <div key={lbl} style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{lbl}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#e6edf7', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{l.length}</div>
+            <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700, marginTop: 2 }}>{fmtV(soma(l))}</div>
+            <div style={{ fontSize: 10, color: '#64748b' }}>volume emprestado</div>
+          </div>
+        ))}
+      </div>
+
+      {ehSupervisor && Object.keys(porVendedora).length > 0 && (
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>👤 Por vendedora — mês (30d)</div>
+          {Object.entries(porVendedora).sort((a, b) => b[1].vol - a[1].vol).map(([n, x]) => (
+            <div key={n} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <span style={{ color: '#c6d2e4' }}>{n}</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}><b style={{ color: '#e6edf7' }}>{x.qtd}</b> venda(s) · <b style={{ color: '#fbbf24' }}>{fmtV(x.vol)}</b></span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🧾 Vendas — últimos 35 dias</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Quando</th>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Cliente</th>
+            {ehSupervisor && <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Vendedora</th>}
+            <th style={{ textAlign: 'right', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Valor</th>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Pago?</th>
+          </tr></thead>
+          <tbody>
+            {!vendas && <tr><td colSpan={ehSupervisor ? 5 : 4} style={{ padding: 16, color: '#64748b', fontSize: 12, textAlign: 'center' }}>Carregando...</td></tr>}
+            {vendas && lista.length === 0 && <tr><td colSpan={ehSupervisor ? 5 : 4} style={{ padding: 16, color: '#64748b', fontSize: 12, textAlign: 'center' }}>Nenhuma venda registrada ainda. Use o botão 💰 Venda feita no card do cliente.</td></tr>}
+            {lista.map(v => (
+              <tr key={v.id}>
+                <td style={{ fontSize: 12, color: '#8b9bb4', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{new Date(v.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ fontSize: 13, color: '#e6edf7', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{v.cliente || 'Sem nome'}</td>
+                {ehSupervisor && <td style={{ fontSize: 12, color: '#8b9bb4', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{v.agente_nome || '—'}</td>}
+                <td style={{ fontSize: 13, color: '#fbbf24', fontWeight: 700, padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtV(v.valor)}</td>
+                <td style={{ padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+                  {ehSupervisor ? (
+                    <button onClick={() => togglePago(v)} title="Marcar/desmarcar pago"
+                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', border: 'none', background: v.pago ? 'rgba(52,211,153,.16)' : '#2b3340', color: v.pago ? '#34d399' : '#8b9bb4' }}>
+                      {v.pago ? '✔ pago' : 'marcar pago'}
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: v.pago ? '#34d399' : '#8b9bb4' }}>{v.pago ? '✔ pago' : 'aguardando'}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
