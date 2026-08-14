@@ -454,7 +454,7 @@ function Campanhas() {
       } catch { setAlvo('?') }
     }, 500)
     return () => clearTimeout(t)
-  }, [nova?.gates, nova?.funil, nova?.min_h, nova?.max_h]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nova?.gates, nova?.funil, nova?.min_h, nova?.max_h])
 
   const abrirNova = () => setNova({ nome: '', titulo: 'Você tem 1 mensagem não lida 💌', corpo: '{nome}, sua conversa ficou parada e seu atendimento está esperando. Toque para continuar!', gates: ['conversa_criada', 'oferta_vista'], funil: 'todos', min_h: 24, max_h: 168 })
   const mudaGate = (g) => setNova(n => ({ ...n, gates: n.gates.includes(g) ? n.gates.filter(x => x !== g) : [...n.gates, g] }))
