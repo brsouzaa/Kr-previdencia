@@ -114,6 +114,22 @@ export default function ConfereCNIS() {
   if (fVeredito !== 'todos') visiveis = visiveis.filter(l => l.veredito_maquina === fVeredito)
   const conferidos = noPeriodo.filter(l => l.conferido).length
 
+  // DECISÃO na própria tela: confirma APTA de verdade ou NEGA com motivo.
+  // Usa a MESMA rpc do board (mae_aprovar_cnis) => alimenta a auditoria e move o card
+  // no Retroativo (apta -> Pitch liberado · negada -> Reprovado). Já marca conferido junto.
+  const decidir = async (l, aprovado) => {
+    let motivo = null
+    if (!aprovado) {
+      motivo = window.prompt(`⛔ NEGAR ${l.nome || 'cliente'} — qual o motivo?`)
+      if (motivo == null || !motivo.trim()) return
+      motivo = motivo.trim()
+    } else if (!window.confirm(`✅ Confirmar "${l.nome || 'cliente'}" como APTA de verdade?\n\nO card vai pro Pitch liberado no Retroativo.`)) return
+    const { error } = await supabase.rpc('mae_aprovar_cnis', { p_lead_id: l.id, p_aprovado: aprovado, p_analista: profile?.id || null, p_motivo: motivo })
+    if (error) { alert('Erro: ' + error.message); return }
+    await supabase.rpc('cnis_marcar_conferido', { p_lead_id: l.id, p_agente: profile?.id || null, p_valor: true })
+    carregar()
+  }
+
   // marca/desmarca "conferido pelo atendente" (workflow: máquina apto -> atendente valida -> advogada)
   const marcarConferido = async (l) => {
     const { error } = await supabase.rpc('cnis_marcar_conferido', { p_lead_id: l.id, p_agente: profile?.id || null, p_valor: !l.conferido })
@@ -193,7 +209,7 @@ export default function ConfereCNIS() {
               <th style={s.th}>Motivo da máquina</th>
               <th style={s.th}>Decisão do humano</th>
               <th style={s.th}>Bateu?</th>
-              <th style={s.th}>Conferido</th>
+              <th style={s.th}>Conferência</th>
               <th style={s.th}>CNIS</th>
             </tr>
           </thead>
@@ -210,7 +226,12 @@ export default function ConfereCNIS() {
                   <td style={s.td}>{decisaoHumanaCel(l)}</td>
                   <td style={s.td}>{bateuCel(l)}</td>
                   <td style={s.td}>
-                    {l.conferido ? (
+                    {!l.decisao_humana ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button onClick={() => decidir(l, true)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, cursor: 'pointer', border: 'none', background: '#059669', color: '#fff', whiteSpace: 'nowrap' }}>✅ Apta</button>
+                        <button onClick={() => decidir(l, false)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, cursor: 'pointer', border: 'none', background: '#dc2626', color: '#fff', whiteSpace: 'nowrap' }}>⛔ Negar</button>
+                      </div>
+                    ) : l.conferido ? (
                       <span title="clique para desmarcar" onClick={() => marcarConferido(l)} style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#059669', background: 'rgba(52,211,153,.14)', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
                         ✔ {l.conferido_por ? l.conferido_por.split(' ')[0] : 'conferido'}{l.conferido_em ? ` · ${fmt(l.conferido_em)}` : ''}
                       </span>
