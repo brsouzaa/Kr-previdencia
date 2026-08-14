@@ -631,12 +631,10 @@ export default function RevisaoIABolsaFamilia() {
             🧭 Cockpit
           </button>
         )}
-        {ehSupervisor && (
-          <button onClick={() => setVista('funil')}
-            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#dde5f0' : 'transparent', color: vAtiva === 'funil' ? '#0f172a' : '#5b6b84' }}>
-            📋 Funil (mapa)
-          </button>
-        )}
+        <button onClick={() => setVista('funil')}
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#dde5f0' : 'transparent', color: vAtiva === 'funil' ? '#0f172a' : '#5b6b84' }}>
+          📋 Funil{ehSupervisor ? ' (mapa)' : ''}
+        </button>
         <button onClick={() => setVista('whats')}
           style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vAtiva === 'whats' ? '#059669' : '#5b6b84' }}>
           💬 {ehSupervisor ? 'WhatsApp do time' : 'Meu WhatsApp'} ({meusWhats.length})
