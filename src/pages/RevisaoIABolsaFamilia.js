@@ -72,6 +72,59 @@ const CHAVES_CONHECIDAS = new Set([
   ...SUB_ESTADOS_NEGADO,
 ])
 
+// ===== MODO ESTEIRA (F1) =====
+// SLA por ETAPA (min) — o vermelho volta a significar algo: estourou o SLA daquela etapa.
+// (F2: mover pro app_config pra ajustar sem deploy)
+const SLA_ETAPA = {
+  OFERTA: 120, CONFIRMA_CAIXA_TEM: 15,
+  COLETA_RG_FRENTE: 15, COLETA_RG_VERSO: 15, COLETA_EXTRATO: 30,
+  DOCS_COMPLETOS: 30, BF_AGUARDANDO_LINK: 120,
+  BF_LINK_ENVIADO: 1440, BF_AGUARDANDO_ASSINATURA: 1440,
+}
+const META_VENDAS_DIA = 10        // meta Bruno: 10 aprovações/dia por vendedora
+const META_CONVERSAO_PCT = 15     // meta Bruno: converter >= 15% da carteira
+
+// Quanto maior o score, mais no topo da fila. Pondera: perto do dinheiro (docs/digitada),
+// cliente esperando resposta, SLA da etapa estourado e valor da proposta.
+function scoreFila(c) {
+  const sla = SLA_ETAPA[c.sub_estado] || 60
+  const estouro = (c.minutos_parado || 0) / sla
+  let sc = Math.min(estouro, 8) * 12                      // até ~96 pts por atraso
+  if (c.cliente_respondeu) sc += 90                       // gente esperando humano = topo
+  if (c.sub_estado === 'BF_AGUARDANDO_LINK') sc += 75     // digitada: falta só o link
+  if (c.sub_estado === 'BF_LINK_ENVIADO' || c.sub_estado === 'BF_AGUARDANDO_ASSINATURA') sc += 55
+  if (c.sub_estado === 'DOCS_COMPLETOS') sc += 60
+  else if (c.docs_completos) sc += 40
+  sc += Math.min(Number(c.valor) || 0, 1000) / 1000 * 15  // valor da proposta pesa um pouco
+  return sc
+}
+// Nível de urgência pela régua da etapa (não mais relógio único de 10/20min)
+function nivelSla(c) {
+  const sla = SLA_ETAPA[c.sub_estado] || 60
+  const r = (c.minutos_parado || 0) / sla
+  if (r >= 2) return ['🔴', '#f87171', 'rgba(248,113,113,.12)']
+  if (r >= 1) return ['🟡', '#fbbf24', 'rgba(251,191,36,.10)']
+  return ['🟢', '#34d399', 'rgba(52,211,153,.08)']
+}
+// A AÇÃO que o item pede — o coração do modo esteira: diz o que fazer, não o estado.
+function acaoSugerida(c) {
+  if (c.cliente_respondeu) return '💬 Cliente respondeu e está ESPERANDO — responda agora'
+  if (c.sub_estado === 'BF_AGUARDANDO_LINK') return '🔗 Proposta digitada — enviar o link de assinatura'
+  if (c.sub_estado === 'BF_LINK_ENVIADO') return '✍️ Link enviado — cobrar a assinatura'
+  if (c.sub_estado === 'BF_AGUARDANDO_ASSINATURA') return '✍️ Falta assinar — cobrar o cliente'
+  if (c.sub_estado === 'DOCS_COMPLETOS') {
+    if (c.dig_protocolo || c.dig_em) return '🤖 Digitada pelo robô — conferir e seguir'
+    if (['erro', 'revisar', 'revisar_humano', 'faltando_dados'].includes(c.dig_status)) return '🖐 Robô não digitou — DIGITAR MANUAL'
+    return '📄 Docs completos — acompanhar a digitação do robô'
+  }
+  if (c.sub_estado === 'COLETA_EXTRATO') return '📄 Falta o EXTRATO — pedir de novo'
+  if (c.sub_estado === 'COLETA_RG_VERSO') return '🪪 Falta o RG VERSO — pedir de novo'
+  if (c.sub_estado === 'COLETA_RG_FRENTE') return '🪪 Falta o RG FRENTE — pedir de novo'
+  if (c.sub_estado === 'CONFIRMA_CAIXA_TEM') return '💬 Confirmando Caixa Tem — destravar a conversa'
+  if (c.sub_estado === 'OFERTA') return '📢 Viu a oferta e parou — reengajar (áudio funciona)'
+  return '👀 Verificar a conversa'
+}
+
 // Liberado (23/07): TODO o time BF ve todas as colunas e arrasta em todas.
 // NEGADO continua so pelo botao Negar (precisa de motivo); OUTROS nao recebe card (catch-all).
 
@@ -214,7 +267,8 @@ export default function RevisaoIABolsaFamilia() {
   const [robo, setRobo] = useState({ ligado: true, vivo: true })   // contexto do robô digitador (pra coluna A digitar)
   const [limiarManual, setLimiarManual] = useState(30)             // min na fila sem robô digitar -> pode digitar manual
   const [soVermelhos, setSoVermelhos] = useState(false)
-  const [vista, setVista] = useState('funil')                      // 'funil' | 'whats' (em tratamento no Whats pessoal)
+  const [vista, setVista] = useState(null)                         // null = padrão do papel: vendedora abre na FILA, supervisão no funil
+  const [vendasMinhas, setVendasMinhas] = useState([])             // vendas p/ o placar do dia (35d)
   const [arrastando, setArrastando] = useState(null)
   const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
@@ -353,6 +407,15 @@ export default function RevisaoIABolsaFamilia() {
     carregar()
   }
 
+  // Placar do dia: vendas pra régua de meta (vendedora vê as dela; supervisão vê do time)
+  useEffect(() => {
+    if (!profile?.id) return
+    let vivo = true
+    supabase.rpc('bf_vendas_painel', { p_agente: ehSupervisor ? null : profile.id })
+      .then(({ data }) => { if (vivo) setVendasMinhas(data || []) })
+    return () => { vivo = false }
+  }, [profile?.id, ehSupervisor, board.length])
+
   // "Tô tratando no meu WhatsApp": tira o card do board (vai pra aba própria) e pausa a Ana.
   // Devolver: religa a Ana e o card volta pro funil. O handoff pode falhar (ex: sem conversa
   // no Chatwoot) sem travar a marcação — a Ana só age no Chatwoot mesmo.
@@ -488,6 +551,22 @@ export default function RevisaoIABolsaFamilia() {
   const noWhats = board.filter(c => c.whats_pessoal)
   const meusWhats = ehSupervisor ? noWhats : noWhats.filter(c => c.bf_agente_id === profile?.id)
 
+  // Vista ativa: vendedora nasce na FILA (modo foco), supervisão no funil (mapa).
+  const vAtiva = vista || (ehSupervisor ? 'funil' : 'fila')
+
+  // ===== MINHA FILA (modo esteira): lista única priorizada, cada item com a AÇÃO =====
+  const fila = board
+    .filter(c => c.sub_estado !== 'BF_CONCLUIDO' && !SUB_ESTADOS_NEGADO.includes(c.sub_estado) && !c.whats_pessoal)
+    .map(c => ({ ...c, _score: scoreFila(c) }))
+    .sort((a, b) => b._score - a._score)
+
+  // ===== PLACAR DO DIA (metas Bruno: 10 vendas/dia · conversão >= 15% da carteira) =====
+  const hoje0 = (() => { const x = new Date(); x.setHours(0, 0, 0, 0); return x })()
+  const vHoje = vendasMinhas.filter(v => new Date(v.criado_em) >= hoje0)
+  const volHoje = vHoje.reduce((a, v) => a + Number(v.valor || 0), 0)
+  const carteira = Math.max(1, board.length)
+  const convPct = Math.round((vendasMinhas.length / carteira) * 100) // vendas 35d / carteira atual
+
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
   visiveis = visiveis.filter(c => !c.whats_pessoal) // quem está no Whats pessoal não polui o funil
   // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
@@ -505,22 +584,90 @@ export default function RevisaoIABolsaFamilia() {
         {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
       </div>
 
-      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10 }}>
-        <button onClick={() => setVista('funil')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'funil' ? '#323b4d' : 'transparent', color: vista === 'funil' ? '#e6edf7' : '#8b9bb4' }}>
-          📋 Funil
+      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10, flexWrap: 'wrap' }}>
+        <button onClick={() => setVista('fila')}
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'fila' ? 'rgba(244,114,182,.16)' : 'transparent', color: vAtiva === 'fila' ? '#f472b6' : '#8b9bb4' }}>
+          🎯 {ehSupervisor ? 'Esteira' : 'Minha Fila'} ({fila.length})
         </button>
+        {ehSupervisor && (
+          <button onClick={() => setVista('funil')}
+            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#323b4d' : 'transparent', color: vAtiva === 'funil' ? '#e6edf7' : '#8b9bb4' }}>
+            📋 Funil (mapa)
+          </button>
+        )}
         <button onClick={() => setVista('whats')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vista === 'whats' ? '#34d399' : '#8b9bb4' }}>
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vAtiva === 'whats' ? '#34d399' : '#8b9bb4' }}>
           💬 {ehSupervisor ? 'WhatsApp do time' : 'Meu WhatsApp'} ({meusWhats.length})
         </button>
         <button onClick={() => setVista('vendas')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vista === 'vendas' ? 'rgba(251,191,36,.16)' : 'transparent', color: vista === 'vendas' ? '#fbbf24' : '#8b9bb4' }}>
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'vendas' ? 'rgba(251,191,36,.16)' : 'transparent', color: vAtiva === 'vendas' ? '#fbbf24' : '#8b9bb4' }}>
           💰 Vendas
         </button>
       </div>
 
-      {vista === 'funil' && (
+      {vAtiva === 'fila' && (
+        <div>
+          {/* placar do dia — a meta na cara */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 10, marginBottom: 12 }}>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🎯 Vendas hoje</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: vHoje.length >= META_VENDAS_DIA ? '#34d399' : '#e6edf7' }}>
+                {vHoje.length}<span style={{ fontSize: 14, color: '#64748b' }}> / {ehSupervisor ? META_VENDAS_DIA + ' por vendedora' : META_VENDAS_DIA}</span>
+              </div>
+              <div style={{ height: 5, background: '#1a202c', borderRadius: 3, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(100, (vHoje.length / META_VENDAS_DIA) * 100)}%`, background: vHoje.length >= META_VENDAS_DIA ? '#34d399' : '#f472b6', borderRadius: 3 }} />
+              </div>
+            </div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>💰 Volume hoje</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24' }}>{'R$ ' + volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📈 Conversão da carteira</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: convPct >= META_CONVERSAO_PCT ? '#34d399' : convPct >= META_CONVERSAO_PCT / 2 ? '#fbbf24' : '#f87171' }}>{convPct}%</div>
+              <div style={{ fontSize: 10, color: '#64748b' }}>meta ≥ {META_CONVERSAO_PCT}% · {vendasMinhas.length} venda(s) / {carteira} sob gestão</div>
+            </div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📋 Na fila agora</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#e6edf7' }}>{fila.length}</div>
+              <div style={{ fontSize: 10, color: '#64748b' }}>atenda de cima pra baixo — a ordem já é a prioridade</div>
+            </div>
+          </div>
+
+          {/* a fila em si: nº1 = próximo cliente. Sem decisão, só execução. */}
+          {fila.length === 0 && (
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+              Fila zerada. 🎉 Confere o 💬 Meu WhatsApp ou puxa leads novos com a supervisão.
+            </div>
+          )}
+          {fila.slice(0, 100).map((c, i) => {
+            const [emoji, corSla, bgSla] = nivelSla(c)
+            const sla = SLA_ETAPA[c.sub_estado] || 60
+            return (
+              <div key={c.id} onClick={() => abrirCard(c)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, background: i === 0 ? 'rgba(244,114,182,.07)' : '#232a37', border: i === 0 ? '1px solid rgba(244,114,182,.45)' : '0.5px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${corSla}`, borderRadius: 12, padding: '10px 14px', marginBottom: 8, cursor: 'pointer' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: i === 0 ? '#f472b6' : '#64748b', minWidth: 30, textAlign: 'center' }}>{i + 1}º</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7' }}>{c.nome || 'Sem nome'}</span>
+                    {c.valor && <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700 }}>R$ {c.valor}</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#8b9bb4', background: '#1e242f', borderRadius: 6, padding: '2px 7px' }}>{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}</span>
+                    {ehSupervisor && c.agente_nome && <span style={{ fontSize: 10, color: '#8b9bb4' }}>👤 {c.agente_nome}</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: corSla, background: bgSla, borderRadius: 6, padding: '2px 7px' }}>{emoji} {c.minutos_parado} min (SLA {sla})</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#f472b6' : '#c6d2e4', marginTop: 4 }}>{acaoSugerida(c)}</div>
+                </div>
+                {c.chatwoot_conversation_id && (
+                  <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={s.cardChat} title="Abrir conversa no Chatwoot">💬</a>
+                )}
+              </div>
+            )
+          })}
+          {fila.length > 100 && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Mostrando os 100 mais prioritários de {fila.length}.</div>}
+        </div>
+      )}
+
+      {vAtiva === 'funil' && (
       <div style={s.topo}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
@@ -560,7 +707,7 @@ export default function RevisaoIABolsaFamilia() {
       </div>
       )}
 
-      {vista === 'whats' && (
+      {vAtiva === 'whats' && (
         <div>
           <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
             Clientes em tratamento no WhatsApp pessoal — fora do funil, com a Ana pausada. Terminou? <b style={{ color: '#e6edf7' }}>Devolver pro board</b> religa a Ana e o card volta pras colunas.
@@ -596,9 +743,9 @@ export default function RevisaoIABolsaFamilia() {
         </div>
       )}
 
-      {vista === 'vendas' && <PainelVendas profile={profile} ehSupervisor={ehSupervisor} />}
+      {vAtiva === 'vendas' && <PainelVendas profile={profile} ehSupervisor={ehSupervisor} />}
 
-      {vista === 'funil' && (
+      {vAtiva === 'funil' && (
       <div style={s.board}>
         {colunasVisiveis.map(([key, label]) => {
           let cards = key === 'NEGADO'
