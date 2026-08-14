@@ -173,9 +173,25 @@ function faixaData(preset, cDe, cAte) {
     if (cAte) { ate = ini(cAte + 'T00:00:00'); ate.setDate(ate.getDate() + 1) }
     return { de, ate }
   }
+  // "a partir de AGORA": corta o estoque antigo — o carimbo fica salvo no navegador
+  // e sobrevive a reload; o botão "zerar corte" re-carimba.
+  if (preset === 'agora') {
+    let corte = null
+    try { corte = localStorage.getItem('bf_corte_apartir') } catch (_) { /* sem storage */ }
+    if (!corte) { corte = new Date().toISOString(); try { localStorage.setItem('bf_corte_apartir', corte) } catch (_) { /* ok */ } }
+    return { de: new Date(corte), ate: null }
+  }
+  // dia operacional 19h→19h (pedido Bruno): antes das 19h conta desde ONTEM 19h
+  if (preset === 'dia19') {
+    const agora = new Date()
+    const de = new Date(agora); de.setHours(19, 0, 0, 0)
+    if (agora.getHours() < 19) de.setDate(de.getDate() - 1)
+    const ate = new Date(de); ate.setDate(ate.getDate() + 1)
+    return { de, ate }
+  }
   return { de: null, ate: null }
 }
-const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
+const OPCOES_DATA = [['tudo', 'tudo'], ['agora', '⚡ a partir de AGORA'], ['dia19', '🕖 dia 19h→19h'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
@@ -272,7 +288,7 @@ export default function RevisaoIABolsaFamilia() {
   const [arrastando, setArrastando] = useState(null)
   const [agentes, setAgentes] = useState([])
   const [filtroAgente, setFiltroAgente] = useState('')
-  const [filtroEntrada, setFiltroEntrada] = useState('tudo')
+  const [filtroEntrada, setFiltroEntrada] = useState(() => { try { return localStorage.getItem('bf_filtro_entrada') || 'tudo' } catch (_) { return 'tudo' } })
   const [filtroAtividade, setFiltroAtividade] = useState('mes')
   const [filtroAtendimento, setFiltroAtendimento] = useState('todos')
   const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
@@ -406,6 +422,22 @@ export default function RevisaoIABolsaFamilia() {
     setLead({ ...c, ana_pausada: pausar, bf_em_tratamento: pausar })
     carregar()
   }
+
+  // Filtro de entrada persistente (o "a partir de agora" sobrevive a reload)
+  const mudarEntrada = (v) => {
+    setFiltroEntrada(v)
+    try {
+      localStorage.setItem('bf_filtro_entrada', v)
+      if (v === 'agora' && !localStorage.getItem('bf_corte_apartir')) localStorage.setItem('bf_corte_apartir', new Date().toISOString())
+    } catch (_) { /* sem storage */ }
+  }
+  const redefinirCorte = () => {
+    if (!window.confirm('Zerar o corte pra AGORA? Só vai contar quem entrar daqui pra frente.')) return
+    try { localStorage.setItem('bf_corte_apartir', new Date().toISOString()) } catch (_) { /* ok */ }
+    carregar()
+  }
+  let corteLabel = ''
+  try { const cx = localStorage.getItem('bf_corte_apartir'); if (cx) corteLabel = new Date(cx).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch (_) { /* ok */ }
 
   // Placar do dia: vendas pra régua de meta (vendedora vê as dela; supervisão vê do time)
   useEffect(() => {
@@ -611,6 +643,26 @@ export default function RevisaoIABolsaFamilia() {
         </button>
       </div>
 
+      {(vAtiva === 'fila' || vAtiva === 'cockpit') && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+          <select style={s.chip} value={filtroEntrada} onChange={e => mudarEntrada(e.target.value)} title="Considerar leads que entraram em:">
+            {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
+          </select>
+          {filtroEntrada === 'custom' && (<>
+            <input type="date" style={s.chip} value={entradaDe} onChange={e => setEntradaDe(e.target.value)} />
+            <input type="date" style={s.chip} value={entradaAte} onChange={e => setEntradaAte(e.target.value)} />
+          </>)}
+          {filtroEntrada === 'agora' && (<>
+            {corteLabel && <span style={{ fontSize: 11, color: '#8b9bb4' }}>corte: {corteLabel}</span>}
+            <button style={s.chip} onClick={redefinirCorte}>↺ zerar corte (agora)</button>
+          </>)}
+          <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
+            {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
+          </select>
+          <span style={{ fontSize: 11, color: '#64748b' }}>fila, metas e cockpit respeitam esse filtro — estoque antigo fica de fora</span>
+        </div>
+      )}
+
       {vAtiva === 'fila' && (
         <div>
           {/* placar do dia — a meta na cara */}
@@ -678,7 +730,7 @@ export default function RevisaoIABolsaFamilia() {
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
-        <select style={s.chip} value={filtroEntrada} onChange={e => setFiltroEntrada(e.target.value)} title="Data de entrada do lead">
+        <select style={s.chip} value={filtroEntrada} onChange={e => mudarEntrada(e.target.value)} title="Data de entrada do lead">
           {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
         </select>
         {filtroEntrada === 'custom' && (<>
