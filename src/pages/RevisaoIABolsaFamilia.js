@@ -500,6 +500,18 @@ export default function RevisaoIABolsaFamilia() {
     setLead(null); carregar()
   }
 
+  // Supervisão reatribui o atendimento: tira de uma atendente e manda pra outra (Bruno/Egle)
+  async function reatribuir(c, agenteNovo) {
+    if (!c || !agenteNovo) return
+    const nomeNovo = (agentes.find(a => a.id === agenteNovo) || {}).nome || 'a vendedora'
+    if (!window.confirm(`↪ Reatribuir "${c.nome || 'lead'}" ${c.agente_nome ? `de ${c.agente_nome} ` : ''}para ${nomeNovo}?`)) return
+    setEnviando(true)
+    const { data, error } = await supabase.rpc('bf_reatribuir', { p_lead_id: c.id, p_agente_novo: agenteNovo })
+    setEnviando(false)
+    if (error || data?.erro) { alert('Erro ao reatribuir: ' + (error?.message || data?.erro)); return }
+    setLead(null); carregar()
+  }
+
   // Nega o lead com um motivo (codigo estavel de MOTIVOS_NEGADO)
   async function negar(c, motivoCodigo) {
     if (!c || !motivoCodigo) return
@@ -938,6 +950,14 @@ export default function RevisaoIABolsaFamilia() {
                 <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#2563eb', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(lead)}>↩ Devolver pro board</button>
               )}
               <button style={{ fontSize: 12, padding: '7px 14px', background: '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => registrarVenda(lead)}>💰 Venda feita</button>
+              {ehSupervisor && agentes.length > 0 && (
+                <select value="" disabled={enviando}
+                  onChange={e => { if (e.target.value) reatribuir(lead, e.target.value) }}
+                  style={{ fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 8, border: '1px solid #7c3aed', background: 'transparent', color: '#7c3aed', cursor: 'pointer' }}>
+                  <option value="">↪ Reatribuir para…</option>
+                  {agentes.filter(a => a.id !== lead.bf_agente_id).map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                </select>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
