@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: '1.25rem', letterSpacing: '-0.3px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 },
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1.25rem' },
-  avatar: { width: 44, height: 44, borderRadius: '50%', background: 'rgba(96,165,250,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 500, fontSize: 15, color: '#60a5fa', marginBottom: 10 },
-  name: { fontSize: 15, fontWeight: 500, color: '#e6edf7', marginBottom: 3 },
-  email: { fontSize: 12, color: '#8b9bb4', marginBottom: 14 },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '1.25rem' },
+  avatar: { width: 44, height: 44, borderRadius: '50%', background: 'rgba(96,165,250,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 500, fontSize: 15, color: '#2563eb', marginBottom: 10 },
+  name: { fontSize: 15, fontWeight: 500, color: '#0f172a', marginBottom: 3 },
+  email: { fontSize: 12, color: '#5b6b84', marginBottom: 14 },
   stats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
-  stat: { background: '#171c26', borderRadius: 8, padding: '8px 10px' },
-  statLabel: { fontSize: 10, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 3 },
-  statValue: { fontSize: 18, fontWeight: 500, color: '#e6edf7' },
-  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
+  stat: { background: '#f2f5fa', borderRadius: 8, padding: '8px 10px' },
+  statLabel: { fontSize: 10, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 3 },
+  statValue: { fontSize: 18, fontWeight: 500, color: '#0f172a' },
+  loading: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14 },
 }
 
 export default function Equipe() {
@@ -51,7 +51,7 @@ export default function Equipe() {
               <div style={s.email}>{v.email}</div>
               <div style={s.stats}>
                 <div style={s.stat}><div style={s.statLabel}>Advogados</div><div style={s.statValue}>{v.total}</div></div>
-                <div style={s.stat}><div style={{ ...s.statLabel, color: '#34d399' }}>Ativos</div><div style={{ ...s.statValue, color: '#34d399' }}>{v.ativos}</div></div>
+                <div style={s.stat}><div style={{ ...s.statLabel, color: '#059669' }}>Ativos</div><div style={{ ...s.statValue, color: '#059669' }}>{v.ativos}</div></div>
                 <div style={s.stat}><div style={s.statLabel}>Vendas</div><div style={s.statValue}>{v.compras}</div></div>
               </div>
             </div>

@@ -10,10 +10,10 @@ const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: insta
 const ACCOUNT = '1'
 
 const MAP_V = {
-  APTA: { label: 'Apta', cor: '#34d399', bg: 'rgba(52,211,153,.14)' },
-  NAO_CLIENTE: { label: 'Não cliente', cor: '#f87171', bg: 'rgba(248,113,113,.14)' },
-  APTA_CONFERIR_GERID: { label: 'Apta · conferir GERID', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)' },
-  HUMANO: { label: 'Humano', cor: '#8b9bb4', bg: '#2b3340' },
+  APTA: { label: 'Apta', cor: '#059669', bg: 'rgba(52,211,153,.14)' },
+  NAO_CLIENTE: { label: 'Não cliente', cor: '#dc2626', bg: 'rgba(248,113,113,.14)' },
+  APTA_CONFERIR_GERID: { label: 'Apta · conferir GERID', cor: '#b45309', bg: 'rgba(251,191,36,.12)' },
+  HUMANO: { label: 'Humano', cor: '#5b6b84', bg: '#e2e8f0' },
 }
 const MAQUINA_PASSA = ['APTA', 'APTA_CONFERIR_GERID'] // maquina deixaria seguir como cliente
 
@@ -47,19 +47,19 @@ function dentroFaixa(dtStr, faixa) {
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#5b6b84', marginBottom: 16 },
   resumo: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 },
-  kpi: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
-  kpiNum: { fontSize: 22, fontWeight: 700, color: '#e6edf7' },
-  kpiLbl: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  kpi: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
+  kpiNum: { fontSize: 22, fontWeight: 700, color: '#0f172a' },
+  kpiLbl: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
   kpiPerigo: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #f87171', borderRadius: 12, padding: '12px 16px', minWidth: 128 },
-  tabela: { width: '100%', borderCollapse: 'collapse', background: '#232a37', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' },
-  th: { textAlign: 'left', fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1e242f' },
-  td: { fontSize: 13, color: '#e6edf7', padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
-  badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#8b9bb4', background: (MAP_V[v] || {}).bg || '#2b3340' }),
+  tabela: { width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(15,23,42,0.08)' },
+  th: { textAlign: 'left', fontSize: 11, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '10px 12px', borderBottom: '1px solid rgba(15,23,42,0.07)', background: '#f1f5f9' },
+  td: { fontSize: 13, color: '#0f172a', padding: '10px 12px', borderBottom: '0.5px solid rgba(15,23,42,0.06)', verticalAlign: 'middle' },
+  badge: (v) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: (MAP_V[v] || {}).cor || '#5b6b84', background: (MAP_V[v] || {}).bg || '#e2e8f0' }),
   badgeH: (bg, cor) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: cor, background: bg }),
-  link: { fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
+  link: { fontSize: 12, color: '#2563eb', textDecoration: 'none', fontWeight: 500 },
   linhaPerigo: { background: 'rgba(248,113,113,.14)' },
 }
 
@@ -112,16 +112,16 @@ export default function ConfereCNIS() {
 
   const decisaoHumanaCel = (l) => {
     if (!l.decisao_humana) return <span style={{ color: '#64748b' }}>⏳ aguardando análise</span>
-    if (l.decisao_humana === 'true') return <span style={s.badgeH('rgba(52,211,153,.14)', '#34d399')}>✅ Apta (cliente)</span>
+    if (l.decisao_humana === 'true') return <span style={s.badgeH('rgba(52,211,153,.14)', '#059669')}>✅ Apta (cliente)</span>
     return (<>
-      <span style={s.badgeH('rgba(248,113,113,.14)', '#f87171')}>⛔ Não cliente</span>
-      {l.motivo_reprovacao ? <span style={{ color: '#8b9bb4', fontSize: 12, marginLeft: 6 }}>{l.motivo_reprovacao}</span> : null}
+      <span style={s.badgeH('rgba(248,113,113,.14)', '#dc2626')}>⛔ Não cliente</span>
+      {l.motivo_reprovacao ? <span style={{ color: '#5b6b84', fontSize: 12, marginLeft: 6 }}>{l.motivo_reprovacao}</span> : null}
     </>)
   }
   const bateuCel = (l) => {
     const c = classificar(l)
     if (c.estado === 'pendente') return <span style={{ color: '#64748b' }}>—</span>
-    if (c.estado === 'deferiu') return <span title="máquina pediu análise humana — sem corte automático" style={{ color: '#8b9bb4' }}>🔁 pediu humano</span>
+    if (c.estado === 'deferiu') return <span title="máquina pediu análise humana — sem corte automático" style={{ color: '#5b6b84' }}>🔁 pediu humano</span>
     if (c.concorda) return <span title="máquina = humano">✅</span>
     return <span title={c.perigoso ? 'ERRO PERIGOSO: máquina deixaria passar não-cliente' : 'divergiu (inverso)'}>{c.perigoso ? '❌⚠️' : '❌'}</span>
   }
@@ -132,35 +132,35 @@ export default function ConfereCNIS() {
       <div style={s.sub}>Auditoria da auto-análise (modo sombra). A decisão do humano vem do botão Aprovar/Reprovar CNIS do board — não precisa remarcar aqui. Quando a concordância estiver alta e os erros perigosos zerados por um período, liga-se o corte automático.</div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ fontSize: 12, color: '#8b9bb4' }}>Analisados em:</span>
+        <span style={{ fontSize: 12, color: '#5b6b84' }}>Analisados em:</span>
         {OPCOES_DATA.map(([v, lbl]) => (
           <button key={v} onClick={() => setFiltroData(v)}
-            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: filtroData === v ? '0.5px solid #60a5fa' : '0.5px solid rgba(255,255,255,0.11)', background: filtroData === v ? '#60a5fa' : '#232a37', color: filtroData === v ? '#232a37' : '#8b9bb4' }}>
+            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: filtroData === v ? '0.5px solid #60a5fa' : '0.5px solid rgba(15,23,42,0.11)', background: filtroData === v ? '#60a5fa' : '#ffffff', color: filtroData === v ? '#232a37' : '#5b6b84' }}>
             {lbl}
           </button>
         ))}
         {filtroData === 'custom' && (<>
-          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#e6edf7', colorScheme: 'dark' }} />
-          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#e6edf7', colorScheme: 'dark' }} />
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#0f172a', colorScheme: 'light' }} />
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ padding: '5px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#0f172a', colorScheme: 'light' }} />
         </>)}
       </div>
 
       <div style={s.resumo}>
         <div style={s.kpi}><div style={s.kpiNum}>{total}</div><div style={s.kpiLbl}>Analisados pela máquina</div></div>
         <div style={s.kpi}><div style={s.kpiNum}>{revisados.length}</div><div style={s.kpiLbl}>Já decididos pelo humano</div></div>
-        <div style={s.kpi}><div style={{ ...s.kpiNum, color: !comparaveis.length ? '#e6edf7' : taxa >= 90 ? '#34d399' : taxa >= 70 ? '#fbbf24' : '#f87171' }}>{comparaveis.length ? `${taxa}%` : '—'}</div><div style={s.kpiLbl}>Concordância ({comparaveis.length} comparáveis)</div></div>
-        <div style={s.kpiPerigo}><div style={{ ...s.kpiNum, color: '#f87171' }}>{perigosos}</div><div style={{ ...s.kpiLbl, color: '#f87171', fontWeight: 600 }}>⚠️ ERROS PERIGOSOS<br />(máq. deixaria passar não-cliente)</div></div>
-        <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#fbbf24' }}>{inversos}</div><div style={s.kpiLbl}>Erros inversos (menos grave)</div></div>
-        <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#8b9bb4' }}>{pediuHumano}</div><div style={s.kpiLbl}>Máquina pediu humano</div></div>
+        <div style={s.kpi}><div style={{ ...s.kpiNum, color: !comparaveis.length ? '#0f172a' : taxa >= 90 ? '#059669' : taxa >= 70 ? '#b45309' : '#dc2626' }}>{comparaveis.length ? `${taxa}%` : '—'}</div><div style={s.kpiLbl}>Concordância ({comparaveis.length} comparáveis)</div></div>
+        <div style={s.kpiPerigo}><div style={{ ...s.kpiNum, color: '#dc2626' }}>{perigosos}</div><div style={{ ...s.kpiLbl, color: '#dc2626', fontWeight: 600 }}>⚠️ ERROS PERIGOSOS<br />(máq. deixaria passar não-cliente)</div></div>
+        <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#b45309' }}>{inversos}</div><div style={s.kpiLbl}>Erros inversos (menos grave)</div></div>
+        <div style={s.kpi}><div style={{ ...s.kpiNum, color: '#5b6b84' }}>{pediuHumano}</div><div style={s.kpiLbl}>Máquina pediu humano</div></div>
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <label style={{ fontSize: 12, color: '#8b9bb4', cursor: 'pointer' }}>
+        <label style={{ fontSize: 12, color: '#5b6b84', cursor: 'pointer' }}>
           <input type="checkbox" checked={soComparaveis} onChange={e => setSoComparaveis(e.target.checked)} /> só os comparáveis (humano já decidiu e máquina não pediu humano)
         </label>
       </div>
 
-      {loading ? <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div> : (
+      {loading ? <div style={{ color: '#5b6b84', fontSize: 13 }}>Carregando...</div> : (
         <table style={s.tabela}>
           <thead>
             <tr>
@@ -182,7 +182,7 @@ export default function ConfereCNIS() {
                   <td style={s.td}>{l.nome || 'Sem nome'}</td>
                   <td style={s.td}>{l.nasc_bebe || '—'}</td>
                   <td style={s.td}><span style={s.badge(l.veredito_maquina)}>{(MAP_V[l.veredito_maquina] || {}).label || l.veredito_maquina}</span></td>
-                  <td style={{ ...s.td, maxWidth: 300, color: '#8b9bb4' }}>{l.motivo_maquina || '—'}</td>
+                  <td style={{ ...s.td, maxWidth: 300, color: '#5b6b84' }}>{l.motivo_maquina || '—'}</td>
                   <td style={s.td}>{decisaoHumanaCel(l)}</td>
                   <td style={s.td}>{bateuCel(l)}</td>
                   <td style={s.td}>

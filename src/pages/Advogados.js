@@ -5,47 +5,47 @@ import NovoAdvogado from '../components/NovoAdvogado'
 import DetalheAdvogado from '../components/DetalheAdvogado'
 
 const TITULOS_CLASS = {
-  'Parceiro Bronze': { bg: 'rgba(248,113,113,.14)', color: '#fbbf24' },
-  'Parceiro Prata': { bg: '#334766', color: '#c6d2e4' },
-  'Cliente Gold': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
-  'Cliente Gold II': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
-  'Cliente Platinum': { bg: 'rgba(96,165,250,.12)', color: '#60a5fa' },
-  'Cliente Platinum II': { bg: 'rgba(96,165,250,.12)', color: '#60a5fa' },
-  'Cliente Diamond': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
-  'Cliente Diamond II': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
-  'Cliente Black': { bg: '#c6d2e4', color: '#334766' },
+  'Parceiro Bronze': { bg: 'rgba(248,113,113,.14)', color: '#b45309' },
+  'Parceiro Prata': { bg: '#334766', color: '#334155' },
+  'Cliente Gold': { bg: 'rgba(251,191,36,.12)', color: '#b45309' },
+  'Cliente Gold II': { bg: 'rgba(251,191,36,.12)', color: '#b45309' },
+  'Cliente Platinum': { bg: 'rgba(96,165,250,.12)', color: '#2563eb' },
+  'Cliente Platinum II': { bg: 'rgba(96,165,250,.12)', color: '#2563eb' },
+  'Cliente Diamond': { bg: 'rgba(167,139,250,.14)', color: '#7c3aed' },
+  'Cliente Diamond II': { bg: 'rgba(167,139,250,.14)', color: '#7c3aed' },
+  'Cliente Black': { bg: '#334155', color: '#334766' },
 }
 const PROD_CLASS = {
-  'Maternidade': { bg: 'rgba(52,211,153,.14)', color: '#34d399' },
-  'Gestante até 5 meses': { bg: 'rgba(96,165,250,.10)', color: '#60a5fa' },
-  'BPC': { bg: 'rgba(167,139,250,.14)', color: '#a78bfa' },
-  'Auxilio Acidente': { bg: 'rgba(251,191,36,.12)', color: '#fbbf24' },
+  'Maternidade': { bg: 'rgba(52,211,153,.14)', color: '#059669' },
+  'Gestante até 5 meses': { bg: 'rgba(96,165,250,.10)', color: '#2563eb' },
+  'BPC': { bg: 'rgba(167,139,250,.14)', color: '#7c3aed' },
+  'Auxilio Acidente': { bg: 'rgba(251,191,36,.12)', color: '#b45309' },
 }
 const STATUS = {
-  verde: { bg: 'rgba(52,211,153,.14)', color: '#34d399', label: 'Ativo' },
-  amarelo: { bg: 'rgba(251,191,36,.12)', color: '#fbbf24', label: 'Atenção' },
-  vermelho: { bg: 'rgba(248,113,113,.14)', color: '#f87171', label: 'Crítico' },
+  verde: { bg: 'rgba(52,211,153,.14)', color: '#059669', label: 'Ativo' },
+  amarelo: { bg: 'rgba(251,191,36,.12)', color: '#b45309', label: 'Atenção' },
+  vermelho: { bg: 'rgba(248,113,113,.14)', color: '#dc2626', label: 'Crítico' },
 }
 
 const s = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', letterSpacing: '-0.3px' },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', letterSpacing: '-0.3px' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginBottom: '1.25rem' },
-  metric: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px' },
-  metricLabel: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
-  metricValue: { fontSize: 24, fontWeight: 500, color: '#e6edf7' },
+  metric: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: '12px 14px' },
+  metricLabel: { fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 },
+  metricValue: { fontSize: 24, fontWeight: 500, color: '#0f172a' },
   filters: { display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' },
-  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' },
-  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 8, background: '#232a37', color: '#e6edf7', outline: 'none' },
+  input: { flex: 1, minWidth: 160, padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', color: '#0f172a', outline: 'none' },
+  select: { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', color: '#0f172a', outline: 'none' },
   btnAdd: { padding: '8px 16px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  tableWrap: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' },
-  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#171c26', borderBottom: '0.5px solid rgba(255,255,255,0.07)' },
-  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', fontSize: 13, color: '#e6edf7', verticalAlign: 'middle' },
-  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#2b3340', color: STATUS[st]?.color || '#8b9bb4' }),
+  tableWrap: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, overflow: 'hidden' },
+  th: { padding: '10px 12px', textAlign: 'left', fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500, background: '#f2f5fa', borderBottom: '0.5px solid rgba(15,23,42,0.07)' },
+  td: { padding: '10px 12px', borderBottom: '0.5px solid rgba(15,23,42,0.06)', fontSize: 13, color: '#0f172a', verticalAlign: 'middle' },
+  badge: (st) => ({ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: STATUS[st]?.bg || '#e2e8f0', color: STATUS[st]?.color || '#5b6b84' }),
   dot: (st) => ({ width: 7, height: 7, borderRadius: '50%', background: STATUS[st]?.color || '#8b9bb4', display: 'inline-block' }),
-  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#2b3340', color: TITULOS_CLASS[t]?.color || '#8b9bb4', whiteSpace: 'nowrap' }),
-  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#2b3340', color: PROD_CLASS[p]?.color || '#8b9bb4', display: 'inline-block' }),
-  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
+  titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#e2e8f0', color: TITULOS_CLASS[t]?.color || '#5b6b84', whiteSpace: 'nowrap' }),
+  prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#e2e8f0', color: PROD_CLASS[p]?.color || '#5b6b84', display: 'inline-block' }),
+  loading: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14 },
 }
 
 export default function Advogados() {
@@ -88,9 +88,9 @@ export default function Advogados() {
 
       <div style={s.metrics}>
         <div style={s.metric}><div style={s.metricLabel}>Total</div><div style={s.metricValue}>{counts.total}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#34d399' }}>Ativos</div><div style={{ ...s.metricValue, color: '#34d399' }}>{counts.verde}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#fbbf24' }}>Atenção</div><div style={{ ...s.metricValue, color: '#fbbf24' }}>{counts.amarelo}</div></div>
-        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#f87171' }}>Críticos</div><div style={{ ...s.metricValue, color: '#f87171' }}>{counts.vermelho}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#059669' }}>Ativos</div><div style={{ ...s.metricValue, color: '#059669' }}>{counts.verde}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#b45309' }}>Atenção</div><div style={{ ...s.metricValue, color: '#b45309' }}>{counts.amarelo}</div></div>
+        <div style={s.metric}><div style={{ ...s.metricLabel, color: '#dc2626' }}>Críticos</div><div style={{ ...s.metricValue, color: '#dc2626' }}>{counts.vermelho}</div></div>
       </div>
 
       <div style={s.filters}>
@@ -131,13 +131,13 @@ export default function Advogados() {
             <tbody>
               {filtered.map(a => (
                 <tr key={a.id} onClick={() => setDetalhe(a)} style={{ cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#171c26'}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f2f5fa'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 500 }}>{a.nome_completo}</div>
-                    <div style={{ fontSize: 11, color: '#8b9bb4' }}>{a.cidade}</div>
+                    <div style={{ fontSize: 11, color: '#5b6b84' }}>{a.cidade}</div>
                   </td>
-                  <td style={{ ...s.td, fontSize: 12, color: '#8b9bb4' }}>{a.oab}</td>
+                  <td style={{ ...s.td, fontSize: 12, color: '#5b6b84' }}>{a.oab}</td>
                   <td style={{ ...s.td, fontSize: 12 }}>{a.estado}</td>
                   {profile?.role === 'admin' && <td style={{ ...s.td, fontSize: 12 }}>{a.profiles?.nome || '—'}</td>}
                   <td style={s.td}>

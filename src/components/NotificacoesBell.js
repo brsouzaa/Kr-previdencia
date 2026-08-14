@@ -96,7 +96,7 @@ export default function NotificacoesBell({ onNavigate }) {
           cursor: 'pointer',
           padding: '6px 8px',
           borderRadius: 8,
-          color: '#5F5E5A',
+          color: '#c6d2e4',
         }}
         title="Notificações"
       >
@@ -154,13 +154,13 @@ export default function NotificacoesBell({ onNavigate }) {
               padding: '12px 16px',
               borderBottom: '0.5px solid rgba(0,0,0,0.08)',
             }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
-                Notificações {naoLidas > 0 && <span style={{ color: '#A32D2D' }}>({naoLidas} novas)</span>}
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
+                Notificações {naoLidas > 0 && <span style={{ color: '#f87171' }}>({naoLidas} novas)</span>}
               </div>
               {naoLidas > 0 && (
                 <button
                   onClick={marcarTodasComoLidas}
-                  style={{ fontSize: 11, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer' }}
+                  style={{ fontSize: 11, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   Marcar todas como lidas
                 </button>
@@ -190,13 +190,13 @@ export default function NotificacoesBell({ onNavigate }) {
                   onMouseLeave={e => { e.currentTarget.style.background = n.lida ? '#fff' : '#F0F7FF' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
                       {n.titulo}
                     </div>
                     {!n.lida && <span style={{ width: 6, height: 6, borderRadius: 6, background: '#185FA5', flexShrink: 0, marginTop: 6 }} />}
                   </div>
                   {n.mensagem && (
-                    <div style={{ fontSize: 12, color: '#5F5E5A', marginTop: 3, lineHeight: 1.4 }}>{n.mensagem}</div>
+                    <div style={{ fontSize: 12, color: '#c6d2e4', marginTop: 3, lineHeight: 1.4 }}>{n.mensagem}</div>
                   )}
                   <div style={{ fontSize: 10, color: '#aaa', marginTop: 4 }}>{tempoRelativo(n.created_at)}</div>
                 </div>

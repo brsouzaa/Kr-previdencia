@@ -1,4 +1,4 @@
-// ===== TEMA KR PREVIDÊNCIA — Escuro Premium =====
+// ===== TEMA KR PREVIDÊNCIA — Sidebar escura + CONTEÚDO CLARO (14/08) =====
 // Fonte única de verdade do visual. Toda tela nova importa daqui em vez de
 // hardcodar cor. As telas antigas migram aos poucos nas próximas entregas.
 
@@ -9,14 +9,14 @@ export const cores = {
   perigo: '#dc2626', perigoVivo: '#f87171',
   // sidebar (sempre escura)
   sideBg: '#0b1220', sideTexto: '#8b9bb4', sideTextoAtivo: '#ffffff',
-  // conteúdo (ESCURO premium)
-  fundo: '#171c26', card: '#232a37', cardBorda: 'rgba(255,255,255,0.07)',
-  texto: '#e6edf7', suave: '#8b9bb4', chipBg: 'rgba(255,255,255,0.05)',
+  // conteúdo (CLARO — sidebar continua escura)
+  fundo: '#f2f5fa', card: '#ffffff', cardBorda: 'rgba(15,23,42,0.08)',
+  texto: '#0f172a', suave: '#5b6b84', chipBg: 'rgba(15,23,42,0.04)',
 }
 
 export const sombras = {
-  card: '0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35)',
-  cardHover: '0 2px 8px rgba(0,0,0,.4), 0 20px 50px rgba(0,0,0,.5)',
+  card: '0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.07)',
+  cardHover: '0 2px 8px rgba(15,23,42,.10), 0 16px 40px rgba(15,23,42,.12)',
   glowAzul: '0 4px 14px rgba(59,130,246,.35)',
 }
 
@@ -31,11 +31,11 @@ export const fonte = {
 export const fundoMesh = {
   background: cores.fundo,
   backgroundImage:
-    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.11), transparent 60%),' +
-    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.10), transparent 60%)',
+    'radial-gradient(900px 400px at 85% -10%, rgba(59,130,246,.07), transparent 60%),' +
+    'radial-gradient(700px 380px at 10% 110%, rgba(139,92,246,.06), transparent 60%)',
 }
 
-// injeta a fonte Inter + CSS base do modo escuro uma vez (chamado pelo Layout)
+// injeta a fonte Inter + CSS base do modo CLARO uma vez (chamado pelo Layout)
 export function carregarFonte() {
   if (!document.getElementById('kr-fonte')) {
     const l = document.createElement('link')
@@ -50,22 +50,22 @@ export function carregarFonte() {
     const s = document.createElement('style')
     s.id = 'kr-base-escura'
     s.textContent = `
-      html { color-scheme: dark; }
-      body { color: #e6edf7; background: #171c26; }
+      html { color-scheme: light; }
+      body { color: #0f172a; background: #f2f5fa; }
       input, select, textarea {
-        background-color: #1e242f; color: #e6edf7;
-        border: 1px solid rgba(148,163,184,.25); border-radius: 8px;
-        color-scheme: dark; font-family: inherit;
+        background-color: #ffffff; color: #0f172a;
+        border: 1px solid rgba(15,23,42,.15); border-radius: 8px;
+        color-scheme: light; font-family: inherit;
       }
-      select option { background: #232a37; color: #e6edf7; }
-      input::placeholder, textarea::placeholder { color: #64748b; }
+      select option { background: #ffffff; color: #0f172a; }
+      input::placeholder, textarea::placeholder { color: #94a3b8; }
       input:focus, select:focus, textarea:focus {
         outline: 2px solid rgba(96,165,250,.45); outline-offset: 1px;
       }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-thumb { 
       ::-webkit-scrollbar-track { background: transparent; }
-      a { color: #60a5fa; }
+      a { color: #2563eb; }
     `
     document.head.appendChild(s)
   }

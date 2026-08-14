@@ -205,24 +205,24 @@ export default function DashboardProducao() {
   const diasCorridosRestantes = Math.max(1, Math.ceil((fimMes - hoje) / (1000 * 60 * 60 * 24)))
   const diasUteisRestantes = Math.max(1, Math.round(diasCorridosRestantes * 5 / 7))
 
-  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }
+  const card = { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '14px 16px' }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84' }}>Carregando...</div>
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7' }}>📈 Dashboard de Produção</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a' }}>📈 Dashboard de Produção</div>
           {ultimaAtualizacao && (
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>
               Última atualização: {ultimaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              {autoRefresh && <span style={{ marginLeft: 8, color: '#34d399' }}>● Auto-atualizando a cada 30s</span>}
+              {autoRefresh && <span style={{ marginLeft: 8, color: '#059669' }}>● Auto-atualizando a cada 30s</span>}
             </div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ fontSize: 12, color: '#8b9bb4', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <label style={{ fontSize: 12, color: '#5b6b84', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
             Auto-atualizar
           </label>
@@ -230,8 +230,8 @@ export default function DashboardProducao() {
             onClick={fetchDados}
             style={{
               padding: '8px 14px',
-              background: '#232a37',
-              color: '#60a5fa',
+              background: '#ffffff',
+              color: '#2563eb',
               border: '1px solid #60a5fa',
               borderRadius: 8,
               fontSize: 13,
@@ -262,7 +262,7 @@ export default function DashboardProducao() {
 
       {/* === FILTRO DE PERÍODO === */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📅 Período</div>
+        <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📅 Período</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             { k: 'hoje', l: 'Hoje' },
@@ -280,9 +280,9 @@ export default function DashboardProducao() {
                 fontSize: 12,
                 fontWeight: 500,
                 borderRadius: 8,
-                border: '0.5px solid rgba(255,255,255,0.11)',
-                background: periodo === p.k ? '#e6edf7' : '#232a37',
-                color: periodo === p.k ? '#232a37' : '#8b9bb4',
+                border: '0.5px solid rgba(15,23,42,0.11)',
+                background: periodo === p.k ? '#0f172a' : '#ffffff',
+                color: periodo === p.k ? '#232a37' : '#5b6b84',
                 cursor: 'pointer',
               }}
             >
@@ -291,30 +291,30 @@ export default function DashboardProducao() {
           ))}
           {periodo === 'custom' && (
             <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 6 }}>
-              <input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
-              <span style={{ fontSize: 12, color: '#8b9bb4' }}>→</span>
-              <input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' }} />
+              <input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)' }} />
+              <span style={{ fontSize: 12, color: '#5b6b84' }}>→</span>
+              <input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)' }} />
             </span>
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 10 }}>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Emitidos · {range.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#e6edf7' }}>{emitidosPeriodo}</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>Mat {emitidosMaternidade} · BPC {emitidosBPC} · Aux {emitidosAux}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Emitidos · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#0f172a' }}>{emitidosPeriodo}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>Mat {emitidosMaternidade} · BPC {emitidosBPC} · Aux {emitidosAux}</div>
           </div>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Assinados · {range.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#34d399' }}>{assinadosPeriodo}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Assinados · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#059669' }}>{assinadosPeriodo}</div>
           </div>
           <div style={{ ...card, background: taxaAssinaturaPeriodo >= 70 ? 'rgba(52,211,153,.14)' : taxaAssinaturaPeriodo >= 40 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.14)', border: `0.5px solid ${taxaAssinaturaPeriodo >= 70 ? '#34d399' : taxaAssinaturaPeriodo >= 40 ? '#fbbf24' : '#f87171'}30` }}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Taxa assinatura · {range.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: taxaAssinaturaPeriodo >= 70 ? '#34d399' : taxaAssinaturaPeriodo >= 40 ? '#fbbf24' : '#f87171' }}>{taxaAssinaturaPeriodo}%</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>{assinadosValidos} de {validosPeriodo} válidos</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Taxa assinatura · {range.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: taxaAssinaturaPeriodo >= 70 ? '#059669' : taxaAssinaturaPeriodo >= 40 ? '#b45309' : '#dc2626' }}>{taxaAssinaturaPeriodo}%</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>{assinadosValidos} de {validosPeriodo} válidos</div>
           </div>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Pendentes emissão (geral)</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#a78bfa' }}>{pendentesEmissao}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Pendentes emissão (geral)</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#7c3aed' }}>{pendentesEmissao}</div>
           </div>
         </div>
       </div>
@@ -322,7 +322,7 @@ export default function DashboardProducao() {
       {/* === CARD DE META B2C DO MÊS === */}
       {meta && (
         <div style={{ marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>🎯 Meta do mês</div>
+          <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>🎯 Meta do mês</div>
           <div style={{ ...card, background: 'rgba(251,191,36,.12)', border: '0.5px solid #B7892530' }}>
             {(() => {
               const metaTotal = (meta.contratos_maternidade || 0) + (meta.contratos_bpc || 0) + (meta.contratos_aux || 0)
@@ -331,44 +331,44 @@ export default function DashboardProducao() {
               const pctMat = meta.contratos_maternidade > 0 ? Math.round((emitidosMesMat / meta.contratos_maternidade) * 100) : 0
               const pctBPC = meta.contratos_bpc > 0 ? Math.round((emitidosMesBPC / meta.contratos_bpc) * 100) : 0
               const pctAux = meta.contratos_aux > 0 ? Math.round((emitidosMesAux / meta.contratos_aux) * 100) : 0
-              const corPct = pctTotal >= 90 ? '#34d399' : pctTotal >= 50 ? '#fbbf24' : '#f87171'
+              const corPct = pctTotal >= 90 ? '#059669' : pctTotal >= 50 ? '#b45309' : '#dc2626'
               return (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>
                         Total emitido no mês: <span style={{ color: corPct, fontWeight: 600 }}>{emitidosMesTotal.toLocaleString('pt-BR')}</span> / {metaTotal.toLocaleString('pt-BR')} ({pctTotal}%)
                       </div>
-                      <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>
                         Falta {Math.max(0, metaTotal - emitidosMesTotal).toLocaleString('pt-BR')} em ~{diasUteisRestantes} dias úteis · ritmo {ritmo}/dia
                       </div>
                     </div>
                     {meta.taxa_assinatura_pct > 0 && (
-                      <div style={{ fontSize: 12, color: '#8b9bb4' }}>
-                        Taxa assinatura: <strong style={{ color: taxaConversao >= meta.taxa_assinatura_pct ? '#34d399' : '#f87171' }}>{taxaConversao}%</strong> / {meta.taxa_assinatura_pct}%
+                      <div style={{ fontSize: 12, color: '#5b6b84' }}>
+                        Taxa assinatura: <strong style={{ color: taxaConversao >= meta.taxa_assinatura_pct ? '#059669' : '#dc2626' }}>{taxaConversao}%</strong> / {meta.taxa_assinatura_pct}%
                       </div>
                     )}
                   </div>
                   {/* Barra geral */}
-                  <div style={{ height: 8, background: '#232a37', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
+                  <div style={{ height: 8, background: '#ffffff', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
                     <div style={{ height: '100%', width: Math.min(100, pctTotal) + '%', background: corPct, transition: 'width 0.3s' }} />
                   </div>
                   {/* Detalhe por produto */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Maternidade</div>
-                      <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesMat} / {meta.contratos_maternidade || 0}</div>
-                      <div style={{ fontSize: 11, color: pctMat >= 90 ? '#34d399' : pctMat >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctMat}%</div>
+                    <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Maternidade</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#0f172a' }}>{emitidosMesMat} / {meta.contratos_maternidade || 0}</div>
+                      <div style={{ fontSize: 11, color: pctMat >= 90 ? '#059669' : pctMat >= 50 ? '#b45309' : '#dc2626', marginTop: 2 }}>{pctMat}%</div>
                     </div>
-                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>BPC</div>
-                      <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesBPC} / {meta.contratos_bpc || 0}</div>
-                      <div style={{ fontSize: 11, color: pctBPC >= 90 ? '#34d399' : pctBPC >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctBPC}%</div>
+                    <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>BPC</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#0f172a' }}>{emitidosMesBPC} / {meta.contratos_bpc || 0}</div>
+                      <div style={{ fontSize: 11, color: pctBPC >= 90 ? '#059669' : pctBPC >= 50 ? '#b45309' : '#dc2626', marginTop: 2 }}>{pctBPC}%</div>
                     </div>
-                    <div style={{ background: '#232a37', padding: '10px 12px', borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Aux. Acidente</div>
-                      <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7' }}>{emitidosMesAux} / {meta.contratos_aux || 0}</div>
-                      <div style={{ fontSize: 11, color: pctAux >= 90 ? '#34d399' : pctAux >= 50 ? '#fbbf24' : '#f87171', marginTop: 2 }}>{pctAux}%</div>
+                    <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Aux. Acidente</div>
+                      <div style={{ fontSize: 18, fontWeight: 500, color: '#0f172a' }}>{emitidosMesAux} / {meta.contratos_aux || 0}</div>
+                      <div style={{ fontSize: 11, color: pctAux >= 90 ? '#059669' : pctAux >= 50 ? '#b45309' : '#dc2626', marginTop: 2 }}>{pctAux}%</div>
                     </div>
                   </div>
                 </div>
@@ -381,31 +381,31 @@ export default function DashboardProducao() {
       {/* === ALERTAS CRÍTICOS === */}
       {(lotesAtrasados.length > 0 || expirandoEm3h.length > 0 || lotesVencendoHoje.length > 0) && (
         <div style={{ marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>⚠️ Atenção urgente</div>
+          <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>⚠️ Atenção urgente</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {lotesAtrasados.length > 0 && (
               <div style={{ ...card, background: 'rgba(248,113,113,.14)', border: '1.5px solid #A32D2D60' }}>
-                <div style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>🚨 ATRASADOS</div>
-                <div style={{ fontSize: 32, fontWeight: 600, color: '#f87171' }}>{contratosAtrasados}</div>
-                <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>🚨 ATRASADOS</div>
+                <div style={{ fontSize: 32, fontWeight: 600, color: '#dc2626' }}>{contratosAtrasados}</div>
+                <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>
                   Em {lotesAtrasados.length} lote{lotesAtrasados.length !== 1 ? 's' : ''} com prazo vencido
                 </div>
               </div>
             )}
             {lotesVencendoHoje.length > 0 && (
               <div style={{ ...card, background: 'rgba(251,191,36,.12)', border: '1.5px solid #854F0B60' }}>
-                <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>📅 VENCEM HOJE</div>
-                <div style={{ fontSize: 32, fontWeight: 600, color: '#fbbf24' }}>{contratosVencendoHoje}</div>
-                <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>📅 VENCEM HOJE</div>
+                <div style={{ fontSize: 32, fontWeight: 600, color: '#b45309' }}>{contratosVencendoHoje}</div>
+                <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>
                   Em {lotesVencendoHoje.length} lote{lotesVencendoHoje.length !== 1 ? 's' : ''}
                 </div>
               </div>
             )}
             {expirandoEm3h.length > 0 && (
               <div style={{ ...card, background: 'rgba(251,191,36,.12)', border: '1.5px solid #F59E0B60' }}>
-                <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>⏰ EXPIRAM EM &lt; 3H</div>
-                <div style={{ fontSize: 32, fontWeight: 600, color: '#fbbf24' }}>{expirandoEm3h.length}</div>
-                <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 600 }}>⏰ EXPIRAM EM &lt; 3H</div>
+                <div style={{ fontSize: 32, fontWeight: 600, color: '#b45309' }}>{expirandoEm3h.length}</div>
+                <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>
                   Contratos pendentes de assinatura
                 </div>
               </div>
@@ -416,47 +416,47 @@ export default function DashboardProducao() {
 
       {/* === MÉTRICAS PRINCIPAIS === */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📊 Hoje</div>
+        <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📊 Hoje</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
           <div style={{ ...card, background: 'rgba(96,165,250,.12)', border: '0.5px solid #185FA530' }}>
-            <div style={{ fontSize: 11, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Emitidos hoje</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#60a5fa' }}>{emitidosHoje}</div>
+            <div style={{ fontSize: 11, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Emitidos hoje</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#2563eb' }}>{emitidosHoje}</div>
           </div>
           <div style={{ ...card, background: 'rgba(52,211,153,.14)', border: '0.5px solid #3B6D1130' }}>
-            <div style={{ fontSize: 11, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Assinados hoje</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#34d399' }}>{assinadosHoje}</div>
+            <div style={{ fontSize: 11, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Assinados hoje</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#059669' }}>{assinadosHoje}</div>
           </div>
           <div style={{ ...card, background: 'rgba(167,139,250,.14)', border: '0.5px solid #7C3AED30' }}>
-            <div style={{ fontSize: 11, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Pendentes p/ emitir</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#a78bfa' }}>{pendentesEmissao}</div>
+            <div style={{ fontSize: 11, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Pendentes p/ emitir</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#7c3aed' }}>{pendentesEmissao}</div>
           </div>
           <div style={{ ...card, background: 'rgba(251,191,36,.12)', border: '0.5px solid #F59E0B30' }}>
-            <div style={{ fontSize: 11, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Em prioridade</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#fbbf24' }}>{contratosPrioridade}</div>
+            <div style={{ fontSize: 11, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, opacity: 0.8 }}>Em prioridade</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#b45309' }}>{contratosPrioridade}</div>
           </div>
         </div>
       </div>
 
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: 12, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📅 Esta semana</div>
+        <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 500 }}>📅 Esta semana</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Vencem nos próximos 7 dias</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#e6edf7' }}>{contratosVencendoSemana}</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>{lotesVencendoSemana.length} lote{lotesVencendoSemana.length !== 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Vencem nos próximos 7 dias</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#0f172a' }}>{contratosVencendoSemana}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>{lotesVencendoSemana.length} lote{lotesVencendoSemana.length !== 1 ? 's' : ''}</div>
           </div>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Emitidos na semana</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#e6edf7' }}>{emitidosSemana}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Emitidos na semana</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#0f172a' }}>{emitidosSemana}</div>
           </div>
           <div style={card}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Assinados na semana</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: '#e6edf7' }}>{assinadosSemana}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Assinados na semana</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: '#0f172a' }}>{assinadosSemana}</div>
           </div>
           <div style={{ ...card, background: taxaConversao >= 70 ? 'rgba(52,211,153,.14)' : taxaConversao >= 40 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.14)', border: `0.5px solid ${taxaConversao >= 70 ? '#34d399' : taxaConversao >= 40 ? '#fbbf24' : '#f87171'}30` }}>
-            <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Taxa de assinatura geral</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color: taxaConversao >= 70 ? '#34d399' : taxaConversao >= 40 ? '#fbbf24' : '#f87171' }}>{taxaConversao}%</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>{totalAssinados} de {totalEmitidos} válidos</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Taxa de assinatura geral</div>
+            <div style={{ fontSize: 28, fontWeight: 500, color: taxaConversao >= 70 ? '#059669' : taxaConversao >= 40 ? '#b45309' : '#dc2626' }}>{taxaConversao}%</div>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>{totalAssinados} de {totalEmitidos} válidos</div>
           </div>
         </div>
       </div>
@@ -465,7 +465,7 @@ export default function DashboardProducao() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
         {/* Lotes vencendo hoje */}
         <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', marginBottom: 12 }}>
             📅 Lotes vencendo hoje ({lotesVencendoHoje.length})
           </div>
           {lotesVencendoHoje.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhum lote vence hoje</div>}
@@ -474,8 +474,8 @@ export default function DashboardProducao() {
             return (
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(251,191,36,.12)', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
-                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Lote: {l.total_contratos} contratos</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
+                  <div style={{ fontSize: 11, color: '#5b6b84' }}>OAB/{l.advogados?.estado} {l.advogados?.oab} · Lote: {l.total_contratos} contratos</div>
                 </div>
                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} restante{restantes !== 1 ? 's' : ''}
@@ -487,7 +487,7 @@ export default function DashboardProducao() {
 
         {/* Lotes em prioridade */}
         <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', marginBottom: 12 }}>
             ⚡ Lotes em prioridade ({lotesPrioridade.length})
           </div>
           {lotesPrioridade.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>Nenhum lote em prioridade</div>}
@@ -496,8 +496,8 @@ export default function DashboardProducao() {
             return (
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(251,191,36,.12)', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
-                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>Prioridade desde {l.data_prioridade ? new Date(l.data_prioridade).toLocaleDateString('pt-BR') : '-'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.advogados?.nome_completo}</div>
+                  <div style={{ fontSize: 11, color: '#5b6b84' }}>Prioridade desde {l.data_prioridade ? new Date(l.data_prioridade).toLocaleDateString('pt-BR') : '-'}</div>
                 </div>
                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} reemitir
@@ -511,16 +511,16 @@ export default function DashboardProducao() {
       {/* Expirando em <3h */}
       {expirandoEm3h.length > 0 && (
         <div style={{ ...card, marginBottom: '1.25rem', background: 'rgba(251,191,36,.12)', border: '0.5px solid #F59E0B40' }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#fbbf24', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#b45309', marginBottom: 10 }}>
             ⏰ Contratos expirando em menos de 3 horas — entrar em contato com o cliente!
           </div>
           {expirandoEm3h.map(c => {
             const horasRestantes = Math.max(0, (new Date(c.data_expiracao).getTime() - Date.now()) / 3600000)
             return (
-              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#232a37', borderRadius: 8, marginBottom: 6 }}>
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#ffffff', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{c.cliente_nome}</div>
-                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>📞 {c.cliente_telefone} · Adv: {c.advogados?.nome_completo}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{c.cliente_nome}</div>
+                  <div style={{ fontSize: 11, color: '#5b6b84' }}>📞 {c.cliente_telefone} · Adv: {c.advogados?.nome_completo}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                   <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fbbf24', color: '#232a37' }}>
@@ -546,17 +546,17 @@ export default function DashboardProducao() {
       {/* Atrasados (lotes com prazo vencido) */}
       {lotesAtrasados.length > 0 && (
         <div style={{ ...card, background: 'rgba(248,113,113,.14)', border: '0.5px solid #A32D2D40' }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#f87171', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#dc2626', marginBottom: 10 }}>
             🚨 Lotes com prazo vencido — atenção urgente
           </div>
           {lotesAtrasados.map(l => {
             const restantes = (l.total_contratos || 0) - (l.qtd_emitidos || 0)
             const diasAtraso = Math.floor((hoje - new Date(l.data_limite_entrega + 'T00:00:00')) / (24 * 3600000))
             return (
-              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#232a37', borderRadius: 8, marginBottom: 6 }}>
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#ffffff', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#e6edf7' }}>{l.advogados?.nome_completo}</div>
-                  <div style={{ fontSize: 11, color: '#8b9bb4' }}>Atrasado há {diasAtraso} dia{diasAtraso !== 1 ? 's' : ''} · Prazo era {new Date(l.data_limite_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{l.advogados?.nome_completo}</div>
+                  <div style={{ fontSize: 11, color: '#5b6b84' }}>Atrasado há {diasAtraso} dia{diasAtraso !== 1 ? 's' : ''} · Prazo era {new Date(l.data_limite_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
                 </div>
                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#f87171', color: '#232a37', flexShrink: 0, marginLeft: 8 }}>
                   {restantes} restante{restantes !== 1 ? 's' : ''}

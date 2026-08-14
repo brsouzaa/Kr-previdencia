@@ -3,29 +3,29 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
-  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 24 },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4, letterSpacing: '-0.3px' },
+  subtitle: { fontSize: 13, color: '#5b6b84', marginBottom: 24 },
   section: { marginBottom: 32 },
-  sectionTitle: { fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: 500, color: '#0f172a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '1.25rem', marginBottom: 12 },
   cardHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  cardTitle: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
-  badge: { fontSize: 11, color: '#8b9bb4', background: '#171c26', padding: '3px 8px', borderRadius: 6 },
+  cardTitle: { fontSize: 15, fontWeight: 500, color: '#0f172a' },
+  badge: { fontSize: 11, color: '#5b6b84', background: '#f2f5fa', padding: '3px 8px', borderRadius: 6 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 },
   field: { display: 'flex', flexDirection: 'column', gap: 4 },
-  label: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.4px' },
-  input: { fontSize: 16, fontWeight: 500, color: '#e6edf7', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '8px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', background: '#232a37' },
+  label: { fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  input: { fontSize: 16, fontWeight: 500, color: '#0f172a', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, padding: '8px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', background: '#ffffff' },
   inputFocus: { borderColor: '#60a5fa' },
   periodoSelector: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
-  periodoBtnActive: { background: '#e6edf7', color: '#232a37', borderColor: '#e6edf7' },
+  periodoBtn: { fontSize: 13, padding: '8px 14px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
+  periodoBtnActive: { background: '#0f172a', color: '#232a37', borderColor: '#e6edf7' },
   saveBtn: { fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#60a5fa', color: '#232a37', cursor: 'pointer', marginTop: 12 },
   saveBtnDisabled: { background: '#64748b', cursor: 'not-allowed' },
-  feedback: { fontSize: 12, color: '#34d399', marginLeft: 12 },
-  feedbackErr: { color: '#f87171' },
-  divider: { height: 1, background: 'rgba(255,255,255,0.07)', margin: '24px 0' },
+  feedback: { fontSize: 12, color: '#059669', marginLeft: 12 },
+  feedbackErr: { color: '#dc2626' },
+  divider: { height: 1, background: 'rgba(15,23,42,0.07)', margin: '24px 0' },
   hint: { fontSize: 11, color: '#64748b', marginTop: 4 },
-  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
+  loading: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14 },
 }
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -290,8 +290,8 @@ export default function Metas() {
               <div style={s.hint}>Atual: 84% (semana passada)</div>
             </div>
           </div>
-          <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 12, padding: '8px 12px', background: '#171c26', borderRadius: 6 }}>
-            Total mensal: <strong style={{ color: '#e6edf7' }}>{((Number(metaB2C.contratos_maternidade) || 0) + (Number(metaB2C.contratos_bpc) || 0) + (Number(metaB2C.contratos_aux) || 0)).toLocaleString('pt-BR')}</strong> contratos
+          <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 12, padding: '8px 12px', background: '#f2f5fa', borderRadius: 6 }}>
+            Total mensal: <strong style={{ color: '#0f172a' }}>{((Number(metaB2C.contratos_maternidade) || 0) + (Number(metaB2C.contratos_bpc) || 0) + (Number(metaB2C.contratos_aux) || 0)).toLocaleString('pt-BR')}</strong> contratos
           </div>
           <button
             style={{ ...s.saveBtn, ...(salvando ? s.saveBtnDisabled : {}) }}
@@ -362,10 +362,10 @@ export default function Metas() {
 
         {/* Lista de vendedoras pra contexto */}
         <div style={{ ...s.card, marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vendedoras ativas que vão receber esta meta</div>
+          <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vendedoras ativas que vão receber esta meta</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {vendedoresB2B.map(v => (
-              <div key={v.id} style={{ fontSize: 13, color: '#e6edf7', background: '#171c26', padding: '6px 12px', borderRadius: 6 }}>
+              <div key={v.id} style={{ fontSize: 13, color: '#0f172a', background: '#f2f5fa', padding: '6px 12px', borderRadius: 6 }}>
                 {v.nome}
               </div>
             ))}

@@ -6,21 +6,21 @@ const ESTADOS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG
 
 const s = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
-  modal: { background: '#232a37', borderRadius: 16, padding: '1.75rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' },
+  modal: { background: '#ffffff', borderRadius: 16, padding: '1.75rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
-  title: { fontSize: 16, fontWeight: 500, color: '#e6edf7' },
-  closeBtn: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#8b9bb4' },
+  title: { fontSize: 16, fontWeight: 500, color: '#0f172a' },
+  closeBtn: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#5b6b84' },
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-  label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 },
-  input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none' },
-  inputError: { width: '100%', padding: '9px 10px', fontSize: 13, border: '1.5px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none' },
-  select: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none' },
+  label: { display: 'block', fontSize: 12, color: '#5b6b84', marginBottom: 4 },
+  input: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none' },
+  inputError: { width: '100%', padding: '9px 10px', fontSize: 13, border: '1.5px solid #f87171', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none' },
+  select: { width: '100%', padding: '9px 10px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none' },
   btnSave: { width: '100%', marginTop: '1.25rem', padding: '11px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', marginTop: '1.25rem', padding: '11px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
-  error: { marginTop: 10, padding: '10px 12px', background: 'rgba(248,113,113,.14)', borderRadius: 8, fontSize: 13, color: '#f87171', display: 'flex', alignItems: 'center', gap: 6 },
-  warning: { marginTop: 6, fontSize: 11, color: '#f87171' },
-  sectionTitle: { fontSize: 12, fontWeight: 500, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '1rem 0 8px' },
-  vendedorBox: { background: 'rgba(96,165,250,.12)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#60a5fa', fontWeight: 500, marginBottom: 12 },
+  error: { marginTop: 10, padding: '10px 12px', background: 'rgba(248,113,113,.14)', borderRadius: 8, fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 },
+  warning: { marginTop: 6, fontSize: 11, color: '#dc2626' },
+  sectionTitle: { fontSize: 12, fontWeight: 500, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '1rem 0 8px' },
+  vendedorBox: { background: 'rgba(96,165,250,.12)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#2563eb', fontWeight: 500, marginBottom: 12 },
 }
 
 const INITIAL = { nome_completo: '', oab: '', estado: 'SP', cidade: '', telefone: '', email: '', estado_civil: 'Solteiro(a)', nacionalidade: 'Brasileira', endereco: '' }
@@ -111,7 +111,7 @@ export default function NovoAdvogado({ onClose, onSaved }) {
               <input style={s.input} value={form.nome_completo} onChange={e => set('nome_completo', e.target.value)} required />
             </div>
             <div>
-              <label style={s.label}>OAB * {verificandoOab && <span style={{ color: '#8b9bb4' }}>verificando...</span>}</label>
+              <label style={s.label}>OAB * {verificandoOab && <span style={{ color: '#5b6b84' }}>verificando...</span>}</label>
               <input
                 style={oabDuplicado ? s.inputError : s.input}
                 value={form.oab}

@@ -9,13 +9,13 @@ import { supabase } from '../lib/supabase'
 // Paleta dos gráficos validada (CVD + contraste) contra o fundo grafite.
 // ═══════════════════════════════════════════════════════════════
 
-const ROSA = '#f472b6' // acento da marca (UI, nunca série de dado)
+const ROSA = '#db2777' // acento da marca (UI, nunca série de dado)
 // séries de dado (validadas): canais e funil de e-mail
 const CORES_CANAL = { whatsapp: '#059669', sms: '#3b82f6', email: '#d97706' }
 const ICONE_CANAL = { whatsapp: '💬', sms: '📱', email: '✉️' }
 const CORES_EMAIL = { enviados: '#8b5cf6', entregues: '#059669', abertos: '#3b82f6', clicados: '#ec4899' }
 // status (reservadas pra estado, nunca série)
-const OK = '#34d399', ALERTA = '#fbbf24', ERRO = '#f87171', NEUTRO = '#8b9bb4'
+const OK = '#059669', ALERTA = '#b45309', ERRO = '#dc2626', NEUTRO = '#5b6b84'
 
 const GATES = [
   ['conversa_criada', 'Iniciou conversa'], ['oferta_vista', 'Viu a oferta'],
@@ -26,34 +26,34 @@ const REGRA_NEGOCIO = 'Limitador: 1 SMS + 1 WhatsApp pagos por lead/dia (3/seman
 
 // ───────────────────────── design system da tela ─────────────────────────
 const s = {
-  title: { fontSize: 20, fontWeight: 600, color: '#e6edf7', letterSpacing: '-0.01em' },
-  sub: { fontSize: 13, color: '#8b9bb4', marginTop: 2, marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.01em' },
+  sub: { fontSize: 13, color: '#5b6b84', marginTop: 2, marginBottom: 16 },
   // seção = bloco branco da tela (card grande com cabeçalho)
-  secao: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 16, marginBottom: 14 },
+  secao: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: 16, marginBottom: 14 },
   secaoHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' },
-  secaoTit: { fontSize: 13, fontWeight: 600, color: '#c6d2e4' },
+  secaoTit: { fontSize: 13, fontWeight: 600, color: '#334155' },
   secaoSub: { fontSize: 11, color: '#64748b' },
   // KPI = tile interno (superfície mais escura que a seção)
-  kpi: { background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 14px', minWidth: 0 },
-  kpiLbl: { fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  kpiNum: { fontSize: 24, fontWeight: 700, color: '#e6edf7', fontVariantNumeric: 'tabular-nums', lineHeight: 1.25, marginTop: 2 },
-  kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4, lineHeight: 1.5 },
+  kpi: { background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.07)', borderRadius: 12, padding: '12px 14px', minWidth: 0 },
+  kpiLbl: { fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  kpiNum: { fontSize: 24, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums', lineHeight: 1.25, marginTop: 2 },
+  kpiSub: { fontSize: 11, color: '#5b6b84', marginTop: 4, lineHeight: 1.5 },
   grid: (min = 150) => ({ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 10 }),
-  input: { padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.13)', background: '#1e242f', color: '#e6edf7', width: '100%', boxSizing: 'border-box' },
-  label: { fontSize: 11, color: '#8b9bb4', display: 'block', marginBottom: 3, marginTop: 8 },
-  btn: (cor = '#60a5fa', solido = false) => ({
+  input: { padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.13)', background: '#f1f5f9', color: '#0f172a', width: '100%', boxSizing: 'border-box' },
+  label: { fontSize: 11, color: '#5b6b84', display: 'block', marginBottom: 3, marginTop: 8 },
+  btn: (cor = '#2563eb', solido = false) => ({
     padding: '7px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
     border: `1px solid ${cor}`, background: solido ? cor : 'transparent', color: solido ? '#10141b' : cor,
   }),
   chip: (ativo, cor = ROSA) => ({
     padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: 'pointer',
-    border: ativo ? `1px solid ${cor}` : '0.5px solid rgba(255,255,255,0.11)',
-    background: ativo ? `${cor}22` : '#1e242f', color: ativo ? cor : '#8b9bb4',
+    border: ativo ? `1px solid ${cor}` : '0.5px solid rgba(15,23,42,0.11)',
+    background: ativo ? `${cor}22` : '#f1f5f9', color: ativo ? cor : '#5b6b84',
   }),
-  aviso: { fontSize: 12, color: '#fbbf24', background: 'rgba(251,191,36,.08)', border: '0.5px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '9px 12px', lineHeight: 1.5 },
+  aviso: { fontSize: 12, color: '#b45309', background: 'rgba(251,191,36,.08)', border: '0.5px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '9px 12px', lineHeight: 1.5 },
   erroBox: { fontSize: 12, color: ERRO, background: 'rgba(248,113,113,.08)', border: '0.5px solid rgba(248,113,113,.35)', borderRadius: 10, padding: '9px 12px' },
-  th: { textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '9px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' },
-  td: { fontSize: 13, color: '#e6edf7', padding: '9px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.05)', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' },
+  th: { textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '9px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' },
+  td: { fontSize: 13, color: '#0f172a', padding: '9px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.05)', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' },
   tabela: { width: '100%', borderCollapse: 'collapse' },
   badge: (cor, bg) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, color: cor, background: bg }),
   vazio: { color: '#64748b', fontSize: 12, padding: '18px 0', textAlign: 'center' },
@@ -82,7 +82,7 @@ function Kpi({ label, valor, cor, sub, borda }) {
   return (
     <div style={{ ...s.kpi, ...(borda ? { border: `1px solid ${borda}55`, boxShadow: `inset 3px 0 0 ${borda}` } : {}) }}>
       <div style={s.kpiLbl}>{label}</div>
-      <div style={{ ...s.kpiNum, color: cor || '#e6edf7' }}>{valor}</div>
+      <div style={{ ...s.kpiNum, color: cor || '#0f172a' }}>{valor}</div>
       {sub && <div style={s.kpiSub}>{sub}</div>}
     </div>
   )
@@ -91,7 +91,7 @@ function Legenda({ itens }) {
   return (
     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10 }}>
       {itens.map(([cor, lbl]) => (
-        <span key={lbl} style={{ fontSize: 11, color: '#8b9bb4', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        <span key={lbl} style={{ fontSize: 11, color: '#5b6b84', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <span style={{ width: 9, height: 9, borderRadius: 2, background: cor, display: 'inline-block' }} />{lbl}
         </span>
       ))}
@@ -137,17 +137,17 @@ export default function CentralRetorno() {
       </div>
 
       {/* sub-navegação: controle segmentado */}
-      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'inline-flex', background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 16, flexWrap: 'wrap' }}>
         {ABAS.map(([k, lbl]) => (
           <button key={k} onClick={() => setTela(k)}
-            style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: 'none', background: tela === k ? '#323b4d' : 'transparent', color: tela === k ? '#e6edf7' : '#8b9bb4', boxShadow: tela === k ? `inset 0 -2px 0 ${ROSA}` : 'none' }}>
+            style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: 'none', background: tela === k ? '#dde5f0' : 'transparent', color: tela === k ? '#0f172a' : '#5b6b84', boxShadow: tela === k ? `inset 0 -2px 0 ${ROSA}` : 'none' }}>
             {lbl}
           </button>
         ))}
       </div>
 
       {erro && <div style={{ ...s.erroBox, marginBottom: 12 }}>⚠ {erro}</div>}
-      {!ov && !erro && <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div>}
+      {!ov && !erro && <div style={{ color: '#5b6b84', fontSize: 13 }}>Carregando...</div>}
 
       {ov && tela === 'painel' && <Painel ov={ov} />}
       {tela === 'leads' && <Leads />}
@@ -185,10 +185,10 @@ function Painel({ ov }) {
     const va = Number(a || 0), vb = Number(b || 0)
     const delta = va - vb
     return (
-      <div key={lbl} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, alignItems: 'center', fontSize: 12, padding: '5px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
-        <span style={{ color: '#c6d2e4' }}>{lbl}</span>
+      <div key={lbl} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, alignItems: 'center', fontSize: 12, padding: '5px 0', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>
+        <span style={{ color: '#334155' }}>{lbl}</span>
         <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>ontem {vb}</span>
-        <b style={{ color: '#e6edf7', fontVariantNumeric: 'tabular-nums', minWidth: 34, textAlign: 'right' }}>{va}</b>
+        <b style={{ color: '#0f172a', fontVariantNumeric: 'tabular-nums', minWidth: 34, textAlign: 'right' }}>{va}</b>
         <span style={{ fontSize: 11, minWidth: 40, textAlign: 'right', color: delta > 0 ? OK : delta < 0 ? ERRO : '#64748b' }}>
           {delta === 0 ? '=' : (delta > 0 ? '▲ ' : '▼ ') + Math.abs(delta)}
         </span>
@@ -202,7 +202,7 @@ function Painel({ ov }) {
         <Kpi label="Avisos pagos hoje" valor={enviosHoje}
           sub={custosHoje.length === 0 ? 'nenhum envio pago hoje' :
             custosHoje.map(c => `${ICONE_CANAL[c.canal] || ''} ${c.canal}: ${c.envios}`).join(' · ')} />
-        <Kpi label="Custo pago hoje" valor={reais(custoTotalHoje)} cor={custoTotalHoje > 0 ? ALERTA : '#e6edf7'} />
+        <Kpi label="Custo pago hoje" valor={reais(custoTotalHoje)} cor={custoTotalHoje > 0 ? ALERTA : '#0f172a'} />
         <Kpi label="Pushes entregues hoje" valor={pushHoje.entregues || 0} cor={OK}
           sub={`👆 ${pushHoje.clicados || 0} clicados · ${pushHoje.telefones_alcancados || 0} pessoas · grátis`} />
         <Kpi label="Fila hoje" valor={filaHoje.length}
@@ -330,14 +330,14 @@ function Leads() {
           <input style={{ ...s.input, width: 220 }} placeholder="nome, telefone ou email" value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#8b9bb4', marginRight: 2 }}>Cadastro em:</span>
+          <span style={{ fontSize: 11, color: '#5b6b84', marginRight: 2 }}>Cadastro em:</span>
           {OPCOES_PERIODO.map(([v, lbl]) => (
-            <button key={v} onClick={() => setPeriodo(v)} style={s.chip(periodo === v, '#60a5fa')}>{lbl}</button>
+            <button key={v} onClick={() => setPeriodo(v)} style={s.chip(periodo === v, '#2563eb')}>{lbl}</button>
           ))}
           {periodo === 'custom' && (<>
-            <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'dark' }} />
-            <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
-            <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'dark' }} />
+            <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'light' }} />
+            <span style={{ fontSize: 12, color: '#5b6b84' }}>até</span>
+            <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ ...s.input, width: 145, colorScheme: 'light' }} />
           </>)}
         </div>
         <div style={s.nota}>E-mail só aparece para quem a página coletar — hoje o funil ainda não pede e-mail.</div>
@@ -361,7 +361,7 @@ function Leads() {
                 <td style={s.td}>{l.email || <span style={{ color: '#64748b' }}>—</span>}</td>
                 <td style={s.td}><span style={s.badge(ROSA, 'rgba(244,114,182,.12)')}>{l.produto}</span></td>
                 <td style={s.td}>{fmtBR(l.cadastrado_em)}</td>
-                <td style={{ ...s.td, color: '#8b9bb4', fontSize: 12 }}>{NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro'}</td>
+                <td style={{ ...s.td, color: '#5b6b84', fontSize: 12 }}>{NOME_GATE[l.ultimo_evento] || l.ultimo_evento || 'só cadastro'}</td>
                 <td style={s.td}>{l.push_aceito ? '🔔' : <span style={{ color: '#64748b' }}>—</span>}</td>
               </tr>
             ))}
@@ -411,26 +411,26 @@ function Conectores({ ov, recarregar }) {
 
       <div style={s.grid(290)}>
         {(ov.conectores || []).map(c => (
-          <div key={c.id} style={{ ...s.secao, marginBottom: 0, borderLeft: `3px solid ${c.ativo ? OK : 'rgba(255,255,255,0.12)'}` }}>
+          <div key={c.id} style={{ ...s.secao, marginBottom: 0, borderLeft: `3px solid ${c.ativo ? OK : 'rgba(15,23,42,0.12)'}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7' }}>{ICONE_CANAL[c.tipo] || '🔌'} {c.nome}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{ICONE_CANAL[c.tipo] || '🔌'} {c.nome}</div>
               <button onClick={() => toggle(c)} title={c.ativo ? 'Desativar' : 'Ativar'}
-                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: c.ativo ? OK : '#3a4353', position: 'relative', flexShrink: 0 }}>
+                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: c.ativo ? OK : '#cbd5e1', position: 'relative', flexShrink: 0 }}>
                 <span style={{ position: 'absolute', top: 3, left: c.ativo ? 23 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left .15s' }} />
               </button>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              <span style={s.badge(CORES_CANAL[c.tipo] ? '#e6edf7' : '#8b9bb4', `${CORES_CANAL[c.tipo] || '#2b3340'}55`)}>{c.tipo}</span>
+              <span style={s.badge(CORES_CANAL[c.tipo] ? '#0f172a' : '#5b6b84', `${CORES_CANAL[c.tipo] || '#e2e8f0'}55`)}>{c.tipo}</span>
               {c.configurado
                 ? <span style={s.badge(OK, 'rgba(52,211,153,.14)')}>✓ credenciais salvas</span>
                 : <span style={s.badge(ALERTA, 'rgba(251,191,36,.12)')}>⚠ falta conectar</span>}
-              <span style={s.badge(c.ativo ? OK : '#8b9bb4', c.ativo ? 'rgba(52,211,153,.14)' : '#2b3340')}>{c.ativo ? 'ON' : 'OFF'}</span>
+              <span style={s.badge(c.ativo ? OK : '#5b6b84', c.ativo ? 'rgba(52,211,153,.14)' : '#e2e8f0')}>{c.ativo ? 'ON' : 'OFF'}</span>
             </div>
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 10 }}>
               prioridade {c.prioridade} · {c.custo_centavos > 0 ? `${reais(c.custo_centavos / 100)}/envio` : 'grátis'}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={s.btn('#60a5fa')} onClick={() => abrirEdicao(c)}>{c.configurado ? '✏️ Editar' : '🔗 Conectar'}</button>
+              <button style={s.btn('#2563eb')} onClick={() => abrirEdicao(c)}>{c.configurado ? '✏️ Editar' : '🔗 Conectar'}</button>
               <button style={s.btn(ROSA)} onClick={() => setTeste({ conector: c, telefone: '', email: '', resultado: null, rodando: false })}>🧪 Testar envio</button>
             </div>
           </div>
@@ -489,7 +489,7 @@ function Conectores({ ov, recarregar }) {
             </>)}
             <label style={s.label}>Body template (JSON)</label>
             <textarea style={{ ...s.input, minHeight: 130, fontFamily: 'monospace', fontSize: 12 }} {...campo('body_template')} />
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6, lineHeight: 1.6 }}>
               Placeholders disponíveis (substituídos no envio):<br />
               <code style={{ color: ROSA }}>{'${telefone_e164}'}</code> +5511999991234 · <code style={{ color: ROSA }}>{'${telefone11}'}</code> 11999991234 · <code style={{ color: ROSA }}>{'${nome}'}</code> primeiro nome · <code style={{ color: ROSA }}>{'${email}'}</code> · <code style={{ color: ROSA }}>{'${link}'}</code> link completo do chat · <code style={{ color: ROSA }}>{'${link_sufixo}'}</code> só o ?tel=...
             </div>
@@ -497,9 +497,9 @@ function Conectores({ ov, recarregar }) {
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 10 }}>Segredos salvos aparecem mascarados (****ab12). Deixe mascarado para manter o valor atual; digite um novo para substituir.</div>
           {msg && <div style={{ fontSize: 12, color: ERRO, marginTop: 8 }}>{msg}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <button style={s.btn('#8b9bb4')} onClick={() => setCustom(v => !v)}>{custom ? '← Formulário simples' : '⚙️ Provedor customizado (avançado)'}</button>
+            <button style={s.btn('#5b6b84')} onClick={() => setCustom(v => !v)}>{custom ? '← Formulário simples' : '⚙️ Provedor customizado (avançado)'}</button>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={s.btn('#8b9bb4')} onClick={() => setEditando(null)}>Cancelar</button>
+              <button style={s.btn('#5b6b84')} onClick={() => setEditando(null)}>Cancelar</button>
               <button style={s.btn(OK, true)} disabled={salvando} onClick={salvar}>{salvando ? 'Salvando…' : '💾 Salvar'}</button>
             </div>
           </div>
@@ -508,8 +508,8 @@ function Conectores({ ov, recarregar }) {
 
       {teste && (
         <Modal titulo={`🧪 Testar ${teste.conector.nome}`} fechar={() => setTeste(null)}>
-          <div style={{ fontSize: 12, color: '#8b9bb4', lineHeight: 1.6 }}>
-            Insere um item real na fila com o SEU telefone, canal fixo <b style={{ color: '#e6edf7' }}>{teste.conector.tipo}</b>, e chama o despacho de verdade (mesmo caminho do robô). O limitador vale para o teste também — 2º teste no mesmo dia pode sair como “cancelado: limitador”.
+          <div style={{ fontSize: 12, color: '#5b6b84', lineHeight: 1.6 }}>
+            Insere um item real na fila com o SEU telefone, canal fixo <b style={{ color: '#0f172a' }}>{teste.conector.tipo}</b>, e chama o despacho de verdade (mesmo caminho do robô). O limitador vale para o teste também — 2º teste no mesmo dia pode sair como “cancelado: limitador”.
           </div>
           <label style={s.label}>Telefone do operador (DDD + número)</label>
           <input style={s.input} placeholder="11999991234" value={teste.telefone} onChange={e => setTeste(t => ({ ...t, telefone: e.target.value }))} />
@@ -521,7 +521,7 @@ function Conectores({ ov, recarregar }) {
             <button style={s.btn(ROSA, true)} disabled={teste.rodando} onClick={rodarTeste}>{teste.rodando ? 'Disparando…' : '🚀 Disparar teste'}</button>
           </div>
           {teste.resultado && (
-            <pre style={{ marginTop: 12, background: '#1a202c', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 10, fontSize: 11, color: teste.resultado.error ? ERRO : '#c6d2e4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 220, overflow: 'auto' }}>
+            <pre style={{ marginTop: 12, background: '#e2e8f0', border: '0.5px solid rgba(15,23,42,0.1)', borderRadius: 8, padding: 10, fontSize: 11, color: teste.resultado.error ? ERRO : '#334155', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 220, overflow: 'auto' }}>
               {JSON.stringify(teste.resultado, null, 2)}
             </pre>
           )}
@@ -596,7 +596,7 @@ function Campanhas() {
       )}
 
       {nova && (
-        <Secao icone="✨" titulo="Nova campanha" acao={<button style={s.btn('#8b9bb4')} onClick={() => setNova(null)}>Cancelar</button>} estilo={{ border: `1px solid ${ROSA}44` }}>
+        <Secao icone="✨" titulo="Nova campanha" acao={<button style={s.btn('#5b6b84')} onClick={() => setNova(null)}>Cancelar</button>} estilo={{ border: `1px solid ${ROSA}44` }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
             <div>
               <label style={s.label}>Nome (interno)</label>
@@ -632,12 +632,12 @@ function Campanhas() {
             </div>
             <div>
               <label style={s.label}>Preview do push</label>
-              <div style={{ background: '#1a202c', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 12 }}>
+              <div style={{ background: '#e2e8f0', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 12, padding: 12 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ width: 34, height: 34, borderRadius: 8, background: ROSA, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>💌</div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#e6edf7' }}>{(nova.titulo || '').replace('{nome}', primeiroNome)}</div>
-                    <div style={{ fontSize: 12, color: '#c6d2e4' }}>{(nova.corpo || '').replace('{nome}', primeiroNome)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{(nova.titulo || '').replace('{nome}', primeiroNome)}</div>
+                    <div style={{ fontSize: 12, color: '#334155' }}>{(nova.corpo || '').replace('{nome}', primeiroNome)}</div>
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>chat.maismaeauxilio.com.br · agora</div>
                   </div>
                 </div>
@@ -648,7 +648,7 @@ function Campanhas() {
                 <div style={s.kpiSub}>pessoas com push aceito nesse segmento agora</div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-                <button style={s.btn('#60a5fa')} disabled={ocupado} onClick={salvarRascunho}>💾 Salvar rascunho</button>
+                <button style={s.btn('#2563eb')} disabled={ocupado} onClick={salvarRascunho}>💾 Salvar rascunho</button>
                 <button style={s.btn(ROSA, true)} disabled={ocupado} onClick={() => disparar(null, nova.nome || 'sem nome', alvo)}>🚀 Disparar agora</button>
               </div>
             </div>
@@ -659,8 +659,8 @@ function Campanhas() {
       {dados?.rascunhos?.length > 0 && (
         <Secao icone="📝" titulo="Rascunhos">
           {dados.rascunhos.map(r => (
-            <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ color: '#e6edf7' }}>{r.nome} <span style={{ color: '#64748b', fontSize: 11 }}>· {(r.gates || []).join(', ')} · {r.funil || 'todos'} · {r.parado_min_horas}-{r.parado_max_horas}h</span></span>
+            <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13, padding: '7px 0', borderBottom: '0.5px solid rgba(15,23,42,0.05)' }}>
+              <span style={{ color: '#0f172a' }}>{r.nome} <span style={{ color: '#64748b', fontSize: 11 }}>· {(r.gates || []).join(', ')} · {r.funil || 'todos'} · {r.parado_min_horas}-{r.parado_max_horas}h</span></span>
               <button style={s.btn(ROSA)} disabled={ocupado} onClick={() => disparar(r.id, r.nome, null)}>🚀 Disparar</button>
             </div>
           ))}
@@ -683,7 +683,7 @@ function Campanhas() {
                 <td style={s.td}>{c.enviados ?? '—'}</td>
                 <td style={s.td}>{c.entregues}</td>
                 <td style={s.td}>{c.clicados}</td>
-                <td style={{ ...s.td, color: c.voltaram_e_avancaram > 0 ? OK : '#8b9bb4', fontWeight: 600 }}>{c.voltaram_e_avancaram}</td>
+                <td style={{ ...s.td, color: c.voltaram_e_avancaram > 0 ? OK : '#5b6b84', fontWeight: 600 }}>{c.voltaram_e_avancaram}</td>
               </tr>
             ))}
           </tbody>
@@ -694,7 +694,7 @@ function Campanhas() {
 }
 
 // ═══════════════ E-MAIL (máquina de nutrição) ═══════════════
-const NOME_STATUS_FLUXO = { ativo: ['ativo', OK, 'rgba(52,211,153,.14)'], concluiu_etapa_chave: ['✅ converteu', OK, 'rgba(52,211,153,.14)'], optout: ['🚫 descadastrou', ERRO, 'rgba(248,113,113,.14)'], fim_do_prazo: ['⏳ fim de prazo', '#8b9bb4', '#2b3340'] }
+const NOME_STATUS_FLUXO = { ativo: ['ativo', OK, 'rgba(52,211,153,.14)'], concluiu_etapa_chave: ['✅ converteu', OK, 'rgba(52,211,153,.14)'], optout: ['🚫 descadastrou', ERRO, 'rgba(248,113,113,.14)'], fim_do_prazo: ['⏳ fim de prazo', '#5b6b84', '#e2e8f0'] }
 
 function Email() {
   const [dados, setDados] = useState(null)
@@ -706,7 +706,7 @@ function Email() {
   }, [])
 
   if (msg) return <div style={s.erroBox}>{msg}</div>
-  if (!dados) return <div style={{ color: '#8b9bb4', fontSize: 13 }}>Carregando...</div>
+  if (!dados) return <div style={{ color: '#5b6b84', fontSize: 13 }}>Carregando...</div>
 
   const hoje = new Date().toLocaleDateString('en-CA')
   const saude = dados.saude14 || []
@@ -733,7 +733,7 @@ function Email() {
         <Kpi label="Entregues" valor={d0.entregues} />
         <Kpi label="Abertos" valor={d0.abertos} />
         <Kpi label="Clicados" valor={d0.clicados} />
-        <Kpi label="Falhados" valor={d0.falhados} cor={d0.falhados > 0 ? ERRO : '#e6edf7'} borda={d0.falhados > 0 ? ERRO : null} />
+        <Kpi label="Falhados" valor={d0.falhados} cor={d0.falhados > 0 ? ERRO : '#0f172a'} borda={d0.falhados > 0 ? ERRO : null} />
         <Kpi label="Taxa de entrega" valor={d0.taxa_entrega_pct == null ? '—' : `${d0.taxa_entrega_pct}%`} cor={corEntrega} borda={corEntrega} />
         <Kpi label="Taxa de abertura" valor={d0.taxa_abertura_pct == null ? '—' : `${d0.taxa_abertura_pct}%`} />
       </div>
@@ -744,7 +744,7 @@ function Email() {
             <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 780, display: 'block' }}>
               {gridVals.map(v => (
                 <g key={v}>
-                  <line x1={PADX} x2={W - 8} y1={py(v)} y2={py(v)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                  <line x1={PADX} x2={W - 8} y1={py(v)} y2={py(v)} stroke="rgba(15,23,42,0.06)" strokeWidth="1" />
                   <text x={PADX - 6} y={py(v) + 3} textAnchor="end" fontSize="8.5" fill="#64748b">{v}</text>
                 </g>
               ))}
@@ -771,8 +771,8 @@ function Email() {
             sub={Object.entries(fx.no_fluxo || {}).map(([f, n]) => `${f}: ${n}`).join(' · ') || 'ninguém ainda'} />
           <Kpi label="✅ Saíram — converteram" valor={fx.convertidos || 0} cor={OK} borda={OK}
             sub="completaram a etapa-chave — o número de sucesso da máquina" />
-          <Kpi label="🚫 Descadastros" valor={fx.optout || 0} cor={(fx.optout || 0) > 0 ? ERRO : '#e6edf7'} />
-          <Kpi label="⏳ Fim de prazo" valor={fx.fim_prazo || 0} cor="#8b9bb4" />
+          <Kpi label="🚫 Descadastros" valor={fx.optout || 0} cor={(fx.optout || 0) > 0 ? ERRO : '#0f172a'} />
+          <Kpi label="⏳ Fim de prazo" valor={fx.fim_prazo || 0} cor="#5b6b84" />
         </div>
         <div style={{ ...s.aviso, marginBottom: 12 }}>🤰 Grávida: fluxo máximo de 60 dias. Demais: 150 dias. Saída automática quando o lead completa a etapa-chave (mãe: CNIS · grávida/bolsa: documentação completa).</div>
         {(fx.tabela || []).length > 0 && (
@@ -783,7 +783,7 @@ function Email() {
               </tr></thead>
               <tbody>
                 {fx.tabela.map((r, i) => {
-                  const [lbl, cor, bg] = NOME_STATUS_FLUXO[r.status] || [r.status, '#8b9bb4', '#2b3340']
+                  const [lbl, cor, bg] = NOME_STATUS_FLUXO[r.status] || [r.status, '#5b6b84', '#e2e8f0']
                   return (
                     <tr key={i}>
                       <td style={s.td}>{r.telefone}</td>
@@ -845,7 +845,7 @@ function Fila() {
     setOcupado(false)
   }
 
-  const corStatus = { enviado: [OK, 'rgba(52,211,153,.14)'], pendente: ['#60a5fa', 'rgba(96,165,250,.14)'], falhou: [ERRO, 'rgba(248,113,113,.14)'], cancelado: ['#8b9bb4', '#2b3340'] }
+  const corStatus = { enviado: [OK, 'rgba(52,211,153,.14)'], pendente: ['#2563eb', 'rgba(96,165,250,.14)'], falhou: [ERRO, 'rgba(248,113,113,.14)'], cancelado: ['#5b6b84', '#e2e8f0'] }
   return (
     <div>
       <Secao icone="📜" titulo="Fila de avisos" sub="últimos 200 itens do filtro · telefones mascarados por privacidade"
@@ -857,7 +857,7 @@ function Fila() {
           <select style={{ ...s.input, width: 150 }} value={fCanal} onChange={e => setFCanal(e.target.value)}>
             <option value="">canal: todos</option><option>whatsapp</option><option>sms</option><option>email</option><option>auto</option>
           </select>
-          <input type="date" style={{ ...s.input, width: 160, colorScheme: 'dark' }} value={fDia} onChange={e => setFDia(e.target.value)} />
+          <input type="date" style={{ ...s.input, width: 160, colorScheme: 'light' }} value={fDia} onChange={e => setFDia(e.target.value)} />
         </div>
         {msg && <div style={{ ...s.aviso, marginBottom: 10 }}>{msg}</div>}
         <table style={s.tabela}>
@@ -869,7 +869,7 @@ function Fila() {
             {!linhas && <tr><td style={s.td} colSpan={8}><div style={s.vazio}>Carregando...</div></td></tr>}
             {linhas && linhas.length === 0 && <tr><td style={s.td} colSpan={8}><div style={s.vazio}>Fila vazia nesse filtro.</div></td></tr>}
             {(linhas || []).map(r => {
-              const [cor, bg] = corStatus[r.status] || ['#8b9bb4', '#2b3340']
+              const [cor, bg] = corStatus[r.status] || ['#5b6b84', '#e2e8f0']
               const det = r.resultado || {}
               return (
                 <tr key={r.id}>
@@ -880,7 +880,7 @@ function Fila() {
                   <td style={s.td}>{r.custo_centavos > 0 ? reais(r.custo_centavos / 100) : '—'}</td>
                   <td style={s.td}>{fmtBR(r.criado_em)}</td>
                   <td style={s.td}>{fmtBR(r.enviado_em)}</td>
-                  <td style={{ ...s.td, fontSize: 11, color: '#8b9bb4', maxWidth: 260 }}>
+                  <td style={{ ...s.td, fontSize: 11, color: '#5b6b84', maxWidth: 260 }}>
                     {det.http ? `HTTP ${det.http} ` : ''}{det.motivo || det.erro || (det.resp ? String(det.resp).slice(0, 80) : '') || '—'}
                   </td>
                 </tr>
@@ -897,10 +897,10 @@ function Fila() {
 function Modal({ titulo, fechar, children }) {
   return (
     <div onClick={fechar} style={{ position: 'fixed', inset: 0, background: 'rgba(10,14,20,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: 18, width: 560, maxWidth: '96vw', maxHeight: '88vh', overflow: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 14, padding: 18, width: 560, maxWidth: '96vw', maxHeight: '88vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7' }}>{titulo}</div>
-          <button onClick={fechar} style={{ background: 'none', border: 'none', color: '#8b9bb4', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{titulo}</div>
+          <button onClick={fechar} style={{ background: 'none', border: 'none', color: '#5b6b84', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
         {children}
       </div>

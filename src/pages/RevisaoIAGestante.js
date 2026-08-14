@@ -37,37 +37,37 @@ const CORES = {
   vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
   verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
-  normal: { border: '0.5px solid rgba(255,255,255,0.08)', background: '#232a37' },
+  normal: { border: '0.5px solid rgba(15,23,42,0.08)', background: '#ffffff' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#5b6b84', marginBottom: 14 },
   topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
   chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
-  kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
+  kpi: { fontSize: 13, color: '#5b6b84', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 235, maxWidth: 235, background: '#2b3340', borderRadius: 10, padding: 8, flexShrink: 0 },
-  colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
+  col: { minWidth: 235, maxWidth: 235, background: '#e2e8f0', borderRadius: 10, padding: 8, flexShrink: 0 },
+  colTitulo: { fontSize: 12, fontWeight: 600, color: '#5b6b84', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
-  cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
-  cardMeta: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
-  badge5: { fontSize: 10, background: 'rgba(244,114,182,.20)', color: '#f472b6', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
-  badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.16)', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#a78bfa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
-  tagFalha: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#f87171', borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
+  cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
+  badge5: { fontSize: 10, background: 'rgba(244,114,182,.20)', color: '#db2777', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
+  badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.16)', color: '#5b6b84', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
+  tagFalha: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#dc2626', borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#232a37', borderRadius: 14, width: '100%', maxWidth: 620, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#1e242f', borderRadius: 10, padding: 12, marginBottom: 12 },
-  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#2b3340', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  modal: { background: '#ffffff', borderRadius: 14, width: '100%', maxWidth: 620, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#f1f5f9', borderRadius: 10, padding: 12, marginBottom: 12 },
+  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#e2e8f0', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   btnVerde: { display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' },
   btn: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
-  btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', marginRight: 6 },
+  btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', marginRight: 6 },
 }
 
 // Faixa de datas a partir do preset (mesmo padrao das outras Revisoes IA)
@@ -235,8 +235,8 @@ export default function RevisaoIAGestante() {
           <input type="date" style={s.chip} value={ativAte} onChange={e => setAtivAte(e.target.value)} />
         </>)}
         <span style={s.kpi}>Total: <strong>{board.length}</strong></span>
-        <span style={{ ...s.kpi, background: 'rgba(244,114,182,.12)', color: '#f472b6' }}>🤰 5+ meses: <strong>{cincoMais}</strong></span>
-        <span style={{ ...s.kpi, background: 'rgba(248,113,113,.12)', color: '#f87171' }}>🚨 Críticos: <strong>{criticos}</strong></span>
+        <span style={{ ...s.kpi, background: 'rgba(244,114,182,.12)', color: '#db2777' }}>🤰 5+ meses: <strong>{cincoMais}</strong></span>
+        <span style={{ ...s.kpi, background: 'rgba(248,113,113,.12)', color: '#dc2626' }}>🚨 Críticos: <strong>{criticos}</strong></span>
         {ehSupervisor && (
           <>
             <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
@@ -256,7 +256,7 @@ export default function RevisaoIAGestante() {
           if (key === 'OUTROS' && cards.length === 0) return null
           return (
             <div key={key} style={{ ...s.col, ...(critica ? { border: '2px solid #f87171' } : {}) }}>
-              <div style={{ ...s.colTitulo, ...(critica ? { color: '#f87171', fontWeight: 700 } : {}) }}>
+              <div style={{ ...s.colTitulo, ...(critica ? { color: '#dc2626', fontWeight: 700 } : {}) }}>
                 <span>{label}</span><span>{cards.length}</span>
               </div>
               {cards.map(c => (
@@ -286,12 +286,12 @@ export default function RevisaoIAGestante() {
         <div style={s.overlay} onClick={() => setLead(null)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome || 'Sem nome'}</div>
-            <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
               {(COLUNAS.find(c => c[0] === lead.coluna) || [])[1] || lead.coluna} · parada há {fmtParado(lead.minutos_parado)}
             </div>
 
             <div style={s.ficha}>
-              <div>🤰 Gestação: <strong style={{ color: lead.cinco_mais ? '#f472b6' : '#e6edf7' }}>{lead.meses != null ? `${lead.meses} meses` : '—'}{lead.cinco_mais ? ' (5+)' : ''}</strong></div>
+              <div>🤰 Gestação: <strong style={{ color: lead.cinco_mais ? '#db2777' : '#0f172a' }}>{lead.meses != null ? `${lead.meses} meses` : '—'}{lead.cinco_mais ? ' (5+)' : ''}</strong></div>
               <div>📞 {lead.tel || '—'}</div>
               <div>📄 Contrato: {lead.status_contrato || '—'}</div>
               <div>🕐 Emitido: {lead.emitido_em ? new Date(lead.emitido_em).toLocaleString('pt-BR') : '—'}</div>
@@ -300,20 +300,20 @@ export default function RevisaoIAGestante() {
             </div>
 
             {lead.falha_motivo && (
-              <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10, fontWeight: 600 }}>
+              <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10, fontWeight: 600 }}>
                 🛑 Falha na emissão: {lead.falha_motivo}
               </div>
             )}
             {lead.link_assinatura && (
-              <div style={{ fontSize: 12, background: '#1e242f', borderRadius: 8, padding: 10, marginBottom: 10, wordBreak: 'break-all' }}>
+              <div style={{ fontSize: 12, background: '#f1f5f9', borderRadius: 8, padding: 10, marginBottom: 10, wordBreak: 'break-all' }}>
                 🔗 Link de assinatura{lead.coluna === 'LINK_EXPIRADO' ? ' (EXPIRADO — precisa reemitir)' : ''}:<br />
-                <a href={lead.link_assinatura} target="_blank" rel="noreferrer" style={{ color: '#60a5fa' }}>{lead.link_assinatura}</a>
+                <a href={lead.link_assinatura} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>{lead.link_assinatura}</a>
               </div>
             )}
 
-            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#a78bfa' : '#60a5fa' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#7c3aed' : '#2563eb' }}>
                   {lead.ana_pausada ? '🧑 Humano no controle — IA pausada' : '🤖 IA ativa (Ana respondendo)'}
                 </span>
                 {lead.ana_pausada ? (
@@ -326,11 +326,11 @@ export default function RevisaoIAGestante() {
 
             {linkChatwoot(lead)
               ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={s.btnVerde}>💬 Abrir conversa no Chatwoot</a>
-              : <div style={{ fontSize: 12, color: '#f87171', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
+              : <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4' }}>💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span></span>
-              <button style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, cursor: 'pointer' }}
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84' }}>💬 Conversa <span style={{ color: '#059669', fontWeight: 500 }}>· atualiza sozinha</span></span>
+              <button style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, cursor: 'pointer' }}
                 onClick={() => recarregarConversa(lead)}>🔄 Atualizar conversa</button>
             </div>
             <div style={s.msgs}>
@@ -345,7 +345,7 @@ export default function RevisaoIAGestante() {
                 <button style={{ ...s.btn, background: '#f472b6' }} disabled={agindo} onClick={() => puxarPraMim(lead)}>🙋 Puxar pra mim</button>
               )}
               {ehSupervisor && (
-                <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#1e242f', color: '#c6d2e4', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#f1f5f9', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   value="" disabled={agindo} onChange={e => redistribuir(lead, e.target.value)}>
                   <option value="">↪ Distribuir para…</option>
                   {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}

@@ -31,21 +31,21 @@ export default function MeuLink() {
     window.open(`https://wa.me/?text=${msg}`, '_blank')
   }
 
-  const card = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 }
+  const card = { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 }
 
   return (
     <div>
-      <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 500, color: '#e6edf7', marginBottom: 6, letterSpacing: '-0.3px' }}>Meu link de cadastro</div>
-      <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: '1.5rem' }}>Compartilhe com advogados para que se cadastrem diretamente no sistema</div>
+      <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 500, color: '#0f172a', marginBottom: 6, letterSpacing: '-0.3px' }}>Meu link de cadastro</div>
+      <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: '1.5rem' }}>Compartilhe com advogados para que se cadastrem diretamente no sistema</div>
 
       {/* Link */}
       <div style={card}>
-        <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Seu link</div>
+        <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Seu link</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, padding: '10px 14px', background: '#171c26', borderRadius: 8, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ flex: 1, padding: '10px 14px', background: '#f2f5fa', borderRadius: 8, fontSize: 13, color: '#2563eb', wordBreak: 'break-all', border: '0.5px solid rgba(15,23,42,0.07)' }}>
             {link}
           </div>
-          <button onClick={copiarLink} style={{ padding: '10px 16px', background: copiado ? 'rgba(52,211,153,.14)' : '#60a5fa', color: copiado ? '#34d399' : '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
+          <button onClick={copiarLink} style={{ padding: '10px 16px', background: copiado ? 'rgba(52,211,153,.14)' : '#60a5fa', color: copiado ? '#059669' : '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
             {copiado ? '✓ Copiado!' : 'Copiar'}
           </button>
         </div>
@@ -53,12 +53,12 @@ export default function MeuLink() {
 
       {/* Ações */}
       <div style={card}>
-        <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Compartilhar</div>
+        <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Compartilhar</div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-          <button onClick={abrirWhatsApp} style={{ padding: '13px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <button onClick={abrirWhatsApp} style={{ padding: '13px', background: 'rgba(52,211,153,.14)', color: '#059669', border: '0.5px solid #34d399', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <span style={{ fontSize: 20 }}>💬</span> Enviar pelo WhatsApp
           </button>
-          <button onClick={copiarLink} style={{ padding: '13px', background: 'rgba(96,165,250,.12)', color: '#60a5fa', border: '0.5px solid #60a5fa', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <button onClick={copiarLink} style={{ padding: '13px', background: 'rgba(96,165,250,.12)', color: '#2563eb', border: '0.5px solid #60a5fa', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <span style={{ fontSize: 20 }}>🔗</span> {copiado ? 'Link copiado!' : 'Copiar link'}
           </button>
         </div>
@@ -66,9 +66,9 @@ export default function MeuLink() {
 
       {/* QR Code */}
       <div style={card}>
-        <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>QR Code</div>
+        <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>QR Code</div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <div ref={qrRef} id="qrcode-container" style={{ padding: 16, background: '#232a37', borderRadius: 12, border: '0.5px solid rgba(255,255,255,0.08)', display: 'inline-block' }}>
+          <div ref={qrRef} id="qrcode-container" style={{ padding: 16, background: '#ffffff', borderRadius: 12, border: '0.5px solid rgba(15,23,42,0.08)', display: 'inline-block' }}>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}&bgcolor=ffffff&color=0d0d0d&margin=0`}
               alt="QR Code do seu link de cadastro"
@@ -77,7 +77,7 @@ export default function MeuLink() {
               style={{ display: 'block', borderRadius: 8 }}
             />
           </div>
-          <div style={{ fontSize: 12, color: '#8b9bb4', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: '#5b6b84', textAlign: 'center' }}>
             O advogado escaneia o QR Code com a câmera do celular e abre o formulário de cadastro
           </div>
           <a
@@ -85,7 +85,7 @@ export default function MeuLink() {
             download="qrcode-kr-previdencia.png"
             target="_blank"
             rel="noreferrer"
-            style={{ padding: '9px 18px', background: '#2b3340', color: '#8b9bb4', border: '0.5px solid #64748b', borderRadius: 8, fontSize: 13, textDecoration: 'none', cursor: 'pointer' }}
+            style={{ padding: '9px 18px', background: '#e2e8f0', color: '#5b6b84', border: '0.5px solid #64748b', borderRadius: 8, fontSize: 13, textDecoration: 'none', cursor: 'pointer' }}
           >
             Baixar QR Code
           </a>
@@ -93,9 +93,9 @@ export default function MeuLink() {
       </div>
 
       {/* Preview */}
-      <div style={{ ...card, background: '#171c26', border: '0.5px dashed rgba(255,255,255,0.11)' }}>
-        <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Prévia do formulário</div>
-        <div style={{ fontSize: 13, color: '#8b9bb4', lineHeight: 1.6 }}>
+      <div style={{ ...card, background: '#f2f5fa', border: '0.5px dashed rgba(15,23,42,0.11)' }}>
+        <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Prévia do formulário</div>
+        <div style={{ fontSize: 13, color: '#5b6b84', lineHeight: 1.6 }}>
           O advogado vai ver um formulário simples com:<br />
           nome, OAB, estado, cidade, telefone, e-mail, endereço e estado civil.<br />
           Ao enviar, o cadastro aparece automaticamente na sua lista de advogados.

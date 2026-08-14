@@ -14,7 +14,6 @@ const IDS_AGENTES_BF = [
   '64ced61d-fdae-4399-97c9-900c59120fff', // Pamela
   '7ad37a1d-e5be-438c-9afd-982646d507d4', // Juliana (Ju Ferreira)
   'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado
-  '2c71c435-f5c2-49cf-984b-3629438045d2', // Hellen (helenlima451)
 ]
 
 // Agente Retroativo (Duda): item Revisao IA Retroativo no menu por ID
@@ -25,13 +24,6 @@ const IDS_AGENTES_RETROATIVO = [
 // Supervisores de board (Egle): itens Revisao IA (BF + Retroativo) no menu por ID
 const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
-]
-
-// Clientes (consulta geral de clientes e documentos): item por ID
-const IDS_ACESSO_CLIENTES = [
-  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
-  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
-  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
 ]
 
 const NAV_PRODUTOR = [
@@ -56,6 +48,7 @@ const NAV_ANALISTA = [
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
+  { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
 const NAV_VENDEDOR = [
   { key: 'dashboard', label: '📊 Dashboard' },
@@ -65,6 +58,7 @@ const NAV_VENDEDOR = [
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'resgate_vendedor', label: '🛟 Resgate' },
+  { key: 'meulink', label: '🔗 Meu link' },
 ]
 const NAV_VENDEDOR_OPERADOR = [
   { key: 'meus_clientes', label: '📋 Meus clientes' },
@@ -88,6 +82,7 @@ const NAV_RESGATE = [
 ]
 const NAV_FINANCEIRO = [
   { key: 'despesas', label: '📋 Despesas & Custos' },
+  { key: 'recebimentos', label: '💵 Recebimentos advogados' },
 ]
 const NAV_RH = [
   { key: 'financeiro', label: '💸 Financeiro (despesas)' },
@@ -103,6 +98,7 @@ const NAV_COORDENADOR_B2C = [
   { key: 'supervisor_producao', label: '📊 Supervisão produção' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
+  { key: 'dashboard_producao', label: '📈 Dashboard produção' },
   { key: 'pos_venda', label: '📞 Pós-venda' },
   { key: 'pos_venda_historico', label: '📚 Histórico pós-venda' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
@@ -115,28 +111,35 @@ const NAV_ADMIN = [
   { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
   { key: 'metas_financeiras', label: '🥅 Metas & Saúde' },
   { key: 'despesas', label: '📋 Despesas & Custos' },
+  { key: 'recebimentos', label: '💵 Recebimentos advogados' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
+  { key: 'equipe', label: 'Equipe' },
+  { key: 'metas', label: '🎯 Metas' },
+  { key: 'bi', label: '📊 BI Bruno' },
   { key: 'reposicoes', label: '🔄 Reposições' },
+  { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
-  { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' },
   { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
-  { key: 'central_retorno', label: '📣 Central de Retorno' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
   { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
+  { key: 'resgate', label: '🛟 Ala de resgate' },
+  { key: 'distribuicao_gabriela', label: '🎯 Distribuição Gabriela' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
   { key: 'contratos', label: '📄 Gerar contratos (manual)' },
+  { key: 'dashboard_producao', label: '📈 Dashboard Produção' },
   { key: 'supervisor_producao', label: '📊 Supervisão Produção' },
   { key: 'pos_venda', label: '📞 Pós-venda' },
   { key: 'pos_venda_historico', label: '📚 Histórico pós-venda' },
   { key: 'revisao_ia', label: '🤖 Revisão IA' },
   { key: 'performance_ia', label: '📈 Performance IA' },
+  { key: 'meulink', label: '🔗 Meu link' },
 ]
 
 // ===== agrupamento visual do menu (só organização — não muda acesso) =====
@@ -145,8 +148,8 @@ const GRUPO_DE = {
   despesas: 'Gestão', recebimentos: 'Gestão', financeiro: 'Gestão', metas: 'Gestão',
   bi: 'Gestão', equipe: 'Gestão', advogados: 'Gestão', funil: 'Gestão',
   compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
-  revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
-  revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
+  revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA',
+  revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -158,8 +161,8 @@ const t = {
   sidebar: {
     width: 236, flexShrink: 0, display: 'flex', flexDirection: 'column',
     background: '#1e2430',
-    backgroundImage: 'radial-gradient(500px 220px at 50% -60px, rgba(96,165,250,.14), transparent 70%)',
-    borderRight: '1px solid rgba(15,23,42,0.08)',
+    backgroundImage: 'radial-gradient(500px 220px at 50% -60px, rgba(59,130,246,.07), transparent 70%)',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
     boxShadow: '4px 0 28px rgba(0,0,0,0.35)',
     padding: '18px 12px 14px', height: '100vh', position: 'sticky', top: 0, overflowY: 'auto',
   },
@@ -292,7 +295,6 @@ export default function Layout({ children, page, setPage }) {
     'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   ]
   if (IDS_TIME_MARYANA.includes(profile?.id)) {
-    if (!nav.some(n => n.key === 'revisao_ia_gestante')) nav = [...nav, { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' }]
     if (!nav.some(n => n.key === 'revisao_ia_bf')) nav = [...nav, { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
     if (!nav.some(n => n.key === 'revisao_ia_retroativo')) nav = [...nav, { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
     if (!nav.some(n => n.key === 'revisao_ia_clt')) nav = [...nav, { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' }]
@@ -320,11 +322,6 @@ export default function Layout({ children, page, setPage }) {
   // Confere CNIS (auditoria temporaria): Egle + Duda por ID
   if ((IDS_SUPERVISOR_BOARD.includes(profile?.id) || IDS_AGENTES_RETROATIVO.includes(profile?.id)) && !nav.some(n => n.key === 'confere_cnis')) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
-  }
-
-  // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana)
-  if (IDS_ACESSO_CLIENTES.includes(profile?.id) && !nav.some(n => n.key === 'clientes')) {
-    nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
@@ -423,7 +420,7 @@ export default function Layout({ children, page, setPage }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {isMobile && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#1e2430', borderBottom: '1px solid rgba(148,163,184,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#1e2430', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', zIndex: 100 }}>
             <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#e6edf7', padding: '4px 8px', lineHeight: 1, position: 'relative' }}>
               ☰
               {novosLotes > 0 && (

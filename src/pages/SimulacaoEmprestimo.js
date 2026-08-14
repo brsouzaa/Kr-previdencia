@@ -3,55 +3,55 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4, letterSpacing: '-0.3px' },
-  subtitle: { fontSize: 13, color: '#8b9bb4', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4, letterSpacing: '-0.3px' },
+  subtitle: { fontSize: 13, color: '#5b6b84', marginBottom: 16 },
   robo: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, marginBottom: 16, flexWrap: 'wrap' },
   roboOk: { background: 'rgba(52,211,153,.14)', border: '0.5px solid #3B6D1130' },
   roboAlerta: { background: 'rgba(248,113,113,.14)', border: '0.5px solid #A32D2D40' },
   luz: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
-  painel: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
+  painel: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
   filtros: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  fBtn: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
   fBtnOn: { background: '#60a5fa', color: '#232a37', borderColor: '#60a5fa' },
-  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', color: '#c6d2e4' },
+  dateInput: { padding: '4px 8px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', color: '#334155' },
   kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 },
-  kpi: { border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 12px' },
+  kpi: { border: '0.5px solid rgba(15,23,42,0.07)', borderRadius: 10, padding: '10px 12px' },
   kpiTop: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 500, marginBottom: 6 },
   kpiNum: { fontSize: 24, fontWeight: 500, lineHeight: 1 },
-  kpiSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  tabs: { display: 'flex', gap: 8, marginBottom: 16, borderBottom: '0.5px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
-  tab: { padding: '10px 14px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#8b9bb4', borderBottom: '2px solid transparent', marginBottom: -1 },
-  tabActive: { color: '#60a5fa', borderBottomColor: '#60a5fa' },
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
+  kpiSub: { fontSize: 11, color: '#5b6b84', marginTop: 4 },
+  tabs: { display: 'flex', gap: 8, marginBottom: 16, borderBottom: '0.5px solid rgba(15,23,42,0.08)', flexWrap: 'wrap' },
+  tab: { padding: '10px 14px', fontSize: 13, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', color: '#5b6b84', borderBottom: '2px solid transparent', marginBottom: -1 },
+  tabActive: { color: '#2563eb', borderBottomColor: '#2563eb' },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 10 },
   cardVencido: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexWrap: 'wrap', gap: 8 },
-  nome: { fontSize: 15, fontWeight: 500, color: '#e6edf7' },
-  meta: { fontSize: 12, color: '#8b9bb4', marginTop: 2 },
-  valorBig: { fontSize: 22, fontWeight: 600, color: '#34d399', lineHeight: 1 },
+  nome: { fontSize: 15, fontWeight: 500, color: '#0f172a' },
+  meta: { fontSize: 12, color: '#5b6b84', marginTop: 2 },
+  valorBig: { fontSize: 22, fontWeight: 600, color: '#059669', lineHeight: 1 },
   donoTag: { fontSize: 12, marginBottom: 8, padding: '4px 8px', borderRadius: 6, display: 'inline-block' },
-  donoOk: { color: '#34d399', background: 'rgba(52,211,153,.14)' },
-  donoVencido: { color: '#f87171', background: 'rgba(248,113,113,.14)', fontWeight: 500 },
+  donoOk: { color: '#059669', background: 'rgba(52,211,153,.14)' },
+  donoVencido: { color: '#dc2626', background: 'rgba(248,113,113,.14)', fontWeight: 500 },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   btnVender: { flex: 1, minWidth: 140, padding: '10px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnWhats: { padding: '10px 14px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid #3B6D1140', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  btnSec: { padding: '9px 12px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  desfechoBox: { background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: 12, marginTop: 10 },
-  desfechoTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 10 },
+  btnWhats: { padding: '10px 14px', background: 'rgba(52,211,153,.14)', color: '#059669', border: '0.5px solid #3B6D1140', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  btnSec: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  desfechoBox: { background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.07)', borderRadius: 10, padding: 12, marginTop: 10 },
+  desfechoTitulo: { fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 10 },
   btnDesVendeu: { padding: '10px', background: '#34d399', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnDesNao: { padding: '10px', background: '#232a37', color: '#f87171', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', boxSizing: 'border-box', marginBottom: 8 },
+  btnDesNao: { padding: '10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  input: { width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', boxSizing: 'border-box', marginBottom: 8 },
   empty: { textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: 13 },
-  loading: { textAlign: 'center', padding: '3rem', color: '#8b9bb4', fontSize: 14 },
-  filaHeader: { fontSize: 12, color: '#8b9bb4', background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA520', borderRadius: 8, padding: '8px 12px', marginBottom: 12 },
+  loading: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14 },
+  filaHeader: { fontSize: 12, color: '#5b6b84', background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA520', borderRadius: 8, padding: '8px 12px', marginBottom: 12 },
   distribBox: { background: 'rgba(96,165,250,.10)', border: '0.5px solid #185FA525', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 },
-  distribTitulo: { fontSize: 13, fontWeight: 600, color: '#60a5fa', marginBottom: 10 },
+  distribTitulo: { fontSize: 13, fontWeight: 600, color: '#2563eb', marginBottom: 10 },
   distribRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
   distribCampo: { display: 'flex', flexDirection: 'column', gap: 4 },
-  distribLabel: { fontSize: 11, color: '#8b9bb4' },
-  distribInput: { padding: '9px 10px', fontSize: 14, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', width: 90 },
-  distribSelect: { padding: '9px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', minWidth: 180 },
+  distribLabel: { fontSize: 11, color: '#5b6b84' },
+  distribInput: { padding: '9px 10px', fontSize: 14, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', width: 90 },
+  distribSelect: { padding: '9px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', minWidth: 180 },
   btnEnviar: { padding: '10px 18px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  diaChip: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  diaChip: { padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
   diaChipOn: { background: '#60a5fa', color: '#232a37', borderColor: '#60a5fa' },
 }
 
@@ -267,11 +267,11 @@ export default function SimulacaoEmprestimo() {
       {saude && ehAdmin && (
         <div style={{ ...s.robo, ...(saude.parado ? s.roboAlerta : s.roboOk) }}>
           <span style={{ ...s.luz, background: saude.parado ? '#f87171' : '#34d399' }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: saude.parado ? '#f87171' : '#34d399' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: saude.parado ? '#dc2626' : '#059669' }}>
             {saude.parado ? '⚠️ Robô parado — verificar' : '🤖 Robô ativo'}
           </span>
-          <span style={{ fontSize: 12, color: '#8b9bb4' }}>última simulação {tempoDesde(saude.ultima)}</span>
-          <span style={{ fontSize: 12, color: '#8b9bb4', marginLeft: 'auto' }}>pool total livre: <strong>{poolTotal}</strong></span>
+          <span style={{ fontSize: 12, color: '#5b6b84' }}>última simulação {tempoDesde(saude.ultima)}</span>
+          <span style={{ fontSize: 12, color: '#5b6b84', marginLeft: 'auto' }}>pool total livre: <strong>{poolTotal}</strong></span>
         </div>
       )}
 
@@ -308,7 +308,7 @@ export default function SimulacaoEmprestimo() {
               {distribuindo ? 'Enviando...' : 'Enviar leads'}
             </button>
           </div>
-          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 8 }}>
             Pega os mais antigos {diaSelecionado ? `do dia ${fmtDiaLabel(diaSelecionado)}` : 'do pool'}. Depois de enviado, o lead é do vendedor até ele registrar o desfecho.
           </div>
         </div>
@@ -324,7 +324,7 @@ export default function SimulacaoEmprestimo() {
             {periodo === 'custom' && (
               <>
                 <input type="date" style={s.dateInput} value={dtIni} onChange={e => setDtIni(e.target.value)} />
-                <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
+                <span style={{ fontSize: 12, color: '#5b6b84' }}>até</span>
                 <input type="date" style={s.dateInput} value={dtFim} onChange={e => setDtFim(e.target.value)} />
               </>
             )}
@@ -332,34 +332,34 @@ export default function SimulacaoEmprestimo() {
           {t && (
             <div style={s.kpis}>
               <div style={{ ...s.kpi, background: 'rgba(52,211,153,.14)', borderColor: '#3B6D1130' }}>
-                <div style={{ ...s.kpiTop, color: '#34d399' }}>Vendido no período</div>
-                <div style={{ ...s.kpiNum, color: '#34d399', fontSize: 20 }}>{fmtBRL(t.valor_vendido)}</div>
+                <div style={{ ...s.kpiTop, color: '#059669' }}>Vendido no período</div>
+                <div style={{ ...s.kpiNum, color: '#059669', fontSize: 20 }}>{fmtBRL(t.valor_vendido)}</div>
                 <div style={s.kpiSub}>{t.vendidos} vendas · ticket {fmtBRL(t.ticket_medio)}</div>
               </div>
               <div style={{ ...s.kpi, background: 'rgba(96,165,250,.10)', borderColor: '#185FA520' }}>
-                <div style={{ ...s.kpiTop, color: '#60a5fa' }}>Conversão</div>
-                <div style={{ ...s.kpiNum, color: '#60a5fa' }}>{t.taxa_conversao}%</div>
+                <div style={{ ...s.kpiTop, color: '#2563eb' }}>Conversão</div>
+                <div style={{ ...s.kpiNum, color: '#2563eb' }}>{t.taxa_conversao}%</div>
                 <div style={s.kpiSub}>{t.vendidos} de {t.vendidos + t.nao_vendidos + t.sem_contato} resolvidos</div>
               </div>
               <div style={{ ...s.kpi, background: 'rgba(251,191,36,.12)', borderColor: '#85500B30' }}>
-                <div style={{ ...s.kpiTop, color: '#fbbf24' }}>Distribuídos sem desfecho</div>
-                <div style={{ ...s.kpiNum, color: '#fbbf24' }}>{t.assumidos_sem_desfecho}</div>
+                <div style={{ ...s.kpiTop, color: '#b45309' }}>Distribuídos sem desfecho</div>
+                <div style={{ ...s.kpiNum, color: '#b45309' }}>{t.assumidos_sem_desfecho}</div>
                 <div style={s.kpiSub}>{poolTotal} ainda no pool</div>
               </div>
-              <div style={{ ...s.kpi, background: t.vencidos_cobranca > 0 ? 'rgba(248,113,113,.14)' : '#2b3340', borderColor: t.vencidos_cobranca > 0 ? '#A32D2D30' : 'rgba(255,255,255,0.07)' }}>
-                <div style={{ ...s.kpiTop, color: t.vencidos_cobranca > 0 ? '#f87171' : '#8b9bb4' }}>⏰ Vencidos (cobrar)</div>
-                <div style={{ ...s.kpiNum, color: t.vencidos_cobranca > 0 ? '#f87171' : '#8b9bb4' }}>{t.vencidos_cobranca}</div>
+              <div style={{ ...s.kpi, background: t.vencidos_cobranca > 0 ? 'rgba(248,113,113,.14)' : '#e2e8f0', borderColor: t.vencidos_cobranca > 0 ? '#A32D2D30' : 'rgba(15,23,42,0.07)' }}>
+                <div style={{ ...s.kpiTop, color: t.vencidos_cobranca > 0 ? '#dc2626' : '#5b6b84' }}>⏰ Vencidos (cobrar)</div>
+                <div style={{ ...s.kpiNum, color: t.vencidos_cobranca > 0 ? '#dc2626' : '#5b6b84' }}>{t.vencidos_cobranca}</div>
                 <div style={s.kpiSub}>passaram de 24h sem resolver</div>
               </div>
             </div>
           )}
           {dash?.ranking?.length > 0 && (
-            <div style={{ marginTop: 14, borderTop: '0.5px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 8 }}>Ranking por vendedor</div>
+            <div style={{ marginTop: 14, borderTop: '0.5px solid rgba(15,23,42,0.07)', paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 8 }}>Ranking por vendedor</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ color: '#8b9bb4', textAlign: 'left' }}>
+                    <tr style={{ color: '#5b6b84', textAlign: 'left' }}>
                       <th style={{ padding: '4px 8px' }}>Vendedor</th><th style={{ padding: '4px 8px' }}>Recebidos</th>
                       <th style={{ padding: '4px 8px' }}>Vendas</th><th style={{ padding: '4px 8px' }}>Conversão</th>
                       <th style={{ padding: '4px 8px' }}>Valor</th><th style={{ padding: '4px 8px' }}>Em aberto</th>
@@ -367,13 +367,13 @@ export default function SimulacaoEmprestimo() {
                   </thead>
                   <tbody>
                     {dash.ranking.map(r => (
-                      <tr key={r.vendedor_id} style={{ borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
+                      <tr key={r.vendedor_id} style={{ borderTop: '0.5px solid rgba(15,23,42,0.05)' }}>
                         <td style={{ padding: '6px 8px', fontWeight: 500 }}>{r.vendedor}</td>
                         <td style={{ padding: '6px 8px' }}>{r.atendidos}</td>
-                        <td style={{ padding: '6px 8px', color: '#34d399', fontWeight: 500 }}>{r.vendidos}</td>
+                        <td style={{ padding: '6px 8px', color: '#059669', fontWeight: 500 }}>{r.vendidos}</td>
                         <td style={{ padding: '6px 8px' }}>{r.conversao}%</td>
-                        <td style={{ padding: '6px 8px', color: '#34d399' }}>{fmtBRL(r.valor_vendido)}</td>
-                        <td style={{ padding: '6px 8px', color: r.em_aberto > 0 ? '#fbbf24' : '#8b9bb4' }}>{r.em_aberto}</td>
+                        <td style={{ padding: '6px 8px', color: '#059669' }}>{fmtBRL(r.valor_vendido)}</td>
+                        <td style={{ padding: '6px 8px', color: r.em_aberto > 0 ? '#b45309' : '#5b6b84' }}>{r.em_aberto}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -396,12 +396,12 @@ export default function SimulacaoEmprestimo() {
       {aba === 'meus' && resumoPorDiaEnvio.length > 0 && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
           {resumoPorDiaEnvio.map(g => (
-            <div key={g.dia} style={{ background: rotuloDia(g.dia) === 'Hoje' ? 'rgba(52,211,153,.14)' : '#232a37', border: `0.5px solid ${rotuloDia(g.dia) === 'Hoje' ? '#3B6D1130' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '10px 14px', minWidth: 130 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: rotuloDia(g.dia) === 'Hoje' ? '#34d399' : '#8b9bb4', marginBottom: 4 }}>
+            <div key={g.dia} style={{ background: rotuloDia(g.dia) === 'Hoje' ? 'rgba(52,211,153,.14)' : '#ffffff', border: `0.5px solid ${rotuloDia(g.dia) === 'Hoje' ? '#3B6D1130' : 'rgba(15,23,42,0.08)'}`, borderRadius: 10, padding: '10px 14px', minWidth: 130 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: rotuloDia(g.dia) === 'Hoje' ? '#059669' : '#5b6b84', marginBottom: 4 }}>
                 📅 {rotuloDia(g.dia)}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 600, color: '#e6edf7', lineHeight: 1 }}>{g.pendentes}</div>
-              <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>a chamar · {g.recebidos} recebidos</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{g.pendentes}</div>
+              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>a chamar · {g.recebidos} recebidos</div>
             </div>
           ))}
         </div>
@@ -437,7 +437,7 @@ export default function SimulacaoEmprestimo() {
                 </div>
               </div>
 
-              {aba === 'pool' && <div style={{ fontSize: 12, color: '#8b9bb4' }}>No pool · aguardando distribuição</div>}
+              {aba === 'pool' && <div style={{ fontSize: 12, color: '#5b6b84' }}>No pool · aguardando distribuição</div>}
 
               {aba === 'meus' && (
                 <>
@@ -473,9 +473,9 @@ export default function SimulacaoEmprestimo() {
                 </>
               )}
 
-              {aba === 'vendido' && <div style={{ fontSize: 12, color: '#34d399' }}>✅ Vendido por {nomesProfiles[item.atribuido_a] || 'vendedor'}</div>}
-              {aba === 'nao_vendido' && <div style={{ fontSize: 12, color: '#8b9bb4' }}>{nomesProfiles[item.atribuido_a] || 'vendedor'} · {item.motivo_nao_venda || 'sem motivo'}</div>}
-              {aba === 'negado' && item.motivo_negado && <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.14)', borderRadius: 8, padding: '8px 10px' }}>Motivo: {item.motivo_negado}</div>}
+              {aba === 'vendido' && <div style={{ fontSize: 12, color: '#059669' }}>✅ Vendido por {nomesProfiles[item.atribuido_a] || 'vendedor'}</div>}
+              {aba === 'nao_vendido' && <div style={{ fontSize: 12, color: '#5b6b84' }}>{nomesProfiles[item.atribuido_a] || 'vendedor'} · {item.motivo_nao_venda || 'sem motivo'}</div>}
+              {aba === 'negado' && item.motivo_negado && <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.14)', borderRadius: 8, padding: '8px 10px' }}>Motivo: {item.motivo_negado}</div>}
             </div>
           )
         })

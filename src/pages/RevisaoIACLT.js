@@ -82,33 +82,33 @@ function fmtParado(min) {
 const CORES = {
   vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
-  frio: { border: '0.5px solid rgba(255,255,255,0.09)', background: '#2b3340', opacity: 0.8 },
+  frio: { border: '0.5px solid rgba(15,23,42,0.09)', background: '#e2e8f0', opacity: 0.8 },
   verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
-  normal: { border: '0.5px solid rgba(255,255,255,0.08)', background: '#232a37' },
+  normal: { border: '0.5px solid rgba(15,23,42,0.08)', background: '#ffffff' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#5b6b84', marginBottom: 14 },
   topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
   chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
-  kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
+  kpi: { fontSize: 13, color: '#5b6b84', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 230, maxWidth: 230, background: '#2b3340', borderRadius: 10, padding: 8, flexShrink: 0 },
-  colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
+  col: { minWidth: 230, maxWidth: 230, background: '#e2e8f0', borderRadius: 10, padding: 8, flexShrink: 0 },
+  colTitulo: { fontSize: 12, fontWeight: 600, color: '#5b6b84', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
-  cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
-  cardMeta: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
-  tagBanco: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 700 },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
+  cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
+  tagBanco: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 700 },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#232a37', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#1e242f', borderRadius: 10, padding: 12, marginBottom: 12 },
-  msgs: { maxHeight: 240, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#2b3340', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  modal: { background: '#ffffff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#f1f5f9', borderRadius: 10, padding: 12, marginBottom: 12 },
+  msgs: { maxHeight: 240, overflowY: 'auto', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#e2e8f0', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgIa: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
-  btnFechar: { padding: '9px 12px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
-  link: { fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
+  btnFechar: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+  link: { fontSize: 12, color: '#2563eb', textDecoration: 'none', fontWeight: 500 },
 }
 
 export default function RevisaoIACLT() {
@@ -240,10 +240,10 @@ export default function RevisaoIACLT() {
               {lead.clt_motivo && <div style={{ gridColumn: '1 / -1' }}>❌ Motivo: {lead.clt_motivo}</div>}
             </div>
 
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>💬 Conversa (espelho do Chatwoot):</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 6 }}>💬 Conversa (espelho do Chatwoot):</div>
             <div style={s.msgs}>
-              {carregandoConversa && <div style={{ fontSize: 12, color: '#8b9bb4' }}>Carregando conversa...</div>}
-              {!carregandoConversa && mensagens.length === 0 && <div style={{ fontSize: 12, color: '#8b9bb4' }}>Sem mensagens.</div>}
+              {carregandoConversa && <div style={{ fontSize: 12, color: '#5b6b84' }}>Carregando conversa...</div>}
+              {!carregandoConversa && mensagens.length === 0 && <div style={{ fontSize: 12, color: '#5b6b84' }}>Sem mensagens.</div>}
               {mensagens.map((m, i) => (
                 <div key={i} style={m.de === 'cliente' ? s.msgCliente : s.msgIa}>{m.texto}</div>
               ))}

@@ -4,30 +4,30 @@ import { useAuth } from '../lib/AuthContext'
 import UploadDocumento from '../components/UploadDocumento'
 
 const s = {
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
-  label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 },
-  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
-  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, color: '#c6d2e4', background: '#2b3340', outline: 'none', boxSizing: 'border-box' },
-  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
-  select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
-  textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
+  label: { display: 'block', fontSize: 12, color: '#5b6b84', marginBottom: 4 },
+  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
+  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, color: '#334155', background: '#e2e8f0', outline: 'none', boxSizing: 'border-box' },
+  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
+  select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
+  textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 },
   grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
-  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(255,255,255,0.06)' },
-  hint: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  hintErr: { fontSize: 11, color: '#f87171', marginTop: 4 },
-  hintOk: { fontSize: 11, color: '#34d399', marginTop: 4 },
-  warnBox: { background: 'rgba(251,191,36,.12)', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#fbbf24' },
-  duplicadoBox: { background: 'rgba(248,113,113,.14)', border: '1px solid #A32D2D40', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#f87171' },
+  sectionTitle: { fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(15,23,42,0.06)' },
+  hint: { fontSize: 11, color: '#5b6b84', marginTop: 4 },
+  hintErr: { fontSize: 11, color: '#dc2626', marginTop: 4 },
+  hintOk: { fontSize: 11, color: '#059669', marginTop: 4 },
+  warnBox: { background: 'rgba(251,191,36,.12)', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#b45309' },
+  duplicadoBox: { background: 'rgba(248,113,113,.14)', border: '1px solid #A32D2D40', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#dc2626' },
   successBox: { background: 'rgba(52,211,153,.14)', border: '1.5px solid #3B6D1150', borderRadius: 14, padding: '1.5rem', textAlign: 'center' },
   productCard: (ativo, cor) => ({
     flex: 1, padding: '14px 12px', textAlign: 'center', borderRadius: 10,
     cursor: 'pointer', fontWeight: 500, fontSize: 13,
-    background: ativo ? cor : '#232a37',
+    background: ativo ? cor : '#ffffff',
     color: ativo ? '#232a37' : cor,
     border: `1.5px solid ${cor}${ativo ? '' : '40'}`,
     transition: 'all 0.15s',
@@ -37,11 +37,11 @@ const s = {
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
 const PRODUTOS = [
-  { key: 'Maternidade', label: '🤰 Maternidade', cor: '#34d399' },
-  { key: 'Maternidade Mãe', label: '👶 Maternidade Mãe', cor: '#fbbf24' },
-  { key: 'Gestante até 5 meses', label: '🤱 Gestante até 5 meses', cor: '#60a5fa' },
-  { key: 'BPC', label: '👴 BPC', cor: '#a78bfa' },
-  { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#fbbf24' },
+  { key: 'Maternidade', label: '🤰 Maternidade', cor: '#059669' },
+  { key: 'Maternidade Mãe', label: '👶 Maternidade Mãe', cor: '#b45309' },
+  { key: 'Gestante até 5 meses', label: '🤱 Gestante até 5 meses', cor: '#2563eb' },
+  { key: 'BPC', label: '👴 BPC', cor: '#7c3aed' },
+  { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#b45309' },
 ]
 
 function maskCPF(v) {
@@ -322,19 +322,19 @@ export default function NovoCliente({ onSucesso }) {
   if (salvo) return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>➕ Novo cliente</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>➕ Novo cliente</div>
       </div>
       <div style={s.successBox}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-        <div style={{ fontSize: 16, fontWeight: 500, color: '#34d399', marginBottom: 6 }}>Cliente cadastrado!</div>
-        <div style={{ fontSize: 14, color: '#8b9bb4', marginBottom: 4 }}>{salvo.nome}</div>
-        <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 20 }}>Aguardando emissão pela supervisão. O link aparece em "Meus clientes" assim que estiver pronto.</div>
+        <div style={{ fontSize: 16, fontWeight: 500, color: '#059669', marginBottom: 6 }}>Cliente cadastrado!</div>
+        <div style={{ fontSize: 14, color: '#5b6b84', marginBottom: 4 }}>{salvo.nome}</div>
+        <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 20 }}>Aguardando emissão pela supervisão. O link aparece em "Meus clientes" assim que estiver pronto.</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={novoCadastro} style={{ flex: 1, padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             ➕ Novo cliente
           </button>
           {onSucesso && (
-            <button onClick={() => onSucesso()} style={{ flex: 1, padding: '10px', background: '#232a37', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            <button onClick={() => onSucesso()} style={{ flex: 1, padding: '10px', background: '#ffffff', color: '#2563eb', border: '1px solid #60a5fa', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
               📋 Ver meus clientes
             </button>
           )}
@@ -347,8 +347,8 @@ export default function NovoCliente({ onSucesso }) {
   if (!c.produto) return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>➕ Novo cliente</div>
-        <div style={{ fontSize: 13, color: '#8b9bb4' }}>Comece selecionando o produto que você está vendendo</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>➕ Novo cliente</div>
+        <div style={{ fontSize: 13, color: '#5b6b84' }}>Comece selecionando o produto que você está vendendo</div>
       </div>
 
       <div style={s.card}>
@@ -358,15 +358,15 @@ export default function NovoCliente({ onSucesso }) {
             <button key={p.key} onClick={() => set('produto', p.key)}
               style={{
                 padding: '20px 16px', textAlign: 'left', borderRadius: 10,
-                cursor: 'pointer', background: '#232a37',
-                border: `1.5px solid ${p.cor}30`, color: '#e6edf7',
+                cursor: 'pointer', background: '#ffffff',
+                border: `1.5px solid ${p.cor}30`, color: '#0f172a',
                 fontSize: 15, fontWeight: 500,
                 display: 'flex', alignItems: 'center', gap: 14,
               }}>
               <span style={{ fontSize: 24 }}>{p.label.split(' ')[0]}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ color: p.cor, fontWeight: 600 }}>{p.label.split(' ').slice(1).join(' ')}</div>
-                <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 2 }}>
                   {p.key === 'Maternidade' ? 'Salário-maternidade — pede NIS, data do parto e meses de gravidez' :
                    p.key === 'Maternidade Mãe' ? 'Bebê já nascido (retroativo) — pede data de nascimento e vínculo CLT' :
                    p.key === 'BPC' ? 'BPC/LOAS — Benefício de Prestação Continuada' :
@@ -394,8 +394,8 @@ export default function NovoCliente({ onSucesso }) {
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>➕ Novo cliente</div>
-          <div style={{ fontSize: 13, color: '#8b9bb4' }}>Preencha os dados e anexe os documentos do cliente</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>➕ Novo cliente</div>
+          <div style={{ fontSize: 13, color: '#5b6b84' }}>Preencha os dados e anexe os documentos do cliente</div>
         </div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -441,7 +441,7 @@ export default function NovoCliente({ onSucesso }) {
         </div>
 
         {duplicado && (
-          <div style={duplicado.vendedorMesmo ? { ...s.duplicadoBox, background: 'rgba(251,191,36,.12)', borderColor: '#F59E0B40', color: '#fbbf24' } : s.duplicadoBox}>
+          <div style={duplicado.vendedorMesmo ? { ...s.duplicadoBox, background: 'rgba(251,191,36,.12)', borderColor: '#F59E0B40', color: '#b45309' } : s.duplicadoBox}>
             <div style={{ fontWeight: 500, marginBottom: 4 }}>
               {duplicado.vendedorMesmo
                 ? '✓ CPF já é seu cliente (pode prosseguir, será atualizado)'
@@ -497,7 +497,7 @@ export default function NovoCliente({ onSucesso }) {
                   Rua *
                   {endLockado && (
                     <button type="button" onClick={() => setEndLockado(false)}
-                      style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}>
+                      style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}>
                       editar
                     </button>
                   )}
@@ -631,7 +631,7 @@ export default function NovoCliente({ onSucesso }) {
       {/* === DOCUMENTOS === */}
       <div style={s.card}>
         <div style={s.sectionTitle}>Documentos do cliente</div>
-        <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 16 }}>
           Anexe RG (frente e verso), comprovantes obrigatórios, e opcionalmente comprovante de endereço.
           Formatos aceitos: JPG, PNG ou PDF (máx 10MB cada).
         </div>

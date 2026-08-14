@@ -26,27 +26,27 @@ export default function ModalEmailNotificacao({ onClose }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.05)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: '#232a37', borderRadius: 16, padding: '2rem', width: '100%', maxWidth: 420 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.05)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#ffffff', borderRadius: 16, padding: '2rem', width: '100%', maxWidth: 420 }}>
         <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>📬</div>
-        <div style={{ fontSize: 18, fontWeight: 500, color: '#e6edf7', marginBottom: 8, textAlign: 'center' }}>
+        <div style={{ fontSize: 18, fontWeight: 500, color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>
           Cadastre seu e-mail de notificações
         </div>
-        <div style={{ fontSize: 14, color: '#8b9bb4', lineHeight: 1.6, marginBottom: '1.5rem', textAlign: 'center' }}>
+        <div style={{ fontSize: 14, color: '#5b6b84', lineHeight: 1.6, marginBottom: '1.5rem', textAlign: 'center' }}>
           Receba alertas quando um novo advogado se cadastrar pelo seu link, quando um lote ficar inadimplente e quando um pagamento for confirmado.
         </div>
 
         <form onSubmit={salvar}>
-          <label style={{ display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 }}>Seu e-mail pessoal</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#5b6b84', marginBottom: 4 }}>Seu e-mail pessoal</label>
           <input
             type="email"
             value={email}
             onChange={e => { setEmail(e.target.value); setErro('') }}
             placeholder="seu@email.com"
             required
-            style={{ width: '100%', padding: '11px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+            style={{ width: '100%', padding: '11px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
           />
-          {erro && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>{erro}</div>}
+          {erro && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>{erro}</div>}
 
           <button type="submit" disabled={!email || salvando} style={{ width: '100%', padding: '12px', background: email && !salvando ? '#60a5fa' : '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: email && !salvando ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
             {salvando ? 'Salvando...' : 'Salvar e-mail'}

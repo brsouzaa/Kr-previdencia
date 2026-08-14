@@ -4,20 +4,20 @@ import { useAuth } from '../lib/AuthContext'
 import UploadDocumento from '../components/UploadDocumento'
 
 const STATUS_INFO = {
-  aguardando_emissao:      { label: 'Aguardando emissão', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: '⏳' },
-  emitido:                 { label: 'Emitido — link disponível', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📨' },
-  assinado:                { label: 'Assinado — bônus contabilizado!', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '🏆' },
-  aguardando_pos_venda:    { label: 'Assinou — pós-venda vai ligar', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📞' },
-  em_contato_pos_venda:    { label: 'Pós-venda em contato', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: '📞' },
-  validado_pos_venda:      { label: 'Validado pelo pós-venda', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '✓' },
-  barrado_pos_venda:       { label: 'Barrado pelo pós-venda — bônus descontado!', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '❌' },
-  em_validacao:            { label: 'Em validação pela analista', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '🔍' },
-  validado:                { label: 'Validado pela analista', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '✅' },
-  entregue:                { label: 'Entregue ao advogado', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📦' },
-  devolvido_correcao_doc:  { label: 'Devolvido — bônus descontado!', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
-  devolvido_reemissao:     { label: 'Devolvido — bônus descontado!', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
-  expirado:                { label: 'Expirou sem assinar', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⌛' },
-  cancelado:               { label: 'Cancelado', cor: '#8b9bb4', bg: '#2b3340', icon: '❌' },
+  aguardando_emissao:      { label: 'Aguardando emissão', cor: '#b45309', bg: 'rgba(251,191,36,.12)', icon: '⏳' },
+  emitido:                 { label: 'Emitido — link disponível', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📨' },
+  assinado:                { label: 'Assinado — bônus contabilizado!', cor: '#059669', bg: 'rgba(52,211,153,.14)', icon: '🏆' },
+  aguardando_pos_venda:    { label: 'Assinou — pós-venda vai ligar', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📞' },
+  em_contato_pos_venda:    { label: 'Pós-venda em contato', cor: '#b45309', bg: 'rgba(251,191,36,.12)', icon: '📞' },
+  validado_pos_venda:      { label: 'Validado pelo pós-venda', cor: '#059669', bg: 'rgba(52,211,153,.14)', icon: '✓' },
+  barrado_pos_venda:       { label: 'Barrado pelo pós-venda — bônus descontado!', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '❌' },
+  em_validacao:            { label: 'Em validação pela analista', cor: '#059669', bg: 'rgba(52,211,153,.14)', icon: '🔍' },
+  validado:                { label: 'Validado pela analista', cor: '#059669', bg: 'rgba(52,211,153,.14)', icon: '✅' },
+  entregue:                { label: 'Entregue ao advogado', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📦' },
+  devolvido_correcao_doc:  { label: 'Devolvido — bônus descontado!', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
+  devolvido_reemissao:     { label: 'Devolvido — bônus descontado!', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
+  expirado:                { label: 'Expirou sem assinar', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⌛' },
+  cancelado:               { label: 'Cancelado', cor: '#5b6b84', bg: '#e2e8f0', icon: '❌' },
 }
 
 const TIPOS_DOC = [
@@ -29,9 +29,9 @@ const TIPOS_DOC = [
 ]
 
 const s = {
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
-  cardAlerta: { background: '#232a37', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.08)' },
-  search: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#232a37', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1rem', marginBottom: 10 },
+  cardAlerta: { background: '#ffffff', border: '1.5px solid #f87171', borderRadius: 14, padding: '1rem', marginBottom: 10, boxShadow: '0 0 0 4px rgba(248,113,113,0.08)' },
+  search: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#ffffff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
   filtroChip: (ativo, cor, bg) => ({
     padding: '6px 12px', fontSize: 12, borderRadius: 16,
     background: ativo ? cor : bg, color: ativo ? '#232a37' : cor,
@@ -198,20 +198,20 @@ export default function MeusClientes() {
     else fetchClientes()
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84' }}>Carregando...</div>
 
   return (
     <div>
       <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>
             {profile?.role === 'coordenador_b2c'
               ? `📋 Clientes do setor ${profile?.setor_responsavel === 'autonomos' ? 'autônomos' : 'captação + IA'}`
               : '📋 Meus clientes'}
           </div>
-          <div style={{ fontSize: 13, color: '#8b9bb4' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 13, color: '#5b6b84' }}>{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}</div>
         </div>
-        <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#232a37', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, cursor: 'pointer', color: '#8b9bb4' }}>
+        <button onClick={fetchClientes} style={{ padding: '8px 14px', fontSize: 13, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, cursor: 'pointer', color: '#5b6b84' }}>
           ↻ Atualizar
         </button>
       </div>
@@ -219,10 +219,10 @@ export default function MeusClientes() {
       {/* Alerta de devoluções */}
       {devolvidos.length > 0 && (
         <div style={{ background: 'rgba(248,113,113,.14)', border: '1.5px solid #f87171', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#f87171', marginBottom: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: '#dc2626', marginBottom: 4 }}>
             ⚠️ {devolvidos.length} cliente{devolvidos.length !== 1 ? 's' : ''} devolvido{devolvidos.length !== 1 ? 's' : ''} — bônus descontado!
           </div>
-          <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>
             A analista pediu correção. Resolva pra recuperar o bônus.
           </div>
           <button onClick={() => setFiltroStatus(devolvidos[0].status)}
@@ -239,7 +239,7 @@ export default function MeusClientes() {
         value={busca} onChange={e => setBusca(e.target.value)} />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        <button style={s.filtroChip(filtroStatus === 'todos', '#60a5fa', 'rgba(96,165,250,.12)')} onClick={() => setFiltroStatus('todos')}>
+        <button style={s.filtroChip(filtroStatus === 'todos', '#2563eb', 'rgba(96,165,250,.12)')} onClick={() => setFiltroStatus('todos')}>
           Todos · {counts.todos}
         </button>
         {Object.entries(STATUS_INFO).map(([key, info]) => {
@@ -253,7 +253,7 @@ export default function MeusClientes() {
       </div>
 
       {filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4', background: '#232a37', borderRadius: 14, border: '0.5px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84', background: '#ffffff', borderRadius: 14, border: '0.5px solid rgba(15,23,42,0.06)' }}>
           {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado.'}
         </div>
       ) : filtrados.map(c => {
@@ -271,8 +271,8 @@ export default function MeusClientes() {
           <div key={c.id} style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 2 }}>{c.nome}</div>
-                <div style={{ fontSize: 12, color: '#8b9bb4' }}>{c.cpf} · {c.telefone}</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a', marginBottom: 2 }}>{c.nome}</div>
+                <div style={{ fontSize: 12, color: '#5b6b84' }}>{c.cpf} · {c.telefone}</div>
               </div>
               <span style={s.badgeStatus(info.cor, info.bg)}>{info.icon} {info.label}</span>
             </div>
@@ -280,22 +280,22 @@ export default function MeusClientes() {
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
               {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto} · {tempoRelativo(c.created_at)}
               {' · '}
-              <span style={{ color: docsAnexados >= 4 ? '#34d399' : '#f87171' }}>📎 {docsAnexados}/5 documentos</span>
+              <span style={{ color: docsAnexados >= 4 ? '#059669' : '#dc2626' }}>📎 {docsAnexados}/5 documentos</span>
               {profile?.role === 'coordenador_b2c' && c.profiles?.nome && (
-                <> · 👤 <span style={{ color: '#8b9bb4' }}>{c.profiles.nome}</span></>
+                <> · 👤 <span style={{ color: '#5b6b84' }}>{c.profiles.nome}</span></>
               )}
             </div>
 
             {/* REEMITIDO AUTOMATICAMENTE — informativo, vendedor não precisa fazer nada */}
             {ehReemitidoAuto && (
               <div style={{ marginTop: 10, padding: 12, background: 'rgba(251,191,36,.12)', borderRadius: 8, border: '1px solid #F59E0B40' }}>
-                <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 500, marginBottom: 4 }}>
+                <div style={{ fontSize: 12, color: '#b45309', fontWeight: 500, marginBottom: 4 }}>
                   🔄 Cliente foi reemitido pela analista
                 </div>
-                <div style={{ fontSize: 13, color: '#fbbf24', fontStyle: 'italic', marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: '#b45309', fontStyle: 'italic', marginBottom: 8 }}>
                   Motivo: "{c.motivo_reemissao}"
                 </div>
-                <div style={{ fontSize: 11, color: '#8b9bb4', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: '#5b6b84', lineHeight: 1.5 }}>
                   ✅ <strong>Não precisa fazer nada.</strong> A supervisão vai gerar um novo contrato pra <strong>outro advogado</strong> automaticamente. Quando o link sair, ele aparece aqui pra você enviar pro cliente. Avise o cliente que vai chegar um novo link em breve.
                 </div>
               </div>
@@ -304,10 +304,10 @@ export default function MeusClientes() {
             {/* DEVOLVIDO - mensagem destacada */}
             {ehDevolvido && c.motivo_devolucao && (
               <div style={{ marginTop: 10, padding: 12, background: 'rgba(248,113,113,.14)', borderRadius: 8, border: '1px solid #A32D2D40' }}>
-                <div style={{ fontSize: 12, color: '#f87171', fontWeight: 500, marginBottom: 4 }}>
+                <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, marginBottom: 4 }}>
                   💬 Motivo da devolução pela analista:
                 </div>
-                <div style={{ fontSize: 13, color: '#f87171', fontStyle: 'italic', marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: '#dc2626', fontStyle: 'italic', marginBottom: 10 }}>
                   "{c.motivo_devolucao}"
                 </div>
                 {/* Contador 24h só pra correção de documento */}
@@ -317,7 +317,7 @@ export default function MeusClientes() {
                     <div style={{
                       padding: '8px 10px', borderRadius: 6, marginBottom: 10,
                       background: t.urgente ? '#f87171' : 'rgba(251,191,36,.12)',
-                      color: t.urgente ? '#232a37' : '#fbbf24',
+                      color: t.urgente ? '#232a37' : '#b45309',
                       fontSize: 12, fontWeight: 500, textAlign: 'center'
                     }}>
                       {t.texto}
@@ -329,7 +329,7 @@ export default function MeusClientes() {
                 })()}
                 {c.status === 'devolvido_correcao_doc' ? (
                   <>
-                    <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 8 }}>
                       O bônus desse cliente foi descontado. Edite os documentos abaixo, depois clique em "✅ Marcar corrigido" pra recuperar o bônus.
                     </div>
                     <button onClick={() => setEditandoDocsId(c.id)}
@@ -343,7 +343,7 @@ export default function MeusClientes() {
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 8 }}>
                       O bônus desse cliente foi descontado. O contrato precisa ser refeito — clique abaixo pra mandar pra supervisão emitir novamente. <strong>O novo contrato vai pra outro advogado da fila.</strong> Quando o cliente assinar de novo, o bônus volta.
                     </div>
                     <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
@@ -356,7 +356,7 @@ export default function MeusClientes() {
             )}
 
             {c.observacao && (
-              <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 8, padding: '6px 10px', background: '#171c26', borderRadius: 6, fontStyle: 'italic' }}>
+              <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 8, padding: '6px 10px', background: '#f2f5fa', borderRadius: 6, fontStyle: 'italic' }}>
                 "{c.observacao}"
               </div>
             )}
@@ -365,16 +365,16 @@ export default function MeusClientes() {
             <div style={{ marginTop: 10 }}>
               {!editando ? (
                 <button onClick={() => setEditandoDocsId(c.id)}
-                  style={{ fontSize: 12, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                  style={{ fontSize: 12, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                   📎 Ver/{editavel ? 'editar' : ''} documentos
                 </button>
               ) : (
-                <div style={{ marginTop: 8, padding: 12, background: '#171c26', borderRadius: 8 }}>
+                <div style={{ marginTop: 8, padding: 12, background: '#f2f5fa', borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#8b9bb4' }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#5b6b84' }}>
                       Documentos {!editavel && '(somente leitura)'}
                     </div>
-                    <button onClick={() => setEditandoDocsId(null)} style={{ fontSize: 11, color: '#8b9bb4', background: 'none', border: 'none', cursor: 'pointer' }}>fechar</button>
+                    <button onClick={() => setEditandoDocsId(null)} style={{ fontSize: 11, color: '#5b6b84', background: 'none', border: 'none', cursor: 'pointer' }}>fechar</button>
                   </div>
                   {editavel ? (
                     TIPOS_DOC.map(tipo => (
@@ -387,9 +387,9 @@ export default function MeusClientes() {
                   ) : (
                     TIPOS_DOC.map(tipo => (
                       <div key={tipo.chave} style={{ marginBottom: 6, fontSize: 12 }}>
-                        <span style={{ color: '#8b9bb4' }}>{tipo.label}: </span>
+                        <span style={{ color: '#5b6b84' }}>{tipo.label}: </span>
                         {docs[tipo.chave] ? (
-                          <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline' }}>✓ ver arquivo</a>
+                          <a href={docs[tipo.chave]} target="_blank" rel="noreferrer" style={{ color: '#059669', textDecoration: 'underline' }}>✓ ver arquivo</a>
                         ) : (
                           <span style={{ color: '#64748b' }}>— não anexado</span>
                         )}
@@ -402,8 +402,8 @@ export default function MeusClientes() {
 
             {c.status === 'emitido' && c.link_assinatura && (
               <div style={{ marginTop: 12, padding: 10, background: 'rgba(96,165,250,.12)', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#60a5fa', marginBottom: 6, fontWeight: 500 }}>📨 Link de assinatura — envie pro cliente:</div>
-                <div style={{ background: '#232a37', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#60a5fa', wordBreak: 'break-all', marginBottom: 8, border: '0.5px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 6, fontWeight: 500 }}>📨 Link de assinatura — envie pro cliente:</div>
+                <div style={{ background: '#ffffff', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#2563eb', wordBreak: 'break-all', marginBottom: 8, border: '0.5px solid rgba(15,23,42,0.06)' }}>
                   {c.link_assinatura}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -420,7 +420,7 @@ export default function MeusClientes() {
 
             {c.status === 'expirado' && (
               <div style={{ marginTop: 10, padding: 10, background: 'rgba(248,113,113,.14)', borderRadius: 8 }}>
-                <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
+                <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
                 <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
                   style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
                   {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Solicitar nova emissão'}
@@ -429,25 +429,25 @@ export default function MeusClientes() {
             )}
 
             {c.status === 'aguardando_emissao' && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#fbbf24' }}>Aguardando supervisão emitir o contrato...</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: '#b45309' }}>Aguardando supervisão emitir o contrato...</div>
             )}
             {c.status === 'em_validacao' && (
-              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#34d399', textAlign: 'center', fontWeight: 500 }}>
+              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#059669', textAlign: 'center', fontWeight: 500 }}>
                 🏆 Bônus contabilizado · Aguardando analista validar
               </div>
             )}
             {c.status === 'assinado' && (
-              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#34d399', textAlign: 'center', fontWeight: 500 }}>
+              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#059669', textAlign: 'center', fontWeight: 500 }}>
                 🏆 Bônus contabilizado!
               </div>
             )}
             {c.status === 'validado' && (
-              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#34d399', textAlign: 'center', fontWeight: 500 }}>
+              <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#059669', textAlign: 'center', fontWeight: 500 }}>
                 ✅ Validado pela analista · Bônus contabilizado
               </div>
             )}
             {c.status === 'entregue' && (
-              <div style={{ marginTop: 8, padding: 8, background: 'rgba(96,165,250,.12)', borderRadius: 6, fontSize: 11, color: '#60a5fa', textAlign: 'center', fontWeight: 500 }}>
+              <div style={{ marginTop: 8, padding: 8, background: 'rgba(96,165,250,.12)', borderRadius: 6, fontSize: 11, color: '#2563eb', textAlign: 'center', fontWeight: 500 }}>
                 📦 Entregue ao advogado · Bônus contabilizado
               </div>
             )}

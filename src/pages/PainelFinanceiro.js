@@ -12,15 +12,15 @@ import { useAuth } from '../lib/AuthContext'
 // ============================================================
 
 const COR = {
-  vendas: '#34d399',
-  caixa: '#60a5fa',
-  inad: '#f87171',
-  neutro: '#8b9bb4',
-  verde: '#34d399',
-  vermelho: '#f87171',
-  laranja: '#fbbf24',
-  azul: '#60a5fa',
-  roxo: '#a78bfa',
+  vendas: '#059669',
+  caixa: '#2563eb',
+  inad: '#dc2626',
+  neutro: '#5b6b84',
+  verde: '#059669',
+  vermelho: '#dc2626',
+  laranja: '#b45309',
+  azul: '#2563eb',
+  roxo: '#7c3aed',
 }
 
 const fmt = v => `R$ ${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`
@@ -67,7 +67,7 @@ function GraficoMensal({ dados, isMobile }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
       {[0.25, 0.5, 0.75, 1].map(f => (
-        <line key={f} x1={padL} x2={W - padL} y1={y(maxV * f)} y2={y(maxV * f)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <line key={f} x1={padL} x2={W - padL} y1={y(maxV * f)} y2={y(maxV * f)} stroke="rgba(15,23,42,0.06)" strokeWidth="1" />
       ))}
       {dados.map((d, i) => {
         const cx = padL + grupoW * i + grupoW / 2
@@ -75,7 +75,7 @@ function GraficoMensal({ dados, isMobile }) {
           <g key={d.mes}>
             <rect x={cx - barW - 2} y={y(d.receita)} width={barW} height={H - padB - y(d.receita)} rx="3" fill={COR.verde} opacity="0.9" />
             <rect x={cx + 2} y={y(d.despesa)} width={barW} height={H - padB - y(d.despesa)} rx="3" fill={COR.vermelho} opacity="0.75" />
-            <text x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill="#8b9bb4">{mesLabel(d.mes)}</text>
+            <text x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill="#5b6b84">{mesLabel(d.mes)}</text>
             {!isMobile && d.receita > 0 && (
               <text x={cx - barW / 2 - 2} y={y(d.receita) - 4} textAnchor="middle" fontSize="9.5" fill={COR.verde} fontWeight="600">{fmtK(d.receita)}</text>
             )}
@@ -98,7 +98,7 @@ function GraficoMensal({ dados, isMobile }) {
 // ---------- Sparkline (SVG) ----------
 function Sparkline({ pontos, cor = COR.azul, altura = 42 }) {
   const vals = pontos.filter(p => p != null)
-  if (vals.length < 2) return <div style={{ fontSize: 11, color: '#8b9bb4' }}>histórico insuficiente</div>
+  if (vals.length < 2) return <div style={{ fontSize: 11, color: '#5b6b84' }}>histórico insuficiente</div>
   const W = 160, H = altura, mx = Math.max(...vals), mn = Math.min(...vals)
   const range = mx - mn || 1
   const pts = pontos.map((v, i) => v == null ? null : `${(W / (pontos.length - 1)) * i},${H - 6 - (H - 12) * ((v - mn) / range)}`).filter(Boolean)
@@ -113,7 +113,7 @@ function Sparkline({ pontos, cor = COR.azul, altura = 42 }) {
 // ---------- Composição de despesa (barras horizontais, % sobre o FATURAMENTO) ----------
 function Composicao({ itens, receita }) {
   const total = itens.reduce((s, x) => s + x.valor, 0)
-  if (total <= 0) return <div style={{ fontSize: 12, color: '#8b9bb4', padding: '8px 0' }}>Nenhuma despesa classificada neste mês ainda.</div>
+  if (total <= 0) return <div style={{ fontSize: 12, color: '#5b6b84', padding: '8px 0' }}>Nenhuma despesa classificada neste mês ainda.</div>
   const temReceita = Number(receita || 0) > 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -124,12 +124,12 @@ function Composicao({ itens, receita }) {
         return (
           <div key={x.nome}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
-              <span style={{ color: '#c6d2e4', fontWeight: 600 }}>{x.nome}</span>
-              <span style={{ color: '#8b9bb4' }}>
-                {fmt(x.valor)} · <b style={{ color: '#e6edf7' }}>{temReceita ? `${pctRec.toFixed(1)}% da receita` : `${pctDesp.toFixed(1)}% da despesa`}</b>
+              <span style={{ color: '#334155', fontWeight: 600 }}>{x.nome}</span>
+              <span style={{ color: '#5b6b84' }}>
+                {fmt(x.valor)} · <b style={{ color: '#0f172a' }}>{temReceita ? `${pctRec.toFixed(1)}% da receita` : `${pctDesp.toFixed(1)}% da despesa`}</b>
               </span>
             </div>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: 8, background: 'rgba(15,23,42,0.05)', borderRadius: 6, overflow: 'hidden' }}>
               <div style={{ width: `${barra}%`, height: '100%', background: x.cor, borderRadius: 6 }} />
             </div>
           </div>
@@ -216,15 +216,15 @@ export default function PainelFinanceiro() {
   if (!podeVer) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '2rem' }}>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#e6edf7', marginBottom: 6 }}>Acesso restrito</div>
-          <div style={{ fontSize: 13, color: '#8b9bb4' }}>Apenas administração tem acesso ao painel financeiro.</div>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '2rem', maxWidth: 420, textAlign: 'center', border: '0.5px solid rgba(15,23,42,0.08)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>Acesso restrito</div>
+          <div style={{ fontSize: 13, color: '#5b6b84' }}>Apenas administração tem acesso ao painel financeiro.</div>
         </div>
       </div>
     )
   }
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: '#8b9bb4' }}>Carregando painel financeiro…</div>
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#5b6b84' }}>Carregando painel financeiro…</div>
   }
 
   async function sincronizarGastos() {
@@ -315,9 +315,9 @@ export default function PainelFinanceiro() {
     : repPct > 20 ? 'bloqueio'
     : repPct >= 15 ? 'alerta'
     : 'ok'
-  const repCorRegua = repSituacao === 'bloqueio' ? '#f87171'
-    : repSituacao === 'alerta' ? '#fbbf24'
-    : '#34d399'
+  const repCorRegua = repSituacao === 'bloqueio' ? '#dc2626'
+    : repSituacao === 'alerta' ? '#b45309'
+    : '#059669'
   const repPctTeto = Math.min(repPct / 20 * 100, 100)
 
   // ---- CUSTO DE ANÚNCIO / CAC (mantido) ----
@@ -390,8 +390,8 @@ export default function PainelFinanceiro() {
     { nome: 'Fixo (c/ folha)', gasto: Number(dreAtual.fixo || 0) + Number(dreAtual.folha || 0), tetoPct: Number(metas.teto_fixo_pct), cor: COR.laranja },
     { nome: 'Marketing (c/ IA)', gasto: Number(dreAtual.marketing_total || 0), tetoPct: Number(metas.teto_marketing_pct), cor: COR.azul },
     { nome: 'Comissão', gasto: Number(dreAtual.comissao || 0), tetoPct: Number(metas.teto_comissao_pct), cor: COR.roxo },
-    { nome: 'Imposto', gasto: Number(dreAtual.imposto || 0), tetoPct: Number(metas.teto_imposto_pct), cor: '#8b9bb4' },
-    { nome: 'Variáveis (resto)', gasto: Number(dreAtual.variavel || 0) + Number(dreAtual.divida || 0) + Number(dreAtual.sem_grupo || 0), tetoPct: Number(metas.teto_variavel_pct), cor: '#34d399' },
+    { nome: 'Imposto', gasto: Number(dreAtual.imposto || 0), tetoPct: Number(metas.teto_imposto_pct), cor: '#5b6b84' },
+    { nome: 'Variáveis (resto)', gasto: Number(dreAtual.variavel || 0) + Number(dreAtual.divida || 0) + Number(dreAtual.sem_grupo || 0), tetoPct: Number(metas.teto_variavel_pct), cor: '#059669' },
   ].map(r => {
     const tetoRS = metaFat * r.tetoPct / 100
     const usoPct = tetoRS > 0 ? r.gasto / tetoRS * 100 : 0
@@ -455,9 +455,9 @@ export default function PainelFinanceiro() {
     add('ok', 'Nenhum alerta crítico. Números do mês dentro dos parâmetros.', '')
 
   const NIVEL_STYLE = {
-    critico: { bg: 'rgba(248,113,113,.14)', borda: '#f87171', icone: '🔴' },
-    aviso: { bg: 'rgba(251,191,36,.12)', borda: '#fbbf24', icone: '🟠' },
-    ok: { bg: 'rgba(52,211,153,.14)', borda: '#34d399', icone: '🟢' },
+    critico: { bg: 'rgba(248,113,113,.14)', borda: '#dc2626', icone: '🔴' },
+    aviso: { bg: 'rgba(251,191,36,.12)', borda: '#b45309', icone: '🟠' },
+    ok: { bg: 'rgba(52,211,153,.14)', borda: '#059669', icone: '🟢' },
   }
 
   const anos = [hoje.getFullYear(), hoje.getFullYear() - 1]
@@ -466,11 +466,11 @@ export default function PainelFinanceiro() {
     return (
       <div style={{ display: 'flex', gap: 6 }}>
         <select value={mes} onChange={e => setMes(Number(e.target.value))}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#232a37' }}>
+          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#ffffff' }}>
           {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
         </select>
         <select value={ano} onChange={e => setAno(Number(e.target.value))}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#232a37' }}>
+          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${cor}40`, color: cor, fontWeight: 600, background: '#ffffff' }}>
           {anos.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
@@ -479,26 +479,26 @@ export default function PainelFinanceiro() {
 
   function Card({ titulo, subtitulo, cor, seletor, contratos, lotes, valor, rodape }) {
     return (
-      <div style={{ background: '#232a37', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${cor}` }}>
+      <div style={{ background: '#ffffff', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(15,23,42,0.08)', borderTop: `3px solid ${cor}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: cor }}>{titulo}</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4' }}>{subtitulo}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84' }}>{subtitulo}</div>
           </div>
           {seletor}
         </div>
-        <div style={{ fontSize: 28, fontWeight: 700, color: '#e6edf7', marginTop: 10 }}>{fmt(valor)}</div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: '#0f172a', marginTop: 10 }}>{fmt(valor)}</div>
         <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 600, color: cor }}>{fmtNum(contratos)}</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4' }}>contratos</div>
+            <div style={{ fontSize: 11, color: '#5b6b84' }}>contratos</div>
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: '#8b9bb4' }}>{fmtNum(lotes)}</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4' }}>pedidos</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#5b6b84' }}>{fmtNum(lotes)}</div>
+            <div style={{ fontSize: 11, color: '#5b6b84' }}>pedidos</div>
           </div>
         </div>
-        {rodape && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>{rodape}</div>}
+        {rodape && <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>{rodape}</div>}
       </div>
     )
   }
@@ -506,27 +506,27 @@ export default function PainelFinanceiro() {
   const kpi = (titulo, valor, cor, sub, chave) => (
     <button onClick={() => chave && setDetalhe(detalhe === chave ? null : chave)}
       style={{
-        background: detalhe === chave ? 'rgba(96,165,250,.10)' : '#232a37', borderRadius: 14, padding: '14px 16px',
-        border: detalhe === chave ? `1.5px solid ${cor}` : '0.5px solid rgba(255,255,255,0.08)',
+        background: detalhe === chave ? 'rgba(96,165,250,.10)' : '#ffffff', borderRadius: 14, padding: '14px 16px',
+        border: detalhe === chave ? `1.5px solid ${cor}` : '0.5px solid rgba(15,23,42,0.08)',
         borderTop: `3px solid ${cor}`, textAlign: 'left', cursor: chave ? 'pointer' : 'default', width: '100%',
       }}>
-      <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.4px' }}>{titulo}</div>
+      <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.4px' }}>{titulo}</div>
       <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: cor, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
-      {sub && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>{sub}</div>}
       {chave && <div style={{ fontSize: 10, color: detalhe === chave ? cor : '#334766', marginTop: 4, fontWeight: 700 }}>{detalhe === chave ? '▴ fechar' : '▾ detalhar'}</div>}
     </button>
   )
 
   const secao = (titulo, extra) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '22px 0 10px' }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#e6edf7' }}>{titulo}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{titulo}</div>
       {extra}
     </div>
   )
 
   const pill = (ativo) => ({
-    background: ativo ? COR.azul : '#232a37', color: ativo ? '#232a37' : '#8b9bb4',
-    border: `1px solid ${ativo ? COR.azul : 'rgba(255,255,255,0.11)'}`, borderRadius: 20,
+    background: ativo ? COR.azul : '#ffffff', color: ativo ? '#232a37' : '#5b6b84',
+    border: `1px solid ${ativo ? COR.azul : 'rgba(15,23,42,0.11)'}`, borderRadius: 20,
     padding: '5px 13px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
   })
 
@@ -535,14 +535,14 @@ export default function PainelFinanceiro() {
       {/* HEADER */}
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#e6edf7', margin: 0 }}>Painel Financeiro</h1>
-          <p style={{ fontSize: 13, color: '#8b9bb4', margin: '4px 0 0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>Painel Financeiro</h1>
+          <p style={{ fontSize: 13, color: '#5b6b84', margin: '4px 0 0' }}>
             O coração da operação — receita, custo, CAC e caixa num lugar só.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Período</label>
+            <label style={{ fontSize: 11, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Período</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               {[['hoje', 'Hoje'], ['ontem', 'Ontem'], ['semana', 'Semana'], ['mes', 'Mês'], ['perso', 'Período']].map(([k, l]) => (
                 <button key={k} style={pill(periodo === k)} onClick={() => setPeriodo(k)}>{l}</button>
@@ -550,18 +550,18 @@ export default function PainelFinanceiro() {
               {periodo === 'perso' && (
                 <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
                   <input type="date" value={persoIni} max={persoFim} onChange={e => setPersoIni(e.target.value)}
-                    style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                    style={{ border: '1px solid rgba(15,23,42,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
                   <span>até</span>
                   <input type="date" value={persoFim} min={persoIni} onChange={e => setPersoFim(e.target.value)}
-                    style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                    style={{ border: '1px solid rgba(15,23,42,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
                 </span>
               )}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
+            <label style={{ fontSize: 11, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Produto</label>
             <select value={produtoSel} onChange={e => setProdutoSel(e.target.value)}
-              style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.45)', color: '#e6edf7', fontWeight: 600, background: '#232a37', cursor: 'pointer', minWidth: 180 }}>
+              style={{ fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.45)', color: '#0f172a', fontWeight: 600, background: '#ffffff', cursor: 'pointer', minWidth: 180 }}>
               <option value="Todos">Todos os produtos</option>
               {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
@@ -600,21 +600,21 @@ export default function PainelFinanceiro() {
 
       {/* PAINEL DE DETALHE do KPI clicado */}
       {detalhe && (
-        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 14, padding: '1rem 1.25rem', marginTop: 10 }}>
+        <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 14, padding: '1rem 1.25rem', marginTop: 10 }}>
           {detalhe === 'receita' && (() => {
             const pagosMes = base.filter(l => l.eh_pago && l.data_faturamento && l.data_faturamento >= rMesCorrente.ini && l.data_faturamento <= rMesCorrente.fim)
               .sort((a, b) => (b.data_faturamento || '').localeCompare(a.data_faturamento || ''))
             return (
               <>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Receita do mês — {pagosMes.length} lote(s) pago(s), {fmt(pagosMes.reduce((s, l) => s + Number(l.valor_total || 0), 0))}</div>
-                {pagosMes.length === 0 ? <div style={{ fontSize: 12, color: '#8b9bb4' }}>Nenhum lote pago neste mês ainda.</div>
+                {pagosMes.length === 0 ? <div style={{ fontSize: 12, color: '#5b6b84' }}>Nenhum lote pago neste mês ainda.</div>
                   : pagosMes.slice(0, 25).map((l, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                      <span style={{ color: '#c6d2e4' }}>{(l.data_faturamento || '').split('-').reverse().join('/')} · {l.produto || '—'} · {fmtNum(l.total_contratos)} contrato(s)</span>
+                      <span style={{ color: '#334155' }}>{(l.data_faturamento || '').split('-').reverse().join('/')} · {l.produto || '—'} · {fmtNum(l.total_contratos)} contrato(s)</span>
                       <b>{fmt(l.valor_total)}</b>
                     </div>
                   ))}
-                {pagosMes.length > 25 && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>+ {pagosMes.length - 25} lotes (recorte dos 25 maiores/recentes)</div>}
+                {pagosMes.length > 25 && <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6 }}>+ {pagosMes.length - 25} lotes (recorte dos 25 maiores/recentes)</div>}
               </>
             )
           })()}
@@ -626,26 +626,26 @@ export default function PainelFinanceiro() {
                 ['− Marketing (tráfego + extra)', dreAtual.marketing_total, COR.azul],
                 ['− Folha + Comissão', folhaMes, COR.roxo],
                 ['− Fixo', dreAtual.fixo, COR.laranja],
-                ['− Variável', dreAtual.variavel, '#34d399'],
-                ['− Imposto', dreAtual.imposto, '#8b9bb4'],
+                ['− Variável', dreAtual.variavel, '#059669'],
+                ['− Imposto', dreAtual.imposto, '#5b6b84'],
                 ['− Dívida', dreAtual.divida, COR.vermelho],
-                ['− Sem grupo', dreAtual.sem_grupo, '#8b9bb4'],
+                ['− Sem grupo', dreAtual.sem_grupo, '#5b6b84'],
               ].map(([lbl, v, c]) => (
                 <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '4px 0' }}>
                   <span style={{ color: c, fontWeight: 600 }}>{lbl}</span><b>{fmt(v)}</b>
                 </div>
               ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, padding: '8px 0 2px', borderTop: '2px solid rgba(255,255,255,0.07)', marginTop: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, padding: '8px 0 2px', borderTop: '2px solid rgba(15,23,42,0.07)', marginTop: 4 }}>
                 <b>= Resultado</b>
-                <b style={{ color: Number(dreAtual.resultado || 0) >= 0 ? '#34d399' : '#f87171' }}>{fmt(dreAtual.resultado)}</b>
+                <b style={{ color: Number(dreAtual.resultado || 0) >= 0 ? '#059669' : '#dc2626' }}>{fmt(dreAtual.resultado)}</b>
               </div>
-              <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>Inadimplência NÃO entra aqui — é receita que não virou caixa, não despesa. Acumulado em aberto: {fmt(inadTotalValor)}.</div>
+              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6 }}>Inadimplência NÃO entra aqui — é receita que não virou caixa, não despesa. Acumulado em aberto: {fmt(inadTotalValor)}.</div>
             </>
           )}
           {detalhe === 'cac' && (
             <>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Como o CAC é calculado ({MESES[custoMes]})</div>
-              <div style={{ fontSize: 12.5, color: '#c6d2e4', lineHeight: 1.8 }}>
+              <div style={{ fontSize: 12.5, color: '#334155', lineHeight: 1.8 }}>
                 Gasto de anúncio com imposto: <b>{fmt(custoTotal)}</b> (líquido {fmt(custoLiquido)} + 13%)<br />
                 Clientes fechados no mês (validados/assinados, sem barrados/cancelados): <b>{fmtNum(totalFechadosTodos)}</b><br />
                 {produtoSel !== 'Todos' && (<>Filtro {produtoSel}: {fmtNum(baseAquisicao)} fechados → gasto rateado {fmt(custoRateado)}<br /></>)}
@@ -662,7 +662,7 @@ export default function PainelFinanceiro() {
                 <b style={{ fontSize: 13, color: cor }}>{nome}</b>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{fmt(total)}</b>
-                  {temReceita && <span style={{ color: '#8b9bb4' }}> · {fmtPct(total / receitaMes * 100)} da receita</span>}
+                  {temReceita && <span style={{ color: '#5b6b84' }}> · {fmtPct(total / receitaMes * 100)} da receita</span>}
                 </span>
               </div>
             )
@@ -673,15 +673,15 @@ export default function PainelFinanceiro() {
                 </div>
                 {linhaSub('🎯 Captação (tráfego, disparos)', COR.azul, Number(dreAtual.marketing_captacao || 0))}
                 {contasMes.map((g, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 12px', color: '#c6d2e4' }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 12px', color: '#334155' }}>
                     <span>{g.conta_nome || g.conta_id} — tráfego Meta c/ 13% imposto</span><span>{fmt(g.gasto_total)}</span>
                   </div>
                 ))}
                 {linhaSub('🎬 Estrutura (video maker, design, conteúdo)', COR.roxo, Number(dreAtual.marketing_estrutura || 0))}
                 {Number(dreAtual.marketing_estrutura || 0) === 0 && (
-                  <div style={{ fontSize: 11.5, color: '#8b9bb4' }}>Estrutura zerada — lance como Marketing → Estrutura no Financeiro.</div>
+                  <div style={{ fontSize: 11.5, color: '#5b6b84' }}>Estrutura zerada — lance como Marketing → Estrutura no Financeiro.</div>
                 )}
-                <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 8 }}>
                   Lançamento a lançamento fica na tela Despesas & Custos. Marketing é investimento na leitura, mas segue descontado no Resultado.
                 </div>
               </>
@@ -694,21 +694,21 @@ export default function PainelFinanceiro() {
                 const atr = x.origem === 'lancamento' && dv(x.data_vencimento) < h0
                 return (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                    <span style={{ color: atr ? COR.vermelho : '#c6d2e4', fontWeight: atr ? 700 : 400 }}>
+                    <span style={{ color: atr ? COR.vermelho : '#334155', fontWeight: atr ? 700 : 400 }}>
                       {x.data_vencimento.split('-').reverse().join('/')} · {(x.descricao || '—').slice(0, 55)}{atr ? ' · ATRASADA' : ''}{x.origem === 'projecao' ? ' · projeção' : ''}
                     </span>
-                    <b style={{ color: atr ? COR.vermelho : '#e6edf7' }}>{fmt(x.valor)}</b>
+                    <b style={{ color: atr ? COR.vermelho : '#0f172a' }}>{fmt(x.valor)}</b>
                   </div>
                 )
               })}
-              {!atrasadas.length && !prox7.length && <div style={{ fontSize: 12, color: '#8b9bb4' }}>Nada vencendo nos próximos 7 dias.</div>}
+              {!atrasadas.length && !prox7.length && <div style={{ fontSize: 12, color: '#5b6b84' }}>Nada vencendo nos próximos 7 dias.</div>}
             </>
           )}
         </div>
       )}
 
       {/* ANÁLISE AUTOMÁTICA */}
-      {secao('🧠 Análise automática', <span style={{ fontSize: 11, color: '#8b9bb4' }}>regras sobre os dados do mês — recalcula a cada acesso</span>)}
+      {secao('🧠 Análise automática', <span style={{ fontSize: 11, color: '#5b6b84' }}>regras sobre os dados do mês — recalcula a cada acesso</span>)}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {alertas.map((a, i) => {
           const s = NIVEL_STYLE[a.nivel]
@@ -716,8 +716,8 @@ export default function PainelFinanceiro() {
             <div key={i} style={{ background: s.bg, border: `1px solid ${s.borda}30`, borderLeft: `4px solid ${s.borda}`, borderRadius: 10, padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <span style={{ fontSize: 14 }}>{s.icone}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: '#e6edf7', fontWeight: 600 }}>{a.texto}</div>
-                {a.acao && <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 2 }}>→ {a.acao}</div>}
+                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{a.texto}</div>
+                {a.acao && <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 2 }}>→ {a.acao}</div>}
               </div>
             </div>
           )
@@ -727,21 +727,21 @@ export default function PainelFinanceiro() {
       {/* METAS DO MÊS */}
       {metas && (
         <>
-          {secao('🎯 Metas do mês', <span style={{ fontSize: 11, color: '#8b9bb4' }}>meta {fmtK(metaFat)} · réguas {reguas.map(r => r.tetoPct + '%').join(' / ')}</span>)}
-          <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem 1.25rem' }}>
+          {secao('🎯 Metas do mês', <span style={{ fontSize: 11, color: '#5b6b84' }}>meta {fmtK(metaFat)} · réguas {reguas.map(r => r.tetoPct + '%').join(' / ')}</span>)}
+          <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1rem 1.25rem' }}>
             {/* Faturamento vs meta */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
-                <b style={{ color: '#e6edf7' }}>Faturamento</b>
-                <span style={{ color: '#8b9bb4' }}>
+                <b style={{ color: '#0f172a' }}>Faturamento</b>
+                <span style={{ color: '#5b6b84' }}>
                   <b style={{ color: receitaAtual >= paceEsperado ? COR.verde : COR.laranja }}>{fmt(receitaAtual)}</b>
                   {' '}de {fmt(metaFat)} · {metaFat > 0 ? (receitaAtual / metaFat * 100).toFixed(1) : 0}%
-                  <span style={{ color: '#8b9bb4' }}> · pace esperado hoje: {fmtK(paceEsperado)}</span>
+                  <span style={{ color: '#5b6b84' }}> · pace esperado hoje: {fmtK(paceEsperado)}</span>
                 </span>
               </div>
-              <div style={{ height: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ height: 12, background: 'rgba(15,23,42,0.05)', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ width: `${Math.min(metaFat > 0 ? receitaAtual / metaFat * 100 : 0, 100)}%`, height: '100%', background: COR.verde, borderRadius: 8 }} />
-                {metaFat > 0 && <div style={{ position: 'absolute', left: `${Math.min(paceEsperado / metaFat * 100, 100)}%`, top: 0, bottom: 0, width: 2, background: '#e6edf7', opacity: 0.5 }} title="pace esperado" />}
+                {metaFat > 0 && <div style={{ position: 'absolute', left: `${Math.min(paceEsperado / metaFat * 100, 100)}%`, top: 0, bottom: 0, width: 2, background: '#0f172a', opacity: 0.5 }} title="pace esperado" />}
               </div>
             </div>
             {/* Réguas de gasto */}
@@ -750,19 +750,19 @@ export default function PainelFinanceiro() {
               return (
                 <div key={r.nome} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600, color: '#c6d2e4' }}>{r.nome} <span style={{ color: '#8b9bb4', fontWeight: 400 }}>· teto {r.tetoPct}% = {fmtK(r.tetoRS)}</span></span>
-                    <span style={{ color: '#8b9bb4' }}>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>{r.nome} <span style={{ color: '#5b6b84', fontWeight: 400 }}>· teto {r.tetoPct}% = {fmtK(r.tetoRS)}</span></span>
+                    <span style={{ color: '#5b6b84' }}>
                       {fmt(r.gasto)} · <b style={{ color: corBarra }}>{r.usoPct.toFixed(0)}% do teto</b>
-                      {r.pctReceita != null && <span style={{ color: '#8b9bb4' }}> · {r.pctReceita.toFixed(1)}% da receita real</span>}
+                      {r.pctReceita != null && <span style={{ color: '#5b6b84' }}> · {r.pctReceita.toFixed(1)}% da receita real</span>}
                     </span>
                   </div>
-                  <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 6, overflow: 'hidden' }}>
+                  <div style={{ height: 8, background: 'rgba(15,23,42,0.05)', borderRadius: 6, overflow: 'hidden' }}>
                     <div style={{ width: `${Math.min(r.usoPct, 100)}%`, height: '100%', background: corBarra, borderRadius: 6 }} />
                   </div>
                 </div>
               )
             })}
-            <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 8 }}>
               Tetos em R$ calculados sobre a META de faturamento ({fmtK(metaFat)}). Soma das réguas = {reguas.reduce((s2, r) => s2 + r.tetoPct, 0)}% → margem alvo {100 - reguas.reduce((s2, r) => s2 + r.tetoPct, 0)}%.
             </div>
           </div>
@@ -771,10 +771,10 @@ export default function PainelFinanceiro() {
 
       {/* GRÁFICO 6 MESES + COMPOSIÇÃO */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: 12, marginTop: 22 }}>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(15,23,42,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e6edf7' }}>Receita × Despesa (6 meses)</div>
-            <div style={{ fontSize: 11, color: '#8b9bb4' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Receita × Despesa (6 meses)</div>
+            <div style={{ fontSize: 11, color: '#5b6b84' }}>
               <span style={{ color: COR.verde, fontWeight: 700 }}>■</span> receita&nbsp;&nbsp;
               <span style={{ color: COR.vermelho, fontWeight: 700 }}>■</span> despesa&nbsp;&nbsp;
               <span style={{ color: COR.azul, fontWeight: 700 }}>– –</span> resultado
@@ -782,16 +782,16 @@ export default function PainelFinanceiro() {
           </div>
           <GraficoMensal dados={dre6} isMobile={isMobile} />
         </div>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#e6edf7', marginBottom: 10 }}>Pra onde vai o dinheiro ({MES_CURTO[hoje.getMonth()]}) — % do faturamento</div>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(15,23,42,0.08)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Pra onde vai o dinheiro ({MES_CURTO[hoje.getMonth()]}) — % do faturamento</div>
           <Composicao receita={receitaMes} itens={[
             { nome: 'Marketing (tráfego+extra)', valor: Number(dreAtual.marketing_total || 0), cor: COR.azul },
             { nome: 'Folha + Comissão', valor: folhaMes, cor: COR.roxo },
             { nome: 'Fixo', valor: fixoMes, cor: COR.laranja },
-            { nome: 'Variável', valor: Number(dreAtual.variavel || 0), cor: '#34d399' },
-            { nome: 'Imposto', valor: Number(dreAtual.imposto || 0), cor: '#8b9bb4' },
+            { nome: 'Variável', valor: Number(dreAtual.variavel || 0), cor: '#059669' },
+            { nome: 'Imposto', valor: Number(dreAtual.imposto || 0), cor: '#5b6b84' },
             { nome: 'Dívida', valor: Number(dreAtual.divida || 0), cor: COR.vermelho },
-            { nome: 'Sem grupo', valor: semGrupoMes, cor: '#8b9bb4' },
+            { nome: 'Sem grupo', valor: semGrupoMes, cor: '#5b6b84' },
           ]} />
         </div>
       </div>
@@ -805,10 +805,10 @@ export default function PainelFinanceiro() {
           {periodo === 'perso' && (
             <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
               <input type="date" value={persoIni} max={persoFim} onChange={e => setPersoIni(e.target.value)}
-                style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                style={{ border: '1px solid rgba(15,23,42,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
               <span>até</span>
               <input type="date" value={persoFim} min={persoIni} onChange={e => setPersoFim(e.target.value)}
-                style={{ border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
+                style={{ border: '1px solid rgba(15,23,42,0.11)', borderRadius: 8, padding: '4px 6px', fontSize: 12 }} />
             </span>
           )}
         </div>
@@ -822,24 +822,24 @@ export default function PainelFinanceiro() {
       {/* CAC */}
       {secao('🎯 Custo de aquisição (CAC)', <Seletor mes={custoMes} setMes={setCustoMes} ano={custoAno} setAno={setCustoAno} cor={COR.azul} />)}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10 }}>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${COR.azul}` }}>
-          <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>CAC {MESES[custoMes]}</div>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(15,23,42,0.08)', borderTop: `3px solid ${COR.azul}` }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', fontWeight: 700 }}>CAC {MESES[custoMes]}</div>
           <div style={{ fontSize: 30, fontWeight: 700, color: COR.azul, marginTop: 4 }}>{cac > 0 ? fmt(cac) : '—'}</div>
-          <div style={{ fontSize: 11, color: '#8b9bb4' }}>CAC parcial (só anúncio) ÷ {fmtNum(baseAquisicao)} adquiridos</div>
+          <div style={{ fontSize: 11, color: '#5b6b84' }}>CAC parcial (só anúncio) ÷ {fmtNum(baseAquisicao)} adquiridos</div>
         </div>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>Evolução do CAC (6 meses)</div>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(15,23,42,0.08)' }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', fontWeight: 700 }}>Evolução do CAC (6 meses)</div>
           <div style={{ marginTop: 8 }}><Sparkline pontos={cacSerie} cor={COR.azul} /></div>
-          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>
             {cacSerie.filter(x => x != null).map((v, i, arr) => i === arr.length - 1 ? fmt(v) : fmtK(v)).join(' · ')}
           </div>
         </div>
-        <div style={{ background: '#232a37', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', fontWeight: 700 }}>Gasto anúncio {MESES[custoMes]}</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#e6edf7', marginTop: 4 }}>{fmt(custoTotal)}</div>
-          <div style={{ fontSize: 11, color: '#8b9bb4' }}>líquido {fmt(custoLiquido)} + 13% imposto</div>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: '1rem 1.25rem', border: '0.5px solid rgba(15,23,42,0.08)' }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', fontWeight: 700 }}>Gasto anúncio {MESES[custoMes]}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>{fmt(custoTotal)}</div>
+          <div style={{ fontSize: 11, color: '#5b6b84' }}>líquido {fmt(custoLiquido)} + 13% imposto</div>
           <button onClick={sincronizarGastos} disabled={sincronizando}
-            style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.azul}`, background: '#232a37', color: COR.azul, cursor: 'pointer' }}>
+            style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.azul}`, background: '#ffffff', color: COR.azul, cursor: 'pointer' }}>
             {sincronizando ? 'Sincronizando…' : '↻ Sincronizar Meta'}
           </button>
           <button onClick={async () => {
@@ -854,13 +854,13 @@ export default function PainelFinanceiro() {
               else alert(`Custo IA sincronizado: US$ ${Number(j.total_usd).toFixed(2)} → R$ ${Number(j.total_brl).toLocaleString('pt-BR')} (câmbio ${j.cambio}). Aparece em Variável · IA / Anthropic.`)
             } catch (e) { alert('Erro: ' + e.message) }
           }}
-            style={{ marginTop: 6, marginLeft: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.roxo}`, background: '#232a37', color: COR.roxo, cursor: 'pointer' }}>
+            style={{ marginTop: 6, marginLeft: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COR.roxo}`, background: '#ffffff', color: COR.roxo, cursor: 'pointer' }}>
             🤖 Sincronizar custo IA
           </button>
-          {custoSincronizadoEm && <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 4 }}>últ. sync: {new Date(custoSincronizadoEm).toLocaleString('pt-BR')}</div>}
+          {custoSincronizadoEm && <div style={{ fontSize: 10, color: '#5b6b84', marginTop: 4 }}>últ. sync: {new Date(custoSincronizadoEm).toLocaleString('pt-BR')}</div>}
         </div>
       </div>
-      <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>
+      <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6 }}>
         CAC = gasto de anúncio (c/ imposto) ÷ clientes fechados (validados/assinados, sem barrados/cancelados){produtoSel !== 'Todos' ? ` — rateado p/ ${produtoSel}` : ''}. Reposições ({fmtNum(reposicoesCusto)}) não entram no denominador. CAC parcial: só anúncio, sem folha.
       </div>
 
@@ -885,38 +885,38 @@ export default function PainelFinanceiro() {
           contratos={inad.contratos} lotes={inad.lotes} valor={inad.valor}
           rodape={`Acumulado total em aberto: ${fmt(inadTotalValor)} (${fmtNum(inadTotal.length)} lotes)`}
         />
-        <div style={{ background: '#232a37', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(255,255,255,0.08)', borderTop: `3px solid ${repCorRegua}` }}>
+        <div style={{ background: '#ffffff', borderRadius: 14, padding: isMobile ? '1rem' : '1.25rem', border: '0.5px solid rgba(15,23,42,0.08)', borderTop: `3px solid ${repCorRegua}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: repCorRegua }}>Reposições aprovadas</div>
-              <div style={{ fontSize: 11, color: '#8b9bb4' }}>Por data de aprovação · custo operacional</div>
+              <div style={{ fontSize: 11, color: '#5b6b84' }}>Por data de aprovação · custo operacional</div>
             </div>
             <Seletor mes={repMes} setMes={setRepMes} ano={repAno} setAno={setRepAno} cor={repCorRegua} />
           </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#e6edf7', marginTop: 10 }}>{fmtNum(rep.contratos)} <span style={{ fontSize: 14, color: '#8b9bb4', fontWeight: 500 }}>contratos grátis</span></div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#0f172a', marginTop: 10 }}>{fmtNum(rep.contratos)} <span style={{ fontSize: 14, color: '#5b6b84', fontWeight: 500 }}>contratos grátis</span></div>
           <div style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#8b9bb4', marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#5b6b84', marginBottom: 3 }}>
               <span>{repSituacao === 'sem_base' ? 'Sem base de fechados no mês' : `${repPct.toFixed(1)}% dos ${fmtNum(fechadosRepMes)} fechados do mês`}</span>
               <span>alerta {fmtNum(repTetoAlerta)} · teto {fmtNum(repTetoBloqueio)}</span>
             </div>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: 8, background: 'rgba(15,23,42,0.06)', borderRadius: 6, overflow: 'hidden' }}>
               <div style={{ width: `${repPctTeto}%`, height: '100%', background: repCorRegua, borderRadius: 6 }} />
             </div>
           </div>
-          <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
+          <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.07)' }}>
             Régua: alerta ≥15% · bloqueio &gt;20% dos fechados. Total histórico: {fmtNum(repTotalContratos)} contratos repostos.
           </div>
         </div>
       </div>
 
       {/* DRE COMPACTA */}
-      {secao('📑 DRE mensal', <span style={{ fontSize: 11, color: '#8b9bb4' }}>últimos 6 meses · % sobre a receita</span>)}
-      <div style={{ background: '#232a37', borderRadius: 14, padding: '0.5rem 0.75rem', border: '0.5px solid rgba(255,255,255,0.08)', overflowX: 'auto' }}>
+      {secao('📑 DRE mensal', <span style={{ fontSize: 11, color: '#5b6b84' }}>últimos 6 meses · % sobre a receita</span>)}
+      <div style={{ background: '#ffffff', borderRadius: 14, padding: '0.5rem 0.75rem', border: '0.5px solid rgba(15,23,42,0.08)', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
               {['Mês', 'Receita', 'Marketing', '%', 'Pessoas', '%', 'Fixo', '%', 'Outros', 'Desp. total', '% custo', 'Resultado'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid rgba(255,255,255,0.07)', color: '#8b9bb4', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+                <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid rgba(15,23,42,0.07)', color: '#5b6b84', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -938,7 +938,7 @@ export default function PainelFinanceiro() {
                   <td style={td}>{fmt(outros)}</td>
                   <td style={td}>{fmt(l.despesa_total)}</td>
                   <td style={td}>{fmtPct(l.pct_custo_total)}</td>
-                  <td style={{ ...td, color: pos ? '#34d399' : '#f87171', fontWeight: 700 }}>{fmt(l.resultado)}</td>
+                  <td style={{ ...td, color: pos ? '#059669' : '#dc2626', fontWeight: 700 }}>{fmt(l.resultado)}</td>
                 </tr>
               )
             })}
@@ -947,23 +947,23 @@ export default function PainelFinanceiro() {
       </div>
 
       {/* AGENDA RESUMIDA */}
-      {secao('📅 Próximos vencimentos', <span style={{ fontSize: 11, color: '#8b9bb4' }}>detalhe completo em Financeiro → Agenda</span>)}
+      {secao('📅 Próximos vencimentos', <span style={{ fontSize: 11, color: '#5b6b84' }}>detalhe completo em Financeiro → Agenda</span>)}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 30 }}>
         {[...atrasadas, ...prox7].slice(0, 8).map((x, i) => {
           const atr = x.origem === 'lancamento' && dv(x.data_vencimento) < h0
           return (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: atr ? 'rgba(248,113,113,.14)' : '#232a37', border: `1px solid ${atr ? '#A32D2D40' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '9px 14px' }}>
-              <div style={{ fontSize: 12.5, color: '#e6edf7' }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: atr ? 'rgba(248,113,113,.14)' : '#ffffff', border: `1px solid ${atr ? '#A32D2D40' : 'rgba(15,23,42,0.08)'}`, borderRadius: 10, padding: '9px 14px' }}>
+              <div style={{ fontSize: 12.5, color: '#0f172a' }}>
                 <b>{x.data_vencimento.split('-').reverse().join('/')}</b> · {x.descricao || '—'}
                 {atr && <span style={{ color: COR.vermelho, fontWeight: 700 }}> · ATRASADA</span>}
-                {x.origem === 'projecao' && <span style={{ color: '#8b9bb4' }}> · projeção</span>}
+                {x.origem === 'projecao' && <span style={{ color: '#5b6b84' }}> · projeção</span>}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: atr ? COR.vermelho : '#e6edf7' }}>{fmt(x.valor)}</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: atr ? COR.vermelho : '#0f172a' }}>{fmt(x.valor)}</div>
             </div>
           )
         })}
         {!atrasadas.length && !prox7.length && (
-          <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 16, textAlign: 'center', fontSize: 12.5, color: '#8b9bb4' }}>
+          <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 16, textAlign: 'center', fontSize: 12.5, color: '#5b6b84' }}>
             Nada vencendo nos próximos 7 dias. Cadastre as recorrentes em Financeiro → Fixas & Recorrentes pra agenda ganhar vida.
           </div>
         )}
@@ -972,4 +972,4 @@ export default function PainelFinanceiro() {
   )
 }
 
-const td = { padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }
+const td = { padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.05)' }

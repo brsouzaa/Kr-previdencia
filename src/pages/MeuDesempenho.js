@@ -22,12 +22,12 @@ function faltamProxFaixa(qtd) {
 
 const s = {
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 },
-  cardMetric: { background: '#232a37', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(255,255,255,0.07)' },
+  cardMetric: { background: '#ffffff', borderRadius: 14, padding: '16px', border: '0.5px solid rgba(15,23,42,0.07)' },
   cardLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, fontWeight: 500 },
   cardValue: { fontSize: 28, fontWeight: 500 },
-  cardSub: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  block: { background: '#232a37', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(255,255,255,0.07)', marginBottom: 16 },
-  blockTitle: { fontSize: 14, fontWeight: 500, color: '#e6edf7', marginBottom: 14 },
+  cardSub: { fontSize: 11, color: '#5b6b84', marginTop: 4 },
+  block: { background: '#ffffff', borderRadius: 14, padding: '1.25rem', border: '0.5px solid rgba(15,23,42,0.07)', marginBottom: 16 },
+  blockTitle: { fontSize: 14, fontWeight: 500, color: '#0f172a', marginBottom: 14 },
   bonusBig: { background: 'linear-gradient(135deg, #60a5fa 0%, #60a5fa 100%)', borderRadius: 16, padding: '1.5rem', color: '#232a37', marginBottom: 16, boxShadow: '0 4px 14px rgba(96,165,250,0.25)' },
   bonusBigLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9, marginBottom: 6 },
   bonusBigValue: { fontSize: 36, fontWeight: 600, marginBottom: 8 },
@@ -44,8 +44,8 @@ const s = {
     width: 32, height: 32, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 13, fontWeight: 600, flexShrink: 0,
-    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#60a5fa' : '#2b3340'),
-    color: top <= 3 || destacado ? '#232a37' : '#8b9bb4',
+    background: top === 1 ? '#FFD700' : top === 2 ? '#C0C0C0' : top === 3 ? '#CD7F32' : (destacado ? '#60a5fa' : '#e2e8f0'),
+    color: top <= 3 || destacado ? '#232a37' : '#5b6b84',
   }),
   toast: {
     position: 'fixed', top: 20, right: 20, zIndex: 9999,
@@ -112,7 +112,7 @@ export default function MeuDesempenho() {
     return () => clearInterval(id)
   }, [fetchTudo])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84' }}>Carregando...</div>
 
   const minha = ranking.find(r => r.vendedor_id === profile.id)
   const assinadosMes = minha?.assinados_mes || 0
@@ -143,8 +143,8 @@ export default function MeuDesempenho() {
       {toast && <div style={s.toast}>{toast.msg}</div>}
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>📊 Meu desempenho</div>
-        <div style={{ fontSize: 13, color: '#8b9bb4' }}>Acompanhe seu bônus do mês e o ranking — atualiza automaticamente</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>📊 Meu desempenho</div>
+        <div style={{ fontSize: 13, color: '#5b6b84' }}>Acompanhe seu bônus do mês e o ranking — atualiza automaticamente</div>
       </div>
 
       {/* === BÔNUS DESTAQUE === */}
@@ -155,7 +155,7 @@ export default function MeuDesempenho() {
           {assinadosMes} contrato{assinadosMes !== 1 ? 's' : ''} assinado{assinadosMes !== 1 ? 's' : ''} · R$ {faixaAtual} cada
         </div>
         {proximaFaixa && (
-          <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.18)', borderRadius: 10, fontSize: 12 }}>
+          <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(15,23,42,0.18)', borderRadius: 10, fontSize: 12 }}>
             🎯 Faltam <strong>{proximaFaixa.faltam}</strong> contrato{proximaFaixa.faltam !== 1 ? 's' : ''} pra subir pra <strong>R$ {proximaFaixa.novo}/contrato</strong>
             {' '}— ganharia R$ {bonusPorFaixa(assinadosMes + proximaFaixa.faltam).toLocaleString('pt-BR')} no total!
           </div>
@@ -178,23 +178,23 @@ export default function MeuDesempenho() {
       {/* === MÉTRICAS PESSOAIS === */}
       <div style={s.cards}>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#60a5fa' }}>Cadastrados (total)</div>
-          <div style={{ ...s.cardValue, color: '#60a5fa' }}>{totalCadastrados}</div>
+          <div style={{ ...s.cardLabel, color: '#2563eb' }}>Cadastrados (total)</div>
+          <div style={{ ...s.cardValue, color: '#2563eb' }}>{totalCadastrados}</div>
           <div style={s.cardSub}>desde sempre</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#fbbf24' }}>Pendentes</div>
-          <div style={{ ...s.cardValue, color: '#fbbf24' }}>{aguardando + emitidos}</div>
+          <div style={{ ...s.cardLabel, color: '#b45309' }}>Pendentes</div>
+          <div style={{ ...s.cardValue, color: '#b45309' }}>{aguardando + emitidos}</div>
           <div style={s.cardSub}>{aguardando} aguardando · {emitidos} emitidos</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#34d399' }}>Assinados (mês)</div>
-          <div style={{ ...s.cardValue, color: '#34d399' }}>{assinadosMes}</div>
+          <div style={{ ...s.cardLabel, color: '#059669' }}>Assinados (mês)</div>
+          <div style={{ ...s.cardValue, color: '#059669' }}>{assinadosMes}</div>
           <div style={s.cardSub}>contam pro bônus</div>
         </div>
         <div style={s.cardMetric}>
-          <div style={{ ...s.cardLabel, color: '#f87171' }}>🔥 Streak</div>
-          <div style={{ ...s.cardValue, color: streak > 0 ? '#f87171' : '#64748b' }}>{streak}</div>
+          <div style={{ ...s.cardLabel, color: '#dc2626' }}>🔥 Streak</div>
+          <div style={{ ...s.cardValue, color: streak > 0 ? '#dc2626' : '#64748b' }}>{streak}</div>
           <div style={s.cardSub}>{streak === 0 ? 'venda hoje pra começar' : `dia${streak !== 1 ? 's' : ''} consecutivo${streak !== 1 ? 's' : ''}`}</div>
         </div>
       </div>
@@ -208,12 +208,12 @@ export default function MeuDesempenho() {
             ['Semana', minhaPosicaoSem, ranking.length],
             ['Mês', minhaPosicaoMes, ranking.length],
           ].map(([label, pos, total]) => (
-            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#171c26', borderRadius: 10 }}>
-              <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-              <div style={{ fontSize: 22, fontWeight: 600, color: pos === 1 ? '#FFD700' : pos === 2 ? '#8b9bb4' : pos === 3 ? '#CD7F32' : '#60a5fa' }}>
+            <div key={label} style={{ textAlign: 'center', padding: '10px', background: '#f2f5fa', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: pos === 1 ? '#FFD700' : pos === 2 ? '#5b6b84' : pos === 3 ? '#CD7F32' : '#2563eb' }}>
                 {pos}º
               </div>
-              <div style={{ fontSize: 10, color: '#8b9bb4', marginTop: 2 }}>de {total}</div>
+              <div style={{ fontSize: 10, color: '#5b6b84', marginTop: 2 }}>de {total}</div>
             </div>
           ))}
         </div>
@@ -222,16 +222,16 @@ export default function MeuDesempenho() {
       {/* === RANKING === */}
       <div style={s.block}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#e6edf7' }}>🏆 Top 4 vendedores</div>
-          <div style={{ display: 'flex', gap: 4, background: '#171c26', borderRadius: 8, padding: 3 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a' }}>🏆 Top 4 vendedores</div>
+          <div style={{ display: 'flex', gap: 4, background: '#f2f5fa', borderRadius: 8, padding: 3 }}>
             {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([k, label]) => (
               <button key={k} onClick={() => setPeriodoRanking(k)}
                 style={{
                   padding: '6px 12px', fontSize: 12, fontWeight: 500,
                   border: 'none', cursor: 'pointer', borderRadius: 6,
-                  background: periodoRanking === k ? '#232a37' : 'transparent',
-                  color: periodoRanking === k ? '#60a5fa' : '#8b9bb4',
-                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(255,255,255,0.06)' : 'none',
+                  background: periodoRanking === k ? '#ffffff' : 'transparent',
+                  color: periodoRanking === k ? '#2563eb' : '#5b6b84',
+                  boxShadow: periodoRanking === k ? '0 1px 3px rgba(15,23,42,0.06)' : 'none',
                 }}>{label}</button>
             ))}
           </div>
@@ -243,11 +243,11 @@ export default function MeuDesempenho() {
             <div key={r.vendedor_id} style={s.rankRow(destacado)}>
               <div style={s.rankPos(r[campoPos], destacado)}>{r[campoPos]}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: destacado ? 600 : 500, color: destacado ? '#60a5fa' : '#e6edf7' }}>
+                <div style={{ fontSize: 13, fontWeight: destacado ? 600 : 500, color: destacado ? '#2563eb' : '#0f172a' }}>
                   {destacado ? `${r.vendedor_nome} (você)` : r.vendedor_nome}
                 </div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#2563eb' }}>
                 {r[campoQtd]} contrato{r[campoQtd] !== 1 ? 's' : ''}
               </div>
             </div>
@@ -260,9 +260,9 @@ export default function MeuDesempenho() {
             <div style={s.rankRow(true)}>
               <div style={s.rankPos(minha[campoPos], true)}>{minha[campoPos]}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#60a5fa' }}>{minha.vendedor_nome} (você)</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>{minha.vendedor_nome} (você)</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#2563eb' }}>
                 {minha[campoQtd]} contrato{minha[campoQtd] !== 1 ? 's' : ''}
               </div>
             </div>

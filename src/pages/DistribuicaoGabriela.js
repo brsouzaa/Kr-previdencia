@@ -61,7 +61,7 @@ export default function DistribuicaoGabriela() {
     setSalvando(false)
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#8b9bb4' }}>Carregando...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#5b6b84' }}>Carregando...</div>
 
   const ativo = status?.ativo === true
   const contagem = status?.ultimos_7d || { regra_gabriela_ia: 0, fila_normal: 0, fallback_gabriela_cheia: 0 }
@@ -71,33 +71,33 @@ export default function DistribuicaoGabriela() {
     <div style={{ padding: 20, maxWidth: 900, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>🎯 Distribuição Automática Gabriela</h1>
-        <div style={{ fontSize: 13, color: '#8b9bb4', marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: '#5b6b84', marginTop: 4 }}>
           Quando ATIVA, contratos da IA com 6+ meses de gestação vão direto pra Dra. Gabriela (OAB RS89170).
           Vendedores humanos NUNCA são afetados — continuam no fluxo normal.
         </div>
       </div>
 
       {erro && (
-        <div style={{ background: 'rgba(248,113,113,.14)', border: '1px solid rgba(248,113,113,.35)', color: '#f87171', padding: 12, borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
+        <div style={{ background: 'rgba(248,113,113,.14)', border: '1px solid rgba(248,113,113,.35)', color: '#dc2626', padding: 12, borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
           ⚠️ {erro}
         </div>
       )}
 
       {/* Card principal: status + botão */}
       <div style={{
-        background: '#232a37', padding: 24, borderRadius: 8,
-        border: '1px solid rgba(255,255,255,0.07)', marginBottom: 16,
+        background: '#ffffff', padding: 24, borderRadius: 8,
+        border: '1px solid rgba(15,23,42,0.07)', marginBottom: 16,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16
       }}>
         <div>
-          <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Status atual</div>
+          <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Status atual</div>
           <div style={{
             fontSize: 28, fontWeight: 700,
-            color: ativo ? '#34d399' : '#8b9bb4',
+            color: ativo ? '#059669' : '#5b6b84',
           }}>
             {ativo ? '🟢 ATIVADO' : '⚫ DESATIVADO'}
           </div>
-          <div style={{ fontSize: 12, color: '#8b9bb4', marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 8 }}>
             Última alteração: {ultimaAlteracao}
           </div>
         </div>
@@ -120,18 +120,18 @@ export default function DistribuicaoGabriela() {
       </div>
 
       {/* Estatísticas últimos 7d */}
-      <div style={{ background: '#232a37', padding: 20, borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14, margin: '0 0 14px 0', color: '#8b9bb4' }}>📊 Atribuições nos últimos 7 dias</h2>
+      <div style={{ background: '#ffffff', padding: 20, borderRadius: 8, border: '1px solid rgba(15,23,42,0.07)', marginBottom: 16 }}>
+        <h2 style={{ fontSize: 14, margin: '0 0 14px 0', color: '#5b6b84' }}>📊 Atribuições nos últimos 7 dias</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          <Card label="→ Gabriela (regra IA)" valor={contagem.regra_gabriela_ia} cor="#60a5fa" />
-          <Card label="→ Fila normal" valor={contagem.fila_normal} cor="#8b9bb4" />
-          <Card label="↩ Fallback (Gabriela cheia)" valor={contagem.fallback_gabriela_cheia} cor="#fbbf24" />
+          <Card label="→ Gabriela (regra IA)" valor={contagem.regra_gabriela_ia} cor="#2563eb" />
+          <Card label="→ Fila normal" valor={contagem.fila_normal} cor="#5b6b84" />
+          <Card label="↩ Fallback (Gabriela cheia)" valor={contagem.fallback_gabriela_cheia} cor="#b45309" />
         </div>
       </div>
 
       {/* Bloco explicativo */}
-      <div style={{ background: 'rgba(251,191,36,.12)', padding: 16, borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', fontSize: 12, color: '#8b9bb4', lineHeight: 1.6 }}>
-        <strong style={{ color: '#c6d2e4' }}>Como funciona:</strong>
+      <div style={{ background: 'rgba(251,191,36,.12)', padding: 16, borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)', fontSize: 12, color: '#5b6b84', lineHeight: 1.6 }}>
+        <strong style={{ color: '#334155' }}>Como funciona:</strong>
         <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
           <li>Cliente da IA com gestação ≥ 6 meses + switch ATIVO → vai pra qualquer lote da Gabriela em <code>a_entregar</code> com vaga.</li>
           <li>Quando 1 lote dela enche, o sistema pula automático pro próximo lote dela em <code>a_entregar</code>.</li>
@@ -143,7 +143,7 @@ export default function DistribuicaoGabriela() {
       </div>
 
       {profile?.role !== 'admin' && (
-        <div style={{ marginTop: 16, padding: 12, background: 'rgba(248,113,113,.14)', borderRadius: 6, color: '#f87171', fontSize: 13 }}>
+        <div style={{ marginTop: 16, padding: 12, background: 'rgba(248,113,113,.14)', borderRadius: 6, color: '#dc2626', fontSize: 13 }}>
           ⚠️ Apenas administradores podem alterar este switch.
         </div>
       )}
@@ -157,7 +157,7 @@ function Card({ label, valor, cor }) {
       background: 'rgba(251,191,36,.12)', padding: 16, borderRadius: 6,
       borderLeft: `3px solid ${cor}`,
     }}>
-      <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</div>
+      <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 600, color: cor }}>{valor}</div>
     </div>
   )

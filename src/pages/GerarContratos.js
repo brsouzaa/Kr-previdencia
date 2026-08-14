@@ -3,22 +3,22 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const s = {
-  card: { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
-  label: { display: 'block', fontSize: 12, color: '#8b9bb4', marginBottom: 4 },
-  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
-  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, color: '#c6d2e4', background: '#2b3340', outline: 'none', boxSizing: 'border-box' },
-  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#e6edf7', background: '#232a37', outline: 'none', boxSizing: 'border-box' },
+  card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
+  label: { display: 'block', fontSize: 12, color: '#5b6b84', marginBottom: 4 },
+  input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
+  inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, color: '#334155', background: '#e2e8f0', outline: 'none', boxSizing: 'border-box' },
+  inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   grid_rua_num: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   grid_cidade_uf: { display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 12, marginBottom: 12 },
   btn: { width: '100%', padding: '13px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' },
   btnDisabled: { width: '100%', padding: '13px', background: '#64748b', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed' },
-  sectionTitle: { fontSize: 11, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(255,255,255,0.06)' },
+  sectionTitle: { fontSize: 11, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12, fontWeight: 500, paddingBottom: 8, borderBottom: '0.5px solid rgba(15,23,42,0.06)' },
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, marginLeft: 6 },
-  hint: { fontSize: 11, color: '#8b9bb4', marginTop: 4 },
-  hintErr: { fontSize: 11, color: '#f87171', marginTop: 4 },
-  hintOk: { fontSize: 11, color: '#34d399', marginTop: 4 },
-  warnBox: { background: 'rgba(251,191,36,.12)', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#fbbf24' },
+  hint: { fontSize: 11, color: '#5b6b84', marginTop: 4 },
+  hintErr: { fontSize: 11, color: '#dc2626', marginTop: 4 },
+  hintOk: { fontSize: 11, color: '#059669', marginTop: 4 },
+  warnBox: { background: 'rgba(251,191,36,.12)', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#b45309' },
 }
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -289,7 +289,7 @@ export default function GerarContratos() {
     fetchProximo()
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#8b9bb4' }}>Carregando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84' }}>Carregando...</div>
 
   const restantes = proximoLote ? (proximoLote.total_contratos || 0) - (proximoLote.qtd_emitidos || 0) : 0
 
@@ -307,8 +307,8 @@ export default function GerarContratos() {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 }}>📄 Gerar contratos</div>
-        <div style={{ fontSize: 13, color: '#8b9bb4' }}>3 documentos gerados e enviados ao ZapSign automaticamente — válido por 15 horas</div>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>📄 Gerar contratos</div>
+        <div style={{ fontSize: 13, color: '#5b6b84' }}>3 documentos gerados e enviados ao ZapSign automaticamente — válido por 15 horas</div>
       </div>
 
       {advogado ? (
@@ -319,16 +319,16 @@ export default function GerarContratos() {
               <span style={{ ...s.badge, background: '#fbbf24', color: '#232a37' }}>⚡ PRIORIDADE</span>
             )}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 500, color: '#e6edf7', marginBottom: 6 }}>{advogado.nome_completo}</div>
-          <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 2 }}>OAB/{advogado.estado} {advogado.oab}</div>
-          {advogado.endereco && <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 2 }}>{advogado.endereco}</div>}
-          <div style={{ fontSize: 12, color: '#8b9bb4' }}>{advogado.telefone} · {advogado.email}</div>
+          <div style={{ fontSize: 16, fontWeight: 500, color: '#0f172a', marginBottom: 6 }}>{advogado.nome_completo}</div>
+          <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 2 }}>OAB/{advogado.estado} {advogado.oab}</div>
+          {advogado.endereco && <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 2 }}>{advogado.endereco}</div>}
+          <div style={{ fontSize: 12, color: '#5b6b84' }}>{advogado.telefone} · {advogado.email}</div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
             Vendedor: {proximoLote?.profiles?.nome} · Lote de {proximoLote?.total_contratos} contrato{proximoLote?.total_contratos !== 1 ? 's' : ''} ·{' '}
-            <strong style={{ color: '#60a5fa' }}>{restantes} restante{restantes !== 1 ? 's' : ''} para emitir</strong> · {proximoLote?.data_compra}
+            <strong style={{ color: '#2563eb' }}>{restantes} restante{restantes !== 1 ? 's' : ''} para emitir</strong> · {proximoLote?.data_compra}
           </div>
           {proximoLote?.prioridade_fila && (
-            <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 6, fontStyle: 'italic' }}>
+            <div style={{ fontSize: 11, color: '#b45309', marginTop: 6, fontStyle: 'italic' }}>
               ⚡ Lote priorizado: alguns contratos expiraram sem assinatura e voltaram para a fila
             </div>
           )}
@@ -336,20 +336,20 @@ export default function GerarContratos() {
       ) : (
         <div style={{ ...s.card, textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: 15, color: '#8b9bb4' }}>Fila vazia — nenhum lote aguardando contrato</div>
+          <div style={{ fontSize: 15, color: '#5b6b84' }}>Fila vazia — nenhum lote aguardando contrato</div>
         </div>
       )}
 
       {resultado && (
         <div style={{ ...s.card, background: 'rgba(52,211,153,.14)', border: '1.5px solid #3B6D1150' }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: '#34d399', marginBottom: 8 }}>✅ Contratos enviados ao ZapSign!</div>
-          <div style={{ fontSize: 13, color: '#8b9bb4', marginBottom: 8 }}>Copie o link e envie para o cliente assinar:</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: '#059669', marginBottom: 8 }}>✅ Contratos enviados ao ZapSign!</div>
+          <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 8 }}>Copie o link e envie para o cliente assinar:</div>
           {resultado.expira && (
-            <div style={{ fontSize: 12, color: '#fbbf24', background: 'rgba(251,191,36,.12)', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: '#b45309', background: 'rgba(251,191,36,.12)', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
               ⏰ Link expira em 15 horas ({resultado.expira})
             </div>
           )}
-          <div style={{ background: '#232a37', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#60a5fa', wordBreak: 'break-all', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#2563eb', wordBreak: 'break-all', border: '0.5px solid rgba(15,23,42,0.08)' }}>
             {resultado.link}
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -358,7 +358,7 @@ export default function GerarContratos() {
             </button>
             <a href={`https://wa.me/?text=${encodeURIComponent('Olá! Segue o link para assinar seus documentos: ' + resultado.link)}`}
               target="_blank" rel="noreferrer"
-              style={{ flex: 1, padding: '10px', background: 'rgba(52,211,153,.14)', color: '#34d399', border: '0.5px solid #34d399', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none', textAlign: 'center' }}>
+              style={{ flex: 1, padding: '10px', background: 'rgba(52,211,153,.14)', color: '#059669', border: '0.5px solid #34d399', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none', textAlign: 'center' }}>
               💬 WhatsApp
             </a>
           </div>
@@ -439,7 +439,7 @@ export default function GerarContratos() {
                     Rua *
                     {endLockado && (
                       <button type="button" onClick={destravarEndereco}
-                        style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}>
+                        style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}>
                         editar
                       </button>
                     )}
@@ -507,7 +507,7 @@ export default function GerarContratos() {
               Preencha todos os campos para gerar o contrato
             </div>
           )}
-          {enviando && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 8, textAlign: 'center' }}>Aguarde — criando os 3 documentos e enviando ao ZapSign...</div>}
+          {enviando && <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 8, textAlign: 'center' }}>Aguarde — criando os 3 documentos e enviando ao ZapSign...</div>}
         </div>
       )}
     </div>
