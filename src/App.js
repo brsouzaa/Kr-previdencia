@@ -49,6 +49,7 @@ import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
 import PainelDigitador from './pages/PainelDigitador'
 import Clientes from './pages/Clientes'
+import CentralRetorno from './pages/CentralRetorno'
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -251,6 +252,7 @@ function AppInner() {
     revisao_ia_retroativo: <RevisaoIARetroativo />,
     revisao_ia_gestante: <RevisaoIAGestante />,
     revisao_ia_clt: <RevisaoIACLT />,
+    central_retorno: <CentralRetorno />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
