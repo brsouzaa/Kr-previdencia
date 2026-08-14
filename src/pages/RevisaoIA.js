@@ -93,6 +93,9 @@ export default function RevisaoIA() {
   // Filtro de produto (abas)
   const [filtroProduto, setFiltroProduto] = useState('todos')
 
+  // Links do Chatwoot (KR Promotora) — cliente_id -> url da conversa
+  const [chatLinks, setChatLinks] = useState({})
+
   // Modal de barragem
   const [modalBarrar, setModalBarrar] = useState(false)
   const [motivoBarrar, setMotivoBarrar] = useState('')
@@ -123,6 +126,16 @@ export default function RevisaoIA() {
       .eq('origem', 'ia')
       .order('updated_at', { ascending: true })
     setClientes(cs || [])
+
+    // Links diretos do Chatwoot (KR Promotora) — match feito no banco por telefone
+    try {
+      const { data: links } = await supabase.rpc('revisao_ia_chatwoot_links')
+      const mapa = {}
+      for (const li of (links || [])) {
+        mapa[li.cliente_id] = `https://chat.grupookr.com.br/app/accounts/${li.account_id || 1}/conversations/${li.conversation_id}`
+      }
+      setChatLinks(mapa)
+    } catch (e) { console.error(e) }
 
     // Métricas resumo (hoje)
     try {
@@ -371,9 +384,24 @@ export default function RevisaoIA() {
 
             {/* Conversa */}
             <Section titulo="Conversa">
-              <div style={{ fontSize: 13, color: '#5b6b84' }}>
-                Pesquise no Vendai pelo telefone ou CPF acima pra abrir a conversa do WhatsApp.
-              </div>
+              {chatLinks[selecionado.id] ? (
+                <a
+                  href={chatLinks[selecionado.id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '10px 16px', borderRadius: 8, textDecoration: 'none',
+                    background: '#059669', color: '#ffffff', fontWeight: 700, fontSize: 13,
+                  }}
+                >
+                  💬 Abrir conversa no Chatwoot (KR Promotora)
+                </a>
+              ) : (
+                <div style={{ fontSize: 13, color: '#5b6b84' }}>
+                  Conversa não encontrada no Chatwoot — pesquise pelo telefone ou CPF acima.
+                </div>
+              )}
               {selecionado.prints_atendimento_ia && Array.isArray(selecionado.prints_atendimento_ia) && selecionado.prints_atendimento_ia.length > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <strong style={{ fontSize: 12 }}>Prints da IA:</strong>
