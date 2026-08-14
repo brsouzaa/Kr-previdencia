@@ -102,9 +102,9 @@ function scoreFila(c) {
 function nivelSla(c) {
   const sla = SLA_ETAPA[c.sub_estado] || 60
   const r = (c.minutos_parado || 0) / sla
-  if (r >= 2) return ['🔴', '#dc2626', 'rgba(248,113,113,.12)']
-  if (r >= 1) return ['🟡', '#b45309', 'rgba(251,191,36,.10)']
-  return ['🟢', '#059669', 'rgba(52,211,153,.08)']
+  if (r >= 2) return ['🔴', '#f87171', 'rgba(248,113,113,.12)']
+  if (r >= 1) return ['🟡', '#fbbf24', 'rgba(251,191,36,.10)']
+  return ['🟢', '#34d399', 'rgba(52,211,153,.08)']
 }
 // A AÇÃO que o item pede — o coração do modo esteira: diz o que fazer, não o estado.
 function acaoSugerida(c) {
@@ -224,50 +224,50 @@ const CORES = {
   vermelho: { border: '1px solid #f87171', background: 'rgba(248,113,113,.14)' },
   amarelo: { border: '1px solid #fbbf24', background: 'rgba(251,191,36,.12)' },
   verde: { border: '0.5px solid #3B6D1140', background: 'rgba(52,211,153,.14)' },
-  normal: { border: '0.5px solid rgba(15,23,42,0.08)', background: '#ffffff' },
+  normal: { border: '0.5px solid rgba(255,255,255,0.08)', background: '#232a37' },
 }
 
 const s = {
-  title: { fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#5b6b84', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: 500, color: '#e6edf7', marginBottom: 4 },
+  sub: { fontSize: 13, color: '#8b9bb4', marginBottom: 14 },
   topo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 },
-  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer' },
+  chip: { padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)', background: '#232a37', color: '#8b9bb4', cursor: 'pointer' },
   chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
-  kpi: { fontSize: 13, color: '#5b6b84', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
+  kpi: { fontSize: 13, color: '#8b9bb4', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 230, maxWidth: 230, background: '#e2e8f0', borderRadius: 10, padding: 8, flexShrink: 0 },
-  colTitulo: { fontSize: 12, fontWeight: 600, color: '#5b6b84', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
+  col: { minWidth: 230, maxWidth: 230, background: '#2b3340', borderRadius: 10, padding: 8, flexShrink: 0 },
+  colTitulo: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
-  cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
-  cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
-  tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#dc2626', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#b45309', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
-  tagMotivo: { fontSize: 10, background: '#e2e8f0', color: '#5b6b84', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
-  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
-  btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  painelMotivos: { marginTop: 10, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#e6edf7' },
+  cardMeta: { fontSize: 11, color: '#8b9bb4', marginTop: 2 },
+  tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#f87171', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#fbbf24', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
+  tagMotivo: { fontSize: 10, background: '#2b3340', color: '#8b9bb4', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#60a5fa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#a78bfa', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#34d399', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
+  btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  painelMotivos: { marginTop: 10, padding: 12, background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
+  btnMotivo: { padding: '9px 10px', background: '#232a37', color: '#f87171', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#ffffff', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#f1f5f9', borderRadius: 10, padding: 12, marginBottom: 12 },
+  modal: { background: '#232a37', borderRadius: 14, width: '100%', maxWidth: 640, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
+  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#1e242f', borderRadius: 10, padding: 12, marginBottom: 12 },
   anexoBox: { marginBottom: 12 },
-  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 6 },
+  anexoLabel: { fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 },
   anexoRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)' },
-  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'rgba(96,165,250,.10)', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, fontSize: 12, color: '#2563eb', textDecoration: 'none', fontWeight: 500 },
-  msgs: { maxHeight: 220, overflowY: 'auto', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#e2e8f0', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  anexoImg: { width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.11)' },
+  anexoFile: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'rgba(96,165,250,.10)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, fontSize: 12, color: '#60a5fa', textDecoration: 'none', fontWeight: 500 },
+  msgs: { maxHeight: 220, overflowY: 'auto', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
+  msgCliente: { alignSelf: 'flex-start', background: '#2b3340', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
   textarea: { width: '100%', minHeight: 90, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.45)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' },
   btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#232a37', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
   acoes: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   btnAcao: { padding: '9px 12px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' },
-  btnFechar: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
+  btnFechar: { padding: '9px 12px', background: '#232a37', color: '#8b9bb4', border: '0.5px solid rgba(255,255,255,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
 }
 
 export default function RevisaoIABolsaFamilia() {
@@ -515,44 +515,44 @@ export default function RevisaoIABolsaFamilia() {
   )
   function statusDigitacao(c) {
     if (c.dig_protocolo || c.dig_em) {
-      return tagDig('rgba(52,211,153,.16)', '#059669', `🤖✅ DIGITADA pelo robô${c.dig_protocolo ? ` · prot. ${c.dig_protocolo}` : ''}`)
+      return tagDig('rgba(52,211,153,.16)', '#34d399', `🤖✅ DIGITADA pelo robô${c.dig_protocolo ? ` · prot. ${c.dig_protocolo}` : ''}`)
     }
     if (['erro', 'revisar', 'revisar_humano', 'faltando_dados'].includes(c.dig_status)) {
       return (
         <>
-          {tagDig('rgba(248,113,113,.16)', '#dc2626', `🤖❌ robô NÃO digitou — ${(c.dig_detalhe || c.dig_status).slice(0, 60)}`)}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 DIGITAR MANUAL')}
+          {tagDig('rgba(248,113,113,.16)', '#f87171', `🤖❌ robô NÃO digitou — ${(c.dig_detalhe || c.dig_status).slice(0, 60)}`)}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 DIGITAR MANUAL')}
         </>
       )
     }
     if (c.fila_apto === false) {
-      return tagDig('rgba(251,191,36,.14)', '#b45309', `🚫 fora da fila do robô — ${(c.fila_motivo || 'dados faltando').slice(0, 60)}`)
+      return tagDig('rgba(251,191,36,.14)', '#fbbf24', `🚫 fora da fila do robô — ${(c.fila_motivo || 'dados faltando').slice(0, 60)}`)
     }
     if (!robo.vivo) {
       return (
         <>
-          {tagDig('rgba(248,113,113,.16)', '#dc2626', '🤖 robô SEM SINAL')}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 PODE DIGITAR MANUAL')}
+          {tagDig('rgba(248,113,113,.16)', '#f87171', '🤖 robô SEM SINAL')}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 PODE DIGITAR MANUAL')}
         </>
       )
     }
     if (!robo.ligado) {
       return (
         <>
-          {tagDig('rgba(251,191,36,.14)', '#b45309', '⏸ fila do robô PAUSADA')}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 PODE DIGITAR MANUAL')}
+          {tagDig('rgba(251,191,36,.14)', '#fbbf24', '⏸ fila do robô PAUSADA')}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', '🖐 PODE DIGITAR MANUAL')}
         </>
       )
     }
     if (c.minutos_parado >= limiarManual) {
       return (
         <>
-          {tagDig('rgba(251,191,36,.14)', '#b45309', `⏱ na fila do robô há ${c.minutos_parado} min e nada`)}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', `🖐 PODE DIGITAR MANUAL (+${limiarManual}min)`)}
+          {tagDig('rgba(251,191,36,.14)', '#fbbf24', `⏱ na fila do robô há ${c.minutos_parado} min e nada`)}
+          {tagDig('rgba(167,139,250,.18)', '#a78bfa', `🖐 PODE DIGITAR MANUAL (+${limiarManual}min)`)}
         </>
       )
     }
-    return tagDig('rgba(96,165,250,.12)', '#2563eb', `🤖 na fila do robô · ${c.minutos_parado} min ⏱`)
+    return tagDig('rgba(96,165,250,.12)', '#60a5fa', `🤖 na fila do robô · ${c.minutos_parado} min ⏱`)
   }
 
   // Selo de tratamento no card, respeitando quem está olhando
@@ -600,7 +600,9 @@ export default function RevisaoIABolsaFamilia() {
   const convPct = Math.round((vendasMinhas.length / carteira) * 100) // vendas 35d / carteira atual
 
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
-  visiveis = visiveis.filter(c => !c.whats_pessoal) // quem está no Whats pessoal não polui o funil
+  // Funil (mapa) é só da supervisão: os cards do Whats pessoal FICAM visíveis lá,
+  // com o card inteiro verde forte, pra ela saber o que está na mão de quem.
+  // (Na Esteira eles continuam fora — a fila é só pendência real.)
   // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
   // e SEMPRE quem já mandou TODA a documentação (docs_completos) — parado ou não, em qualquer etapa.
   if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
@@ -616,29 +618,29 @@ export default function RevisaoIABolsaFamilia() {
         {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
       </div>
 
-      <div style={{ display: 'inline-flex', background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'inline-flex', background: '#232a37', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10, flexWrap: 'wrap' }}>
         <button onClick={() => setVista('fila')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'fila' ? 'rgba(244,114,182,.16)' : 'transparent', color: vAtiva === 'fila' ? '#db2777' : '#5b6b84' }}>
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'fila' ? 'rgba(244,114,182,.16)' : 'transparent', color: vAtiva === 'fila' ? '#f472b6' : '#8b9bb4' }}>
           🎯 {ehSupervisor ? 'Esteira' : 'Minha Fila'} ({fila.length})
         </button>
         {ehSupervisor && (
           <button onClick={() => setVista('cockpit')}
-            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'cockpit' ? 'rgba(96,165,250,.16)' : 'transparent', color: vAtiva === 'cockpit' ? '#2563eb' : '#5b6b84' }}>
+            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'cockpit' ? 'rgba(96,165,250,.16)' : 'transparent', color: vAtiva === 'cockpit' ? '#60a5fa' : '#8b9bb4' }}>
             🧭 Cockpit
           </button>
         )}
         {ehSupervisor && (
           <button onClick={() => setVista('funil')}
-            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#dde5f0' : 'transparent', color: vAtiva === 'funil' ? '#0f172a' : '#5b6b84' }}>
+            style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'funil' ? '#323b4d' : 'transparent', color: vAtiva === 'funil' ? '#e6edf7' : '#8b9bb4' }}>
             📋 Funil (mapa)
           </button>
         )}
         <button onClick={() => setVista('whats')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vAtiva === 'whats' ? '#059669' : '#5b6b84' }}>
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'whats' ? 'rgba(52,211,153,.18)' : 'transparent', color: vAtiva === 'whats' ? '#34d399' : '#8b9bb4' }}>
           💬 {ehSupervisor ? 'WhatsApp do time' : 'Meu WhatsApp'} ({meusWhats.length})
         </button>
         <button onClick={() => setVista('vendas')}
-          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'vendas' ? 'rgba(251,191,36,.16)' : 'transparent', color: vAtiva === 'vendas' ? '#b45309' : '#5b6b84' }}>
+          style={{ padding: '7px 14px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: 'none', background: vAtiva === 'vendas' ? 'rgba(251,191,36,.16)' : 'transparent', color: vAtiva === 'vendas' ? '#fbbf24' : '#8b9bb4' }}>
           💰 Vendas
         </button>
       </div>
@@ -653,7 +655,7 @@ export default function RevisaoIABolsaFamilia() {
             <input type="date" style={s.chip} value={entradaAte} onChange={e => setEntradaAte(e.target.value)} />
           </>)}
           {filtroEntrada === 'agora' && (<>
-            {corteLabel && <span style={{ fontSize: 11, color: '#5b6b84' }}>corte: {corteLabel}</span>}
+            {corteLabel && <span style={{ fontSize: 11, color: '#8b9bb4' }}>corte: {corteLabel}</span>}
             <button style={s.chip} onClick={redefinirCorte}>↺ zerar corte (agora)</button>
           </>)}
           <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
@@ -667,34 +669,34 @@ export default function RevisaoIABolsaFamilia() {
         <div>
           {/* placar do dia — a meta na cara */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 10, marginBottom: 12 }}>
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🎯 Vendas hoje</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: vHoje.length >= META_VENDAS_DIA ? '#059669' : '#0f172a' }}>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🎯 Vendas hoje</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: vHoje.length >= META_VENDAS_DIA ? '#34d399' : '#e6edf7' }}>
                 {vHoje.length}<span style={{ fontSize: 14, color: '#64748b' }}> / {ehSupervisor ? META_VENDAS_DIA + ' por vendedora' : META_VENDAS_DIA}</span>
               </div>
-              <div style={{ height: 5, background: '#e2e8f0', borderRadius: 3, marginTop: 6, overflow: 'hidden' }}>
+              <div style={{ height: 5, background: '#1a202c', borderRadius: 3, marginTop: 6, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.min(100, (vHoje.length / META_VENDAS_DIA) * 100)}%`, background: vHoje.length >= META_VENDAS_DIA ? '#34d399' : '#f472b6', borderRadius: 3 }} />
               </div>
             </div>
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }}>💰 Volume hoje</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#b45309' }}>{'R$ ' + volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>💰 Volume hoje</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24' }}>{'R$ ' + volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             </div>
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📈 Conversão da carteira</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: convPct >= META_CONVERSAO_PCT ? '#059669' : convPct >= META_CONVERSAO_PCT / 2 ? '#b45309' : '#dc2626' }}>{convPct}%</div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📈 Conversão da carteira</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: convPct >= META_CONVERSAO_PCT ? '#34d399' : convPct >= META_CONVERSAO_PCT / 2 ? '#fbbf24' : '#f87171' }}>{convPct}%</div>
               <div style={{ fontSize: 10, color: '#64748b' }}>meta ≥ {META_CONVERSAO_PCT}% · {vendasMinhas.length} venda(s) / {carteira} sob gestão</div>
             </div>
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📋 Na fila agora</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a' }}>{fila.length}</div>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>📋 Na fila agora</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#e6edf7' }}>{fila.length}</div>
               <div style={{ fontSize: 10, color: '#64748b' }}>atenda de cima pra baixo — a ordem já é a prioridade</div>
             </div>
           </div>
 
           {/* a fila em si: nº1 = próximo cliente. Sem decisão, só execução. */}
           {fila.length === 0 && (
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
               Fila zerada. 🎉 Confere o 💬 Meu WhatsApp ou puxa leads novos com a supervisão.
             </div>
           )}
@@ -703,17 +705,17 @@ export default function RevisaoIABolsaFamilia() {
             const sla = SLA_ETAPA[c.sub_estado] || 60
             return (
               <div key={c.id} onClick={() => abrirCard(c)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, background: i === 0 ? 'rgba(244,114,182,.07)' : '#ffffff', border: i === 0 ? '1px solid rgba(244,114,182,.45)' : '0.5px solid rgba(15,23,42,0.07)', borderLeft: `3px solid ${corSla}`, borderRadius: 12, padding: '10px 14px', marginBottom: 8, cursor: 'pointer' }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: i === 0 ? '#db2777' : '#64748b', minWidth: 30, textAlign: 'center' }}>{i + 1}º</div>
+                style={{ display: 'flex', alignItems: 'center', gap: 12, background: i === 0 ? 'rgba(244,114,182,.07)' : '#232a37', border: i === 0 ? '1px solid rgba(244,114,182,.45)' : '0.5px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${corSla}`, borderRadius: 12, padding: '10px 14px', marginBottom: 8, cursor: 'pointer' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: i === 0 ? '#f472b6' : '#64748b', minWidth: 30, textAlign: 'center' }}>{i + 1}º</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{c.nome || 'Sem nome'}</span>
-                    {c.valor && <span style={{ fontSize: 12, color: '#b45309', fontWeight: 700 }}>R$ {c.valor}</span>}
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#5b6b84', background: '#f1f5f9', borderRadius: 6, padding: '2px 7px' }}>{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}</span>
-                    {ehSupervisor && c.agente_nome && <span style={{ fontSize: 10, color: '#5b6b84' }}>👤 {c.agente_nome}</span>}
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7' }}>{c.nome || 'Sem nome'}</span>
+                    {c.valor && <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700 }}>R$ {c.valor}</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#8b9bb4', background: '#1e242f', borderRadius: 6, padding: '2px 7px' }}>{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}</span>
+                    {ehSupervisor && c.agente_nome && <span style={{ fontSize: 10, color: '#8b9bb4' }}>👤 {c.agente_nome}</span>}
                     <span style={{ fontSize: 10, fontWeight: 700, color: corSla, background: bgSla, borderRadius: 6, padding: '2px 7px' }}>{emoji} {c.minutos_parado} min (SLA {sla})</span>
                   </div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#db2777' : '#334155', marginTop: 4 }}>{acaoSugerida(c)}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#f472b6' : '#c6d2e4', marginTop: 4 }}>{acaoSugerida(c)}</div>
                 </div>
                 {c.chatwoot_conversation_id && (
                   <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={s.cardChat} title="Abrir conversa no Chatwoot">💬</a>
@@ -767,33 +769,33 @@ export default function RevisaoIABolsaFamilia() {
 
       {vAtiva === 'whats' && (
         <div>
-          <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
-            Clientes em tratamento no WhatsApp pessoal — fora do funil, com a Ana pausada. Terminou? <b style={{ color: '#0f172a' }}>Devolver pro board</b> religa a Ana e o card volta pras colunas.
+          <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
+            Clientes em tratamento no WhatsApp pessoal — fora do funil, com a Ana pausada. Terminou? <b style={{ color: '#e6edf7' }}>Devolver pro board</b> religa a Ana e o card volta pras colunas.
           </div>
           {meusWhats.length === 0 && (
-            <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+            <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
               Ninguém no WhatsApp pessoal agora. Pra levar um cliente pra cá, abra o card no funil e clique em “📲 Tratando no meu Whats”.
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
             {meusWhats.map(c => (
-              <div key={c.id} style={{ background: '#ffffff', border: '1px solid rgba(52,211,153,.35)', borderLeft: '3px solid #34d399', borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{c.nome || 'Sem nome'}</div>
-                <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 6 }}>
+              <div key={c.id} style={{ background: '#232a37', border: '1px solid rgba(52,211,153,.35)', borderLeft: '3px solid #34d399', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf7', marginBottom: 2 }}>{c.nome || 'Sem nome'}</div>
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 6 }}>
                   {c.valor ? `R$ ${c.valor} · ` : ''}{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}
                   {c.whats_pessoal_em ? ` · no Whats desde ${new Date(c.whats_pessoal_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
-                {ehSupervisor && c.agente_nome && <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 6 }}>👤 {c.agente_nome}</div>}
-                <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 8 }}>
+                {ehSupervisor && c.agente_nome && <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 6 }}>👤 {c.agente_nome}</div>}
+                <div style={{ fontSize: 11, color: '#8b9bb4', marginBottom: 8 }}>
                   📞 {c.tel || '—'} · {c.docs_completos ? '📄 docs completos' : `🪪 ${c.doc_rg_frente ? '✅' : '❌'}/${c.doc_rg_verso ? '✅' : '❌'} · 📄 ${c.doc_extrato ? '✅' : '❌'}`}
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button style={{ fontSize: 12, padding: '6px 12px', background: '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => registrarVenda(c)}>💰 Venda feita</button>
-                  <button style={{ fontSize: 12, padding: '6px 12px', background: 'transparent', color: '#2563eb', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(c)}>↩ Devolver pro board</button>
+                  <button style={{ fontSize: 12, padding: '6px 12px', background: 'transparent', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(c)}>↩ Devolver pro board</button>
                   {c.chatwoot_conversation_id && (
                     <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" style={s.cardChat} title="Abrir conversa no Chatwoot">💬 Chatwoot</a>
                   )}
-                  <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>🧑 Ana pausada</span>
+                  <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>🧑 Ana pausada</span>
                 </div>
               </div>
             ))}
@@ -825,7 +827,7 @@ export default function RevisaoIABolsaFamilia() {
               style={{ ...s.col, ...(destaque ? { background: 'rgba(52,211,153,.14)', border: '2px solid #34d399' } : {}), ...(ehDestino && arrastando ? { outline: '2px dashed #60a5fa' } : {}) }}
               onDragOver={ehDestino ? (e => e.preventDefault()) : undefined}
               onDrop={ehDestino ? (e => { e.preventDefault(); if (arrastando) moverEtapa(arrastando, key); setArrastando(null) }) : undefined}>
-              <div style={{ ...s.colTitulo, ...(destaque ? { color: '#059669', fontWeight: 700 } : {}) }}>
+              <div style={{ ...s.colTitulo, ...(destaque ? { color: '#34d399', fontWeight: 700 } : {}) }}>
                 <span>{destaque ? '⭐ ' : ''}{label}</span><span>{cards.length}</span>
               </div>
               {cards.map(c => {
@@ -833,8 +835,16 @@ export default function RevisaoIABolsaFamilia() {
                 <div key={c.id} draggable
                   onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(c.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(c.id) }}
                   onDragEnd={() => setArrastando(null)}
-                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab' }}
+                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab',
+                    ...(c.whats_pessoal
+                      ? { background: 'rgba(52,211,153,.22)', border: '2px solid #34d399' }
+                      : c.bf_em_tratamento ? { background: 'rgba(167,139,250,.20)', border: '2px solid #a78bfa' } : {}) }}
                   onClick={() => abrirCard(c)}>
+                  {c.whats_pessoal && (
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399', marginBottom: 3 }}>
+                      📲 NO WHATS PESSOAL{c.agente_nome ? ` · ${c.agente_nome}` : ''}
+                    </div>
+                  )}
                   <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
@@ -842,7 +852,7 @@ export default function RevisaoIABolsaFamilia() {
                   {ehSupervisor && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
                   {key === 'DOCS_COMPLETOS' && statusDigitacao(c)}
-                  {key === 'DOCS_COMPLETOS' && c.fila_aviso && <div style={{ fontSize: 10, color: '#b45309', marginTop: 2 }}>⚠ conferir CPF do extrato após digitar</div>}
+                  {key === 'DOCS_COMPLETOS' && c.fila_aviso && <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>⚠ conferir CPF do extrato após digitar</div>}
                   {key !== 'NEGADO' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                       <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑 humano' : '🤖 IA'}</span>
@@ -865,7 +875,7 @@ export default function RevisaoIABolsaFamilia() {
         <div style={s.overlay} onClick={() => setLead(null)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome}</div>
-            <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
               {(COLUNAS.find(c => c[0] === lead.sub_estado) || [])[1] || lead.sub_estado} · parado há {lead.minutos_parado} min
             </div>
 
@@ -879,11 +889,11 @@ export default function RevisaoIABolsaFamilia() {
             </div>
 
             {lead.sub_estado === 'DOCS_COMPLETOS' && (
-              <div style={{ background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#5b6b84', marginBottom: 4 }}>🤖 Digitação (robô)</div>
+              <div style={{ background: '#1e242f', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#8b9bb4', marginBottom: 4 }}>🤖 Digitação (robô)</div>
                 {statusDigitacao(lead)}
-                {lead.dig_detalhe && <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6 }}>detalhe: {lead.dig_detalhe}</div>}
-                {lead.fila_aviso && <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>⚠ {lead.fila_aviso}</div>}
+                {lead.dig_detalhe && <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>detalhe: {lead.dig_detalhe}</div>}
+                {lead.fila_aviso && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4 }}>⚠ {lead.fila_aviso}</div>}
               </div>
             )}
             <div style={s.anexoBox}>
@@ -908,9 +918,9 @@ export default function RevisaoIABolsaFamilia() {
               </div>
             </div>
 
-            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+            <div style={{ background: lead.ana_pausada ? 'rgba(167,139,250,.10)' : 'rgba(96,165,250,.08)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#7c3aed' : '#2563eb' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: lead.ana_pausada ? '#a78bfa' : '#60a5fa' }}>
                   {lead.ana_pausada ? '🧑 Humano no controle — IA pausada' : '🤖 IA ativa (Ana respondendo)'}
                 </span>
                 {lead.ana_pausada ? (
@@ -919,29 +929,29 @@ export default function RevisaoIABolsaFamilia() {
                   <button style={{ fontSize: 12, padding: '7px 14px', background: '#a78bfa', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => handoff(lead, 'assumir')}>✋ Assumir (pausar IA)</button>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 6 }}>
                 {lead.ana_pausada
                   ? 'A Ana não responde enquanto você está no controle. Responda pelo Chatwoot. Clique em "Devolver pra IA" quando terminar.'
                   : 'Ao responder no Chatwoot a IA pausa sozinha. Você também pode assumir aqui pra parar a Ana antes de escrever.'}
-                {lead.cliente_respondeu && <span style={{ color: '#b45309', fontWeight: 700 }}> · 💬 o cliente respondeu</span>}
+                {lead.cliente_respondeu && <span style={{ color: '#fbbf24', fontWeight: 700 }}> · 💬 o cliente respondeu</span>}
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {!lead.whats_pessoal ? (
-                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#059669', border: '1px solid #34d399', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => marcarWhats(lead)}>📲 Tratando no meu Whats</button>
+                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#34d399', border: '1px solid #34d399', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => marcarWhats(lead)}>📲 Tratando no meu Whats</button>
               ) : (
-                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#2563eb', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(lead)}>↩ Devolver pro board</button>
+                <button style={{ fontSize: 12, padding: '7px 14px', background: 'transparent', color: '#60a5fa', border: '1px solid #60a5fa', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => devolverWhats(lead)}>↩ Devolver pro board</button>
               )}
               <button style={{ fontSize: 12, padding: '7px 14px', background: '#fbbf24', color: '#232a37', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} disabled={enviando} onClick={() => registrarVenda(lead)}>💰 Venda feita</button>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84' }}>
-                💬 Conversa <span style={{ color: '#059669', fontWeight: 500 }}>· atualiza sozinha</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4' }}>
+                💬 Conversa <span style={{ color: '#34d399', fontWeight: 500 }}>· atualiza sozinha</span>
               </span>
               <button
-                style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
+                style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#60a5fa', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => recarregarConversa(lead, true)}
                 disabled={atualizandoConversa}
               >
@@ -961,10 +971,10 @@ export default function RevisaoIABolsaFamilia() {
                 💬 Abrir conversa no Chatwoot
               </a>
             ) : (
-              <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
+              <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
             )}
 
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 6 }}>Ações de etapa:</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#8b9bb4', marginBottom: 6 }}>Ações de etapa:</div>
             <div style={s.acoes}>
               {lead.sub_estado === 'DOCS_COMPLETOS' && <button style={s.btnAcao} onClick={() => disparar('proposta_digitada', '')} disabled={enviando}>✅ Proposta digitada</button>}
               {lead.sub_estado === 'BF_AGUARDANDO_LINK' && <button style={s.btnAcao} onClick={() => disparar('enviar_link', sugestaoPara({ ...lead, sub_estado: 'BF_LINK_ENVIADO' }, linkCrefisa))} disabled={enviando}>🔗 Enviar link Crefisa</button>}
@@ -977,7 +987,7 @@ export default function RevisaoIABolsaFamilia() {
 
             {mostrarMotivos && (
               <div style={s.painelMotivos}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#5b6b84', marginBottom: 8 }}>Por que está negando?</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#8b9bb4', marginBottom: 8 }}>Por que está negando?</div>
                 <div style={s.motivosGrid}>
                   {MOTIVOS_NEGADO.map(([codigo, texto]) => (
                     <button key={codigo} style={s.btnMotivo} disabled={enviando} onClick={() => negar(lead, codigo)}>{texto}</button>
@@ -1038,61 +1048,61 @@ function PainelVendas({ profile, ehSupervisor }) {
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: '#8b9bb4', marginBottom: 10 }}>
         {ehSupervisor ? 'Todas as vendas registradas pelo botão 💰 Venda feita.' : 'Suas vendas registradas pelo botão 💰 Venda feita — contagem e volume emprestado.'}
       </div>
-      {msg && <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.08)', border: '0.5px solid rgba(248,113,113,.35)', borderRadius: 10, padding: '9px 12px', marginBottom: 10 }}>{msg}</div>}
+      {msg && <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(248,113,113,.08)', border: '0.5px solid rgba(248,113,113,.35)', borderRadius: 10, padding: '9px 12px', marginBottom: 10 }}>{msg}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
         {grupos.map(([lbl, l]) => (
-          <div key={lbl} style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{lbl}</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{l.length}</div>
-            <div style={{ fontSize: 12, color: '#b45309', fontWeight: 700, marginTop: 2 }}>{fmtV(soma(l))}</div>
+          <div key={lbl} style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{lbl}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#e6edf7', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{l.length}</div>
+            <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700, marginTop: 2 }}>{fmtV(soma(l))}</div>
             <div style={{ fontSize: 10, color: '#64748b' }}>volume emprestado</div>
           </div>
         ))}
       </div>
 
       {ehSupervisor && Object.keys(porVendedora).length > 0 && (
-        <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 8 }}>👤 Por vendedora — mês (30d)</div>
+        <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>👤 Por vendedora — mês (30d)</div>
           {Object.entries(porVendedora).sort((a, b) => b[1].vol - a[1].vol).map(([n, x]) => (
-            <div key={n} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>
-              <span style={{ color: '#334155' }}>{n}</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums' }}><b style={{ color: '#0f172a' }}>{x.qtd}</b> venda(s) · <b style={{ color: '#b45309' }}>{fmtV(x.vol)}</b></span>
+            <div key={n} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <span style={{ color: '#c6d2e4' }}>{n}</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}><b style={{ color: '#e6edf7' }}>{x.qtd}</b> venda(s) · <b style={{ color: '#fbbf24' }}>{fmtV(x.vol)}</b></span>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 8 }}>🧾 Vendas — últimos 35 dias</div>
+      <div style={{ background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🧾 Vendas — últimos 35 dias</div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
-            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>Quando</th>
-            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>Cliente</th>
-            {ehSupervisor && <th style={{ textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>Vendedora</th>}
-            <th style={{ textAlign: 'right', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>Valor</th>
-            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>Pago?</th>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Quando</th>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Cliente</th>
+            {ehSupervisor && <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Vendedora</th>}
+            <th style={{ textAlign: 'right', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Valor</th>
+            <th style={{ textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>Pago?</th>
           </tr></thead>
           <tbody>
             {!vendas && <tr><td colSpan={ehSupervisor ? 5 : 4} style={{ padding: 16, color: '#64748b', fontSize: 12, textAlign: 'center' }}>Carregando...</td></tr>}
             {vendas && lista.length === 0 && <tr><td colSpan={ehSupervisor ? 5 : 4} style={{ padding: 16, color: '#64748b', fontSize: 12, textAlign: 'center' }}>Nenhuma venda registrada ainda. Use o botão 💰 Venda feita no card do cliente.</td></tr>}
             {lista.map(v => (
               <tr key={v.id}>
-                <td style={{ fontSize: 12, color: '#5b6b84', padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>{new Date(v.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                <td style={{ fontSize: 13, color: '#0f172a', padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>{v.cliente || 'Sem nome'}</td>
-                {ehSupervisor && <td style={{ fontSize: 12, color: '#5b6b84', padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>{v.agente_nome || '—'}</td>}
-                <td style={{ fontSize: 13, color: '#b45309', fontWeight: 700, padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtV(v.valor)}</td>
-                <td style={{ padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)' }}>
+                <td style={{ fontSize: 12, color: '#8b9bb4', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{new Date(v.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ fontSize: 13, color: '#e6edf7', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{v.cliente || 'Sem nome'}</td>
+                {ehSupervisor && <td style={{ fontSize: 12, color: '#8b9bb4', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>{v.agente_nome || '—'}</td>}
+                <td style={{ fontSize: 13, color: '#fbbf24', fontWeight: 700, padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtV(v.valor)}</td>
+                <td style={{ padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
                   {ehSupervisor ? (
                     <button onClick={() => togglePago(v)} title="Marcar/desmarcar pago"
-                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', border: 'none', background: v.pago ? 'rgba(52,211,153,.16)' : '#e2e8f0', color: v.pago ? '#059669' : '#5b6b84' }}>
+                      style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', border: 'none', background: v.pago ? 'rgba(52,211,153,.16)' : '#2b3340', color: v.pago ? '#34d399' : '#8b9bb4' }}>
                       {v.pago ? '✔ pago' : 'marcar pago'}
                     </button>
                   ) : (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: v.pago ? '#059669' : '#5b6b84' }}>{v.pago ? '✔ pago' : 'aguardando'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: v.pago ? '#34d399' : '#8b9bb4' }}>{v.pago ? '✔ pago' : 'aguardando'}</span>
                   )}
                 </td>
               </tr>
@@ -1109,11 +1119,11 @@ function PainelVendas({ profile, ehSupervisor }) {
 // esperando, onde a operação trava — com 1 clique pra cair na fila da pessoa.
 function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot }) {
   const hoje0 = (() => { const x = new Date(); x.setHours(0, 0, 0, 0); return x })()
-  const tile = { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '12px 14px' }
-  const lbl = { fontSize: 10, fontWeight: 600, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.06em' }
-  const num = (cor = '#0f172a') => ({ fontSize: 24, fontWeight: 700, color: cor, fontVariantNumeric: 'tabular-nums' })
-  const thC = { textAlign: 'left', fontSize: 10.5, color: '#5b6b84', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(15,23,42,0.07)' }
-  const tdC = { fontSize: 13, color: '#0f172a', padding: '8px 10px', borderBottom: '0.5px solid rgba(15,23,42,0.04)', fontVariantNumeric: 'tabular-nums' }
+  const tile = { background: '#232a37', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px' }
+  const lbl = { fontSize: 10, fontWeight: 600, color: '#8b9bb4', textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const num = (cor = '#e6edf7') => ({ fontSize: 24, fontWeight: 700, color: cor, fontVariantNumeric: 'tabular-nums' })
+  const thC = { textAlign: 'left', fontSize: 10.5, color: '#8b9bb4', fontWeight: 600, textTransform: 'uppercase', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.07)' }
+  const tdC = { fontSize: 13, color: '#e6edf7', padding: '8px 10px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', fontVariantNumeric: 'tabular-nums' }
 
   // ---- agregados por vendedora (a tabela de cobrança) ----
   const ag = {}
@@ -1161,29 +1171,29 @@ function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 12 }}>
         <div style={tile}>
           <div style={lbl}>💰 Vendas do time hoje</div>
-          <div style={num(vHojeTime.length > 0 ? '#059669' : '#0f172a')}>{vHojeTime.length}</div>
-          <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }}>{'R$ ' + volHojeTime.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          <div style={num(vHojeTime.length > 0 ? '#34d399' : '#e6edf7')}>{vHojeTime.length}</div>
+          <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700 }}>{'R$ ' + volHojeTime.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
         </div>
         <div style={{ ...tile, ...(esperandoTotal.length > 0 ? { border: '1px solid rgba(248,113,113,.5)' } : {}) }}>
           <div style={lbl}>💬 Clientes ESPERANDO resposta</div>
-          <div style={num(esperandoTotal.length > 0 ? '#dc2626' : '#059669')}>{esperandoTotal.length}</div>
+          <div style={num(esperandoTotal.length > 0 ? '#f87171' : '#34d399')}>{esperandoTotal.length}</div>
           <div style={{ fontSize: 10, color: '#64748b' }}>responderam e ninguém atendeu — cobre isso primeiro</div>
         </div>
         <div style={tile}>
           <div style={lbl}>🔴 SLA estourado (2×+)</div>
-          <div style={num(estouradosTotal > 0 ? '#b45309' : '#059669')}>{estouradosTotal}</div>
+          <div style={num(estouradosTotal > 0 ? '#fbbf24' : '#34d399')}>{estouradosTotal}</div>
           <div style={{ fontSize: 10, color: '#64748b' }}>na fila geral de {fila.length}</div>
         </div>
         <div style={{ ...tile, ...(semDono > 0 ? { border: '1px solid rgba(251,191,36,.5)' } : {}) }}>
           <div style={lbl}>⚪ Sem dono</div>
-          <div style={num(semDono > 0 ? '#b45309' : '#059669')}>{semDono}</div>
+          <div style={num(semDono > 0 ? '#fbbf24' : '#34d399')}>{semDono}</div>
           <div style={{ fontSize: 10, color: '#64748b' }}>use ⚖️ Distribuir no Funil (mapa)</div>
         </div>
       </div>
 
       {/* A TABELA DE COBRANÇA — por vendedora, metas na linha */}
       <div style={{ ...tile, marginBottom: 12, padding: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 8 }}>👥 Por vendedora — metas: {META_VENDAS_DIA} vendas/dia · conversão ≥ {META_CONVERSAO_PCT}%</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>👥 Por vendedora — metas: {META_VENDAS_DIA} vendas/dia · conversão ≥ {META_CONVERSAO_PCT}%</div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
             <thead><tr>
@@ -1207,21 +1217,21 @@ function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot
                   <tr key={a.id}>
                     <td style={{ ...tdC, fontWeight: 600 }}>{a.nome}</td>
                     <td style={tdC}>
-                      <span style={{ fontWeight: 800, color: bateuDia ? '#059669' : a.vHoje > 0 ? '#0f172a' : '#dc2626' }}>{a.vHoje}</span>
+                      <span style={{ fontWeight: 800, color: bateuDia ? '#34d399' : a.vHoje > 0 ? '#e6edf7' : '#f87171' }}>{a.vHoje}</span>
                       <span style={{ color: '#64748b', fontSize: 11 }}> / {META_VENDAS_DIA}</span>
-                      <div style={{ height: 4, width: 70, background: '#e2e8f0', borderRadius: 2, marginTop: 3, overflow: 'hidden' }}>
+                      <div style={{ height: 4, width: 70, background: '#1a202c', borderRadius: 2, marginTop: 3, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${Math.min(100, (a.vHoje / META_VENDAS_DIA) * 100)}%`, background: bateuDia ? '#34d399' : '#f472b6' }} />
                       </div>
                     </td>
-                    <td style={{ ...tdC, color: '#b45309', fontWeight: 700 }}>{'R$ ' + a.volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                    <td style={{ ...tdC, fontWeight: 800, color: conv >= META_CONVERSAO_PCT ? '#059669' : conv >= META_CONVERSAO_PCT / 2 ? '#b45309' : '#dc2626' }}>{conv}%</td>
+                    <td style={{ ...tdC, color: '#fbbf24', fontWeight: 700 }}>{'R$ ' + a.volHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td style={{ ...tdC, fontWeight: 800, color: conv >= META_CONVERSAO_PCT ? '#34d399' : conv >= META_CONVERSAO_PCT / 2 ? '#fbbf24' : '#f87171' }}>{conv}%</td>
                     <td style={tdC}>{a.carteira}</td>
                     <td style={tdC}>{a.filaN}</td>
-                    <td style={{ ...tdC, color: a.esperando > 0 ? '#dc2626' : '#64748b', fontWeight: a.esperando > 0 ? 800 : 400 }}>{a.esperando}</td>
-                    <td style={{ ...tdC, color: a.estourados > 0 ? '#b45309' : '#64748b' }}>{a.estourados}</td>
+                    <td style={{ ...tdC, color: a.esperando > 0 ? '#f87171' : '#64748b', fontWeight: a.esperando > 0 ? 800 : 400 }}>{a.esperando}</td>
+                    <td style={{ ...tdC, color: a.estourados > 0 ? '#fbbf24' : '#64748b' }}>{a.estourados}</td>
                     <td style={tdC}>{a.whats}</td>
                     <td style={tdC}>
-                      <button onClick={() => verFilaDe(a.id)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, cursor: 'pointer', border: '1px solid #60a5fa', background: 'transparent', color: '#2563eb' }}>ver fila →</button>
+                      <button onClick={() => verFilaDe(a.id)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, cursor: 'pointer', border: '1px solid #60a5fa', background: 'transparent', color: '#60a5fa' }}>ver fila →</button>
                     </td>
                   </tr>
                 )
@@ -1234,14 +1244,14 @@ function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
         {/* onde a operação trava */}
         <div style={{ ...tile, padding: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 8 }}>🚧 Onde está travando (SLA estourado por etapa)</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🚧 Onde está travando (SLA estourado por etapa)</div>
           {gargaloOrd.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 10 }}>Nenhuma etapa estourada. 👌</div>}
           {gargaloOrd.map(([etapa, n]) => (
             <div key={etapa} style={{ marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
-                <span style={{ color: '#334155' }}>{etapa}</span><b style={{ color: '#0f172a' }}>{n}</b>
+                <span style={{ color: '#c6d2e4' }}>{etapa}</span><b style={{ color: '#e6edf7' }}>{n}</b>
               </div>
-              <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: 6, background: '#1a202c', borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${(n / maxG) * 100}%`, background: '#fbbf24', borderRadius: 3 }} />
               </div>
             </div>
@@ -1250,13 +1260,13 @@ function PainelCockpit({ board, vendas, fila, verFilaDe, abrirCard, linkChatwoot
 
         {/* a lista de cobrança imediata: cliente esperando, do pior pro melhor */}
         <div style={{ ...tile, padding: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 8 }}>🚨 Cobrança imediata — clientes esperando resposta</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c6d2e4', marginBottom: 8 }}>🚨 Cobrança imediata — clientes esperando resposta</div>
           {esperandoTotal.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 10 }}>Ninguém esperando. 👏</div>}
           {[...esperandoTotal].sort((a, b) => b.minutos_parado - a.minutos_parado).slice(0, 10).map(c => (
-            <div key={c.id} onClick={() => abrirCard(c)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '0.5px solid rgba(15,23,42,0.04)', cursor: 'pointer' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', minWidth: 62 }}>⏱ {c.minutos_parado} min</span>
-              <span style={{ fontSize: 13, color: '#0f172a', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome || 'Sem nome'}</span>
-              <span style={{ fontSize: 11, color: '#5b6b84' }}>{c.agente_nome || '⚪ sem dono'}</span>
+            <div key={c.id} onClick={() => abrirCard(c)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '0.5px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171', minWidth: 62 }}>⏱ {c.minutos_parado} min</span>
+              <span style={{ fontSize: 13, color: '#e6edf7', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome || 'Sem nome'}</span>
+              <span style={{ fontSize: 11, color: '#8b9bb4' }}>{c.agente_nome || '⚪ sem dono'}</span>
               {c.chatwoot_conversation_id && <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 13, textDecoration: 'none' }} title="Abrir no Chatwoot">💬</a>}
             </div>
           ))}
