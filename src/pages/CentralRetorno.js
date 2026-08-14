@@ -189,20 +189,43 @@ function Painel({ ov }) {
 const PRODUTOS = [['', 'Todos'], ['bolsa', '🩷 Bolsa'], ['gravida', '🤰 Grávida'], ['mae', '🤱 Mãe'], ['outro', 'Outro']]
 const NOME_GATE = { conversa_criada: 'iniciou conversa', oferta_vista: 'viu oferta', rg_frente: 'RG frente', rg_verso: 'RG verso', extrato: 'extrato', docs_completos: 'docs completos' }
 
+const OPCOES_PERIODO = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['30d', '30 dias'], ['custom', 'personalizado']]
+// faixa de datas do cadastro (ISO com fuso local do navegador)
+function faixaCadastro(preset, cDe, cAte) {
+  const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+  const hoje = ini(new Date())
+  const mais1 = (d) => { const x = new Date(d); x.setDate(x.getDate() + 1); return x }
+  const menos = (d, n) => { const x = new Date(d); x.setDate(x.getDate() - n); return x }
+  let de = null, ate = null
+  if (preset === 'hoje') { de = hoje; ate = mais1(hoje) }
+  else if (preset === 'ontem') { de = menos(hoje, 1); ate = hoje }
+  else if (preset === '7d') { de = menos(hoje, 6); ate = mais1(hoje) }
+  else if (preset === '30d') { de = menos(hoje, 29); ate = mais1(hoje) }
+  else if (preset === 'custom') {
+    if (cDe) de = ini(cDe + 'T00:00:00')
+    if (cAte) ate = mais1(ini(cAte + 'T00:00:00'))
+  }
+  return { de: de ? de.toISOString() : undefined, ate: ate ? ate.toISOString() : undefined }
+}
+
 function Leads() {
   const [leads, setLeads] = useState(null)
   const [produto, setProduto] = useState('')
   const [busca, setBusca] = useState('')
+  const [periodo, setPeriodo] = useState('tudo')
+  const [dtDe, setDtDe] = useState('')
+  const [dtAte, setDtAte] = useState('')
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
     let vivo = true
     setLeads(null)
-    chamar('leads_list', { produto: produto || undefined })
+    const fx = faixaCadastro(periodo, dtDe, dtAte)
+    chamar('leads_list', { produto: produto || undefined, de: fx.de, ate: fx.ate })
       .then(r => { if (vivo) setLeads(r.leads) })
       .catch(e => { if (vivo) setMsg(String(e.message || e)) })
     return () => { vivo = false }
-  }, [produto])
+  }, [produto, periodo, dtDe, dtAte])
 
   const visiveis = (leads || []).filter(l => {
     if (!busca) return true
@@ -225,7 +248,7 @@ function Leads() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `leads_${produto || 'todos'}_${new Date().toLocaleDateString('en-CA')}.csv`
+    a.download = `leads_${produto || 'todos'}_${periodo}_${new Date().toLocaleDateString('en-CA')}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -241,6 +264,20 @@ function Leads() {
         ))}
         <input style={{ ...s.input, width: 220 }} placeholder="🔎 nome, telefone ou email" value={busca} onChange={e => setBusca(e.target.value)} />
         <button style={s.btn('#34d399', true)} disabled={!visiveis.length} onClick={exportar}>⬇️ Exportar planilha ({visiveis.length})</button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: '#8b9bb4' }}>Cadastro em:</span>
+        {OPCOES_PERIODO.map(([v, lbl]) => (
+          <button key={v} onClick={() => setPeriodo(v)}
+            style={{ padding: '5px 11px', fontSize: 12, fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: periodo === v ? '1px solid #60a5fa' : '0.5px solid rgba(255,255,255,0.11)', background: periodo === v ? 'rgba(96,165,250,.14)' : '#232a37', color: periodo === v ? '#60a5fa' : '#8b9bb4' }}>
+            {lbl}
+          </button>
+        ))}
+        {periodo === 'custom' && (<>
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} style={{ ...s.input, width: 150, colorScheme: 'dark' }} />
+          <span style={{ fontSize: 12, color: '#8b9bb4' }}>até</span>
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} style={{ ...s.input, width: 150, colorScheme: 'dark' }} />
+        </>)}
       </div>
       {msg && <div style={{ ...s.aviso, color: '#f87171', borderColor: 'rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)', marginBottom: 10 }}>{msg}</div>}
       <div style={{ ...s.aviso, marginBottom: 12 }}>ℹ️ Leads que se cadastraram na página (deram telefone). Email só aparece para quem a página coletar — hoje o funil ainda não pede email.</div>
