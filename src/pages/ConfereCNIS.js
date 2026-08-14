@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
 // Tela TEMPORARIA de auditoria: compara o veredito da maquina (auto-analise CNIS, modo sombra)
 // com a DECISAO REAL do humano — cnis_aprovado, o botao Aprovar/Reprovar CNIS do board retroativo.
@@ -66,7 +67,9 @@ const s = {
 export default function ConfereCNIS() {
   const [linhas, setLinhas] = useState([])
   const [loading, setLoading] = useState(true)
+  const { profile } = useAuth()
   const [soComparaveis, setSoComparaveis] = useState(false)
+  const [fVeredito, setFVeredito] = useState('todos')   // todos | APTA | APTA_CONFERIR_GERID | NAO_CLIENTE | HUMANO
   const [filtroData, setFiltroData] = useState('tudo')
   const [dtDe, setDtDe] = useState(''); const [dtAte, setDtAte] = useState('')
 
@@ -107,7 +110,16 @@ export default function ConfereCNIS() {
   const inversos = comparaveis.filter(l => classificar(l).inverso).length
   const pediuHumano = noPeriodo.filter(l => l.veredito_maquina === 'HUMANO').length
 
-  const visiveis = soComparaveis ? comparaveis : noPeriodo
+  let visiveis = soComparaveis ? comparaveis : noPeriodo
+  if (fVeredito !== 'todos') visiveis = visiveis.filter(l => l.veredito_maquina === fVeredito)
+  const conferidos = noPeriodo.filter(l => l.conferido).length
+
+  // marca/desmarca "conferido pelo atendente" (workflow: máquina apto -> atendente valida -> advogada)
+  const marcarConferido = async (l) => {
+    const { error } = await supabase.rpc('cnis_marcar_conferido', { p_lead_id: l.id, p_agente: profile?.id || null, p_valor: !l.conferido })
+    if (error) { alert('Erro: ' + error.message); return }
+    carregar()
+  }
   const fmt = (dt) => { if (!dt) return '—'; try { return new Date(dt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return dt } }
 
   const decisaoHumanaCel = (l) => {
@@ -145,6 +157,17 @@ export default function ConfereCNIS() {
         </>)}
       </div>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, color: '#5b6b84' }}>Veredito:</span>
+        {[['todos', 'todos'], ['APTA', '✅ Aptas'], ['APTA_CONFERIR_GERID', '⚠ Apta·GERID'], ['NAO_CLIENTE', '⛔ Não cliente'], ['HUMANO', '🧑 Pediu humano']].map(([v, lbl]) => (
+          <button key={v} onClick={() => setFVeredito(v)}
+            style={{ padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 999, cursor: 'pointer', border: fVeredito === v ? '1px solid #2563eb' : '0.5px solid rgba(15,23,42,0.11)', background: fVeredito === v ? 'rgba(37,99,235,.10)' : '#ffffff', color: fVeredito === v ? '#2563eb' : '#5b6b84' }}>
+            {lbl}
+          </button>
+        ))}
+        <span style={{ fontSize: 12, color: '#5b6b84', marginLeft: 8 }}>✔ Conferidos no período: <b style={{ color: '#059669' }}>{conferidos}</b></span>
+      </div>
+
       <div style={s.resumo}>
         <div style={s.kpi}><div style={s.kpiNum}>{total}</div><div style={s.kpiLbl}>Analisados pela máquina</div></div>
         <div style={s.kpi}><div style={s.kpiNum}>{revisados.length}</div><div style={s.kpiLbl}>Já decididos pelo humano</div></div>
@@ -170,11 +193,12 @@ export default function ConfereCNIS() {
               <th style={s.th}>Motivo da máquina</th>
               <th style={s.th}>Decisão do humano</th>
               <th style={s.th}>Bateu?</th>
+              <th style={s.th}>Conferido</th>
               <th style={s.th}>CNIS</th>
             </tr>
           </thead>
           <tbody>
-            {visiveis.length === 0 && <tr><td style={s.td} colSpan={7}>Nada por aqui ainda.</td></tr>}
+            {visiveis.length === 0 && <tr><td style={s.td} colSpan={8}>Nada por aqui ainda.</td></tr>}
             {visiveis.map(l => {
               const c = classificar(l)
               return (
@@ -185,6 +209,15 @@ export default function ConfereCNIS() {
                   <td style={{ ...s.td, maxWidth: 300, color: '#5b6b84' }}>{l.motivo_maquina || '—'}</td>
                   <td style={s.td}>{decisaoHumanaCel(l)}</td>
                   <td style={s.td}>{bateuCel(l)}</td>
+                  <td style={s.td}>
+                    {l.conferido ? (
+                      <span title="clique para desmarcar" onClick={() => marcarConferido(l)} style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#059669', background: 'rgba(52,211,153,.14)', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                        ✔ {l.conferido_por ? l.conferido_por.split(' ')[0] : 'conferido'}{l.conferido_em ? ` · ${fmt(l.conferido_em)}` : ''}
+                      </span>
+                    ) : (
+                      <button onClick={() => marcarConferido(l)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, cursor: 'pointer', border: '1px solid #059669', background: 'transparent', color: '#059669', whiteSpace: 'nowrap' }}>marcar conferido</button>
+                    )}
+                  </td>
                   <td style={s.td}>
                     {l.chatwoot_conversation_id
                       ? <a style={s.link} href={`${CHATWOOT_BASE}/app/accounts/${ACCOUNT}/conversations/${l.chatwoot_conversation_id}`} target="_blank" rel="noreferrer">abrir 💬</a>
