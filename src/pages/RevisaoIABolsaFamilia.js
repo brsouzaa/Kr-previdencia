@@ -53,6 +53,7 @@ const COLUNAS = [
   ['COLETA_RG_FRENTE', '🪪 RG Frente'],
   ['COLETA_RG_VERSO', '🪪 RG Verso'],
   ['COLETA_EXTRATO', '📄 Extrato'],
+  ['BF_DADOS_PESSOAIS', '📝 Dados finais'],
   ['DOCS_COMPLETOS', '✅ A digitar'],
   ['BF_AGUARDANDO_LINK', '⏳ Aguard. link'],
   ['BF_LINK_ENVIADO', '🔗 Link enviado'],
@@ -64,18 +65,24 @@ const COLUNAS = [
 ]
 
 // sub_estados que caem na coluna Negados (o BF_NEGADO manual + os que a Ana ja cria sozinha)
-const SUB_ESTADOS_NEGADO = ['BF_NEGADO', 'DESQUALIFICADO_CAIXA_TEM', 'DESQUALIFICADO_SEM_BF', 'DESQUALIFICADO_SEM_BOLSA', 'RECUSOU_OFERTA', 'RECUSOU_VALOR', 'RECUSA_TEMPORARIA', 'DESISTIU', 'CANCELADO', 'CANCELADO_CLIENTE', 'RECUSOU']
+const SUB_ESTADOS_NEGADO = ['BF_NEGADO', 'DESQUALIFICADO_CAIXA_TEM', 'DESQUALIFICADO_SEM_BF', 'DESQUALIFICADO_SEM_BOLSA', 'RECUSOU_OFERTA', 'RECUSOU_VALOR', 'RECUSA_TEMPORARIA', 'DESISTIU', 'CANCELADO', 'CANCELADO_CLIENTE', 'RECUSOU', 'SEM_INTERESSE', 'SEM_INTERESSE_HOSTIL']
+
+// Etapas de "confirmação final de dados" da Ana (endereço/CEP, conta corrigida, CNIS em análise):
+// caem TODAS na coluna 📝 Dados finais — entre Extrato e A digitar, em vez de irem pra Outros.
+const SUB_ESTADOS_DADOS_FINAIS = ['BF_DADOS_PESSOAIS', 'CONTA_CORRIGIDA', 'CNIS_EM_ANALISE']
 
 // Todo sub_estado com coluna propria + os de Negados. O que NAO estiver aqui cai em "Outros" — rede de seguranca pra card nunca mais sumir do board.
 const CHAVES_CONHECIDAS = new Set([
   ...COLUNAS.map(([k]) => k).filter(k => k !== 'NEGADO' && k !== 'OUTROS'),
   ...SUB_ESTADOS_NEGADO,
+  ...SUB_ESTADOS_DADOS_FINAIS,
 ])
 
 // ===== MODO ESTEIRA (F1) =====
 // SLA por ETAPA (min) — o vermelho volta a significar algo: estourou o SLA daquela etapa.
 // (F2: mover pro app_config pra ajustar sem deploy)
 const SLA_ETAPA = {
+  BF_DADOS_PESSOAIS: 15, CONTA_CORRIGIDA: 15, CNIS_EM_ANALISE: 30,
   OFERTA: 120, CONFIRMA_CAIXA_TEM: 15,
   COLETA_RG_FRENTE: 15, COLETA_RG_VERSO: 15, COLETA_EXTRATO: 30,
   DOCS_COMPLETOS: 30, BF_AGUARDANDO_LINK: 120,
@@ -120,6 +127,7 @@ function acaoSugerida(c) {
   if (c.sub_estado === 'COLETA_EXTRATO') return '📄 Falta o EXTRATO — pedir de novo'
   if (c.sub_estado === 'COLETA_RG_VERSO') return '🪪 Falta o RG VERSO — pedir de novo'
   if (c.sub_estado === 'COLETA_RG_FRENTE') return '🪪 Falta o RG FRENTE — pedir de novo'
+  if (SUB_ESTADOS_DADOS_FINAIS.includes(c.sub_estado)) return '📝 Confirmando dados finais (endereço/conta) — destravar se parar'
   if (c.sub_estado === 'CONFIRMA_CAIXA_TEM') return '💬 Confirmando Caixa Tem — destravar a conversa'
   if (c.sub_estado === 'OFERTA') return '📢 Viu a oferta e parou — reengajar (áudio funciona)'
   return '👀 Verificar a conversa'
@@ -154,6 +162,8 @@ function labelMotivo(c) {
     DESISTIU: 'Desistiu',
     CANCELADO: 'Cancelou',
     RECUSOU: 'Recusou',
+    SEM_INTERESSE: 'Sem interesse',
+    SEM_INTERESSE_HOSTIL: 'Sem interesse (hostil)',
   }
   return porSub[c.sub_estado] || 'Negado'
 }
@@ -203,6 +213,7 @@ function sugestaoPara(lead, linkCrefisa) {
     COLETA_RG_FRENTE: `Oi ${nome}! Pra liberar seu dinheiro${valor ? ` (R$ ${valor})` : ''} só falta a foto da FRENTE do seu RG 📸 Me manda?`,
     COLETA_RG_VERSO: `${nome}, recebi a frente do RG certinho! ✅ Agora só falta o VERSO 📸 Pode mandar?`,
     COLETA_EXTRATO: `${nome}, falta só 1 documentinho: o extrato do seu Caixa Tem em PDF 📄 É só abrir o app, tocar em extrato e compartilhar aqui comigo 💗`,
+    BF_DADOS_PESSOAIS: `${nome}, falta pouquinho! 💗 Me confirma seu endereço completo (rua, número, bairro e cidade) que eu já finalizo seu cadastro 📝`,
     DOCS_COMPLETOS: `${nome}, seus documentos chegaram certinhos! ✅ Já estamos finalizando sua proposta, te aviso assim que estiver pronta 💗`,
     BF_AGUARDANDO_LINK: `${nome}, sua proposta está em finalização! ✅ Assim que liberar eu te mando o link, tá? 💗`,
     BF_LINK_ENVIADO: `Prontinho, ${nome}! ✅ Sua proposta já está liberada. Pra finalizar, chama no WhatsApp oficial da Crefisa nesse link 👉 ${linkCrefisa} — é só mandar um oi que eles concluem a liberação${valor ? ` do seu R$ ${valor}` : ''} 💰`,
@@ -809,6 +820,8 @@ export default function RevisaoIABolsaFamilia() {
             ? visiveis.filter(c => SUB_ESTADOS_NEGADO.includes(c.sub_estado))
             : key === 'OUTROS'
             ? visiveis.filter(c => !CHAVES_CONHECIDAS.has(c.sub_estado))
+            : key === 'BF_DADOS_PESSOAIS'
+            ? visiveis.filter(c => SUB_ESTADOS_DADOS_FINAIS.includes(c.sub_estado))
             : visiveis.filter(c => c.sub_estado === key)
           // Solta em qualquer coluna do funil; Negados so pelo botao Negar (motivo), Outros nao recebe
           const ehDestino = key !== 'NEGADO' && key !== 'OUTROS'
