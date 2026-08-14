@@ -115,7 +115,7 @@ function acaoSugerida(c) {
   if (c.sub_estado === 'DOCS_COMPLETOS') {
     if (c.dig_protocolo || c.dig_em) return '🤖 Digitada pelo robô — conferir e seguir'
     if (['erro', 'revisar', 'revisar_humano', 'faltando_dados'].includes(c.dig_status)) return '🖐 Robô não digitou — DIGITAR MANUAL'
-    return '📄 Docs completos — acompanhar a digitação do robô'
+    return '🖐 Docs completos — DIGITAR AGORA (manual)'
   }
   if (c.sub_estado === 'COLETA_EXTRATO') return '📄 Falta o EXTRATO — pedir de novo'
   if (c.sub_estado === 'COLETA_RG_VERSO') return '🪪 Falta o RG VERSO — pedir de novo'
@@ -525,22 +525,15 @@ export default function RevisaoIABolsaFamilia() {
         </>
       )
     }
+    // Robô fora do ar ou desligado: digitação é MANUAL e IMEDIATA — sem falar em "esperar robô".
+    if (!robo.vivo || !robo.ligado) {
+      return tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 DIGITAR AGORA — manual')
+    }
     if (c.fila_apto === false) {
-      return tagDig('rgba(251,191,36,.14)', '#b45309', `🚫 fora da fila do robô — ${(c.fila_motivo || 'dados faltando').slice(0, 60)}`)
-    }
-    if (!robo.vivo) {
       return (
         <>
-          {tagDig('rgba(248,113,113,.16)', '#dc2626', '🤖 robô SEM SINAL')}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 PODE DIGITAR MANUAL')}
-        </>
-      )
-    }
-    if (!robo.ligado) {
-      return (
-        <>
-          {tagDig('rgba(251,191,36,.14)', '#b45309', '⏸ fila do robô PAUSADA')}
-          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 PODE DIGITAR MANUAL')}
+          {tagDig('rgba(251,191,36,.14)', '#b45309', `⚠ ${(c.fila_motivo || 'dados faltando').slice(0, 60)}`)}
+          {tagDig('rgba(167,139,250,.18)', '#7c3aed', '🖐 DIGITAR MANUAL')}
         </>
       )
     }
