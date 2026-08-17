@@ -51,6 +51,11 @@ export default function SupervisorProducao() {
         dataFim = new Date(dataAte + 'T00:00:00')
         dataFim.setDate(dataFim.getDate() + 1)
       }
+      // Segurança: sem datas definidas, assume o mês corrente pra não carregar o banco inteiro
+      if (!dataDe && !dataAte) {
+        dataInicio = new Date(agora.getFullYear(), agora.getMonth(), 1)
+        dataFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1)
+      }
     }
 
     // Paginação: o Supabase corta em 1000 por request. Busca em páginas até acabar.
@@ -212,7 +217,7 @@ export default function SupervisorProducao() {
     setSalvando(false)
   }
 
-  function filtrar(lista) {
+  function filtrar(lista, ignorarStatus = false) {
     // Filtro de DATA já é feito no banco (fetchDados, por período). Aqui só busca e produtor.
     const buscaLower = busca.trim().toLowerCase()
     const buscaDigits = busca.replace(/\D/g, '')
@@ -224,10 +229,12 @@ export default function SupervisorProducao() {
       const produtoOk = !filtroProduto || cli?.produto === filtroProduto
 
       let statusOk = true
-      if (filtroStatus === 'assinado') statusOk = c.status === 'assinado'
-      else if (filtroStatus === 'enviado') statusOk = c.status === 'enviado'
-      else if (filtroStatus === 'expirado') statusOk = c.status === 'expirado'
-      else if (filtroStatus === 'barrado_pos_venda') statusOk = cli?.status === 'barrado_pos_venda'
+      if (!ignorarStatus) {
+        if (filtroStatus === 'assinado') statusOk = c.status === 'assinado'
+        else if (filtroStatus === 'enviado') statusOk = c.status === 'enviado'
+        else if (filtroStatus === 'expirado') statusOk = c.status === 'expirado'
+        else if (filtroStatus === 'barrado_pos_venda') statusOk = cli?.status === 'barrado_pos_venda'
+      }
 
       let buscaOk = true
       if (buscaLower) {
@@ -246,6 +253,7 @@ export default function SupervisorProducao() {
     })
   }
 
+  const base = filtrar(contratos, true)
   const filtrados = filtrar(contratos)
   // Produtos fixos do sistema (aparecem sempre, mesmo sem contrato ainda) + qualquer outro presente nos dados
   const PRODUTOS_SISTEMA = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'BPC', 'Auxilio Acidente']
@@ -253,14 +261,15 @@ export default function SupervisorProducao() {
     ...PRODUTOS_SISTEMA,
     ...contratos.map(c => getCliente(c)?.produto).filter(Boolean)
   ]))
-  const enviados = filtrados.length
-  const assinados = filtrados.filter(c => c.status === 'assinado').length
-  const pendentes = filtrados.filter(c => c.status === 'enviado').length
-  const expirados = filtrados.filter(c => c.status === 'expirado').length
-  const barradosPosVenda = filtrados.filter(c => getCliente(c)?.status === 'barrado_pos_venda').length
+  // Métricas/ranking usam a base SEM o filtro de status, pra conversão não distorcer
+  const enviados = base.length
+  const assinados = base.filter(c => c.status === 'assinado').length
+  const pendentes = base.filter(c => c.status === 'enviado').length
+  const expirados = base.filter(c => c.status === 'expirado').length
+  const barradosPosVenda = base.filter(c => getCliente(c)?.status === 'barrado_pos_venda').length
   const conversao = enviados > 0 ? Math.round((assinados / enviados) * 100) : 0
 
-  const rankingMap = filtrados.reduce((acc, c) => {
+  const rankingMap = base.reduce((acc, c) => {
     const nome = getVendedorB2C(c)
     const vendId = getVendedorB2CId(c)
     if (!acc[nome]) acc[nome] = { enviados: 0, assinados: 0, is_ia: vendId === IA_ID }
@@ -296,13 +305,12 @@ export default function SupervisorProducao() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
           ['Enviados', enviados, '#2563eb', 'rgba(96,165,250,.12)'],
           ['Assinados', assinados, '#059669', 'rgba(52,211,153,.14)'],
           ['Pendentes', pendentes, '#b45309', 'rgba(251,191,36,.12)'],
           ['Expirados', expirados, '#dc2626', 'rgba(248,113,113,.14)'],
-          ['Barrados pós-venda', barradosPosVenda, '#ef4444', 'rgba(248,113,113,.14)'],
           ['Conversão', `${conversao}%`, conversao >= 70 ? '#059669' : conversao >= 40 ? '#b45309' : '#dc2626', conversao >= 70 ? 'rgba(52,211,153,.14)' : conversao >= 40 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.14)'],
         ].map(([l, v, c, bg]) => (
           <div key={l} style={{ ...card, background: bg, border: `0.5px solid ${c}30` }}>
@@ -350,7 +358,15 @@ export default function SupervisorProducao() {
       {/* Bloco "Lotes em prioridade na fila" removido a pedido do Bruno (29/05/2026) */}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select style={selectStyle} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+        <select style={selectStyle} value={periodo} onChange={e => {
+          const novo = e.target.value
+          if (novo === 'personalizado' && !dataDe && !dataAte) {
+            const hoje = new Date()
+            setDataDe(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`)
+            setDataAte(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`)
+          }
+          setPeriodo(novo)
+        }}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
