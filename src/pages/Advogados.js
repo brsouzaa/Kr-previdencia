@@ -159,7 +159,7 @@ export default function Advogados() {
       </div>
 
       {showNovo && <NovoAdvogado onClose={() => setShowNovo(false)} onSaved={() => { setShowNovo(false); fetch() }} />}
-      {detalhe && <DetalheAdvogado advogado={detalhe} onClose={() => setDetalhe(null)} onUpdated={() => { setDetalhe(null); fetch() }} />}
+      {detalhe && <DetalheAdvogado advogado={detalhe} onClose={() => { setDetalhe(null); fetch() }} onUpdated={() => { setDetalhe(null); fetch() }} />}
     </div>
   )
 }
