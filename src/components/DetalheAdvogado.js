@@ -134,6 +134,40 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
   const [repBusca, setRepBusca] = useState('')
   const [aba, setAba] = useState('lotes')
   const [tabelas, setTabelas] = useState(FALLBACK_TABELAS)
+  // Edição dos dados cadastrais
+  const [editando, setEditando] = useState(false)
+  const [formEdit, setFormEdit] = useState(null)
+  const [salvandoEdit, setSalvandoEdit] = useState(false)
+  const [vendedores, setVendedores] = useState([])
+  const ehAdmin = profile?.role === 'admin'
+
+  const abrirEdicao = async () => {
+    setFormEdit({
+      nome_completo: adv.nome_completo || '', oab: adv.oab || '', estado: adv.estado || '',
+      cidade: adv.cidade || '', endereco: adv.endereco || '', cep: adv.cep || '',
+      numero: adv.numero || '', bairro: adv.bairro || '', telefone: adv.telefone || '',
+      email: adv.email || '', estado_civil: adv.estado_civil || '', nacionalidade: adv.nacionalidade || '',
+      vendedor_id: adv.vendedor_id || '',
+    })
+    setEditando(true)
+    if (ehAdmin && vendedores.length === 0) {
+      const { data } = await supabase.from('profiles').select('id, nome').in('role', ['vendedor', 'admin']).order('nome')
+      setVendedores(data || [])
+    }
+  }
+
+  const salvarEdicao = async () => {
+    if (!formEdit.nome_completo.trim() || !formEdit.oab.trim()) { alert('Nome e OAB são obrigatórios.'); return }
+    setSalvandoEdit(true)
+    const payload = { ...formEdit, updated_at: new Date().toISOString() }
+    if (!ehAdmin) delete payload.vendedor_id // só admin troca o vendedor
+    if (payload.vendedor_id === '') delete payload.vendedor_id
+    const { error } = await supabase.from('advogados').update(payload).eq('id', adv.id)
+    setSalvandoEdit(false)
+    if (error) { alert('Erro ao salvar: ' + error.message); return }
+    setAdv({ ...adv, ...payload })
+    setEditando(false)
+  }
 
   useEffect(() => { fetchTudo() }, [advogado.id])
 
@@ -444,8 +478,43 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
         </div>
 
         {/* Aba: Dados cadastrais */}
-        {aba === 'dados' && (
+        {aba === 'dados' && editando && formEdit && (
+          <div style={s.section}>
+            <div style={s.sectionTitle}>Editar dados cadastrais</div>
+            {[['nome_completo','Nome completo'],['oab','OAB'],['estado','Estado (UF)'],['cidade','Cidade'],
+              ['endereco','Endereço'],['cep','CEP'],['numero','Número'],['bairro','Bairro'],
+              ['telefone','Telefone'],['email','E-mail'],['estado_civil','Estado civil'],['nacionalidade','Nacionalidade']].map(([campo, label]) => (
+              <div key={campo}>
+                <label style={s.label}>{label}</label>
+                <input style={s.input} value={formEdit[campo]} onChange={e => setFormEdit({ ...formEdit, [campo]: e.target.value })} />
+              </div>
+            ))}
+            {ehAdmin && (
+              <div>
+                <label style={s.label}>Vendedor responsável</label>
+                <select style={{ ...s.input, cursor: 'pointer' }} value={formEdit.vendedor_id}
+                  onChange={e => setFormEdit({ ...formEdit, vendedor_id: e.target.value })}>
+                  <option value="">— selecionar —</option>
+                  {vendedores.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                </select>
+                <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>
+                  Trocar o vendedor muda quem vê e atende este advogado. Lotes e compras já feitos não mudam de dono.
+                </div>
+              </div>
+            )}
+            <button style={salvandoEdit ? s.btnDisabled : s.btnSave} disabled={salvandoEdit} onClick={salvarEdicao}>
+              {salvandoEdit ? 'Salvando...' : '💾 Salvar alterações'}
+            </button>
+            <button style={{ ...s.btnSave, background: '#e2e8f0', color: '#334155', marginTop: 8 }} onClick={() => setEditando(false)}>Cancelar</button>
+          </div>
+        )}
+        {aba === 'dados' && !editando && (
           <div>
+            <button
+              style={{ marginTop: '1.25rem', width: '100%', padding: '9px 0', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              onClick={abrirEdicao}>
+              ✏️ Editar dados cadastrais
+            </button>
             <div style={s.section}>
               <div style={s.sectionTitle}>Dados pessoais</div>
               <div style={s.row}><span style={s.rowLabel}>Nome completo</span><span style={{ ...s.rowValue, fontSize: 12 }}>{adv.nome_completo}</span></div>
