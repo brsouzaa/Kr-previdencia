@@ -14,6 +14,9 @@ export default function SupervisorProducao() {
   const [periodo, setPeriodo] = useState('mes')
   const [filtroProd, setFiltroProd] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [dataDe, setDataDe] = useState('')
+  const [dataAte, setDataAte] = useState('')
   const [busca, setBusca] = useState('')
   const [sincronizando, setSincronizando] = useState(false)
   const [ultimaSync, setUltimaSync] = useState(null)
@@ -26,7 +29,7 @@ export default function SupervisorProducao() {
   const meuSetor = profile?.setor || 'captacao'
   const isSupAutonomo = profile?.role === 'supervisor_producao' && meuSetor === 'autonomos'
 
-  useEffect(() => { if (profile) fetchDados() }, [profile, periodo])
+  useEffect(() => { if (profile) fetchDados() }, [profile, periodo, dataDe, dataAte])
 
   async function fetchDados() {
     setLoading(true)
@@ -42,6 +45,12 @@ export default function SupervisorProducao() {
     } else if (periodo === 'mes') {
       dataInicio = new Date(agora.getFullYear(), agora.getMonth(), 1)
       dataFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1)
+    } else if (periodo === 'personalizado') {
+      if (dataDe) dataInicio = new Date(dataDe + 'T00:00:00')
+      if (dataAte) {
+        dataFim = new Date(dataAte + 'T00:00:00')
+        dataFim.setDate(dataFim.getDate() + 1)
+      }
     }
 
     // Paginação: o Supabase corta em 1000 por request. Busca em páginas até acabar.
@@ -209,13 +218,19 @@ export default function SupervisorProducao() {
     const buscaDigits = busca.replace(/\D/g, '')
 
     return lista.filter(c => {
+      const cli = getCliente(c)
       const dentroP = true
       const prodOk = !filtroProd || getVendedorB2CId(c) === filtroProd
-      const produtoOk = !filtroProduto || getCliente(c)?.produto === filtroProduto
+      const produtoOk = !filtroProduto || cli?.produto === filtroProduto
+
+      let statusOk = true
+      if (filtroStatus === 'assinado') statusOk = c.status === 'assinado'
+      else if (filtroStatus === 'enviado') statusOk = c.status === 'enviado'
+      else if (filtroStatus === 'expirado') statusOk = c.status === 'expirado'
+      else if (filtroStatus === 'barrado_pos_venda') statusOk = cli?.status === 'barrado_pos_venda'
 
       let buscaOk = true
       if (buscaLower) {
-        const cli = getCliente(c)
         const nome = (c.cliente_nome || cli?.nome || '').toLowerCase()
         const cpfCliente = (cli?.cpf || c.cliente_cpf || '').replace(/\D/g, '')
         const telCliente = (cli?.telefone || c.cliente_telefone || '').replace(/\D/g, '')
@@ -227,7 +242,7 @@ export default function SupervisorProducao() {
         buscaOk = matchTexto || matchNumeros
       }
 
-      return dentroP && prodOk && produtoOk && buscaOk
+      return dentroP && prodOk && produtoOk && statusOk && buscaOk
     })
   }
 
@@ -242,6 +257,7 @@ export default function SupervisorProducao() {
   const assinados = filtrados.filter(c => c.status === 'assinado').length
   const pendentes = filtrados.filter(c => c.status === 'enviado').length
   const expirados = filtrados.filter(c => c.status === 'expirado').length
+  const barradosPosVenda = filtrados.filter(c => getCliente(c)?.status === 'barrado_pos_venda').length
   const conversao = enviados > 0 ? Math.round((assinados / enviados) * 100) : 0
 
   const rankingMap = filtrados.reduce((acc, c) => {
@@ -255,6 +271,7 @@ export default function SupervisorProducao() {
   const ranking = Object.entries(rankingMap).sort((a,b) => b[1].enviados - a[1].enviados)
 
   const card = { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: '14px 16px' }
+  const selectStyle = { padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', outline: 'none' }
 
   const titulo = isSupAutonomo ? '📊 Supervisão Autônomos' : '📊 Supervisão de Produção'
 
@@ -279,12 +296,13 @@ export default function SupervisorProducao() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: '1.25rem' }}>
         {[
           ['Enviados', enviados, '#2563eb', 'rgba(96,165,250,.12)'],
           ['Assinados', assinados, '#059669', 'rgba(52,211,153,.14)'],
           ['Pendentes', pendentes, '#b45309', 'rgba(251,191,36,.12)'],
           ['Expirados', expirados, '#dc2626', 'rgba(248,113,113,.14)'],
+          ['Barrados pós-venda', barradosPosVenda, '#ef4444', 'rgba(248,113,113,.14)'],
           ['Conversão', `${conversao}%`, conversao >= 70 ? '#059669' : conversao >= 40 ? '#b45309' : '#dc2626', conversao >= 70 ? 'rgba(52,211,153,.14)' : conversao >= 40 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.14)'],
         ].map(([l, v, c, bg]) => (
           <div key={l} style={{ ...card, background: bg, border: `0.5px solid ${c}30` }}>
@@ -331,20 +349,34 @@ export default function SupervisorProducao() {
 
       {/* Bloco "Lotes em prioridade na fila" removido a pedido do Bruno (29/05/2026) */}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', outline: 'none' }} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <select style={selectStyle} value={periodo} onChange={e => setPeriodo(e.target.value)}>
           <option value="hoje">Hoje</option>
           <option value="semana">Esta semana</option>
           <option value="mes">Este mês</option>
+          <option value="personalizado">Personalizado</option>
           <option value="total">Todo período</option>
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', outline: 'none' }} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
+        {periodo === 'personalizado' && (
+          <>
+            <input type="date" value={dataDe} max={dataAte || undefined} onChange={e => setDataDe(e.target.value)} title="Data inicial" style={selectStyle} />
+            <input type="date" value={dataAte} min={dataDe || undefined} onChange={e => setDataAte(e.target.value)} title="Data final" style={selectStyle} />
+          </>
+        )}
+        <select style={selectStyle} value={filtroProd} onChange={e => setFiltroProd(e.target.value)}>
           <option value="">Todos os vendedores B2C</option>
           {produtores.map(p => <option key={p.id} value={p.id}>{p.nome}{p.id === IA_ID ? ' 🤖' : ''}</option>)}
         </select>
-        <select style={{ padding: '8px 10px', fontSize: 13, border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 8, background: '#ffffff', outline: 'none' }} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
+        <select style={selectStyle} value={filtroProduto} onChange={e => setFiltroProduto(e.target.value)}>
           <option value="">Todos os produtos</option>
           {produtosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select style={selectStyle} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          <option value="assinado">Assinado</option>
+          <option value="enviado">Aguardando assinatura</option>
+          <option value="expirado">Expirados</option>
+          <option value="barrado_pos_venda">Barrados pós-venda</option>
         </select>
       </div>
 
@@ -375,6 +407,7 @@ export default function SupervisorProducao() {
             ['Assinados', assinados, '#059669'],
             ['Aguardando assinatura', pendentes, '#b45309'],
             ['Expirados', expirados, '#dc2626'],
+            ['Barrados pós-venda', barradosPosVenda, '#ef4444'],
           ].map(([l, v, c]) => {
             const pct = enviados > 0 ? Math.round((v/enviados)*100) : 0
             return (
@@ -416,6 +449,9 @@ export default function SupervisorProducao() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>
                   {c.cliente_nome}
+                  {cli?.status === 'barrado_pos_venda' && (
+                    <span style={{ fontSize: 11, color: '#dc2626', marginLeft: 8 }}>💔 Barrado pós-venda</span>
+                  )}
                   {cli && <span style={{ fontSize: 11, color: '#2563eb', marginLeft: 8 }}>✏️ clicar para editar</span>}
                 </div>
                 <div style={{ fontSize: 11, color: '#5b6b84' }}>
