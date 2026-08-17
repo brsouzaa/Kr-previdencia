@@ -763,7 +763,9 @@ export default function RevisaoIABolsaFamilia() {
           <option value="respondido">✅ Já respondido</option>
           <option value="sem">⚠️ Sem resposta</option>
         </select>
-        <span style={s.kpi}>Total no funil: <strong>{board.length}</strong></span>
+        <span style={s.kpi}>No funil: <strong>{board.length - noWhats.length}</strong></span>
+        <span style={s.kpi}>📲 Whats do time: <strong>{noWhats.length}</strong></span>
+        <span style={s.kpi}>Total que entrou: <strong>{board.length}</strong></span>
         <span style={s.kpi}>Concluídos: <strong>{board.filter(c => c.sub_estado === 'BF_CONCLUIDO').length}</strong></span>
         {ehSupervisor && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
         {ehSupervisor && (
@@ -821,6 +823,40 @@ export default function RevisaoIABolsaFamilia() {
         <PainelCockpit board={board} vendas={vendasMinhas} fila={fila}
           verFilaDe={(agId) => { setFiltroAgente(agId); setVista('fila') }}
           abrirCard={abrirCard} linkChatwoot={linkChatwoot} />
+      )}
+
+      {ehSupervisor && vAtiva === 'funil' && confAberta && conferencia && (
+        <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+            🔍 Conferência do período — landing {conferencia.landing} · no funil {conferencia.no_funil} · 📲 whats {conferencia.whats_do_time}
+            {Number(conferencia.sem_conversa_chatwoot || 0) > 0 && <span style={{ color: '#dc2626' }}> · ⚠ {conferencia.sem_conversa_chatwoot} lead(s) SEM conversa no Chatwoot</span>}
+          </div>
+          <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 8 }}>
+            Fora do funil: {Object.entries(conferencia.resumo_fora || {}).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ') || 'nada — tudo dentro'}
+          </div>
+          {(conferencia.fora_lista || []).length > 0 && (
+            <div style={{ maxHeight: 220, overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', color: '#5b6b84' }}>Telefone</th>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', color: '#5b6b84' }}>Nome</th>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', color: '#5b6b84' }}>Motivo de estar fora</th>
+                </tr></thead>
+                <tbody>
+                  {(conferencia.fora_lista || []).map((x, i) => (
+                    <tr key={i} style={{ borderTop: '0.5px solid rgba(15,23,42,0.06)' }}>
+                      <td style={{ padding: '4px 8px', color: '#0f172a' }}>{x.tel}</td>
+                      <td style={{ padding: '4px 8px', color: '#0f172a' }}>{x.nome}</td>
+                      <td style={{ padding: '4px 8px', color: (x.motivo || '').startsWith('consulta_') ? '#dc2626' : x.motivo === 'nao_abriu_whats' ? '#b45309' : '#5b6b84' }}>
+                        {(x.motivo || '').replace(/_/g, ' ')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {vAtiva === 'funil' && (
