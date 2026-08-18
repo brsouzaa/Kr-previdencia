@@ -315,6 +315,10 @@ export default function RevisaoIABolsaFamilia() {
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
 
+  // 🔍 Conferência landing → whats → funil (só supervisão)
+  const [conferencia, setConferencia] = useState(null)
+  const [confAberta, setConfAberta] = useState(false)
+
   const carregar = useCallback(async () => {
     if (!profile?.id) return
     const p_agente = ehSupervisor ? (filtroAgente || null) : profile.id
@@ -341,6 +345,14 @@ export default function RevisaoIABolsaFamilia() {
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
       (!meuTime || meuTime.includes(l.bf_agente_id)))
     setBoard(rows)
+    if (ehSupervisor) {
+      const de = fe.de || new Date(new Date().setHours(0, 0, 0, 0))
+      const { data: conf } = await supabase.rpc('bf_conferencia', {
+        p_de: de.toISOString(),
+        p_ate: fe.ate ? fe.ate.toISOString() : null,
+      })
+      setConferencia(conf || null)
+    }
   }, [profile, ehSupervisor, minhaOp, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
@@ -766,6 +778,16 @@ export default function RevisaoIABolsaFamilia() {
         <span style={s.kpi}>No funil: <strong>{board.length - noWhats.length}</strong></span>
         <span style={s.kpi}>📲 Whats do time: <strong>{noWhats.length}</strong></span>
         <span style={s.kpi}>Total que entrou: <strong>{board.length}</strong></span>
+        {ehSupervisor && conferencia && (
+          <button
+            style={{ ...s.chip, cursor: 'pointer', fontWeight: 700,
+              background: Number(conferencia.sem_conversa_chatwoot || 0) > 0 ? 'rgba(248,113,113,.14)' : 'rgba(52,211,153,.14)',
+              color: Number(conferencia.sem_conversa_chatwoot || 0) > 0 ? '#dc2626' : '#059669' }}
+            onClick={() => setConfAberta(v => !v)}
+            title="Conferência landing → WhatsApp → funil no período de entrada selecionado">
+            🔍 Landing {conferencia.landing} → funil {conferencia.no_funil} + whats {conferencia.whats_do_time} {confAberta ? '▴' : '▾'}
+          </button>
+        )}
         <span style={s.kpi}>Concluídos: <strong>{board.filter(c => c.sub_estado === 'BF_CONCLUIDO').length}</strong></span>
         {ehSupervisor && <span style={s.kpi}>⚪ Sem ninguém: <strong>{semDono}</strong></span>}
         {ehSupervisor && (
