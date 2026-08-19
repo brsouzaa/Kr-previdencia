@@ -112,6 +112,7 @@ const NAV_COORDENADOR_B2C = [
 ]
 const NAV_ADMIN = [
   { key: 'dashboard', label: '📊 Dashboard' },
+  { key: 'novo_cliente', label: '➕ Novo cliente (digitar)' },
   { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
   { key: 'metas_financeiras', label: '🥅 Metas & Saúde' },
   { key: 'despesas', label: '📋 Despesas & Custos' },
