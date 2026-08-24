@@ -164,7 +164,7 @@ function paginaPermitida(profile, page) {
   if (role === 'produtor') return ['contratos'].includes(page)
   if (role === 'financeiro') return ['financeiro','despesas','recebimentos'].includes(page)
   if (role === 'rh') return ['financeiro'].includes(page)
-  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes'].includes(page)
+  if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes','novo_cliente'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
   if (role === 'analista') return ['dashboard','painel_financeiro','metas_financeiras','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
