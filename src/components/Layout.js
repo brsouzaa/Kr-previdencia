@@ -38,6 +38,7 @@ const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
 ]
 const NAV_SUPERVISOR_PRODUCAO = [
+  { key: 'novo_cliente', label: '➕ Novo cliente (Mãe)' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'ranking', label: '🏆 Ranking vendedoras' },
