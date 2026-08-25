@@ -36,9 +36,10 @@ const SUPERVISORAS_TIME = {
 
 const COLUNAS = [
   ['PEDIU_CNIS', '📄 Pediu CNIS'],
+  ['PEDIU_CNIS_OK', '✅ Passou PromoBank'],
   ['FILA_GERID', '🗂️ Fila GERID'],
-  ['A_ANALISAR', '🔍 A analisar'],
-  ['PITCH_LIBERADO', '🚀 Pitch liberado'],
+  ['A_ANALISAR', '⚖️ Com a advogada'],
+  ['PITCH_LIBERADO', '🚀 Pré-aprovado real'],
   ['CAD_ENDERECO', '📍 Endereço'],
   ['CAD_RG', '🪪 RG frente/verso'],
   ['CAD_COMPROVANTE', '📜 Doc. do filho'],
@@ -50,9 +51,9 @@ const COLUNAS = [
   ['OUTROS', '❓ Outros'],
 ]
 
-// Visão da VENDEDORA (não-admin): só CNIS enviado em diante + pré-aprovado da máquina.
-// Em "A analisar" ela vê SÓ os vermelhos (quem travou e precisa de ajuda).
-const COLUNAS_VENDEDOR = ['A_ANALISAR', 'PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
+// Visão da VENDEDORA (não-admin): 25/08 — a análise saiu da mão dela e virou a Mesa da Advogada.
+// Ela só recebe PRÉ-APROVADO REAL (cnis_aprovado=true, decidido pela advogada) em diante.
+const COLUNAS_VENDEDOR = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
 // Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
 // sem virar supervisora do resto (selos, filtros e nomes continuam de vendedora)
@@ -151,7 +152,21 @@ const s = {
   btnVoltar: { flex: 1, padding: 12, background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnFechar: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
   btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  confWrap: { marginBottom: 12 },
+  confBtn: { padding: '8px 14px', background: '#ffffff', color: '#0f172a', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  confBox: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 11, maxWidth: 560 },
+  confVazio: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 11, fontSize: 13, color: '#5b6b84', maxWidth: 560 },
+  confLinha: (g) => ({
+    display: 'flex', justifyContent: 'space-between', gap: 12,
+    padding: '6px 8px', borderRadius: 7, marginBottom: 2, fontSize: 13,
+    background: g === 'FURO' ? 'rgba(248,113,113,.12)' : g === 'ADVOGADA' ? 'rgba(52,211,153,.10)' : g === 'ENTRADA' ? '#f2f5fa' : 'transparent',
+    color: g === 'FURO' ? '#b91c1c' : '#0f172a',
+    fontWeight: g === 'ENTRADA' || g === 'FURO' ? 700 : 500,
+  }),
+  confNota: { marginTop: 8, fontSize: 11.5, color: '#5b6b84', lineHeight: 1.45 },
   seloMaquina: { marginTop: 6, display: 'inline-block', padding: '2px 8px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(96,165,250,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600 },
+  seloAdvogada: { marginTop: 6, display: 'block', padding: '3px 8px', background: 'rgba(52,211,153,.14)', color: '#065f46', border: '0.5px solid rgba(5,150,105,.25)', borderRadius: 7, fontSize: 11, fontWeight: 600, lineHeight: 1.35 },
+  seloSeguro: { marginTop: 4, display: 'block', padding: '3px 8px', background: 'rgba(251,191,36,.16)', color: '#92400e', border: '0.5px solid rgba(180,83,9,.28)', borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 },
   painelMotivos: { marginTop: 8, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
@@ -185,6 +200,20 @@ export default function RevisaoIARetroativo() {
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [confAberta, setConfAberta] = useState(false)
+  const [conferencia, setConferencia] = useState(null)
+  const [confCarregando, setConfCarregando] = useState(false)
+
+  const abrirConferencia = async () => {
+    const abrir = !confAberta
+    setConfAberta(abrir)
+    if (!abrir) return
+    setConfCarregando(true)
+    const r = await supabase.rpc('retroativo_conferencia', { p_de: null, p_ate: null })
+    if (r.error) console.error(r.error)
+    setConferencia(r.data || [])
+    setConfCarregando(false)
+  }
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
@@ -401,6 +430,32 @@ export default function RevisaoIARetroativo() {
         <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
       </div>
 
+      {ehAdmin && (
+        <div style={s.confWrap}>
+          <button style={s.confBtn} onClick={abrirConferencia}>
+            {confAberta ? '▾' : '▸'} 🔍 Conferência do funil — o que passou no PromoBank e o que falta
+          </button>
+          {confAberta && (
+            confCarregando ? (
+              <div style={s.confVazio}>Carregando…</div>
+            ) : (
+              <div style={s.confBox}>
+                {(conferencia || []).map(l => (
+                  <div key={l.ordem} style={s.confLinha(l.grupo)}>
+                    <span>{l.etapa}</span>
+                    <b>{l.qtd}</b>
+                  </div>
+                ))}
+                <div style={s.confNota}>
+                  A cliente só chega na advogada depois de passar no PromoBank.
+                  Se a linha do <b>furo</b> for maior que zero, tem gente com CPF que o robô deixou pra trás.
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+
       <div style={s.board}>
         {colunasVisiveis.map(([col, titulo]) => {
           const cards = cardsDe(col)
@@ -420,6 +475,12 @@ export default function RevisaoIARetroativo() {
                   <div style={s.cardNome}>{l.nome || 'Sem nome'}</div>
                   {l.coluna === 'PITCH_LIBERADO' && l.cnis_aprovado !== 'true' && (
                     <div style={s.seloMaquina}>🤖 pré-aprovada máquina</div>
+                  )}
+                  {l.coluna === 'PITCH_LIBERADO' && l.cnis_aprovado === 'true' && l.advogada_motivo && (
+                    <div style={s.seloAdvogada}>⚖️ {l.advogada_motivo}</div>
+                  )}
+                  {l.coluna === 'PITCH_LIBERADO' && (l.advogada_motivo || '').indexOf('seguro-desemprego') >= 0 && (
+                    <div style={s.seloSeguro}>⚠️ perguntar do seguro-desemprego</div>
                   )}
                   <div style={s.cardMeta}>
                     {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
