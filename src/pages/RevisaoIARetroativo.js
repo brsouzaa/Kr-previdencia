@@ -53,6 +53,14 @@ const COLUNAS = [
 // Ela só recebe PRÉ-APROVADO REAL (cnis_aprovado=true, decidido pela advogada) em diante.
 const COLUNAS_VENDEDOR = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
+// Vendedoras do Retroativo: alem de so verem PRE-APROVADO REAL em diante,
+// cada uma ve SO OS LEADS DELA (bf_agente_id = ela). A advogada entrega por rodizio.
+const IDS_VENDEDORAS_RETROATIVO = [
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda
+]
+
 // Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
 // sem virar supervisora do resto (selos, filtros e nomes continuam de vendedora)
 const IDS_VE_TODAS_COLUNAS = [
@@ -181,6 +189,8 @@ export default function RevisaoIARetroativo() {
   const ehVendedor = !ehSupervisor
   // visão completa das colunas (não muda selos/filtros/nomes, só as colunas visíveis)
   const veTodasColunas = ehSupervisor || IDS_VE_TODAS_COLUNAS.includes(profile?.id)
+  // vendedora do retroativo so enxerga a carteira dela
+  const soMeusLeads = IDS_VENDEDORAS_RETROATIVO.includes(profile?.id)
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -232,8 +242,9 @@ export default function RevisaoIARetroativo() {
     // Operação licenciada só enxerga os leads da própria operação
     setBoard((data || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
-      (!meuTime || meuTime.includes(l.bf_agente_id))))
-  }, [profile?.id, ehAdmin, minhaOp, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
+      (!meuTime || meuTime.includes(l.bf_agente_id)) &&
+      (!soMeusLeads || l.bf_agente_id === profile?.id)))
+  }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => {
     carregar()
