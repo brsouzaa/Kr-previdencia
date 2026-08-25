@@ -14,13 +14,14 @@ const linkChat = (c) => c && c.chatwoot_conversation_id
   : null
 
 const FILAS = {
+  RATIFICAR:      { label: '🔁 Aprovada sem você — ratificar', cor: '#b45309', bg: 'rgba(251,191,36,.16)' },
   PRE_APROVADO:   { label: '🔥 Pré-aprovada pela máquina', cor: '#059669', bg: 'rgba(52,211,153,.14)' },
   CNIS_RECEBIDO:  { label: '📄 CNIS recebido', cor: '#2563eb', bg: 'rgba(96,165,250,.12)' },
   GERID:          { label: '🗂️ Fila GERID', cor: '#7c3aed', bg: 'rgba(167,139,250,.14)' },
   PEDIU_HUMANO:   { label: '🙋 Pediu humano', cor: '#b45309', bg: 'rgba(251,191,36,.12)' },
   SEM_CNIS_20MIN: { label: '⏰ Sem CNIS há 20min+', cor: '#5b6b84', bg: 'rgba(15,23,42,.04)' },
 }
-const ORDEM_FILAS = ['PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', 'SEM_CNIS_20MIN']
+const ORDEM_FILAS = ['RATIFICAR', 'PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', 'SEM_CNIS_20MIN']
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -141,7 +142,7 @@ export default function MesaAdvogada() {
         <div style={s.vazio}>✅ Nenhuma análise pendente. Fila limpa.</div>
       ) : visiveis.map(c => {
         const f = FILAS[c.fila] || FILAS.SEM_CNIS_20MIN
-        const ehPre = c.fila === 'PRE_APROVADO'
+        const ehPre = c.fila === 'PRE_APROVADO' || c.fila === 'RATIFICAR'
         const aberto = abrindo && abrindo.id === c.id
         const href = linkChat(c)
         return (
