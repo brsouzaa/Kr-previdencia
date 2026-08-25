@@ -35,8 +35,10 @@ const SUPERVISORAS_TIME = {
 }
 
 const COLUNAS = [
-  ['PEDIU_CNIS', '📄 Pediu CNIS'],
-  ['PEDIU_CNIS_OK', '✅ Passou PromoBank'],
+  // Ordem = ordem real do fluxo. O PromoBank vem ANTES do CNIS: so quem qualifica
+  // deveria receber o passo-a-passo do Meu INSS.
+  ['PEDIU_CNIS', '⏳ Aguardando PromoBank'],
+  ['PEDIU_CNIS_OK', '✅ Passou PromoBank — pediu CNIS'],
   ['FILA_GERID', '🗂️ Fila GERID'],
   ['A_ANALISAR', '⚖️ Com a advogada'],
   ['PITCH_LIBERADO', '🚀 Pré-aprovado real'],
