@@ -50,6 +50,14 @@ import ConfereCNIS from './pages/ConfereCNIS'
 import PainelDigitador from './pages/PainelDigitador'
 import Clientes from './pages/Clientes'
 import CentralRetorno from './pages/CentralRetorno'
+import MesaAdvogada from './pages/MesaAdvogada'
+
+// Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
+const IDS_VENDAS_RETROATIVO = [
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda
+]
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
@@ -124,6 +132,7 @@ function paginaInicial(role) {
   if (role === 'pos_venda') return 'pos_venda'
   if (role === 'simulador_emprestimo') return 'simulacao_emprestimo'
   if (role === 'agente_bf') return 'revisao_ia_bf'
+  if (role === 'advogada') return 'mesa_advogada'
   return 'dashboard'
 }
 
@@ -138,6 +147,10 @@ const IDS_TIME_MARYANA = [
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Advogada (Maithe): mesa dela e mais nada do sistema
+  if (role === 'advogada') return page === 'mesa_advogada'
+  // Vendedoras do retroativo: board do Retroativo ALEM do que ja tem hoje
+  if (IDS_VENDAS_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
@@ -253,6 +266,7 @@ function AppInner() {
     revisao_ia_gestante: <RevisaoIAGestante />,
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
+    mesa_advogada: <MesaAdvogada />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
