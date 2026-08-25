@@ -158,6 +158,12 @@ const s = {
   btnVoltar: { flex: 1, padding: 12, background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnFechar: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
   btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  btnFechou: { padding: '10px 16px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  fechLinha: (r) => ({
+    padding: '8px 10px', borderRadius: 8, marginBottom: 6, fontSize: 13,
+    background: r === 'FECHOU' ? 'rgba(52,211,153,.12)' : r === 'NEGOU' ? 'rgba(248,113,113,.10)' : 'rgba(251,191,36,.14)',
+    border: '0.5px solid rgba(15,23,42,0.07)',
+  }),
   confWrap: { marginBottom: 12 },
   confBtn: { padding: '8px 14px', background: '#ffffff', color: '#0f172a', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
   confBox: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 11, maxWidth: 560 },
@@ -208,6 +214,9 @@ export default function RevisaoIARetroativo() {
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [fechAberto, setFechAberto] = useState(false)
+  const [fechamento, setFechamento] = useState(null)
+  const [fechCarregando, setFechCarregando] = useState(false)
   const [confAberta, setConfAberta] = useState(false)
   const [conferencia, setConferencia] = useState(null)
   const [confCarregando, setConfCarregando] = useState(false)
@@ -367,6 +376,24 @@ export default function RevisaoIARetroativo() {
     } finally { setEnviando(false) }
   }
 
+  const fecharVenda = async (id) => {
+    if (!window.confirm('Marcar essa cliente como VENDA FECHADA?')) return
+    const r = await supabase.rpc('mae_vendedora_fechou', { p_lead_id: id, p_vendedora: profile?.id })
+    if (r.error || !r.data?.ok) { alert('Não deu: ' + (r.error?.message || r.data?.erro || 'erro')); return }
+    fechar(); carregar()
+  }
+
+  const abrirFechamento = async () => {
+    const abrir = !fechAberto
+    setFechAberto(abrir)
+    if (!abrir) return
+    setFechCarregando(true)
+    const r = await supabase.rpc('retroativo_fechamento_dia', { p_dia: null })
+    if (r.error) console.error(r.error)
+    setFechamento(r.data || [])
+    setFechCarregando(false)
+  }
+
   const negarLead = async (id, motivo) => {
     const { data, error } = await supabase.rpc('mae_negar', { p_lead_id: id, p_agente_id: profile?.id, p_motivo: motivo })
     if (error || !data?.ok) { alert('Erro ao negar: ' + (error?.message || data?.erro || 'erro')); return }
@@ -464,6 +491,35 @@ export default function RevisaoIARetroativo() {
           )}
         </div>
       )}
+
+      <div style={s.confWrap}>
+        <button style={s.confBtn} onClick={abrirFechamento}>
+          {fechAberto ? '▾' : '▸'} 📒 Fechamento do dia — fechou / negou / sem resposta
+        </button>
+        {fechAberto && (
+          fechCarregando ? (
+            <div style={s.confVazio}>Carregando…</div>
+          ) : !(fechamento || []).length ? (
+            <div style={s.confVazio}>Nada registrado hoje ainda.</div>
+          ) : (
+            <div style={{ ...s.confBox, maxWidth: 780 }}>
+              {(fechamento || []).map((f, i) => (
+                <div key={i} style={s.fechLinha(f.resultado)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                    <span><b>{f.vendedora}</b> · {f.resultado === 'FECHOU' ? '✅' : f.resultado === 'NEGOU' ? '❌' : '🔁'} {f.resultado}</span>
+                    <b>{f.qtd}</b>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 2 }}>{f.motivo}</div>
+                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 3 }}>{f.nomes}</div>
+                </div>
+              ))}
+              <div style={s.confNota}>
+                🔁 <b>Sem resposta</b> sai separado de propósito: é a lista de retrabalho.
+              </div>
+            </div>
+          )
+        )}
+      </div>
 
       <div style={s.board}>
         {colunasVisiveis.map(([col, titulo]) => {
@@ -574,6 +630,15 @@ export default function RevisaoIARetroativo() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: 'rgba(251,191,36,.12)', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
               )}
             </div>
+
+            {lead.cnis_aprovado === 'true' && (
+              <div style={{ marginBottom: 10 }}>
+                <button style={s.btnFechou} onClick={() => fecharVenda(lead.id)}>✅ Fechei a venda</button>
+                <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
+                  Use também quando fechar pelo WhatsApp — é assim que entra no seu fechamento do dia.
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: 10 }}>
               <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Negar / Não quis</button>
