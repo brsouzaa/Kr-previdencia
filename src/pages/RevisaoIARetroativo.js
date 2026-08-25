@@ -24,15 +24,11 @@ const SUPERVISORAS_OPERACAO = [
   'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (Leandro)
 ]
 
-// Supervisoras de TIME interno (KR): veem o board filtrado pelos leads das PROPRIAS vendedoras
-const SUPERVISORAS_TIME = {
-  'be98f268-314f-4114-acc3-7bb9ce7635fd': [ // Maryana Kodos -> time dela
-    '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
-    'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
-    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
-    'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
-  ],
-}
+// Supervisoras de TIME interno (KR): veem o board filtrado pelos leads das PROPRIAS vendedoras.
+// 25/08 (Bruno): Maryana Kodos SAIU daqui. No retroativo ela e vendedora, nao supervisora —
+// tem que ver so o que a advogada liberou, igual Sthefany e Eduarda. Estar nesta lista
+// ligava ehSupervisor -> veTodasColunas e ela enxergava o funil inteiro.
+const SUPERVISORAS_TIME = {}
 
 const COLUNAS = [
   // Ordem = ordem real do fluxo. O PromoBank vem ANTES do CNIS: so quem qualifica
