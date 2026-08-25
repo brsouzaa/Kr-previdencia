@@ -84,6 +84,9 @@ const NAV_AGENTE_BF = [
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
 ]
+const NAV_ADVOGADA = [
+  { key: 'mesa_advogada', label: '⚖️ Mesa da Advogada' },
+]
 const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
@@ -125,6 +128,7 @@ const NAV_ADMIN = [
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
   { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' },
   { key: 'revisao_ia_clt', label: '💼 Revisão IA CLT' },
+  { key: 'mesa_advogada', label: '⚖️ Mesa da Advogada' },
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
   { key: 'central_retorno', label: '📣 Central de Retorno' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
@@ -149,6 +153,7 @@ const GRUPO_DE = {
   compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
+  mesa_advogada: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -229,6 +234,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'pos_venda' ? NAV_POS_VENDA
     : profile?.role === 'simulador_emprestimo' ? NAV_SIMULADOR_EMPRESTIMO
     : profile?.role === 'agente_bf' ? NAV_AGENTE_BF
+    : profile?.role === 'advogada' ? NAV_ADVOGADA
     : NAV_VENDEDOR
 
   // Coordenadora de autônomos não vê itens marcados como soCaptacao
@@ -324,6 +330,17 @@ export default function Layout({ children, page, setPage }) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
   }
 
+  // Vendedoras do Retroativo (Maryana, Sthefany, Eduarda): board do Retroativo no menu,
+  // sem tirar nada do que elas ja tinham. La elas so enxergam pre-aprovado real pra frente.
+  const IDS_VENDAS_RETROATIVO = [
+    'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+    '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda
+  ]
+  if (IDS_VENDAS_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
+    nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
+  }
+
   // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana)
   if (IDS_ACESSO_CLIENTES.includes(profile?.id) && !nav.some(n => n.key === 'clientes')) {
     nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
@@ -355,6 +372,7 @@ export default function Layout({ children, page, setPage }) {
     : profile?.role === 'rh' ? 'RH'
     : profile?.role === 'vendedor_operador' ? 'Vendedor Operador'
     : profile?.role === 'agente_bf' ? 'Agente Bolsa Família'
+    : profile?.role === 'advogada' ? 'Advogada'
     : 'Vendedor'
 
   // organiza em grupos (mantendo a ordem interna original de cada grupo)
