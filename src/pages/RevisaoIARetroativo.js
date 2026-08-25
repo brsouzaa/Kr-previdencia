@@ -58,14 +58,14 @@ const COLUNAS_VENDEDOR = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPR
 const IDS_VENDEDORAS_RETROATIVO = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
-  '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda (supervisoraeduarda25) — a que ja atuava no setor
 ]
 
 // Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
 // sem virar supervisora do resto (selos, filtros e nomes continuam de vendedora)
-const IDS_VE_TODAS_COLUNAS = [
-  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Supervisora Duda
-]
+// 25/08: a Duda saiu daqui — virou vendedora do retroativo, com carteira propria.
+// Se alguem precisar do funil inteiro sem ser admin, e aqui que entra.
+const IDS_VE_TODAS_COLUNAS = []
 
 // Motivos pra negar / não quis (perda comercial — NÃO mexe no cnis_aprovado, protege a auditoria)
 const MOTIVOS_NEGAR = [
