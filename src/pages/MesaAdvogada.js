@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -54,6 +54,15 @@ const s = {
   nome: { fontSize: 15, fontWeight: 600, color: '#0f172a' },
   dado: { fontSize: 12, color: '#5b6b84', marginTop: 3 },
   badge: (cor, bg) => ({ padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color: cor, whiteSpace: 'nowrap' }),
+  barraLote: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 },
+  btnLote: { padding: '9px 14px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  loteDica: { fontSize: 12, color: '#5b6b84' },
+  gerid: { marginTop: 10, padding: 10, borderRadius: 9, background: '#f2f5fa', border: '0.5px solid rgba(15,23,42,0.08)' },
+  geridTit: { fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#5b6b84', marginBottom: 7 },
+  geridLinha: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' },
+  btnCopia: (off) => ({ padding: '5px 10px', background: off ? '#e2e8f0' : '#ffffff', color: off ? '#94a3b8' : '#2563eb', border: '0.5px solid rgba(15,23,42,0.14)', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: off ? 'not-allowed' : 'pointer', fontFamily: 'inherit', minWidth: 78 }),
+  valor: { fontSize: 14, fontWeight: 600, color: '#0f172a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '0.3px' },
+  alertaMini: { fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'rgba(251,191,36,.18)', borderRadius: 6, padding: '2px 7px' },
   maquina: { marginTop: 10, padding: 10, borderRadius: 9, background: '#f2f5fa', fontSize: 12, color: '#334155', lineHeight: 1.45 },
   acoes: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   btnOk: { padding: '10px 16px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
@@ -67,16 +76,51 @@ const s = {
   }),
   input: { width: '100%', padding: '9px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.12)', marginBottom: 6, boxSizing: 'border-box', fontFamily: 'inherit' },
   vazio: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14, background: '#ffffff', borderRadius: 13, border: '0.5px solid rgba(15,23,42,0.08)' },
+  // --- print do GERID (26/08) ---
+  colaArea: (temPrint) => ({
+    marginBottom: 10, padding: 12, borderRadius: 9, textAlign: 'center', cursor: 'pointer',
+    background: temPrint ? 'rgba(52,211,153,.14)' : '#ffffff',
+    border: temPrint ? '1px solid #05966950' : '1.5px dashed #b4530970',
+  }),
+  colaTit: (temPrint) => ({ fontSize: 12.5, fontWeight: 700, color: temPrint ? '#059669' : '#b45309' }),
+  colaDica: { fontSize: 11, color: '#5b6b84', marginTop: 4, lineHeight: 1.45 },
+  previewWrap: { marginTop: 8, position: 'relative' },
+  preview: { maxWidth: '100%', maxHeight: 220, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.14)', display: 'block', margin: '0 auto' },
+  btnTiraPrint: { marginTop: 6, padding: '5px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid #dc262640', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+}
+
+// Bucket ja usado pelos outros anexos do sistema.
+const BUCKET_PRINT = 'documentos-clientes'
+
+// Copiar sem depender de clipboard API (que falha em http e em alguns navegadores)
+function copiar(texto) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(texto); return true }
+  } catch (e) { /* cai no fallback */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = texto
+    ta.style.position = 'fixed'; ta.style.left = '-9999px'
+    document.body.appendChild(ta); ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    return true
+  } catch (e) { return false }
 }
 
 export default function MesaAdvogada() {
   const { profile } = useAuth()
+  const [copiado, setCopiado] = useState('')
   const [fila, setFila] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
+  // Print do GERID — obrigatorio SO na pre-aprovacao. Negar nao precisa.
+  const [print, setPrint] = useState(null)          // { file, preview }
+  const [subindoPrint, setSubindoPrint] = useState(false)
+  const fileRef = useRef(null)
 
   const carregar = useCallback(async () => {
     const r = await supabase.rpc('mesa_advogada', { p_limite: 300 })
@@ -91,19 +135,94 @@ export default function MesaAdvogada() {
     return () => clearInterval(t)
   }, [carregar])
 
+  // Aceita imagem vinda do Ctrl+V, do seletor de arquivo ou de arrastar-e-soltar.
+  const pegarImagem = (file) => {
+    if (!file || !/^image\//.test(file.type)) return false
+    if (file.size > 10 * 1024 * 1024) { alert('Print muito grande (máx 10MB).'); return false }
+    setPrint({ file, preview: URL.createObjectURL(file) })
+    return true
+  }
+
+  // Ctrl+V em qualquer lugar da tela, enquanto o painel de PRÉ-APROVAÇÃO está aberto.
+  useEffect(() => {
+    if (!abrindo || abrindo.tipo !== 'ok') return
+    const aoColar = (e) => {
+      const itens = (e.clipboardData && e.clipboardData.items) || []
+      for (let i = 0; i < itens.length; i++) {
+        if (itens[i].kind === 'file' && /^image\//.test(itens[i].type)) {
+          const f = itens[i].getAsFile()
+          if (f && pegarImagem(f)) e.preventDefault()
+          return
+        }
+      }
+    }
+    window.addEventListener('paste', aoColar)
+    return () => window.removeEventListener('paste', aoColar)
+  }, [abrindo])
+
+  const limparPrint = () => {
+    if (print && print.preview) { try { URL.revokeObjectURL(print.preview) } catch (e) {} }
+    setPrint(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const fecharPainel = () => { setAbrindo(null); setOutroTexto(''); limparPrint() }
+
   const decidir = async (lead, aprovado, motivo) => {
     if (!motivo || !motivo.trim()) { alert('Escolha o motivo.'); return }
+    // Regra 26/08: pré-aprovar exige o print do GERID. Negar não exige.
+    if (aprovado && !print) { alert('Cole (Ctrl+V) ou anexe o print do GERID antes de pré-aprovar.'); return }
+
     setSalvando(true)
+    let urlPrint = null
+    if (aprovado && print) {
+      setSubindoPrint(true)
+      const ext = (print.file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+      const caminho = 'gerid/' + lead.id + '_' + Date.now() + '.' + ext
+      const up = await supabase.storage.from(BUCKET_PRINT)
+        .upload(caminho, print.file, { upsert: true, contentType: print.file.type })
+      setSubindoPrint(false)
+      if (up.error) {
+        setSalvando(false)
+        alert('Não consegui subir o print: ' + up.error.message)
+        return
+      }
+      const pub = supabase.storage.from(BUCKET_PRINT).getPublicUrl(caminho)
+      urlPrint = pub && pub.data && pub.data.publicUrl
+      if (!urlPrint) {
+        setSalvando(false)
+        alert('O print subiu mas não consegui o link. Tenta de novo.')
+        return
+      }
+    }
+
     const r = await supabase.rpc('advogada_decidir', {
-      p_lead_id: lead.id, p_aprovado: aprovado, p_motivo: motivo.trim(), p_advogada: (profile && profile.id) || null,
+      p_lead_id: lead.id, p_aprovado: aprovado, p_motivo: motivo.trim(),
+      p_advogada: (profile && profile.id) || null,
+      p_print_url: urlPrint,
     })
     setSalvando(false)
     if (r.error || !r.data || r.data.ok !== true) {
       alert('Erro: ' + ((r.error && r.error.message) || (r.data && r.data.erro) || 'tente de novo'))
       return
     }
-    setAbrindo(null); setOutroTexto('')
+    fecharPainel()
     setFila(f => f.filter(x => x.id !== lead.id))   // sai da fila na hora
+  }
+
+  const copiarCom = (chave, texto) => {
+    if (!texto) return
+    copiar(texto)
+    setCopiado(chave)
+    setTimeout(() => setCopiado(c => (c === chave ? '' : c)), 1400)
+  }
+
+  const copiarLote = (lista) => {
+    const linhas = lista
+      .filter(c => c.cpf_ok)
+      .map(c => `${c.cpf_limpo}\t${c.nasc_br || 'sem data'}\t${c.nome || ''}`)
+    if (!linhas.length) { alert('Nenhum CPF válido nessa fila.'); return }
+    copiarCom('lote', 'CPF\tNascimento\tNome\n' + linhas.join('\n'))
   }
 
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
@@ -135,6 +254,15 @@ export default function MesaAdvogada() {
         ))}
       </div>
 
+      {!loading && visiveis.length > 0 && (
+        <div style={s.barraLote}>
+          <button style={s.btnLote} onClick={() => copiarLote(visiveis)}>
+            {copiado === 'lote' ? '✅ copiado!' : `📋 Copiar CPF + nascimento dos ${visiveis.length} (colar no Excel)`}
+          </button>
+          <span style={s.loteDica}>vem em 3 colunas: CPF · nascimento · nome</span>
+        </div>
+      )}
+
       {loading ? (
         <div style={s.vazio}>Carregando…</div>
       ) : visiveis.length === 0 ? (
@@ -149,10 +277,30 @@ export default function MesaAdvogada() {
             <div style={s.linha}>
               <div>
                 <div style={s.nome}>{c.nome || 'Cliente +Mais Mãe'}</div>
-                <div style={s.dado}>
-                  CPF {c.cpf || '—'} · nascimento do filho {c.data_nascimento_filho || '—'} · {c.tel || 'sem telefone'}
+                <div style={s.dado}>{c.tel || 'sem telefone'} · parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}</div>
+
+                <div style={s.gerid}>
+                  <div style={s.geridTit}>Pra consultar no GERID</div>
+                  <div style={s.geridLinha}>
+                    <button style={s.btnCopia(!c.cpf_ok)} disabled={!c.cpf_ok}
+                      onClick={() => copiarCom('cpf' + c.id, c.cpf_limpo)}>
+                      {copiado === 'cpf' + c.id ? '✅ copiado' : '📋 CPF'}
+                    </button>
+                    <span style={s.valor}>{c.cpf || '— sem CPF —'}</span>
+                    {!c.cpf_ok && <span style={s.alertaMini}>CPF inválido</span>}
+                  </div>
+                  <div style={s.geridLinha}>
+                    <button style={s.btnCopia(!c.nasc_br)} disabled={!c.nasc_br}
+                      onClick={() => copiarCom('dt' + c.id, c.nasc_br)}>
+                      {copiado === 'dt' + c.id ? '✅ copiado' : '📋 Nasc.'}
+                    </button>
+                    <span style={s.valor}>{c.nasc_br || '— sem data —'}</span>
+                    {c.nasc_precisao === 'so mes/ano' && (
+                      <span style={s.alertaMini}>a cliente só deu mês/ano — dia é chute</span>
+                    )}
+                    {c.nasc_precisao === 'sem data' && <span style={s.alertaMini}>pedir a data</span>}
+                  </div>
                 </div>
-                <div style={s.dado}>parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}</div>
               </div>
               <span style={s.badge(f.cor, f.bg)}>{f.label}</span>
             </div>
@@ -166,10 +314,10 @@ export default function MesaAdvogada() {
 
             {!aberto && (
               <div style={s.acoes}>
-                <button style={s.btnOk} onClick={() => { setAbrindo({ id: c.id, tipo: 'ok' }); setOutroTexto('') }}>
+                <button style={s.btnOk} onClick={() => { setAbrindo({ id: c.id, tipo: 'ok' }); setOutroTexto(''); limparPrint() }}>
                   ✅ Pré-aprovado real
                 </button>
-                <button style={s.btnNao} onClick={() => { setAbrindo({ id: c.id, tipo: 'nao' }); setOutroTexto('') }}>
+                <button style={s.btnNao} onClick={() => { setAbrindo({ id: c.id, tipo: 'nao' }); setOutroTexto(''); limparPrint() }}>
                   ⛔ Negar
                 </button>
                 {href && (
@@ -183,6 +331,39 @@ export default function MesaAdvogada() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
                   {abrindo.tipo === 'ok' ? 'Por que ela é pré-aprovada?' : 'Por que ela foi negada?'}
                 </div>
+
+                {/* PRINT DO GERID — só na pré-aprovação */}
+                {abrindo.tipo === 'ok' && (
+                  <div>
+                    <div style={s.colaArea(!!print)} onClick={() => fileRef.current && fileRef.current.click()}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => { e.preventDefault(); pegarImagem(e.dataTransfer.files && e.dataTransfer.files[0]) }}>
+                      <div style={s.colaTit(!!print)}>
+                        {print ? '✅ Print do GERID anexado' : '📸 Cole o print do GERID aqui — Ctrl + V'}
+                      </div>
+                      <div style={s.colaDica}>
+                        {print
+                          ? 'Se colar outro, esse é substituído.'
+                          : 'Dá o print no GERID, aperta Ctrl+V com essa tela aberta. Também dá pra clicar aqui e escolher o arquivo, ou arrastar a imagem.'}
+                      </div>
+                    </div>
+                    <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={e => pegarImagem(e.target.files && e.target.files[0])} />
+                    {print && (
+                      <div style={s.previewWrap}>
+                        <img src={print.preview} alt="print do GERID" style={s.preview} />
+                        <div style={{ textAlign: 'center' }}>
+                          <button style={s.btnTiraPrint} onClick={limparPrint}>🗑️ tirar esse print</button>
+                        </div>
+                      </div>
+                    )}
+                    {!print && (
+                      <div style={{ ...s.colaDica, color: '#b45309', fontWeight: 600, marginBottom: 8 }}>
+                        Sem o print os motivos abaixo ficam bloqueados.
+                      </div>
+                    )}
+                  </div>
+                )}
                 {(abrindo.tipo === 'ok' ? MOTIVOS_APROVA : MOTIVOS_NEGA).map(m => (
                   m === 'Outro motivo' ? (
                     <div key={m}>
@@ -203,17 +384,25 @@ export default function MesaAdvogada() {
                   ) : (
                     <button
                       key={m}
-                      style={s.motivoBtn(abrindo.tipo === 'ok' ? '#059669' : '#dc2626')}
-                      disabled={salvando}
+                      style={{
+                        ...s.motivoBtn(abrindo.tipo === 'ok' ? '#059669' : '#dc2626'),
+                        ...(abrindo.tipo === 'ok' && !print ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
+                      }}
+                      disabled={salvando || (abrindo.tipo === 'ok' && !print)}
                       onClick={() => decidir(c, abrindo.tipo === 'ok', m)}
                     >
                       {m}
                     </button>
                   )
                 ))}
+                {(salvando || subindoPrint) && (
+                  <div style={{ ...s.colaDica, textAlign: 'center', fontWeight: 600 }}>
+                    {subindoPrint ? 'subindo o print…' : 'salvando…'}
+                  </div>
+                )}
                 <button
                   style={{ ...s.motivoBtn('#5b6b84'), textAlign: 'center', marginTop: 4 }}
-                  onClick={() => { setAbrindo(null); setOutroTexto('') }}
+                  onClick={fecharPainel}
                 >
                   cancelar
                 </button>
