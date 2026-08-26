@@ -64,6 +64,10 @@ export default function FilaEntregas() {
   const [carregandoCliente, setCarregandoCliente] = useState(false)
   const [zapsignDocs, setZapsignDocs] = useState(null) // links assinados
   const [carregandoZapsign, setCarregandoZapsign] = useState(false)
+  // Print do GERID (26/08): o que a advogada anexou vem do lead pelo CPF;
+  // se nao existir, dá pra anexar aqui mesmo.
+  const [geridAdvogada, setGeridAdvogada] = useState(null)
+  const [subindoGerid, setSubindoGerid] = useState(false)
 
   // Modal entrega parcial
   const [confirmandoEntrega, setConfirmandoEntrega] = useState(null) // lote
@@ -131,15 +135,51 @@ export default function FilaEntregas() {
     } catch (e) { console.error('copiar motivo:', e) }
   }
 
+  // Anexa/substitui o print do GERID direto na ficha do cliente.
+  async function anexarGerid(cli, file) {
+    if (!cli || !file) return
+    if (!/^image\//.test(file.type) && file.type !== 'application/pdf') {
+      alert('O print do GERID tem que ser imagem ou PDF.'); return
+    }
+    if (file.size > 10 * 1024 * 1024) { alert('Arquivo muito grande (máx 10MB).'); return }
+    setSubindoGerid(true)
+    try {
+      const ext = file.type === 'application/pdf' ? 'pdf' : (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+      const caminho = 'gerid/cliente_' + cli.id + '_' + Date.now() + '.' + ext
+      const up = await supabase.storage.from('documentos-clientes')
+        .upload(caminho, file, { upsert: true, contentType: file.type })
+      if (up.error) { alert('Não consegui subir: ' + up.error.message); setSubindoGerid(false); return }
+      const pub = supabase.storage.from('documentos-clientes').getPublicUrl(caminho)
+      const url = pub && pub.data && pub.data.publicUrl
+      if (!url) { alert('Subiu mas não voltou o link. Tenta de novo.'); setSubindoGerid(false); return }
+      const novosDocs = { ...(cli.documentos || {}), print_gerid: url }
+      const { error } = await supabase.from('clientes').update({ documentos: novosDocs }).eq('id', cli.id)
+      if (error) { alert('Erro ao salvar: ' + error.message); setSubindoGerid(false); return }
+      setClienteDetalhe(prev => (prev && prev.id === cli.id ? { ...prev, documentos: novosDocs } : prev))
+    } catch (e) {
+      alert('Erro ao anexar: ' + e.message)
+    }
+    setSubindoGerid(false)
+  }
+
   async function abrirPainelCliente(clienteId) {
     setClienteAberto(clienteId)
     setClienteDetalhe(null)
     setMotivoCopiado(false)
     setZapsignDocs(null)
+    setGeridAdvogada(null)
     setCarregandoCliente(true)
     const { data } = await supabase.from('clientes').select('*, profiles!clientes_vendedor_operador_id_fkey(nome)').eq('id', clienteId).single()
     setClienteDetalhe(data)
     setCarregandoCliente(false)
+
+    // Print que a advogada anexou no funil (ligação é pelo CPF)
+    if (data && data.cpf) {
+      try {
+        const g = await supabase.rpc('gerid_print_do_cpf', { p_cpf: data.cpf })
+        if (!g.error && g.data && g.data.length) setGeridAdvogada(g.data[0])
+      } catch (e) { console.error('gerid_print_do_cpf:', e) }
+    }
     // Buscar PDFs assinados do ZapSign em paralelo
     if (data?.zapsign_token) {
       setCarregandoZapsign(true)
@@ -541,13 +581,61 @@ export default function FilaEntregas() {
                 </div>
               )}
 
+              {/* PRINT GERID — o advogado precisa ver a consulta que embasou a aprovação */}
+              {(() => {
+                const urlCliente = (clienteDetalhe.documentos || {}).print_gerid
+                const urlAdv = geridAdvogada && geridAdvogada.print_url
+                const url = urlCliente || urlAdv
+                const ehPdf = url && /\.pdf($|\?)/i.test(url)
+                return (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>🗂️ Print GERID</div>
+                    <div style={{ background: url ? 'rgba(52,211,153,.14)' : 'rgba(251,191,36,.12)', border: `0.5px solid ${url ? '#05966930' : '#b4530930'}`, padding: 14, borderRadius: 8 }}>
+                      {url ? (
+                        <>
+                          <div style={{ fontSize: 12.5, color: url === urlAdv && !urlCliente ? '#059669' : '#0f172a', fontWeight: 500, marginBottom: 8 }}>
+                            {urlCliente ? '✅ Print GERID anexado nesta ficha' : '✅ Print GERID anexado pela advogada'}
+                            {!urlCliente && geridAdvogada && geridAdvogada.print_em ? ' · ' + geridAdvogada.print_em.slice(0, 16) : ''}
+                          </div>
+                          {!ehPdf && (
+                            <a href={url} target="_blank" rel="noreferrer">
+                              <img src={url} alt="Print GERID" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.14)', display: 'block' }} />
+                            </a>
+                          )}
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                            <a href={url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: 'rgba(96,165,250,.12)', color: '#2563eb', border: '0.5px solid #60a5fa', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>👁️ Abrir</a>
+                            <a href={url} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', background: '#34d399', color: '#232a37', borderRadius: 6, fontSize: 11, textDecoration: 'none' }}>⬇️ Baixar</a>
+                            <label style={{ padding: '6px 10px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.14)', borderRadius: 6, fontSize: 11, cursor: subindoGerid ? 'wait' : 'pointer' }}>
+                              {subindoGerid ? '⏳ subindo…' : '🔄 Trocar print'}
+                              <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} disabled={subindoGerid}
+                                onChange={e => anexarGerid(clienteDetalhe, e.target.files && e.target.files[0])} />
+                            </label>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 12.5, color: '#b45309', fontWeight: 500, marginBottom: 8, lineHeight: 1.5 }}>
+                            ⚠️ Sem print do GERID. O advogado recebe o lote sem a consulta que embasou a aprovação.
+                          </div>
+                          <label style={{ padding: '8px 12px', background: '#ffffff', color: '#b45309', border: '0.5px solid #b4530950', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: subindoGerid ? 'wait' : 'pointer', display: 'inline-block' }}>
+                            {subindoGerid ? '⏳ subindo…' : '📎 Anexar print GERID'}
+                            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} disabled={subindoGerid}
+                              onChange={e => anexarGerid(clienteDetalhe, e.target.files && e.target.files[0])} />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* DOCUMENTOS DO CLIENTE */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>📎 Documentos enviados</div>
                 {clienteDetalhe.documentos && Object.keys(clienteDetalhe.documentos).length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {Object.entries(clienteDetalhe.documentos).filter(([k,v]) => v).map(([nome, url]) => {
-                      const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço', extrato_fgts: '🏦 Extrato FGTS' }
+                      const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço', extrato_fgts: '🏦 Extrato FGTS', print_gerid: '🗂️ Print GERID' }
                       return (
                         <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f2f5fa', borderRadius: 8 }}>
                           <span style={{ fontSize: 13, color: '#0f172a' }}>{labels[nome] || nome}</span>
