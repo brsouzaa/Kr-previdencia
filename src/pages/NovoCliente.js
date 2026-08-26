@@ -44,6 +44,18 @@ const PRODUTOS = [
   { key: 'Auxilio Acidente', label: '🩹 Auxílio Acidente', cor: '#b45309' },
 ]
 
+// ===== MOTIVO DE APROVACAO — Maternidade Mae (26/08) =====
+// Obrigatorio no cadastro. Viaja em dados_produto.motivo_aprovacao ate a Fila de
+// Entregas: quando o lote e montado no Drive, o advogado precisa saber POR QUE a
+// cliente foi aprovada. Sem isso ele recebe a ficha no escuro.
+const MOTIVO_FGTS = 'Cliente 24 meses de contribuição e enviou extrato FGTS comprovando desemprego involuntário por demissão'
+const MOTIVOS_APROVACAO_MAE = [
+  'Cliente 12 meses de contribuição',
+  'Cliente 24 meses de contribuição e recebeu seguro-desemprego',
+  MOTIVO_FGTS,
+  'Cliente 24 meses de contribuição por ter 120 contribuições',
+]
+
 function maskCPF(v) {
   v = (v || '').replace(/\D/g, '').slice(0, 11)
   if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2}).*/, '$1.$2.$3-$4')
@@ -110,12 +122,14 @@ export default function NovoCliente({ onSucesso }) {
     // Campos extras (Maternidade Mãe) — mesmo schema dados_produto da Ana/B2C
     data_nascimento_bebe: '', ja_trabalhou_clt: '', trabalhava_no_nascimento: '',
     recebeu_seguro_desemprego: '', saida_emprego_mes_ano: '',
+    motivo_aprovacao: '',
   })
 
   const [docs, setDocs] = useState({
     rg_frente: null, rg_verso: null,
     comprovante_1: null, comprovante_2: null,
     comprovante_endereco: null,
+    extrato_fgts: null,
   })
 
   const [duplicado, setDuplicado] = useState(null)
@@ -245,11 +259,17 @@ export default function NovoCliente({ onSucesso }) {
   // se já trabalhou CLT e NÃO trabalhava no nascimento, o mês/ano de saída é obrigatório.
   const camposMaeOk = c.produto !== 'Maternidade Mãe' || (
     c.data_nascimento_bebe && c.ja_trabalhou_clt !== '' && c.trabalhava_no_nascimento !== '' &&
-    (c.ja_trabalhou_clt !== 'sim' || c.trabalhava_no_nascimento === 'sim' || c.saida_emprego_mes_ano.trim())
+    (c.ja_trabalhou_clt !== 'sim' || c.trabalhava_no_nascimento === 'sim' || c.saida_emprego_mes_ano.trim()) &&
+    c.motivo_aprovacao   // 26/08: motivo de aprovação é obrigatório no Maternidade Mãe
   )
 
-  // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2
-  const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
+  // Extrato FGTS: obrigatório SÓ quando o motivo escolhido é o que se apoia nele.
+  // Nos outros motivos continua opcional — anexar não atrapalha.
+  const fgtsObrigatorio = c.produto === 'Maternidade Mãe' && c.motivo_aprovacao === MOTIVO_FGTS
+  const fgtsOk = !fgtsObrigatorio || !!docs.extrato_fgts
+
+  // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2 (+ FGTS quando o motivo exige)
+  const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2 && fgtsOk
 
   // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
   const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
@@ -286,6 +306,9 @@ export default function NovoCliente({ onSucesso }) {
           ja_trabalhou_clt: jaClt,
           trabalhava_no_nascimento: trabNasc,
           recebeu_seguro_desemprego: c.recebeu_seguro_desemprego === 'sim',
+          // 26/08: motivo segue com a ficha ate a Fila de Entregas / Drive do advogado
+          motivo_aprovacao: c.motivo_aprovacao,
+          motivo_aprovacao_por: (profile && profile.nome) || null,
           ...(jaClt && !trabNasc && c.saida_emprego_mes_ano.trim()
             ? { saida_emprego_mes_ano: c.saida_emprego_mes_ano.trim() } : {}),
         }
@@ -313,8 +336,8 @@ export default function NovoCliente({ onSucesso }) {
   }
 
   function novoCadastro() {
-    setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'' })
-    setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null })
+    setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'', motivo_aprovacao:'' })
+    setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null, extrato_fgts: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
@@ -625,6 +648,30 @@ export default function NovoCliente({ onSucesso }) {
               </div>
             )}
           </div>
+
+          {/* === MOTIVO DA APROVAÇÃO (obrigatório) === */}
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '0.5px solid rgba(15,23,42,0.09)' }}>
+            <label style={s.label}>Por que essa cliente foi aprovada? *</label>
+            <select style={{ ...s.input, borderColor: c.motivo_aprovacao ? 'rgba(0,0,0,0.45)' : '#dc2626' }}
+              value={c.motivo_aprovacao} onChange={e => set('motivo_aprovacao', e.target.value)}>
+              <option value="">Selecione o motivo</option>
+              {MOTIVOS_APROVACAO_MAE.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 6, lineHeight: 1.5 }}>
+              Esse motivo vai junto com a ficha até a entrega — é por ele que o advogado
+              entende o caso quando recebe o lote.
+            </div>
+            {c.motivo_aprovacao === MOTIVO_FGTS && (
+              <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 7, fontSize: 12, lineHeight: 1.5,
+                background: docs.extrato_fgts ? 'rgba(52,211,153,.14)' : 'rgba(251,191,36,.12)',
+                color: docs.extrato_fgts ? '#059669' : '#b45309',
+                border: `0.5px solid ${docs.extrato_fgts ? '#05966930' : '#b4530930'}` }}>
+                {docs.extrato_fgts
+                  ? '✅ Extrato FGTS anexado.'
+                  : '⚠️ Esse motivo exige o extrato FGTS anexado abaixo, em "Documentos do cliente".'}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -652,6 +699,15 @@ export default function NovoCliente({ onSucesso }) {
 
         <UploadDocumento label="Comprovante de endereço (opcional)" obrigatorio={false} clienteId={tempIdRef.current} chave="comprovante_endereco"
           valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
+
+        {/* Extrato FGTS — só faz sentido no Maternidade Mãe. Vira obrigatório
+            quando o motivo escolhido é o que se apoia nele. */}
+        {c.produto === 'Maternidade Mãe' && (
+          <UploadDocumento
+            label={fgtsObrigatorio ? 'Extrato FGTS — OBRIGATÓRIO pro motivo escolhido' : 'Extrato FGTS (opcional)'}
+            obrigatorio={fgtsObrigatorio} clienteId={tempIdRef.current} chave="extrato_fgts"
+            valorInicial={docs.extrato_fgts} onChange={url => setDoc('extrato_fgts', url)} />
+        )}
       </div>
 
       {/* === OBSERVAÇÃO === */}
@@ -669,7 +725,9 @@ export default function NovoCliente({ onSucesso }) {
 
       {!tudoOk && (
         <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>
-          {!docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
+          {c.produto === 'Maternidade Mãe' && !c.motivo_aprovacao ? 'Escolha o motivo da aprovação' :
+            fgtsObrigatorio && !docs.extrato_fgts ? 'Esse motivo exige o extrato FGTS anexado' :
+            !docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
             !camposMatOk ? 'Preencha NIS, data do parto e meses de gravidez' :
             duplicado ? 'CPF já cadastrado pendente' :
             'Preencha todos os campos corretamente'}
