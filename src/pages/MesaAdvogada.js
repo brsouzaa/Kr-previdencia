@@ -78,11 +78,17 @@ const s = {
   vazio: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14, background: '#ffffff', borderRadius: 13, border: '0.5px solid rgba(15,23,42,0.08)' },
   // --- print do GERID (26/08) ---
   colaArea: (temPrint) => ({
-    marginBottom: 10, padding: 12, borderRadius: 9, textAlign: 'center', cursor: 'pointer',
-    background: temPrint ? 'rgba(52,211,153,.14)' : '#ffffff',
-    border: temPrint ? '1px solid #05966950' : '1.5px dashed #b4530970',
+    marginBottom: 8, padding: '16px 12px', borderRadius: 9, textAlign: 'center', cursor: 'text',
+    background: temPrint ? 'rgba(52,211,153,.14)' : '#fffdf7',
+    border: temPrint ? '1px solid #05966950' : '2px dashed #b45309',
+    outline: 'none',
   }),
-  colaTit: (temPrint) => ({ fontSize: 12.5, fontWeight: 700, color: temPrint ? '#059669' : '#b45309' }),
+  colaTit: (temPrint) => ({ fontSize: 14, fontWeight: 700, color: temPrint ? '#059669' : '#b45309' }),
+  linkArquivo: {
+    background: 'none', border: 'none', padding: 0, marginTop: 6,
+    color: '#5b6b84', fontSize: 11.5, textDecoration: 'underline',
+    cursor: 'pointer', fontFamily: 'inherit',
+  },
   colaDica: { fontSize: 11, color: '#5b6b84', marginTop: 4, lineHeight: 1.45 },
   previewWrap: { marginTop: 8, position: 'relative' },
   preview: { maxWidth: '100%', maxHeight: 220, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.14)', display: 'block', margin: '0 auto' },
@@ -121,6 +127,7 @@ export default function MesaAdvogada() {
   const [print, setPrint] = useState(null)          // { file, preview }
   const [subindoPrint, setSubindoPrint] = useState(false)
   const fileRef = useRef(null)
+  const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
   const carregar = useCallback(async () => {
     const r = await supabase.rpc('mesa_advogada', { p_limite: 300 })
@@ -143,21 +150,34 @@ export default function MesaAdvogada() {
     return true
   }
 
-  // Ctrl+V em qualquer lugar da tela, enquanto o painel de PRÉ-APROVAÇÃO está aberto.
-  useEffect(() => {
-    if (!abrindo || abrindo.tipo !== 'ok') return
-    const aoColar = (e) => {
-      const itens = (e.clipboardData && e.clipboardData.items) || []
-      for (let i = 0; i < itens.length; i++) {
-        if (itens[i].kind === 'file' && /^image\//.test(itens[i].type)) {
-          const f = itens[i].getAsFile()
-          if (f && pegarImagem(f)) e.preventDefault()
-          return
-        }
+  // Le a imagem de um evento de paste (serve pro listener global e pro onPaste da area)
+  const colarDoEvento = (e) => {
+    const dt = e.clipboardData || (typeof window !== 'undefined' && window.clipboardData)
+    const itens = (dt && dt.items) || []
+    for (let i = 0; i < itens.length; i++) {
+      if (itens[i].kind === 'file' && /^image\//.test(itens[i].type)) {
+        const f = itens[i].getAsFile()
+        if (f && pegarImagem(f)) { e.preventDefault(); return true }
+        return false
       }
     }
+    // alguns navegadores entregam so em dt.files
+    const arqs = (dt && dt.files) || []
+    if (arqs.length && /^image\//.test(arqs[0].type)) {
+      if (pegarImagem(arqs[0])) { e.preventDefault(); return true }
+    }
+    return false
+  }
+
+  // Ctrl+V em qualquer lugar da tela, enquanto o painel de PRÉ-APROVAÇÃO está aberto.
+  // A area de colar tambem tem onPaste proprio — isso aqui e a rede de seguranca.
+  useEffect(() => {
+    if (!abrindo || abrindo.tipo !== 'ok') return
+    const aoColar = (e) => { colarDoEvento(e) }
     window.addEventListener('paste', aoColar)
-    return () => window.removeEventListener('paste', aoColar)
+    // foca a area de colar pra que o Ctrl+V caia nela sem precisar clicar em nada
+    const t = setTimeout(() => { if (colaRef.current && colaRef.current.focus) colaRef.current.focus() }, 60)
+    return () => { window.removeEventListener('paste', aoColar); clearTimeout(t) }
   }, [abrindo])
 
   const limparPrint = () => {
@@ -335,18 +355,34 @@ export default function MesaAdvogada() {
                 {/* PRINT DO GERID — só na pré-aprovação */}
                 {abrindo.tipo === 'ok' && (
                   <div>
-                    <div style={s.colaArea(!!print)} onClick={() => fileRef.current && fileRef.current.click()}
+                    {/* IMPORTANTE: clicar aqui NAO abre a janela de arquivos.
+                        Antes abria, o dialogo do Windows roubava o foco e o Ctrl+V
+                        ia parar nele em vez da pagina. Agora o clique so foca a area. */}
+                    <div
+                      ref={colaRef}
+                      tabIndex={0}
+                      style={s.colaArea(!!print)}
+                      onPaste={colarDoEvento}
+                      onClick={() => { if (colaRef.current && colaRef.current.focus) colaRef.current.focus() }}
                       onDragOver={e => e.preventDefault()}
                       onDrop={e => { e.preventDefault(); pegarImagem(e.dataTransfer.files && e.dataTransfer.files[0]) }}>
                       <div style={s.colaTit(!!print)}>
-                        {print ? '✅ Print do GERID anexado' : '📸 Cole o print do GERID aqui — Ctrl + V'}
+                        {print ? '✅ Print do GERID anexado' : '📋 Aperta Ctrl + V agora'}
                       </div>
                       <div style={s.colaDica}>
                         {print
-                          ? 'Se colar outro, esse é substituído.'
-                          : 'Dá o print no GERID, aperta Ctrl+V com essa tela aberta. Também dá pra clicar aqui e escolher o arquivo, ou arrastar a imagem.'}
+                          ? 'Se colar outro por cima, esse é substituído.'
+                          : 'Copia o print do GERID e cola aqui. Não precisa salvar arquivo nem clicar em nada — só Ctrl + V.'}
                       </div>
                     </div>
+                    {!print && (
+                      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                        <button type="button" style={s.linkArquivo}
+                          onClick={() => fileRef.current && fileRef.current.click()}>
+                          se preferir, escolher um arquivo salvo
+                        </button>
+                      </div>
+                    )}
                     <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
                       onChange={e => pegarImagem(e.target.files && e.target.files[0])} />
                     {print && (
@@ -358,7 +394,7 @@ export default function MesaAdvogada() {
                       </div>
                     )}
                     {!print && (
-                      <div style={{ ...s.colaDica, color: '#b45309', fontWeight: 600, marginBottom: 8 }}>
+                      <div style={{ ...s.colaDica, color: '#b45309', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
                         Sem o print os motivos abaixo ficam bloqueados.
                       </div>
                     )}
