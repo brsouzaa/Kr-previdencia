@@ -60,6 +60,7 @@ export default function FilaEntregas() {
   // Painel lateral do cliente (ficha + docs)
   const [clienteAberto, setClienteAberto] = useState(null) // cliente_id
   const [clienteDetalhe, setClienteDetalhe] = useState(null) // dados completos
+  const [motivoCopiado, setMotivoCopiado] = useState(false)
   const [carregandoCliente, setCarregandoCliente] = useState(false)
   const [zapsignDocs, setZapsignDocs] = useState(null) // links assinados
   const [carregandoZapsign, setCarregandoZapsign] = useState(false)
@@ -106,9 +107,34 @@ export default function FilaEntregas() {
     setMotivoDevolucao('')
   }
 
+  // Copia o motivo pra colar na pasta do Drive. navigator.clipboard so existe em
+  // https/localhost — fora disso cai no textarea + execCommand.
+  function copiarMotivo(cli) {
+    const dp = (cli && cli.dados_produto) || {}
+    if (!dp.motivo_aprovacao) return
+    const texto = `${cli.nome} — CPF ${cli.cpf}\nMotivo da aprovação: ${dp.motivo_aprovacao}`
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(texto)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = texto
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setMotivoCopiado(true)
+      setTimeout(() => setMotivoCopiado(false), 1600)
+    } catch (e) { console.error('copiar motivo:', e) }
+  }
+
   async function abrirPainelCliente(clienteId) {
     setClienteAberto(clienteId)
     setClienteDetalhe(null)
+    setMotivoCopiado(false)
     setZapsignDocs(null)
     setCarregandoCliente(true)
     const { data } = await supabase.from('clientes').select('*, profiles!clientes_vendedor_operador_id_fkey(nome)').eq('id', clienteId).single()
@@ -493,13 +519,35 @@ export default function FilaEntregas() {
                 </div>
               </div>
 
+              {/* MOTIVO DA APROVAÇÃO — o advogado precisa disso no Drive */}
+              {clienteDetalhe.dados_produto && clienteDetalhe.dados_produto.motivo_aprovacao && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>⚖️ Motivo da aprovação</div>
+                  <div style={{ background: 'rgba(52,211,153,.14)', border: '0.5px solid #05966930', padding: 14, borderRadius: 8 }}>
+                    <div style={{ fontSize: 14, color: '#0f172a', fontWeight: 500, lineHeight: 1.5 }}>
+                      {clienteDetalhe.dados_produto.motivo_aprovacao}
+                    </div>
+                    {clienteDetalhe.dados_produto.motivo_aprovacao_por && (
+                      <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 6 }}>
+                        informado por {clienteDetalhe.dados_produto.motivo_aprovacao_por}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => copiarMotivo(clienteDetalhe)}
+                      style={{ marginTop: 10, padding: '7px 12px', background: '#ffffff', color: '#059669', border: '0.5px solid #05966950', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {motivoCopiado ? '✅ copiado!' : '📋 Copiar pro Drive'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* DOCUMENTOS DO CLIENTE */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>📎 Documentos enviados</div>
                 {clienteDetalhe.documentos && Object.keys(clienteDetalhe.documentos).length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {Object.entries(clienteDetalhe.documentos).filter(([k,v]) => v).map(([nome, url]) => {
-                      const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço' }
+                      const labels = { rg_frente: '🆔 RG (frente)', rg_verso: '🆔 RG (verso)', comprovante_1: '📄 Comprovante 1', comprovante_2: '📄 Comprovante 2', comprovante_endereco: '🏠 Comprovante de endereço', extrato_fgts: '🏦 Extrato FGTS' }
                       return (
                         <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f2f5fa', borderRadius: 8 }}>
                           <span style={{ fontSize: 13, color: '#0f172a' }}>{labels[nome] || nome}</span>
