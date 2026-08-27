@@ -336,6 +336,7 @@ export default function Layout({ children, page, setPage }) {
     'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
     '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
     '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
+    '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
   ]
   if (IDS_VENDAS_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
