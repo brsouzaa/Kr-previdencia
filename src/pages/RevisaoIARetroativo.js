@@ -135,6 +135,18 @@ const s = {
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
   cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
+  buscaWrap: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
+  buscaInput: { flex: '1 1 300px', maxWidth: 420, padding: '9px 12px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', background: '#ffffff', color: '#0f172a', boxSizing: 'border-box' },
+  buscaBtn: { padding: '9px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#60a5fa', color: '#232a37', cursor: 'pointer' },
+  buscaRes: { display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  buscaVazio: { fontSize: 13, color: '#5b6b84', padding: '10px 12px', background: '#f1f5f9', borderRadius: 10 },
+  buscaCard: { flex: '1 1 320px', maxWidth: 460, padding: 12, borderRadius: 10, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.14)' },
+  buscaTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 },
+  buscaTag: { fontSize: 10, fontWeight: 700, color: '#2563eb', background: 'rgba(96,165,250,.14)', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' },
+  buscaMotivo: { fontSize: 11, color: '#b45309', background: 'rgba(251,191,36,.12)', borderRadius: 6, padding: '4px 7px', marginTop: 6 },
+  buscaComo: { fontSize: 10, color: '#94a3b8', marginTop: 6 },
+  buscaAlerta: { fontSize: 11, fontWeight: 700, color: '#dc2626', background: 'rgba(248,113,113,.14)', borderRadius: 6, padding: '4px 7px', marginTop: 6 },
+  buscaAbrir: { marginTop: 8, width: '100%', padding: '8px 10px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: 'none', background: '#34d399', color: '#232a37', cursor: 'pointer' },
   tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#dc2626', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
@@ -221,6 +233,12 @@ export default function RevisaoIARetroativo() {
   const [confAberta, setConfAberta] = useState(false)
   const [conferencia, setConferencia] = useState(null)
   const [confCarregando, setConfCarregando] = useState(false)
+  // 27/08 (Bruno): busca por CPF/telefone. A tela tem filtro de entrada e de atividade,
+  // entao cliente antigo some do board e nao da pra achar rolando. A busca IGNORA os
+  // filtros e varre o funil retroativo inteiro.
+  const [busca, setBusca] = useState('')
+  const [buscando, setBuscando] = useState(false)
+  const [achados, setAchados] = useState(null)   // null = ainda nao buscou
 
   const abrirConferencia = async () => {
     const abrir = !confAberta
@@ -313,6 +331,17 @@ export default function RevisaoIARetroativo() {
       }
     } finally { if (comLoading) setAtualizandoConversa(false) }
   }, [])
+
+  async function buscarCliente() {
+    const t = (busca || '').replace(/\D/g, '')
+    if (t.length < 8) { alert('Digite o CPF completo ou pelo menos os 8 últimos dígitos do telefone.'); return }
+    setBuscando(true)
+    const { data, error } = await supabase.rpc('mae_buscar_lead', { p_termo: busca })
+    setBuscando(false)
+    if (error) { alert('Erro na busca: ' + error.message); return }
+    setAchados(data || [])
+  }
+  function limparBusca() { setBusca(''); setAchados(null) }
 
   const abrirLead = async (l) => {
     setLead(l)
@@ -466,6 +495,55 @@ export default function RevisaoIARetroativo() {
         )}
         <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
       </div>
+
+      {/* Busca por CPF ou telefone — varre o funil inteiro, ignora os filtros acima */}
+      <div style={s.buscaWrap}>
+        <input
+          style={s.buscaInput}
+          value={busca}
+          placeholder="🔎 Achar cliente: cole o CPF ou o telefone"
+          onChange={e => setBusca(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') buscarCliente() }}
+        />
+        <button style={s.buscaBtn} onClick={buscarCliente} disabled={buscando}>
+          {buscando ? 'Buscando...' : 'Buscar'}
+        </button>
+        {achados !== null && <button style={s.chip} onClick={limparBusca}>limpar</button>}
+      </div>
+
+      {achados !== null && (
+        <div style={s.buscaRes}>
+          {achados.length === 0
+            ? <div style={s.buscaVazio}>Nenhuma cliente com esse CPF ou telefone no funil do Retroativo.</div>
+            : achados.map(c => (
+              <div key={c.id} style={s.buscaCard}>
+                <div style={s.buscaTopo}>
+                  <span style={s.cardNome}>{c.nome || 'Cliente +Mais Mãe'}</span>
+                  <span style={s.buscaTag}>{c.coluna}</span>
+                </div>
+                <div style={s.cardMeta}>
+                  {c.tel} · CPF {c.cpf || '—'} · parada há {c.minutos_parado >= 60
+                    ? Math.floor(c.minutos_parado / 60) + 'h' + String(c.minutos_parado % 60).padStart(2, '0')
+                    : c.minutos_parado + 'min'}
+                </div>
+                <div style={s.cardMeta}>
+                  {c.agente_nome ? '👤 com ' + c.agente_nome : '⚪ sem ninguém'}
+                  {c.entregue_vendedora_em ? ' · entregue à vendedora' : ''}
+                  {c.cliente_id_crm ? ' · ✅ já está no CRM' : ''}
+                </div>
+                {(c.advogada_motivo || c.motivo_desqualificacao) && (
+                  <div style={s.buscaMotivo}>{c.advogada_motivo || c.motivo_desqualificacao}</div>
+                )}
+                {/* CPF gravado torto: a busca acha assim mesmo, mas avisa — senao a consulta
+                    no PromoBank nunca roda e ninguem entende por que a cliente travou. */}
+                <div style={/⚠️/.test(c.achou_por || '') ? s.buscaAlerta : s.buscaComo}>
+                  achou por {c.achou_por}
+                </div>
+                <button style={s.buscaAbrir} onClick={() => abrirLead(c)}>Abrir ficha</button>
+              </div>
+            ))}
+        </div>
+      )}
 
       {ehAdmin && (
         <div style={s.confWrap}>
