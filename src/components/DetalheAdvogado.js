@@ -40,6 +40,14 @@ const PAG_STYLE = {
 const TITULOS = ['','Parceiro Bronze','Parceiro Prata','Cliente Gold','Cliente Gold II','Cliente Platinum','Cliente Platinum II','Cliente Diamond','Cliente Diamond II','Cliente Black']
 const PRODUTOS = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'Auxilio Acidente']
 
+// 27/08 (relato do Fabio): o select de produto do modal de REPOSICAO so tinha 3 opcoes
+// (Maternidade, Pensao por Morte, Auxilio Acidente). Faltavam "Maternidade Mae" e
+// "Gestante ate 5 meses" — e como o form nasce com 'Maternidade', toda reposicao desses
+// dois saia gravada como Maternidade e caia na fila de entrega ERRADA (a Fila e separada
+// por produto). Nao era erro de quem preenchia: nao tinha como escolher certo.
+// Lista igual a PRODUTOS_FILA da tela Fila de entregas — os 6 produtos que existem em clientes.
+const PRODUTOS_REPOSICAO = ['Maternidade', 'Maternidade Mãe', 'Gestante até 5 meses', 'Pensão por Morte', 'BPC', 'Auxilio Acidente']
+
 // Tabela de preços por produto (fallback, sincronizado com produtos_precos do banco)
 const FALLBACK_TABELAS = {
   'Gestante até 5 meses': [
@@ -706,10 +714,22 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
               onChange={e => setRepForm({ ...repForm, produto: e.target.value })}
               style={{ width: '100%', padding: '9px 10px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, marginBottom: 12, background: '#ffffff', boxSizing: 'border-box' }}
             >
-              <option value="Maternidade">Maternidade</option>
-              <option value="Pensão por Morte">Pensão por Morte</option>
-              <option value="Auxilio Acidente">Auxílio Acidente</option>
+              {PRODUTOS_REPOSICAO.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+            {/* Avisa quando o produto escolhido nao bate com o dos clientes marcados —
+                foi assim que 6 reposicoes foram parar na fila errada sem ninguem ver. */}
+            {(() => {
+              const marcados = clientesAdv.filter(c => repSelecionados.includes(c.id))
+              const fora = marcados.filter(c => (c.produto || 'Maternidade') !== repForm.produto)
+              if (!fora.length) return null
+              const quais = [...new Set(fora.map(c => c.produto || 'Maternidade'))].join(', ')
+              return (
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', background: 'rgba(248,113,113,.14)', borderRadius: 8, padding: '8px 10px', marginBottom: 12 }}>
+                  ⚠️ {fora.length} cliente{fora.length !== 1 ? 's' : ''} marcado{fora.length !== 1 ? 's' : ''} {fora.length !== 1 ? 'são' : 'é'} de <b>{quais}</b>, mas o produto acima está como <b>{repForm.produto}</b>.
+                  <div style={{ fontWeight: 400, marginTop: 3 }}>Se enviar assim, a reposição cai na fila de entrega errada.</div>
+                </div>
+              )
+            })()}
 
             <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 4 }}>
               Clientes que serão repostos <span style={{ color: '#dc2626' }}>({repSelecionados.length} selecionado{repSelecionados.length !== 1 ? 's' : ''})</span>
