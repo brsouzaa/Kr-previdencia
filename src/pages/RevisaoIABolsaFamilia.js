@@ -315,6 +315,12 @@ export default function RevisaoIABolsaFamilia() {
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
 
+  // 🔎 Busca por CPF ou telefone (27/08) — a cliente cai no WhatsApp da vendedora
+  // e ela cola aqui o numero (ou o CPF que vem na mensagem) pra achar a ficha.
+  const [busca, setBusca] = useState('')
+  const [buscando, setBuscando] = useState(false)
+  const [achados, setAchados] = useState(null)   // null = nao buscou ainda
+
   // 🔍 Conferência landing → whats → funil (só supervisão)
   const [conferencia, setConferencia] = useState(null)
   const [confAberta, setConfAberta] = useState(false)
@@ -393,6 +399,18 @@ export default function RevisaoIABolsaFamilia() {
       }
     } finally { if (comLoading) setAtualizandoConversa(false) }
   }, [])
+
+  async function buscarCliente() {
+    const t = (busca || '').replace(/\D/g, '')
+    if (t.length < 8) { alert('Digite o CPF completo ou pelo menos os 8 últimos dígitos do telefone.'); return }
+    setBuscando(true)
+    const { data, error } = await supabase.rpc('bf_buscar_lead', { p_termo: busca })
+    setBuscando(false)
+    if (error) { alert('Erro na busca: ' + error.message); return }
+    setAchados(data || [])
+  }
+
+  function limparBusca() { setBusca(''); setAchados(null) }
 
   async function abrirCard(l) {
     setLead(l)
@@ -642,6 +660,77 @@ export default function RevisaoIABolsaFamilia() {
       <div style={s.title}>🩷 Revisão IA — Bolsa Família</div>
       <div style={s.sub}>
         {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
+      </div>
+
+      {/* 🔎 BUSCA POR CPF OU TELEFONE — a cliente chamou no seu WhatsApp? cola aqui. */}
+      <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.1)', borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>🔎 Achar cliente</span>
+          <input
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') buscarCliente() }}
+            placeholder="Cola o telefone ou o CPF e aperta Enter"
+            style={{ flex: 1, minWidth: 240, padding: '9px 12px', fontSize: 14, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', outline: 'none', fontFamily: 'inherit' }}
+          />
+          <button onClick={buscarCliente} disabled={buscando}
+            style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', background: '#0f172a', color: '#ffffff', cursor: buscando ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+            {buscando ? 'buscando…' : 'Buscar'}
+          </button>
+          {achados !== null && (
+            <button onClick={limparBusca}
+              style={{ padding: '9px 12px', fontSize: 12, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.14)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer', fontFamily: 'inherit' }}>
+              ✕ limpar
+            </button>
+          )}
+        </div>
+
+        {achados !== null && achados.length === 0 && (
+          <div style={{ marginTop: 10, fontSize: 13, color: '#b45309' }}>
+            Nenhuma cliente do Bolsa Família com esse número ou CPF.
+          </div>
+        )}
+
+        {achados !== null && achados.length > 0 && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {achados.map(c => (
+              <div key={c.id} style={{ background: '#f2f5fa', borderRadius: 9, padding: '10px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                      {c.nome || 'Cliente'} {c.valor ? <span style={{ color: '#059669' }}>· {c.valor}</span> : null}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 2 }}>
+                      {c.tel} · CPF {c.cpf || '—'} · {c.sub_estado || '—'}
+                      {c.agente_nome ? ` · com ${c.agente_nome}` : ' · sem dona'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 3 }}>
+                      {c.doc_rg_frente ? '✅' : '⬜'} RG frente · {c.doc_rg_verso ? '✅' : '⬜'} RG verso · {c.doc_extrato ? '✅' : '⬜'} extrato
+                      {c.nis ? ` · NIS ${c.nis}` : ''}{c.tipo ? ` · ${c.tipo}` : ''}
+                      {c.redirecionado_em
+                        ? ` · 📲 no Whats desde ${new Date(c.redirecionado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                        : ''}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>achou por {c.achou_por}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button onClick={() => abrirCard(c)}
+                      style={{ padding: '8px 14px', fontSize: 12.5, fontWeight: 700, borderRadius: 8, border: 'none', background: '#f472b6', color: '#232a37', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Abrir ficha
+                    </button>
+                    {c.chatwoot_conversation_id && (
+                      <a href={`https://chat.grupookr.com.br/app/accounts/${c.chatwoot_account_id || 1}/conversations/${c.chatwoot_conversation_id}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ padding: '8px 12px', fontSize: 12.5, fontWeight: 600, borderRadius: 8, border: '0.5px solid #60a5fa', background: 'rgba(96,165,250,.12)', color: '#2563eb', textDecoration: 'none' }}>
+                        💬 Conversa
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'inline-flex', background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.1)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 10, flexWrap: 'wrap' }}>
