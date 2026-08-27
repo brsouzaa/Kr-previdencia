@@ -59,6 +59,7 @@ const IDS_VENDEDORAS_RETROATIVO = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda (supervisoraeduarda25) — a que ja atuava no setor
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
 ]
 
 // Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
