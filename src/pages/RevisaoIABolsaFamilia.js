@@ -646,7 +646,8 @@ export default function RevisaoIABolsaFamilia() {
   const convPct = Math.round((vendasMinhas.length / carteira) * 100) // vendas 35d / carteira atual
 
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
-  visiveis = visiveis.filter(c => !c.whats_pessoal) // quem está no Whats pessoal não polui o funil
+  // 27/08 (Bruno): quem foi pro WhatsApp CONTINUA no funil, marcado em roxo forte.
+  // Antes sumia daqui e só aparecia na aba do Whats — não dava pra monitorar no mapa.
   // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
   // e SEMPRE quem já mandou TODA a documentação (docs_completos) — parado ou não, em qualquer etapa.
   if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
@@ -865,7 +866,9 @@ export default function RevisaoIABolsaFamilia() {
           <option value="sem">⚠️ Sem resposta</option>
         </select>
         <span style={s.kpi}>No funil: <strong>{board.length - noWhats.length}</strong></span>
-        <span style={s.kpi}>📲 Whats do time: <strong>{noWhats.length}</strong></span>
+        <span style={{ ...s.kpi, background: '#7c3aed', color: '#ffffff', fontWeight: 700 }}>
+          📲 No WhatsApp: <strong>{board.filter(c => c.redirecionado_em).length}</strong>
+        </span>
         <span style={s.kpi}>Total que entrou: <strong>{board.length}</strong></span>
         {ehSupervisor && conferencia && (
           <button
@@ -996,8 +999,24 @@ export default function RevisaoIABolsaFamilia() {
                 <div key={c.id} draggable
                   onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(c.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(c.id) }}
                   onDragEnd={() => setArrastando(null)}
-                  style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab' }}
+                  style={{
+                    ...s.card, ...(CORES[c.cor] || CORES.normal), cursor: 'grab',
+                    // foi pro WhatsApp: roxo forte, ganha da cor do tempo parado
+                    ...(c.redirecionado_em ? { background: 'rgba(167,139,250,.30)', border: '2px solid #7c3aed' } : {}),
+                  }}
                   onClick={() => abrirCard(c)}>
+                  {c.redirecionado_em && (
+                    <div style={{
+                      background: '#7c3aed', color: '#ffffff', fontSize: 10.5, fontWeight: 800,
+                      borderRadius: 6, padding: '3px 7px', marginBottom: 5,
+                      letterSpacing: '.02em', textTransform: 'uppercase', textAlign: 'center',
+                    }}>
+                      📲 no WhatsApp · {(() => {
+                        const min = Math.max(0, Math.floor((Date.now() - new Date(c.redirecionado_em).getTime()) / 60000))
+                        return min >= 60 ? Math.floor(min / 60) + 'h' + String(min % 60).padStart(2, '0') : min + 'min'
+                      })()}
+                    </div>
+                  )}
                   <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
                   <div style={s.cardMeta}>
                     {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
