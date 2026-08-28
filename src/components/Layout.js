@@ -333,6 +333,8 @@ export default function Layout({ children, page, setPage }) {
   // Vendedoras do Retroativo (Maryana, Sthefany, Eduarda): board do Retroativo no menu,
   // sem tirar nada do que elas ja tinham. La elas so enxergam pre-aprovado real pra frente.
   const IDS_VENDAS_RETROATIVO = [
+    'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia — entrou no setor 27/08
+    'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine — entrou no setor 27/08
     'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
     '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
     '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
