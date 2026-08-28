@@ -64,6 +64,10 @@ const IDS_VENDEDORAS_RETROATIVO = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
 ]
 
+// Painel do dia: SO o Bruno ve. Deliberadamente por ID e nao por role='admin' —
+// ele pediu "so para eu ver", e admin e um papel que outras pessoas podem receber.
+const ID_DONO_PAINEL = '906f9a57-bd4a-4b0e-9973-0968ef4f1e15' // Bruno Souza
+
 // Quem opera o funil e precisa ver TODAS as colunas (incl. Pediu CNIS e Fila GERID),
 // sem virar supervisora do resto (selos, filtros e nomes continuam de vendedora)
 // 25/08: a Duda saiu daqui — virou vendedora do retroativo, com carteira propria.
@@ -185,6 +189,20 @@ const s = {
     border: '0.5px solid rgba(15,23,42,0.07)',
   }),
   confWrap: { marginBottom: 12 },
+  painelBtn: { padding: '8px 14px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  painelCorpo: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 10 },
+  painelTopo: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 },
+  painelKpis: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
+  painelVazio: { fontSize: 13, color: '#5b6b84', padding: '10px 12px', background: '#f1f5f9', borderRadius: 8 },
+  painelNota: { fontSize: 12, color: '#065f46', background: 'rgba(52,211,153,.12)', borderRadius: 8, padding: '6px 9px', marginTop: 8 },
+  painelPe: { fontSize: 11, color: '#5b6b84', marginTop: 10, lineHeight: 1.45 },
+  tab: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 },
+  th: { textAlign: 'left', padding: '6px 8px', color: '#5b6b84', fontWeight: 600, borderBottom: '1px solid rgba(15,23,42,0.10)', whiteSpace: 'nowrap' },
+  thNum: { textAlign: 'right', padding: '6px 8px', color: '#5b6b84', fontWeight: 600, borderBottom: '1px solid rgba(15,23,42,0.10)', whiteSpace: 'nowrap' },
+  td: { padding: '6px 8px', color: '#0f172a', borderBottom: '0.5px solid rgba(15,23,42,0.06)', whiteSpace: 'nowrap' },
+  tdNum: { padding: '6px 8px', color: '#0f172a', textAlign: 'right', borderBottom: '0.5px solid rgba(15,23,42,0.06)', whiteSpace: 'nowrap' },
+  tdBom: { color: '#059669', fontWeight: 700 },
+  tdRuim: { color: '#dc2626', fontWeight: 700 },
   confBtn: { padding: '8px 14px', background: '#ffffff', color: '#0f172a', border: '0.5px solid rgba(15,23,42,0.12)', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
   confBox: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 11, maxWidth: 560 },
   confVazio: { marginTop: 8, padding: 12, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 11, fontSize: 13, color: '#5b6b84', maxWidth: 560 },
@@ -217,6 +235,7 @@ export default function RevisaoIARetroativo() {
   const veTodasColunas = ehSupervisor || IDS_VE_TODAS_COLUNAS.includes(profile?.id)
   // vendedora do retroativo so enxerga a carteira dela
   const soMeusLeads = IDS_VENDEDORAS_RETROATIVO.includes(profile?.id)
+  const ehDono = profile?.id === ID_DONO_PAINEL
 
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
@@ -243,6 +262,13 @@ export default function RevisaoIARetroativo() {
   const [fechAberto, setFechAberto] = useState(false)
   const [fechamento, setFechamento] = useState(null)
   const [fechCarregando, setFechCarregando] = useState(false)
+  // 28/08 (Bruno): painel do dia — SÓ ELE vê. Não é "admin": é este ID.
+  // Se um dia outra pessoa precisar, é aqui que entra.
+  const [painelAberto, setPainelAberto] = useState(false)
+  const [painelDia, setPainelDia] = useState(null)     // { distribuicao: [], vendas: [] }
+  const [painelCarregando, setPainelCarregando] = useState(false)
+  const [painelData, setPainelData] = useState('')     // vazio = hoje
+
   const [confAberta, setConfAberta] = useState(false)
   const [conferencia, setConferencia] = useState(null)
   const [confCarregando, setConfCarregando] = useState(false)
@@ -252,6 +278,25 @@ export default function RevisaoIARetroativo() {
   const [busca, setBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [achados, setAchados] = useState(null)   // null = ainda nao buscou
+
+  const carregarPainelDia = useCallback(async (data) => {
+    setPainelCarregando(true)
+    const p_dia = data || null   // null = hoje, resolvido no banco em BRT
+    const [dist, vend] = await Promise.all([
+      supabase.rpc('retroativo_distribuicao_dia', { p_dia }),
+      supabase.rpc('retroativo_vendas_dia', { p_dia }),
+    ])
+    if (dist.error) console.error(dist.error)
+    if (vend.error) console.error(vend.error)
+    setPainelDia({ distribuicao: dist.data || [], vendas: vend.data || [] })
+    setPainelCarregando(false)
+  }, [])
+
+  const abrirPainelDia = async () => {
+    const abrir = !painelAberto
+    setPainelAberto(abrir)
+    if (abrir) await carregarPainelDia(painelData)
+  }
 
   const abrirConferencia = async () => {
     const abrir = !confAberta
@@ -565,6 +610,101 @@ export default function RevisaoIARetroativo() {
                 <button style={s.buscaAbrir} onClick={() => abrirLead(c)}>Abrir ficha</button>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* PAINEL DO DIA — só o Bruno. Distribuição conta pelo dia em que a advogada
+          aprovou e o rodízio entregou (bf_atribuido_em), NÃO pela chegada do lead.
+          Venda conta por venda_fechada_em e credita quem fechou. */}
+      {ehDono && (
+        <div style={s.confWrap}>
+          <button style={s.painelBtn} onClick={abrirPainelDia}>
+            {painelAberto ? '▾' : '▸'} 📊 Meu painel do dia — distribuição e vendas
+          </button>
+          {painelAberto && (
+            <div style={s.painelCorpo}>
+              <div style={s.painelTopo}>
+                <input type="date" style={s.chip} value={painelData}
+                  onChange={e => { setPainelData(e.target.value); carregarPainelDia(e.target.value) }} />
+                {painelData && (
+                  <button style={s.chip} onClick={() => { setPainelData(''); carregarPainelDia('') }}>hoje</button>
+                )}
+                <button style={s.chip} onClick={() => carregarPainelDia(painelData)}>🔄 Atualizar</button>
+                {painelCarregando && <span style={{ fontSize: 12, color: '#5b6b84' }}>carregando...</span>}
+              </div>
+
+              {painelDia && (() => {
+                const d = painelDia.distribuicao, v = painelDia.vendas
+                const totalDist = d.reduce((s2, x) => s2 + Number(x.recebidos || 0), 0)
+                const totalPegou = d.reduce((s2, x) => s2 + Number(x.pegou || 0), 0)
+                const totalVendas = v.reduce((s2, x) => s2 + Number(x.vendas || 0), 0)
+                const vendasDe = n => (v.find(x => x.vendedora === n) || {}).vendas || 0
+                return (
+                  <>
+                    <div style={s.painelKpis}>
+                      <span style={s.kpi}>📥 Distribuídos hoje: <b>{totalDist}</b></span>
+                      <span style={s.kpi}>✋ Pegaram: <b>{totalPegou}</b>{totalDist ? ' (' + Math.round(100 * totalPegou / totalDist) + '%)' : ''}</span>
+                      <span style={{ ...s.kpi, background: 'rgba(52,211,153,.16)', color: '#065f46', fontWeight: 700 }}>
+                        💰 Vendas: <b>{totalVendas}</b>
+                      </span>
+                      <span style={s.kpi}>📈 Conversão: <b>{totalDist ? (100 * totalVendas / totalDist).toFixed(1) + '%' : '—'}</b></span>
+                    </div>
+
+                    {d.length === 0 && <div style={s.painelVazio}>Nada distribuído nesse dia.</div>}
+                    {d.length > 0 && (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={s.tab}>
+                          <thead><tr>
+                            <th style={s.th}>vendedora</th>
+                            <th style={s.thNum}>recebeu</th>
+                            <th style={s.thNum}>pegou</th>
+                            <th style={s.thNum}>não pegou</th>
+                            <th style={s.thNum}>h até pegar</th>
+                            <th style={s.thNum}>vendas</th>
+                            <th style={s.thNum}>conversão</th>
+                            <th style={s.thNum}>em aberto</th>
+                            <th style={s.thNum}>1ª → última</th>
+                          </tr></thead>
+                          <tbody>
+                            {d.map(x => {
+                              const vd = Number(vendasDe(x.vendedora))
+                              const rec = Number(x.recebidos || 0)
+                              const naoPegou = Number(x.ninguem_pegou || 0)
+                              return (
+                                <tr key={x.vendedora}>
+                                  <td style={s.td}>{x.vendedora}</td>
+                                  <td style={s.tdNum}>{rec}</td>
+                                  <td style={s.tdNum}>{x.pegou}</td>
+                                  {/* quem recebeu e não pegou nada é o que trava o funil */}
+                                  <td style={{ ...s.tdNum, ...(naoPegou === rec && rec > 0 ? s.tdRuim : {}) }}>{naoPegou}</td>
+                                  <td style={s.tdNum}>{x.h_ate_pegar != null ? Number(x.h_ate_pegar).toFixed(1) + 'h' : '—'}</td>
+                                  <td style={{ ...s.tdNum, ...(vd > 0 ? s.tdBom : {}) }}>{vd}</td>
+                                  <td style={s.tdNum}>{rec ? (100 * vd / rec).toFixed(0) + '%' : '—'}</td>
+                                  <td style={s.tdNum}>{x.em_aberto}</td>
+                                  <td style={s.tdNum}>{String(x.primeiro || '').slice(0, 5)} → {String(x.ultimo || '').slice(0, 5)}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* vendas de quem NAO recebeu no dia nao aparecem na tabela acima */}
+                    {v.filter(x => !d.some(y => y.vendedora === x.vendedora)).map(x => (
+                      <div key={x.vendedora} style={s.painelNota}>
+                        💰 {x.vendedora}: {x.vendas} venda(s) hoje de cliente recebido em outro dia
+                      </div>
+                    ))}
+                    <div style={s.painelPe}>
+                      Distribuição conta pelo dia em que a advogada aprovou e o rodízio entregou — não pela data de chegada do lead.
+                      Venda conta por quem fechou.
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          )}
         </div>
       )}
 
