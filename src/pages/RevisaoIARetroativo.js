@@ -137,6 +137,11 @@ const s = {
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
   cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
+  geridBox: { marginBottom: 12, padding: 12, borderRadius: 10, background: 'rgba(52,211,153,.10)', border: '0.5px solid rgba(52,211,153,.45)' },
+  geridLabel: { fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 6 },
+  geridMotivo: { fontSize: 12, color: '#0f172a', background: '#ffffff', borderRadius: 6, padding: '6px 8px', marginBottom: 8 },
+  geridImg: { width: '100%', maxHeight: 340, objectFit: 'contain', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.14)', background: '#ffffff', display: 'block', cursor: 'zoom-in' },
+  geridPe: { fontSize: 10, color: '#5b6b84', marginTop: 5 },
   buscaWrap: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
   buscaInput: { flex: '1 1 300px', maxWidth: 420, padding: '9px 12px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', background: '#ffffff', color: '#0f172a', boxSizing: 'border-box' },
   buscaBtn: { padding: '9px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#60a5fa', color: '#232a37', cursor: 'pointer' },
@@ -227,6 +232,12 @@ export default function RevisaoIARetroativo() {
   const [mensagens, setMensagens] = useState([])
   const [anexos, setAnexos] = useState([])
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
+  // 28/08 (Bruno): o print do GERID que a advogada anexa na mesa dela tem que chegar
+  // na vendedora. 97 leads ja entregues tinham print e a vendedora nao via nenhum —
+  // o mae_board nao devolve esse campo. Busco sob demanda ao abrir a ficha, por LEAD_ID,
+  // pra nao mexer no mae_board (que alimenta o board inteiro) nem pesar o carregamento.
+  const [gerid, setGerid] = useState(null)
+  const [geridCarregando, setGeridCarregando] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [fechAberto, setFechAberto] = useState(false)
@@ -345,8 +356,18 @@ export default function RevisaoIARetroativo() {
   }
   function limparBusca() { setBusca(''); setAchados(null) }
 
+  async function carregarGerid(leadId) {
+    setGerid(null)
+    if (!leadId) return
+    setGeridCarregando(true)
+    const { data } = await supabase.rpc('gerid_print_do_lead', { p_lead_id: leadId })
+    setGeridCarregando(false)
+    setGerid((data && data[0]) || null)   // sem print => null, a ficha nem mostra o bloco
+  }
+
   const abrirLead = async (l) => {
     setLead(l)
+    carregarGerid(l && l.id)
     setMensagens([])
     setAnexos([])
     setCarregandoAnexos(true)
@@ -360,7 +381,7 @@ export default function RevisaoIARetroativo() {
     return () => clearInterval(t)
   }, [lead, recarregarConversa])
 
-  const fechar = () => { setLead(null); setMensagens([]); setAnexos([]) }
+  const fechar = () => { setLead(null); setMensagens([]); setAnexos([]); setGerid(null) }
 
 
   // Pega o card (marca selo) sem mandar mensagem
@@ -672,6 +693,27 @@ export default function RevisaoIARetroativo() {
               {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
               {ehSupervisor && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
             </div>
+
+            {/* Print do GERID da advogada. So aparece quando ela anexou — a aprovacao
+                exige o print, entao pra pre-aprovado real ele existe. E a prova do
+                direito da cliente: a vendedora vende olhando pra ele. */}
+            {geridCarregando && (
+              <div style={s.geridBox}><div style={s.geridLabel}>🗂️ Print do GERID</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>carregando...</div></div>
+            )}
+            {!geridCarregando && gerid && gerid.print_url && (
+              <div style={s.geridBox}>
+                <div style={s.geridLabel}>🗂️ Print do GERID — anexado pela advogada</div>
+                {gerid.advogada_motivo && <div style={s.geridMotivo}>⚖️ {gerid.advogada_motivo}</div>}
+                <a href={gerid.print_url} target="_blank" rel="noreferrer" title="Abrir o print em tamanho real">
+                  <img src={gerid.print_url} alt="Print do GERID" style={s.geridImg} />
+                </a>
+                <div style={s.geridPe}>
+                  Clique na imagem pra abrir em tamanho real
+                  {gerid.print_em ? ' · anexado em ' + gerid.print_em : ''}
+                </div>
+              </div>
+            )}
 
             <div style={s.anexoBox}>
               <div style={s.anexoLabel}>
