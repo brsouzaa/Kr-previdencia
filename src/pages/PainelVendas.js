@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import ModalNovaVenda from '../components/ModalNovaVenda'
+import FichaCliente from '../components/FichaCliente'
 
 // 31/08 v3 — retrabalho pedido pelo Bruno: "os números parecem estar mt confusos".
 //
@@ -165,6 +166,12 @@ const s = {
   tag: { fontSize: 10.5, color: COR_MEDIA, background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagEtapa: { fontSize: 10, fontWeight: 600, color: '#7c2d12', background: 'rgba(237,161,0,.16)',
               borderRadius: 5, padding: '2px 6px', whiteSpace: 'nowrap' },
+  tabelaTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                gap: 12, flexWrap: 'wrap', marginBottom: 14 },
+  select: { padding: '8px 11px', fontSize: 12.5, borderRadius: 9, cursor: 'pointer',
+            border: '0.5px solid rgba(15,23,42,0.18)', background: '#fff', color: COR_TEXTO,
+            fontFamily: 'inherit', flexShrink: 0 },
+  trClicavel: { cursor: 'pointer' },
   tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
@@ -282,59 +289,116 @@ function MatrizVendedorProduto({ vendedores, produtos }) {
 }
 
 // Tabela detalhada. Usada nos dois lados; o admin ganha a coluna de vendedor.
-function TabelaVendas({ lista, comVendedor }) {
-  if (!lista.length) return <div style={s.vazio}>Nenhuma venda no período escolhido.</div>
+//
+// 31/08: o motivo da barrada saiu da celula — texto livre de tamanho imprevisivel
+// dentro de tabela quebra o alinhamento de todas as linhas. Agora a LINHA INTEIRA
+// abre a ficha, que tem espaco para o motivo, a etapa e os documentos.
+const FILTROS = [
+  ['todas',      'Todas'],
+  ['aprovadas',  'Só aprovadas'],
+  ['barradas',   'Só barradas'],
+  ['revisao_ia', 'Barradas na revisão IA'],
+  ['pos_venda',  'Barradas no pós-venda'],
+  ['advogado',   'Barradas pelo advogado'],
+  ['sem_decisao','Ainda sem decisão'],
+  ['sem_compr',  'Sem comprovante'],
+  ['historico',  'Só histórico importado'],
+]
+
+function aplicaFiltro(lista, f) {
+  if (f === 'todas') return lista
+  return lista.filter(v => {
+    switch (f) {
+      case 'aprovadas':   return v.status === 'aprovada' || v.status === 'concluida'
+      case 'barradas':    return v.status === 'barrada'
+      case 'revisao_ia':  return v.origem_barrada === 'revisao_ia'
+      case 'pos_venda':   return v.origem_barrada === 'pos_venda'
+      case 'advogado':    return v.origem_barrada === 'advogado'
+      case 'sem_decisao': return v.status === 'pendente' || v.status === 'em_validacao'
+      case 'sem_compr':   return !v.tem_comprovante
+      case 'historico':   return v.conta_comissao === false
+      default: return true
+    }
+  })
+}
+
+function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, subtitulo }) {
+  const visivel = aplicaFiltro(lista, filtro)
   return (
-    <div style={{ overflowX: 'auto', maxHeight: '55vh', scrollbarWidth: 'thin' }}>
-      <table style={s.tabela}>
-        <thead>
-          <tr>
-            <th style={s.th}>Data</th>
-            <th style={s.th}>Cliente</th>
-            <th style={s.th}>Produto</th>
-            {comVendedor && <th style={s.th}>Vendedor</th>}
-            <th style={s.th}>Situação</th>
-            <th style={s.thNum}>Comissão</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lista.map(v => (
-            <tr key={v.id}>
-              <td style={{ ...s.td, whiteSpace: 'nowrap' }}>{brData(v.data_venda)}</td>
-              <td style={{ ...s.td, maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  title={v.cliente}>
-                {v.cliente}
-                {!v.tem_comprovante && v.status === 'pendente' &&
-                  <span style={{ ...s.tagRuim, marginLeft: 6 }}>sem comprovante</span>}
-              </td>
-              <td style={s.td}>{v.produto || '—'}</td>
-              {comVendedor && (
-                <td style={s.td}>
-                  {v.eh_robo ? <span style={s.tag}>🤖 {v.vendedor}</span> : v.vendedor}
-                </td>
-              )}
-              <td style={s.td}>
-                <TagStatus status={v.status} />
-                {/* qual ETAPA barrou. Advogado, pos-venda e revisao IA sao
-                    problemas diferentes e pedem acoes diferentes. */}
-                {v.origem_barrada && ORIGEM_BARRADA[v.origem_barrada] && (
-                  <span style={{ ...s.tagEtapa, marginLeft: 5 }}
-                    title={ORIGEM_BARRADA[v.origem_barrada].desc}>
-                    {ORIGEM_BARRADA[v.origem_barrada].rot}
-                  </span>
-                )}
-                {v.motivo &&
-                  <div style={{ fontSize: 11, color: COR_MEDIA, marginTop: 3, maxWidth: 240 }}>{v.motivo}</div>}
-              </td>
-              <td style={s.tdNum}>
-                {v.conta_comissao === false
-                  ? <span style={s.tag}>histórico</span>
-                  : dinheiro(v.comissao)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div style={s.bloco}>
+      <div style={s.tabelaTopo}>
+        <div style={{ minWidth: 0 }}>
+          <div style={s.blocoTit}>{titulo}</div>
+          <div style={{ ...s.blocoSub, marginBottom: 0 }}>
+            {filtro === 'todas'
+              ? <>{inteiro(lista.length)} venda(s) · clique na linha para ver a ficha</>
+              : <>{inteiro(visivel.length)} de {inteiro(lista.length)} · clique na linha para ver a ficha</>}
+          </div>
+          {subtitulo}
+        </div>
+        <select style={s.select} value={filtro} onChange={e => setFiltro(e.target.value)}>
+          {FILTROS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+
+      {visivel.length === 0 ? (
+        <div style={s.vazio}>
+          {lista.length === 0
+            ? 'Nenhuma venda no período escolhido.'
+            : 'Nenhuma venda com esse filtro. As outras continuam no período.'}
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto', maxHeight: '55vh', scrollbarWidth: 'thin' }}>
+          <table style={s.tabela}>
+            <thead>
+              <tr>
+                <th style={s.th}>Data</th>
+                <th style={s.th}>Cliente</th>
+                <th style={s.th}>Produto</th>
+                {comVendedor && <th style={s.th}>Vendedor</th>}
+                <th style={s.th}>Situação</th>
+                <th style={s.thNum}>Comissão</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visivel.map(v => (
+                <tr key={v.id} style={s.trClicavel}
+                    onClick={() => aoAbrir && aoAbrir(v)}
+                    title="Ver a ficha completa desta cliente">
+                  <td style={{ ...s.td, whiteSpace: 'nowrap' }}>{brData(v.data_venda)}</td>
+                  <td style={{ ...s.td, maxWidth: 260, overflow: 'hidden',
+                               textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.cliente}>
+                    {v.cliente}
+                    {!v.tem_comprovante && v.status === 'pendente' &&
+                      <span style={{ ...s.tagRuim, marginLeft: 6 }}>sem comprovante</span>}
+                  </td>
+                  <td style={{ ...s.td, whiteSpace: 'nowrap' }}>{v.produto || '—'}</td>
+                  {comVendedor && (
+                    <td style={{ ...s.td, whiteSpace: 'nowrap' }}>
+                      {v.eh_robo ? <span style={s.tag}>🤖 {v.vendedor}</span> : v.vendedor}
+                    </td>
+                  )}
+                  {/* só o status e a etapa: dois rótulos curtos, largura previsível.
+                      O motivo é texto livre e mora na ficha. */}
+                  <td style={{ ...s.td, whiteSpace: 'nowrap' }}>
+                    <TagStatus status={v.status} />
+                    {v.origem_barrada && ORIGEM_BARRADA[v.origem_barrada] && (
+                      <span style={{ ...s.tagEtapa, marginLeft: 5 }}>
+                        {ORIGEM_BARRADA[v.origem_barrada].rot}
+                      </span>
+                    )}
+                  </td>
+                  <td style={s.tdNum}>
+                    {v.conta_comissao === false
+                      ? <span style={s.tag}>histórico</span>
+                      : dinheiro(v.comissao)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -353,6 +417,8 @@ export default function PainelVendas() {
   const [erro, setErro] = useState('')
   const [modalVenda, setModalVenda] = useState(false)
   const [comoLer, setComoLer] = useState(false)
+  const [filtroTab, setFiltroTab] = useState('todas')
+  const [fichaVenda, setFichaVenda] = useState(null)  // venda cuja ficha esta aberta
 
   useEffect(() => {
     if (periodo === 'custom') return
@@ -632,16 +698,14 @@ export default function PainelVendas() {
           </div>
         )}
 
-        <div style={s.bloco}>
-          <div style={s.blocoTit}>Vendas do período · {rotPer}</div>
-          <div style={s.blocoSub}>
-            {inteiro((painel.lista || []).length)} venda(s) listada(s), da mais recente para a mais antiga
-          </div>
-          <TabelaVendas lista={painel.lista || []} comVendedor />
-          <div style={s.nota}>
+        <TabelaVendas
+          lista={painel.lista || []} comVendedor
+          titulo={'Vendas do período · ' + rotPer}
+          filtro={filtroTab} setFiltro={setFiltroTab}
+          aoAbrir={(v) => setFichaVenda(v)}
+          subtitulo={<div style={s.nota}>
             Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
-          </div>
-        </div>
+          </div>} />
       </>)}
 
       {/* ================= VENDEDOR ================= */}
@@ -721,19 +785,25 @@ export default function PainelVendas() {
           </div>
         )}
 
-        <div style={s.bloco}>
-          <div style={s.blocoTit}>Minhas vendas · {rotPer}</div>
-          <div style={s.blocoSub}>
-            {inteiro((meu.lista || []).length)} venda(s) no período · só gera comissão o que o advogado aceitou
-          </div>
-          <TabelaVendas lista={meu.lista || []} />
-          <div style={s.nota}>
-            Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
-          </div>
-        </div>
+        <TabelaVendas
+          lista={meu.lista || []}
+          titulo={'Minhas vendas · ' + rotPer}
+          filtro={filtroTab} setFiltro={setFiltroTab}
+          aoAbrir={(v) => setFichaVenda(v)}
+          subtitulo={<div style={s.nota}>
+            Só gera comissão o que o advogado aceitou. Marcadas como <b>histórico</b>
+            vieram da importação.
+          </div>} />
       </>)}
 
       {carregando && <div style={s.vazio}>Carregando...</div>}
+
+      {fichaVenda && (
+        <FichaCliente
+          vendaId={fichaVenda.id}
+          aoFechar={() => setFichaVenda(null)}
+          aoMudarDocs={() => carregar()} />
+      )}
 
       {modalVenda && (
         <ModalNovaVenda
