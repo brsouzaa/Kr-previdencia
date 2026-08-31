@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import FichaCliente from '../components/FichaCliente'
 
 // 31/08 — Validação final: o advogado aceitou este cliente?
 //
@@ -56,6 +57,8 @@ const s = {
   btnOk: { padding: '10px 18px', fontSize: 13.5, fontWeight: 600, borderRadius: 9, border: 'none', background: '#1baf7a', color: '#ffffff', cursor: 'pointer' },
   btnNao: { padding: '10px 18px', fontSize: 13.5, fontWeight: 600, borderRadius: 9, border: '1px solid #e34948', background: '#ffffff', color: '#b3322f', cursor: 'pointer' },
   btnOff: { opacity: .5, cursor: 'not-allowed' },
+  btnVer: { padding: '10px 16px', fontSize: 13.5, fontWeight: 600, borderRadius: 9,
+            border: '0.5px solid rgba(15,23,42,0.18)', background: '#fff', color: '#0f172a', cursor: 'pointer' },
 
   modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '7vh 14px', overflowY: 'auto' },
   modalBox: { background: '#fff', borderRadius: 14, padding: 20, width: '100%', maxWidth: 520 },
@@ -80,6 +83,7 @@ export default function ValidacaoAdvogado() {
   const [aba, setAba] = useState('pendentes')
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(null)   // { item, motivo, outro, repor }
+  const [ficha, setFicha] = useState(null)   // item cuja ficha esta aberta
   const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -101,6 +105,7 @@ export default function ValidacaoAdvogado() {
     const { data, error } = await supabase.rpc('venda_advogado_aprovar', { p_venda_id: it.venda_id })
     setSalvando(false)
     if (error) { alert('Não consegui aprovar: ' + error.message); return }
+    setFicha(null)
     if (data && Number(data.comissao) > 0) {
       alert('Aprovada. Comissão de R$ ' + Number(data.comissao).toFixed(2) +
             ' liberada para ' + (it.vendedora_da_venda || 'a vendedora') + '.')
@@ -122,6 +127,7 @@ export default function ValidacaoAdvogado() {
     })
     setSalvando(false)
     if (error) { alert('Não consegui barrar: ' + error.message); return }
+    setFicha(null)
 
     const partes = ['Venda barrada.']
     if (data?.comissao_ja_paga) partes.push('A comissão já tinha sido paga, então o valor foi mantido — só a produção caiu.')
@@ -214,8 +220,11 @@ export default function ValidacaoAdvogado() {
                   )}
                 </div>
 
-                {!decidido && (
-                  <div style={s.acoes}>
+                <div style={s.acoes}>
+                  {/* decidir sem ver o documento é decidir no escuro — e barrar
+                      tira a comissão de outra pessoa. A ficha vem primeiro. */}
+                  <button style={s.btnVer} onClick={() => setFicha(it)}>Ver ficha</button>
+                  {!decidido && (<>
                     <button style={{ ...s.btnOk, ...(salvando ? s.btnOff : {}) }}
                       disabled={salvando} onClick={() => aprovar(it)}>✓ Aceitou</button>
                     <button style={{ ...s.btnNao, ...(salvando ? s.btnOff : {}) }}
@@ -223,8 +232,8 @@ export default function ValidacaoAdvogado() {
                       onClick={() => setModal({ item: it, motivo: '', outro: '', repor: true })}>
                       ✕ Não aceitou
                     </button>
-                  </div>
-                )}
+                  </>)}
+                </div>
               </div>
             </div>
           )
@@ -294,6 +303,15 @@ export default function ValidacaoAdvogado() {
             </div>
           </div>
         </div>
+      )}
+
+      {ficha && (
+        <FichaCliente
+          vendaId={ficha.venda_id}
+          aoFechar={() => setFicha(null)}
+          aoAceitar={() => aprovar(ficha)}
+          aoBarrar={() => { const it = ficha; setFicha(null); setModal({ item: it, motivo: '', outro: '', repor: true }) }}
+          aoMudarDocs={() => carregar()} />
       )}
     </div>
   )
