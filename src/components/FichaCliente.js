@@ -18,6 +18,8 @@ const DOCS = [
   ['comprovante_2', 'Comprovante 2', false],
   ['comprovante_endereco', 'Comprovante de endereço', false],
   ['comprovante_gravidez', 'Comprovante de gravidez', false],
+  // obrigatorios no Maternidade Mae desde 31/08
+  ['ctps_digital', 'CTPS digital', false],
   ['extrato_fgts', 'Extrato FGTS', false],
   ['outros', 'Outro documento', false],
 ]
