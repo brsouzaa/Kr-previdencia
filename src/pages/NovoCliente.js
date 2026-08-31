@@ -263,13 +263,20 @@ export default function NovoCliente({ onSucesso }) {
     c.motivo_aprovacao   // 26/08: motivo de aprovação é obrigatório no Maternidade Mãe
   )
 
-  // Extrato FGTS: obrigatório SÓ quando o motivo escolhido é o que se apoia nele.
-  // Nos outros motivos continua opcional — anexar não atrapalha.
-  const fgtsObrigatorio = c.produto === 'Maternidade Mãe' && c.motivo_aprovacao === MOTIVO_FGTS
+  // 31/08 (Bruno): no Maternidade Mãe, CTPS digital e extrato FGTS passaram a ser
+  // obrigatórios SEMPRE — não mais só no motivo que se apoiava no FGTS.
+  // É o advogado que precisa dos dois para montar o processo; sem eles a peça
+  // volta e a venda cai lá na frente.
+  const ehMae = c.produto === 'Maternidade Mãe'
+  const fgtsObrigatorio = ehMae
+  const ctpsObrigatorio = ehMae
   const fgtsOk = !fgtsObrigatorio || !!docs.extrato_fgts
+  const ctpsOk = !ctpsObrigatorio || !!docs.ctps_digital
 
-  // Documentos obrigatórios (4): RG frente, verso, comp 1, comp 2 (+ FGTS quando o motivo exige)
-  const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2 && fgtsOk
+  // Documentos obrigatórios: RG frente/verso + comprovantes 1 e 2, e no
+  // Maternidade Mãe também CTPS digital e extrato FGTS.
+  const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
+                 && fgtsOk && ctpsOk
 
   // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
   const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
@@ -700,14 +707,21 @@ export default function NovoCliente({ onSucesso }) {
         <UploadDocumento label="Comprovante de endereço (opcional)" obrigatorio={false} clienteId={tempIdRef.current} chave="comprovante_endereco"
           valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
 
-        {/* Extrato FGTS — só faz sentido no Maternidade Mãe. Vira obrigatório
-            quando o motivo escolhido é o que se apoia nele. */}
-        {c.produto === 'Maternidade Mãe' && (
+        {/* CTPS digital e extrato FGTS: obrigatórios no Maternidade Mãe desde 31/08 */}
+        {ehMae && (<>
+          <div style={{ ...s.hint, marginTop: 10, marginBottom: 6, color: '#7c2d12' }}>
+            No Maternidade Mãe a CTPS digital e o extrato FGTS passaram a ser obrigatórios.
+            Peça os dois à cliente antes de digitar — sem eles o cadastro não fecha.
+          </div>
           <UploadDocumento
-            label={fgtsObrigatorio ? 'Extrato FGTS — OBRIGATÓRIO pro motivo escolhido' : 'Extrato FGTS (opcional)'}
-            obrigatorio={fgtsObrigatorio} clienteId={tempIdRef.current} chave="extrato_fgts"
+            label="CTPS digital — OBRIGATÓRIO"
+            obrigatorio clienteId={tempIdRef.current} chave="ctps_digital"
+            valorInicial={docs.ctps_digital} onChange={url => setDoc('ctps_digital', url)} />
+          <UploadDocumento
+            label="Extrato FGTS — OBRIGATÓRIO"
+            obrigatorio clienteId={tempIdRef.current} chave="extrato_fgts"
             valorInicial={docs.extrato_fgts} onChange={url => setDoc('extrato_fgts', url)} />
-        )}
+        </>)}
       </div>
 
       {/* === OBSERVAÇÃO === */}
@@ -726,7 +740,8 @@ export default function NovoCliente({ onSucesso }) {
       {!tudoOk && (
         <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>
           {c.produto === 'Maternidade Mãe' && !c.motivo_aprovacao ? 'Escolha o motivo da aprovação' :
-            fgtsObrigatorio && !docs.extrato_fgts ? 'Esse motivo exige o extrato FGTS anexado' :
+            ctpsObrigatorio && !docs.ctps_digital ? 'Falta a CTPS digital — obrigatória no Maternidade Mãe' :
+            fgtsObrigatorio && !docs.extrato_fgts ? 'Falta o extrato FGTS — obrigatório no Maternidade Mãe' :
             !docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
             !camposMatOk ? 'Preencha NIS, data do parto e meses de gravidez' :
             duplicado ? 'CPF já cadastrado pendente' :
