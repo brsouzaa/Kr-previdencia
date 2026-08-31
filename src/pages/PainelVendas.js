@@ -310,7 +310,7 @@ const FILTROS = [
   ['advogado',   'Barradas pelo advogado'],
   ['sem_decisao','Ainda sem decisão'],
   ['sem_compr',  'Sem comprovante'],
-  ['historico',  'Só histórico importado'],
+  ['indicacao',  'Só indicações'],
 ]
 
 function filtraTexto(lista, termo) {
@@ -335,7 +335,9 @@ function aplicaFiltro(lista, f) {
       case 'advogado':    return v.origem_barrada === 'advogado'
       case 'sem_decisao': return v.status === 'pendente' || v.status === 'em_validacao'
       case 'sem_compr':   return !v.tem_comprovante
-      case 'historico':   return v.conta_comissao === false
+      // 31/08: o filtro de "historico importado" saiu — nada importado chega mais
+      // nesta lista. No lugar dele, o corte que passou a existir: venda de indicacao.
+      case 'indicacao':   return v.origem_venda === 'indicacao'
       default: return true
     }
   })
@@ -397,7 +399,7 @@ function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, 
       {visivel.length === 0 ? (
         <div style={s.vazio}>
           {lista.length === 0
-            ? 'Nenhuma venda no período escolhido.'
+            ? 'Nenhuma venda anotada no período. Use "+ Cadastrar venda" para registrar a primeira.'
             : 'Nenhuma venda com esse filtro. As outras continuam no período.'}
         </div>
       ) : (
@@ -515,11 +517,10 @@ export default function PainelVendas() {
   const decididas = t ? Number(t.vendas || 0) + Number(t.barradas || 0) : 0
   const pctBarrada = decididas ? Math.round(100 * Number(t.barradas || 0) / decididas) : null
 
-  // A comparação só vale quando os dois períodos são da operação. Comparar
-  // importação com importação produz variação que não aconteceu na vida real.
+  // 31/08: os dois lados da conta agora são só venda anotada, então a comparação
+  // voltou a ser honesta e não precisa mais se esconder quando havia importação.
   const delta = useMemo(() => {
     if (!t || !ant) return null
-    if (Number(t.importadas || 0) > 0 || Number(ant.importadas || 0) > 0) return null
     const a = Number(ant.vendas || 0), h = Number(t.vendas || 0)
     return a === 0 ? null : Math.round(100 * (h - a) / a)
   }, [t, ant])
@@ -587,7 +588,9 @@ export default function PainelVendas() {
         <div>
           <div style={s.title}>💵 Painel de vendas</div>
           <div style={s.sub}>
-            {ehAdmin ? 'Todos os produtos somados no mesmo número.' : 'Sua produção e sua comissão.'}
+            {ehAdmin
+              ? 'Todos os produtos, só o que foi anotado como venda.'
+              : 'Sua produção e sua comissão — do que você anotou aqui.'}
           </div>
         </div>
         <button style={s.btnNova} onClick={() => setModalVenda(true)}>+ Cadastrar venda</button>
@@ -684,11 +687,12 @@ export default function PainelVendas() {
           </div>
         </div>
 
-        {Number(t?.importadas || 0) > 0 && (
+        {Number(painel?.fora_do_painel || 0) > 0 && (
           <div style={s.faixa()}>
-            <b>{inteiro(t.importadas)}</b> deste período vieram da importação: entram na contagem
-            mas não geram comissão — e é por isso que a comparação com o período anterior fica
-            escondida (comparar importação com operação inventa uma variação que não aconteceu).
+            Este painel conta <b>só venda anotada por gente</b>. No mesmo período o sistema
+            registrou mais <b>{inteiro(painel.fora_do_painel)}</b> pelo fluxo automático do
+            contrato — elas continuam valendo no CRM e na tela do advogado, mas não entram
+            aqui. Venda que ninguém anotar não aparece nesta contagem.
           </div>
         )}
 
@@ -697,9 +701,13 @@ export default function PainelVendas() {
         </button>
         {comoLer && (
           <div style={s.faixa()}>
-            Uma venda entra como <b>esperando decisão</b> quando é cadastrada. Quando o vendedor do
+            Este painel é o <b>caderno de vendas do time</b>: só aparece aqui o que alguém
+            anotou em "+ Cadastrar venda" — uma digitação que já existe no sistema marcada
+            como venda, ou uma indicação nova. O que o contrato movimenta sozinho continua
+            valendo no CRM, mas <b>não entra nesta contagem</b>.
+            <br />Uma venda entra como <b>esperando decisão</b> quando é anotada. Quando o vendedor do
             advogado decide, ela vira <b>aprovada</b> (gera comissão) ou <b>barrada</b> (não gera).
-            Os três somados dão o total cadastrado no período, e só o primeiro vira dinheiro.
+            Os três somados dão o total anotado no período, e só o primeiro vira dinheiro.
             <br /><b>Sem comprovante</b> é diferente: a venda nem chega ao advogado até alguém
             anexar o papel — é a fila que depende só de você.
           </div>
