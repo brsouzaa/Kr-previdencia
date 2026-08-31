@@ -90,7 +90,9 @@ export default function ValidacaoAdvogado() {
     setCarregando(true); setErro('')
     const { data, error } = await supabase.rpc('venda_fila_advogado', {
       p_desde: null,
-      p_incluir_resolvidos: aba === 'decididos',
+      // a RPC tem dois modos; "aceitos" e "barrados" saem do mesmo lote de
+      // decididos e sao separados aqui — evita criar variante de assinatura
+      p_incluir_resolvidos: aba !== 'pendentes',
     })
     if (error) setErro(error.message)
     setLista(data || [])
@@ -148,6 +150,10 @@ export default function ValidacaoAdvogado() {
   }
 
   const filtrada = lista.filter(i => {
+    // aba manda antes da busca: "Barrados" e a tela que o Bruno abre para ver
+    // o que caiu e cobrar motivo
+    if (aba === 'aceitos'  && !i.adv_validado_em) return false
+    if (aba === 'barrados' && !i.adv_barrado_em) return false
     if (!busca.trim()) return true
     const b = busca.toLowerCase().replace(/\D/g, '') || busca.toLowerCase()
     return String(i.cliente_nome || '').toLowerCase().includes(busca.toLowerCase())
@@ -156,6 +162,8 @@ export default function ValidacaoAdvogado() {
   })
   const pendentes = lista.filter(i => !i.adv_validado_em && !i.adv_barrado_em)
   const antigos = pendentes.filter(i => Number(i.dias_desde_entrega) >= 3).length
+  const barrados = lista.filter(i => i.adv_barrado_em)
+  const comReposicao = barrados.filter(i => i.reposicao_pedida).length
 
   return (
     <div>
@@ -167,7 +175,7 @@ export default function ValidacaoAdvogado() {
       {erro && <div style={s.consequencia}>Não consegui carregar: {erro}</div>}
 
       <div style={s.linha}>
-        {[['pendentes', 'A decidir'], ['decididos', 'Já decididos']].map(([v, l]) => (
+        {[['pendentes', 'A decidir'], ['aceitos', 'Aceitos'], ['barrados', 'Barrados']].map(([v, l]) => (
           <button key={v} style={{ ...s.chip, ...(aba === v ? s.chipOn : {}) }}
             onClick={() => setAba(v)}>{l}</button>
         ))}
@@ -182,13 +190,29 @@ export default function ValidacaoAdvogado() {
         </div>
       )}
 
+      {aba === 'barrados' && !carregando && (
+        <div style={s.resumo}>
+          <span style={s.pill}>Barrados pelo advogado: <b>{barrados.length}</b></span>
+          <span style={s.pill}>Com reposição pedida: <b>{comReposicao}</b></span>
+          {barrados.length > comReposicao && (
+            <span style={s.pillAlerta}>
+              Sem reposição: <b>{barrados.length - comReposicao}</b> — vaga perdida
+            </span>
+          )}
+        </div>
+      )}
+
       {carregando ? <div style={s.vazio}>Carregando...</div>
         : filtrada.length === 0 ? (
           <div style={s.vazio}>
             {aba === 'pendentes'
               ? <>Nada esperando decisão.<br />
                   Os clientes aparecem aqui depois que o lote é entregue ao advogado.</>
-              : <>Nenhuma venda decidida ainda.</>}
+              : aba === 'barrados'
+                ? <>Nenhum cliente foi barrado pelo advogado.<br />
+                    Barradas de outras etapas (revisão IA, pós-venda) não entram aqui —
+                    elas aparecem no Painel de vendas, com a etapa nomeada.</>
+                : <>Nenhum cliente aceito ainda.</>}
           </div>
         ) : filtrada.map(it => {
           const decidido = it.adv_validado_em || it.adv_barrado_em
