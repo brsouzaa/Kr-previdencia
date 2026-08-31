@@ -26,6 +26,12 @@ const COR = {
 }
 
 const soDigitos = (v) => String(v || '').replace(/\D/g, '')
+// data local, não UTC: perto da meia-noite o toISOString() puro joga para o dia
+// seguinte e a venda nasceria datada no futuro, que o banco recusa
+const isoLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+const hojeISO = () => isoLocal(new Date())
+const diasAtras = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return isoLocal(d) }
+const brData = (iso) => { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '' }
 const cpfBonito = (c) => {
   const n = soDigitos(c)
   return n.length === 11 ? n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : (c || '')
@@ -100,6 +106,10 @@ const s = {
     color: ok ? '#0f7a52' : COR.media, fontWeight: ok ? 600 : 400, textAlign: 'center' }),
   docAjuda: { fontSize: 11, color: COR.fraca, marginTop: 4, textAlign: 'center' },
 
+  rotuloCampo: { fontSize: 12, color: COR.media, fontWeight: 500, marginTop: 12 },
+  avisoData: { fontSize: 11.5, lineHeight: 1.5, color: '#7c2d12', marginTop: 6,
+               background: 'rgba(237,161,0,.13)', border: '1px solid rgba(237,161,0,.45)',
+               borderRadius: 8, padding: '8px 10px' },
   erro: { fontSize: 12.5, color: COR.vermelho, background: 'rgba(227,73,72,.09)',
           border: '1px solid rgba(227,73,72,.3)', borderRadius: 9, padding: '10px 12px', marginTop: 14 },
   falta: { fontSize: 12, color: COR.media, marginRight: 'auto', lineHeight: 1.4 },
@@ -131,6 +141,11 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
   const [arquivos, setArquivos] = useState({})    // { chave: File }
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  // 31/08: a data da venda passou a ser editável na indicação. Uma venda de
+  // indicação costuma ser anotada dias depois de fechada, e datar tudo como
+  // "hoje" empilhava no dia do lançamento em vez do dia em que aconteceu.
+  const [dataVenda, setDataVenda] = useState(() => hojeISO())
+  const [regras, setRegras] = useState([])
 
   useEffect(() => {
     supabase.from('vendas_produtos').select('*').eq('ativo', true).order('ordem')
@@ -138,12 +153,21 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
         setProdutos(data || [])
         if (data && data.length) setProduto(p => p || data[0].produto)
       })
+    // desde quando cada produto paga comissão: é o que permite avisar, ANTES de
+    // salvar, que uma data antiga demais faz a venda nascer sem comissão
+    supabase.rpc('venda_regras_comissao').then(({ data }) => setRegras(data || []))
   }, [])
 
   const cfg = produtos.find(p => p.produto === produto) || {}
   const exigeValor = !!cfg.exige_valor_emprestado
 
   const docs = DOCS_POR_PRODUTO[produto] || DOC_PADRAO
+
+  // devolve a data de inicio da regra quando a data escolhida cai ANTES dela
+  const semComissao = useMemo(() => {
+    const r = regras.find(x => x.produto === produto)
+    return r && r.desde && dataVenda < r.desde ? r.desde : null
+  }, [regras, produto, dataVenda])
 
   // um documento esta resolvido se a pessoa anexou agora OU se ja consta no
   // cadastro dela — foi o que evitou pedir duas vezes o mesmo PDF
@@ -213,6 +237,7 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
         p_produto: produto,
         p_origem: ehIndicacao ? 'indicacao' : 'existente',
         p_indicado_por: ehIndicacao ? (indicadoPor || null) : null,
+        p_data_venda: ehIndicacao ? dataVenda : null,
         p_valor_emprestado: valorEmprestado ? Number(valorEmprestado) : null,
         p_observacao: observacao || null,
         p_cliente_id: !ehIndicacao && escolhido ? escolhido.cliente_id : null,
@@ -241,6 +266,8 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
     if (/CPF_INVALIDO/.test(m)) return 'O CPF precisa ter 11 dígitos.'
     if (/VALOR_EMPRESTADO_OBRIGATORIO/.test(m)) return 'No Bolsa Família, informe o valor emprestado.'
     if (/PRODUTO_OBRIGATORIO/.test(m)) return 'Escolha o produto.'
+    if (/DATA_NO_FUTURO/.test(m)) return 'A data da venda não pode ser no futuro.'
+    if (/DATA_MUITO_ANTIGA/.test(m)) return 'Essa data é antiga demais. Se a venda é mesmo dessa data, fale com o Bruno.'
     if (/TIPO_DE_DOCUMENTO_INVALIDO/.test(m)) return 'Documento não reconhecido pelo sistema.'
     if (/duplicate key|uq_vendas/.test(m)) return 'Essa pessoa já tem uma venda registrada.'
     return m
@@ -276,7 +303,8 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
           <div style={s.abas}>
             {[['cliente', 'Já está no sistema'], ['indicacao', 'Indicação (cliente nova)']].map(([v, l]) => (
               <div key={v} style={{ ...s.aba, ...(modo === v ? s.abaOn : {}) }}
-                onClick={() => { setModo(v); setEscolhido(null); setAchados([]); setErro('') }}>{l}</div>
+                onClick={() => { setModo(v); setEscolhido(null); setAchados([]); setErro('')
+                                 setDataVenda(hojeISO()) }}>{l}</div>
             ))}
           </div>
 
@@ -318,6 +346,19 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
             </div>
             <input style={s.input} value={indicadoPor} placeholder="Quem indicou (opcional)"
               onChange={e => setIndicadoPor(e.target.value)} />
+
+            <div style={s.rotuloCampo}>Quando a venda foi fechada</div>
+            <input style={{ ...s.input, marginTop: 4 }} type="date" value={dataVenda}
+              max={hojeISO()} min={diasAtras(90)}
+              onChange={e => setDataVenda(e.target.value)} />
+            {dataVenda !== hojeISO() && (
+              <div style={s.avisoData}>
+                Esta venda vai entrar no dia <b>{brData(dataVenda)}</b>, não hoje.
+                {semComissao && <> Atenção: a comissão de {produto} só vale a partir
+                  de <b>{brData(semComissao)}</b> — datada antes disso, a venda
+                  entra na produção mas <b>nasce com comissão zero</b>.</>}
+              </div>
+            )}
           </>)}
 
           <Passo n="3" texto={exigeValor ? 'Valor e documento' : 'Documento'}
