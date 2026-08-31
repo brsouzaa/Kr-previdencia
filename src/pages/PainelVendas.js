@@ -172,6 +172,14 @@ const s = {
             border: '0.5px solid rgba(15,23,42,0.18)', background: '#fff', color: COR_TEXTO,
             fontFamily: 'inherit', flexShrink: 0 },
   trClicavel: { cursor: 'pointer' },
+  buscaCaixa: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flex: '1 1 260px', minWidth: 200 },
+  buscaInput: { flex: 1, minWidth: 170, padding: '8px 12px', fontSize: 13, borderRadius: 9,
+                border: '0.5px solid rgba(15,23,42,0.18)', boxSizing: 'border-box', fontFamily: 'inherit' },
+  buscaLimpa: { border: 'none', background: '#f1f5f9', color: COR_MEDIA, borderRadius: 8,
+                padding: '7px 11px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
+  buscaNota: { fontSize: 11.5, color: COR_MEDIA, background: '#f8fafc', borderRadius: 8,
+               padding: '8px 11px', marginBottom: 12, lineHeight: 1.55,
+               border: '0.5px solid rgba(15,23,42,0.08)' },
   tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
@@ -305,6 +313,17 @@ const FILTROS = [
   ['historico',  'Só histórico importado'],
 ]
 
+function filtraTexto(lista, termo) {
+  const t = (termo || '').trim().toLowerCase()
+  if (t.length < 2) return lista
+  const dig = t.replace(/\D/g, '')
+  const semAcento = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const alvo = semAcento(t)
+  return lista.filter(v =>
+    semAcento(v.cliente).includes(alvo) ||
+    (dig.length >= 3 && String(v.cpf || '').replace(/\D/g, '').includes(dig)))
+}
+
 function aplicaFiltro(lista, f) {
   if (f === 'todas') return lista
   return lista.filter(v => {
@@ -322,24 +341,58 @@ function aplicaFiltro(lista, f) {
   })
 }
 
-function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, subtitulo }) {
-  const visivel = aplicaFiltro(lista, filtro)
+function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, subtitulo,
+                       busca, setBusca, achados, buscando, aoBuscarTudo, aoLimparBusca }) {
+  const emBusca = !!achados
+  const base = emBusca ? achados : filtraTexto(lista, busca)
+  const visivel = aplicaFiltro(base, filtro)
+  const termo = (busca || '').trim()
   return (
     <div style={s.bloco}>
       <div style={s.tabelaTopo}>
         <div style={{ minWidth: 0 }}>
-          <div style={s.blocoTit}>{titulo}</div>
+          <div style={s.blocoTit}>{emBusca ? 'Resultado da busca' : titulo}</div>
           <div style={{ ...s.blocoSub, marginBottom: 0 }}>
-            {filtro === 'todas'
-              ? <>{inteiro(lista.length)} venda(s) · clique na linha para ver a ficha</>
-              : <>{inteiro(visivel.length)} de {inteiro(lista.length)} · clique na linha para ver a ficha</>}
+            {emBusca
+              ? <>{inteiro(visivel.length)} venda(s) de todo o histórico · clique para ver a ficha</>
+              : filtro === 'todas'
+                ? <>{inteiro(lista.length)} venda(s) · clique na linha para ver a ficha</>
+                : <>{inteiro(visivel.length)} de {inteiro(lista.length)} · clique na linha para ver a ficha</>}
           </div>
-          {subtitulo}
+          {!emBusca && subtitulo}
         </div>
-        <select style={s.select} value={filtro} onChange={e => setFiltro(e.target.value)}>
-          {FILTROS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        <div style={s.buscaCaixa}>
+          <input style={s.buscaInput} value={busca || ''}
+            placeholder="Localizar cliente por nome ou CPF..."
+            onChange={e => setBusca(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') aoBuscarTudo && aoBuscarTudo() }} />
+          {(termo || emBusca) && (
+            <button style={s.buscaLimpa} onClick={aoLimparBusca}>limpar</button>
+          )}
+          <select style={s.select} value={filtro} onChange={e => setFiltro(e.target.value)}>
+            {FILTROS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
       </div>
+
+      {/* A lista carregada é só do período. Quem procura uma cliente quase nunca
+          lembra de quando foi a venda — então a busca alcança todo o histórico. */}
+      {!emBusca && termo.length >= 2 && (
+        <div style={s.buscaNota}>
+          {visivel.length > 0
+            ? <>Mostrando {inteiro(visivel.length)} do período atual. </>
+            : <>Nada com esse nome no período mostrado. </>}
+          <button style={{ ...s.buscaLimpa, background: '#e8f0fb', color: '#1d5fa8' }}
+            onClick={() => aoBuscarTudo && aoBuscarTudo()} disabled={buscando}>
+            {buscando ? 'procurando...' : 'procurar em todo o histórico'}
+          </button>
+        </div>
+      )}
+      {emBusca && (
+        <div style={s.buscaNota}>
+          Resultado de <b>{termo}</b> em todo o histórico, fora do filtro de período.
+        </div>
+      )}
 
       {visivel.length === 0 ? (
         <div style={s.vazio}>
@@ -419,6 +472,23 @@ export default function PainelVendas() {
   const [comoLer, setComoLer] = useState(false)
   const [filtroTab, setFiltroTab] = useState('todas')
   const [fichaVenda, setFichaVenda] = useState(null)  // venda cuja ficha esta aberta
+  const [busca, setBusca] = useState('')
+  const [achados, setAchados] = useState(null)        // null = nao buscou no historico
+  const [buscando, setBuscando] = useState(false)
+
+  // A lista da tela é só do período. Quem procura uma cliente raramente lembra
+  // de quando foi a venda, então esta busca ignora o filtro e varre tudo.
+  const buscarNoHistorico = useCallback(async () => {
+    const t = busca.trim()
+    if (t.length < 3) { setErro('Digite ao menos 3 letras ou 3 números do CPF.'); return }
+    setBuscando(true); setErro('')
+    const { data, error } = await supabase.rpc('venda_localizar', { p_termo: t })
+    setBuscando(false)
+    if (error) { setErro(error.message); return }
+    setAchados(data || [])
+  }, [busca])
+
+  const limparBusca = useCallback(() => { setBusca(''); setAchados(null); setErro('') }, [])
 
   useEffect(() => {
     if (periodo === 'custom') return
@@ -702,6 +772,9 @@ export default function PainelVendas() {
           lista={painel.lista || []} comVendedor
           titulo={'Vendas do período · ' + rotPer}
           filtro={filtroTab} setFiltro={setFiltroTab}
+          busca={busca} setBusca={(v) => { setBusca(v); if (achados) setAchados(null) }}
+          achados={achados} buscando={buscando}
+          aoBuscarTudo={buscarNoHistorico} aoLimparBusca={limparBusca}
           aoAbrir={(v) => setFichaVenda(v)}
           subtitulo={<div style={s.nota}>
             Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
@@ -789,6 +862,9 @@ export default function PainelVendas() {
           lista={meu.lista || []}
           titulo={'Minhas vendas · ' + rotPer}
           filtro={filtroTab} setFiltro={setFiltroTab}
+          busca={busca} setBusca={(v) => { setBusca(v); if (achados) setAchados(null) }}
+          achados={achados} buscando={buscando}
+          aoBuscarTudo={buscarNoHistorico} aoLimparBusca={limparBusca}
           aoAbrir={(v) => setFichaVenda(v)}
           subtitulo={<div style={s.nota}>
             Só gera comissão o que o advogado aceitou. Marcadas como <b>histórico</b>
