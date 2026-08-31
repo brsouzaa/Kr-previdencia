@@ -44,6 +44,7 @@ import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
+import MeuPlanejamento from './pages/MeuPlanejamento'
 import RevisaoIAGestante from './pages/RevisaoIAGestante'
 import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
@@ -150,6 +151,8 @@ const IDS_TIME_MARYANA = [
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
+  if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
   // Advogada (Maithe): mesa dela e mais nada do sistema
   if (role === 'advogada') return page === 'mesa_advogada'
   // Vendedoras do retroativo: board do Retroativo ALEM do que ja tem hoje
@@ -266,6 +269,7 @@ function AppInner() {
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
     revisao_ia_retroativo: <RevisaoIARetroativo />,
+    meu_planejamento: <MeuPlanejamento />,
     revisao_ia_gestante: <RevisaoIAGestante />,
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
