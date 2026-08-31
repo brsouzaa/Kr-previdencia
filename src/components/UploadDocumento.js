@@ -9,8 +9,9 @@ import { supabase } from '../lib/supabase'
 //   - valorInicial: URL atual (se já tem upload)
 //   - clienteId: id do cliente (usado pra nomear o arquivo)
 //   - chave: chave do tipo de documento (ex: 'rg_frente')
+//   - somentePdf: exige PDF (CTPS digital e extrato FGTS — 31/08)
 //   - onChange: callback(url|null)
-export default function UploadDocumento({ label, obrigatorio, valorInicial, clienteId, chave, onChange }) {
+export default function UploadDocumento({ label, obrigatorio, valorInicial, clienteId, chave, somentePdf, onChange }) {
   const [url, setUrl] = useState(valorInicial || null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState(null)
@@ -25,11 +26,22 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
       return
     }
 
-    // Valida tipo
-    const tiposPermitidos = ['image/jpeg','image/jpg','image/png','image/webp','application/pdf']
-    if (!tiposPermitidos.includes(file.type)) {
-      setErro('Use JPG, PNG ou PDF')
-      return
+    // Valida tipo. CTPS digital e extrato FGTS TÊM que ser PDF: são documentos
+    // baixados de app (gov.br / FGTS) e print de tela não serve para o advogado —
+    // ele precisa do arquivo original, com as páginas e a assinatura digital.
+    // Checa o nome também: alguns navegadores mandam file.type vazio.
+    const ehPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')
+    if (somentePdf) {
+      if (!ehPdf) {
+        setErro('Este documento tem que ser o PDF baixado do aplicativo — print ou foto não vale.')
+        return
+      }
+    } else {
+      const tiposPermitidos = ['image/jpeg','image/jpg','image/png','image/webp','application/pdf']
+      if (!tiposPermitidos.includes(file.type) && !ehPdf) {
+        setErro('Use JPG, PNG ou PDF')
+        return
+      }
     }
 
     setEnviando(true)
@@ -80,10 +92,10 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
           {enviando ? (
             <span>⏳ Enviando...</span>
           ) : (
-            <span>📎 Clique para anexar (JPG, PNG ou PDF)</span>
+            <span>📎 Clique para anexar {somentePdf ? '(somente PDF)' : '(JPG, PNG ou PDF)'}</span>
           )}
           <input type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+            accept={somentePdf ? 'application/pdf,.pdf' : 'image/jpeg,image/jpg,image/png,image/webp,application/pdf'}
             disabled={enviando}
             onChange={e => fazerUpload(e.target.files?.[0])}
             style={{ display: 'none' }} />
