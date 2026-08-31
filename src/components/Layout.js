@@ -124,6 +124,8 @@ const NAV_ADMIN = [
   { key: 'funil', label: 'Funil' },
   { key: 'compras', label: 'Histórico' },
   { key: 'reposicoes', label: '🔄 Reposições' },
+  { key: 'painel_vendas', label: '💵 Painel de vendas' },
+  { key: 'validacao_advogado', label: '⚖️ O advogado aceitou?' },
   { key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' },
   { key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' },
   { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' },
@@ -151,6 +153,7 @@ const GRUPO_DE = {
   despesas: 'Gestão', recebimentos: 'Gestão', financeiro: 'Gestão', metas: 'Gestão',
   bi: 'Gestão', equipe: 'Gestão', advogados: 'Gestão', funil: 'Gestão',
   compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
+  painel_vendas: 'Gestão', validacao_advogado: 'Gestão',
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
   mesa_advogada: 'Operação IA',
@@ -328,6 +331,15 @@ export default function Layout({ children, page, setPage }) {
   // Confere CNIS (auditoria temporaria): Egle + Duda por ID
   if ((IDS_SUPERVISOR_BOARD.includes(profile?.id) || IDS_AGENTES_RETROATIVO.includes(profile?.id)) && !nav.some(n => n.key === 'confere_cnis')) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
+  }
+
+  // Painel de vendas: quem vende ve o proprio numero; quem atende advogado valida o aceite.
+  if (['vendedor','supervisor_producao'].includes(profile?.role) && !nav.some(n => n.key === 'validacao_advogado')) {
+    nav = [{ key: 'validacao_advogado', label: '⚖️ O advogado aceitou?' },
+           { key: 'painel_vendas', label: '💵 Painel de vendas' }, ...nav]
+  }
+  if (['vendedor_operador','coordenador_b2c'].includes(profile?.role) && !nav.some(n => n.key === 'painel_vendas')) {
+    nav = [{ key: 'painel_vendas', label: '💵 Painel de vendas' }, ...nav]
   }
 
   // Planejamento pessoal do Bruno: primeiro item do menu, so pra ele (por ID).
