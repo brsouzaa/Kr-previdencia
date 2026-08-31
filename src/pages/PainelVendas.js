@@ -18,12 +18,17 @@ import ModalNovaVenda from '../components/ModalNovaVenda'
 //
 // Regra de leitura: cada número aparece UMA vez, no lugar onde responde uma
 // pergunta. Se não muda nenhuma decisão, não entra na tela.
-const CORES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#94a3b8']
-const COR_BARRADA = '#e34948'
+// Paleta validada (contraste + daltonismo). Aqui só existem DUAS séries em toda
+// a tela — aprovada e barrada — então duas cores bastam. Produto e vendedor são
+// categorias nominais de uma série só: todas na mesma cor.
+const COR_APROVADA = '#2a78d6'   // slot 1
+const COR_BARRADA = '#e34948'    // status, não categoria
+const COR_BARRADA_TXT = '#b3322f' // o mesmo status em texto, com contraste
 const COR_TEXTO = '#0f172a'
 const COR_FRACA = '#94a3b8'
 const COR_MEDIA = '#5b6b84'
 const COR_VERDE = '#1baf7a'
+const COR_TRILHO = '#eef2f7'
 
 const PERIODOS = [['hoje', 'Hoje'], ['7d', '7 dias'], ['mes', 'Este mês'], ['30d', '30 dias']]
 
@@ -92,18 +97,27 @@ const s = {
   blocoTit: { fontSize: 13.5, fontWeight: 600, color: COR_TEXTO, marginBottom: 2 },
   blocoSub: { fontSize: 11, color: COR_FRACA, marginBottom: 15 },
 
-  barraLinha: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 11 },
-  barraNome: { fontSize: 12.5, color: COR_TEXTO, width: 132, flexShrink: 0, textAlign: 'right',
+  legenda: { display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 },
+  legItem: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: COR_MEDIA },
+  legSwatch: { width: 10, height: 10, borderRadius: 3, display: 'inline-block' },
+
+  barraLinha: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+  barraNome: { fontSize: 12.5, color: COR_TEXTO, width: 138, flexShrink: 0, textAlign: 'right',
                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  barraTrilho: { flex: 1, height: 20, background: '#f1f5f9', borderRadius: 4, display: 'flex', gap: 2, overflow: 'hidden' },
+  // trilho fino: marca <= 24px, o resto da faixa é ar
+  barraTrilho: { flex: 1, height: 18, background: COR_TRILHO, borderRadius: 4, display: 'flex', gap: 2, overflow: 'hidden' },
   barraFill: (cor, pct) => ({ width: Math.max(pct, 0) + '%', background: cor, borderRadius: '0 4px 4px 0' }),
   barraVal: { fontSize: 12.5, fontWeight: 700, color: COR_TEXTO, width: 46, flexShrink: 0, textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
-  barraSec: { fontSize: 11, color: COR_BARRADA, width: 62, flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
+  barraSec: { fontSize: 11.5, color: COR_BARRADA_TXT, width: 56, flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
 
-  evo: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 96, overflowX: 'auto', paddingTop: 4 },
-  evoCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 20, flex: 1 },
-  evoBarra: (h, cor) => ({ width: '100%', maxWidth: 22, height: Math.max(h, 2), background: cor, borderRadius: '3px 3px 0 0' }),
-  evoDia: { fontSize: 9, color: COR_FRACA, whiteSpace: 'nowrap' },
+  evo: { display: 'flex', alignItems: 'flex-end', gap: 6, height: 130, overflowX: 'auto', paddingTop: 6 },
+  evoCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 26, flex: 1, cursor: 'default' },
+  evoTopo: { fontSize: 10.5, fontWeight: 700, color: COR_TEXTO, fontVariantNumeric: 'tabular-nums', height: 13 },
+  evoPilha: { display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center',
+              height: 82, width: '100%', gap: 2 },
+  evoBarra: (h, cor, topo) => ({ width: '100%', maxWidth: 24, height: Math.max(h, 0),
+                                 background: cor, borderRadius: topo ? '4px 4px 0 0' : 0 }),
+  evoDia: { fontSize: 10, color: COR_FRACA, whiteSpace: 'nowrap' },
 
   tabela: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 },
   th: { textAlign: 'left', fontSize: 10, color: COR_FRACA, fontWeight: 600, padding: '6px 8px',
@@ -132,23 +146,47 @@ function TagStatus({ status }) {
   return <span style={estilo}>{cfg.rot}</span>
 }
 
-// barra com rótulo e número visíveis: cor identifica, texto informa
+// Legenda: com duas séries ela é obrigatória. Identidade nunca pode depender
+// só da cor — quem não distingue vermelho de azul precisa do rótulo.
+function Legenda({ itens }) {
+  return (
+    <div style={s.legenda}>
+      {itens.map(([cor, rot]) => (
+        <span key={rot} style={s.legItem}>
+          <span style={{ ...s.legSwatch, background: cor }} />{rot}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// Barras. Correções de 31/08 depois de rodar o painel contra as regras de dataviz:
+//   • a cor vinha de CORES[i] — mudava conforme a POSIÇÃO na lista. Ordenou
+//     diferente, trocou a cor do produto. Aqui há UMA série (aprovadas) em
+//     categorias nominais, então é UMA cor só; o vermelho é status, não categoria.
+//   • o texto do "−7" usava a própria cor do dado; agora usa tom de texto que
+//     passa contraste.
 function Barras({ itens, valorDe, secDe, rotuloDe }) {
-  const max = Math.max(1, ...itens.map(valorDe))
   if (!itens.length) return <div style={s.vazio}>Nada no período.</div>
+  // a escala considera a barra INTEIRA (aprovadas + barradas), senão os dois
+  // pedaços somados estouram o trilho
+  const max = Math.max(1, ...itens.map(it => valorDe(it) + (secDe ? Number(secDe(it) || 0) : 0)))
   return (
     <div>
       {itens.map((it, i) => {
+        const val = Number(valorDe(it) || 0)
         const sec = secDe ? Number(secDe(it) || 0) : 0
+        const rot = rotuloDe(it)
         return (
-          <div key={rotuloDe(it) + i} style={s.barraLinha}>
-            <div style={s.barraNome} title={rotuloDe(it)}>{rotuloDe(it)}</div>
+          <div key={rot + i} style={s.barraLinha}
+            title={`${rot}: ${inteiro(val)} aprovadas${sec ? ` · ${inteiro(sec)} barradas` : ''}`}>
+            <div style={s.barraNome} title={rot}>{rot}</div>
             <div style={s.barraTrilho}>
-              <div style={s.barraFill(CORES[i] || CORES[4], 100 * valorDe(it) / max)} />
+              {val > 0 && <div style={s.barraFill(COR_APROVADA, 100 * val / max)} />}
               {sec > 0 && <div style={s.barraFill(COR_BARRADA, 100 * sec / max)} />}
             </div>
-            <div style={s.barraVal}>{inteiro(valorDe(it))}</div>
-            {secDe && <div style={s.barraSec}>{sec > 0 ? '−' + sec : ''}</div>}
+            <div style={s.barraVal}>{inteiro(val)}</div>
+            {secDe && <div style={s.barraSec}>{sec > 0 ? '−' + inteiro(sec) : ''}</div>}
           </div>
         )
       })}
@@ -310,7 +348,9 @@ export default function PainelVendas() {
   }, [t, ant])
 
   const porDia = painel?.por_dia || []
-  const maxDia = Math.max(1, ...porDia.map(d => Number(d.vendas || 0)))
+  // a coluna empilha aprovadas + barradas: a escala tem que ser da SOMA, senão
+  // os dois pedaços juntos passam da altura do container e vazam pra fora
+  const maxDia = Math.max(1, ...porDia.map(d => Number(d.vendas || 0) + Number(d.barradas || 0)))
   const gargalo = painel?.aguardando_advogado || []
   const totalGargalo = gargalo.reduce((a, g) => a + Number(g.qtd || 0), 0)
   const robo = painel?.robo
@@ -419,27 +459,32 @@ export default function PainelVendas() {
         <div style={s.colunas}>
           <div style={s.bloco}>
             <div style={s.blocoTit}>Vendas por dia</div>
-            <div style={s.blocoSub}>Aprovadas em azul · barradas em vermelho embaixo</div>
+            <div style={s.blocoSub}>Quanto entrou a cada dia do período</div>
+            <Legenda itens={[[COR_APROVADA, 'aprovadas'], [COR_BARRADA, 'barradas']]} />
             {porDia.length === 0 ? <div style={s.vazio}>Nada no período.</div> : (
               <div style={s.evo}>
-                {porDia.map((d, i) => (
-                  <div key={i} style={s.evoCol} title={`${brData(d.dia)}: ${d.vendas} aprovadas, ${d.barradas} barradas`}>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-                                  height: 72, width: '100%', alignItems: 'center' }}>
-                      <div style={s.evoBarra(72 * Number(d.vendas || 0) / maxDia, CORES[0])} />
-                      {Number(d.barradas) > 0 &&
-                        <div style={s.evoBarra(72 * Number(d.barradas) / maxDia, COR_BARRADA)} />}
+                {porDia.map((d, i) => {
+                  const v = Number(d.vendas || 0), b = Number(d.barradas || 0)
+                  return (
+                    <div key={i} style={s.evoCol}
+                      title={`${brData(d.dia)}: ${inteiro(v)} aprovadas${b ? `, ${inteiro(b)} barradas` : ''}`}>
+                      <div style={s.evoTopo}>{v || ''}</div>
+                      <div style={s.evoPilha}>
+                        {b > 0 && <div style={s.evoBarra(82 * b / maxDia, COR_BARRADA, true)} />}
+                        {v > 0 && <div style={s.evoBarra(82 * v / maxDia, COR_APROVADA, b === 0)} />}
+                      </div>
+                      <div style={s.evoDia}>{brData(d.dia)}</div>
                     </div>
-                    <div style={s.evoDia}>{brData(d.dia)}</div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
 
           <div style={s.bloco}>
             <div style={s.blocoTit}>Por produto</div>
-            <div style={s.blocoSub}>Barra azul = aprovadas · vermelho = barradas</div>
+            <div style={s.blocoSub}>Vendas aprovadas no período, e quantas caíram</div>
+            <Legenda itens={[[COR_APROVADA, 'aprovadas'], [COR_BARRADA, 'barradas']]} />
             <Barras itens={painel.por_produto || []}
               rotuloDe={x => x.produto || '—'}
               valorDe={x => Number(x.vendas || 0)}
