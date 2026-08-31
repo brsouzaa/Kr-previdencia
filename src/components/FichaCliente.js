@@ -18,9 +18,10 @@ const DOCS = [
   ['comprovante_2', 'Comprovante 2', false],
   ['comprovante_endereco', 'Comprovante de endereço', false],
   ['comprovante_gravidez', 'Comprovante de gravidez', false],
-  // obrigatorios no Maternidade Mae desde 31/08
-  ['ctps_digital', 'CTPS digital', false],
-  ['extrato_fgts', 'Extrato FGTS', false],
+  // obrigatorios no Maternidade Mae desde 31/08, e SO em PDF: sao arquivos
+  // baixados de app (gov.br / FGTS) e print nao serve para o advogado
+  ['ctps_digital', 'CTPS digital (PDF)', false, true],
+  ['extrato_fgts', 'Extrato FGTS (PDF)', false, true],
   ['outros', 'Outro documento', false],
 ]
 
@@ -133,8 +134,18 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
 
   useEffect(() => { carregar() }, [carregar])
 
+  // quais chaves só aceitam PDF (4a posicao do DOCS)
+  const SO_PDF = new Set(DOCS.filter(d => d[3]).map(d => d[0]))
+
   async function anexar(chave, arq) {
     if (!arq) return
+    if (SO_PDF.has(chave)) {
+      const ehPdf = arq.type === 'application/pdf' || /\.pdf$/i.test(arq.name || '')
+      if (!ehPdf) {
+        setErro('Este documento tem que ser o PDF baixado do aplicativo — print ou foto não vale.')
+        return
+      }
+    }
     setSubindo(chave); setErro('')
     try {
       const ext = (arq.name.split('.').pop() || 'jpg').toLowerCase()
@@ -266,7 +277,9 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
                       ) : (
                         <label style={s.docVazio}>
                           {carregandoEste ? 'enviando...' : '+ anexar'}
-                          <input type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                          <input type="file"
+                            accept={SO_PDF.has(chave) ? 'application/pdf,.pdf' : 'image/*,.pdf'}
+                            style={{ display: 'none' }}
                             disabled={!!subindo}
                             onChange={e => anexar(chave, e.target.files?.[0] || null)} />
                         </label>
