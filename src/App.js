@@ -45,6 +45,8 @@ import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
 import MeuPlanejamento from './pages/MeuPlanejamento'
+import PainelVendas from './pages/PainelVendas'
+import ValidacaoAdvogado from './pages/ValidacaoAdvogado'
 import RevisaoIAGestante from './pages/RevisaoIAGestante'
 import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
@@ -153,6 +155,10 @@ function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
   if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
+  // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
+  if (page === 'painel_vendas') return ['admin','vendedor','vendedor_operador','supervisor_producao','coordenador_b2c'].includes(role)
+  if (page === 'validacao_advogado') return ['admin','vendedor','supervisor_producao'].includes(role)
   // Advogada (Maithe): mesa dela e mais nada do sistema
   if (role === 'advogada') return page === 'mesa_advogada'
   // Vendedoras do retroativo: board do Retroativo ALEM do que ja tem hoje
@@ -270,6 +276,8 @@ function AppInner() {
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
     revisao_ia_retroativo: <RevisaoIARetroativo />,
     meu_planejamento: <MeuPlanejamento />,
+    painel_vendas: <PainelVendas />,
+    validacao_advogado: <ValidacaoAdvogado />,
     revisao_ia_gestante: <RevisaoIAGestante />,
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
