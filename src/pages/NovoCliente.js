@@ -710,16 +710,17 @@ export default function NovoCliente({ onSucesso }) {
         {/* CTPS digital e extrato FGTS: obrigatórios no Maternidade Mãe desde 31/08 */}
         {ehMae && (<>
           <div style={{ ...s.hint, marginTop: 10, marginBottom: 6, color: '#7c2d12' }}>
-            No Maternidade Mãe a CTPS digital e o extrato FGTS passaram a ser obrigatórios.
-            Peça os dois à cliente antes de digitar — sem eles o cadastro não fecha.
+            No Maternidade Mãe a CTPS digital e o extrato FGTS passaram a ser obrigatórios,
+            e os dois só entram em <b>PDF</b> — o arquivo baixado do aplicativo, não print
+            nem foto. Peça os dois à cliente antes de digitar: sem eles o cadastro não fecha.
           </div>
           <UploadDocumento
-            label="CTPS digital — OBRIGATÓRIO"
-            obrigatorio clienteId={tempIdRef.current} chave="ctps_digital"
+            label="CTPS digital (PDF) — OBRIGATÓRIO"
+            obrigatorio somentePdf clienteId={tempIdRef.current} chave="ctps_digital"
             valorInicial={docs.ctps_digital} onChange={url => setDoc('ctps_digital', url)} />
           <UploadDocumento
-            label="Extrato FGTS — OBRIGATÓRIO"
-            obrigatorio clienteId={tempIdRef.current} chave="extrato_fgts"
+            label="Extrato FGTS (PDF) — OBRIGATÓRIO"
+            obrigatorio somentePdf clienteId={tempIdRef.current} chave="extrato_fgts"
             valorInicial={docs.extrato_fgts} onChange={url => setDoc('extrato_fgts', url)} />
         </>)}
       </div>
