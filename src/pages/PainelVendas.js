@@ -3,22 +3,27 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import ModalNovaVenda from '../components/ModalNovaVenda'
 
-// 31/08 v2 — Painel de Vendas, depois de conferir os números contra o banco.
-// O que estava errado e foi corrigido:
-//   • o robô "IA Atendimento" aparecia como o MAIOR vendedor do mês (94 vendas).
-//     Robô não tem meta nem comissão — saiu do ranking e virou uma nota de rodapé.
-//   • Bolsa Família perdia venda: nada alimentava o painel depois da importação.
-//     Agora entra sozinha (gatilho no banco); as 40 que faltavam foram recuperadas.
-//   • comissão aparecia em três lugares somando sempre zero. Ficou em um só.
-//   • o admin via a "produção dele" repetindo o painel geral. Saiu.
+// 31/08 v3 — retrabalho pedido pelo Bruno: "os números parecem estar mt confusos".
 //
-// Regra de leitura da tela: cada número aparece UMA vez, no lugar onde ele responde
-// uma pergunta. Se um número não muda nenhuma decisão, ele não entra.
+// O que mudou nesta versão:
+//   • MATRIZ vendedor x produto: quantas de Maternidade Mãe, de Bolsa Família,
+//     de Gestante, etc. Antes só existia o total por pessoa, que não dizia nada
+//     sobre o que cada uma vende.
+//   • A tabela detalhada passou a RESPEITAR O FILTRO. Era fixa em "últimos 30
+//     dias" enquanto o resto da tela mostrava o período escolhido — dois números
+//     diferentes na mesma tela é o que fazia parecer confuso.
+//   • O vendedor também ganhou o filtro de período (antes só o admin tinha).
+//   • Cada bloco agora diz em uma linha COMO ler o número dele.
+//   • "+ Nova venda" ficou no topo, destacado, para admin e vendedor.
+//
+// Regra de leitura: cada número aparece UMA vez, no lugar onde responde uma
+// pergunta. Se não muda nenhuma decisão, não entra na tela.
 const CORES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#94a3b8']
 const COR_BARRADA = '#e34948'
 const COR_TEXTO = '#0f172a'
 const COR_FRACA = '#94a3b8'
 const COR_MEDIA = '#5b6b84'
+const COR_VERDE = '#1baf7a'
 
 const PERIODOS = [['hoje', 'Hoje'], ['7d', '7 dias'], ['mes', 'Este mês'], ['30d', '30 dias']]
 
@@ -36,17 +41,37 @@ function faixaDe(p) {
   if (p === 'mes') return [inicioMes(), hojeISO()]
   return [somaDias(-29), hojeISO()]
 }
+const rotuloPeriodo = (p, ini, fim) => {
+  const achado = PERIODOS.find(([v]) => v === p)
+  if (achado) return achado[1].toLowerCase()
+  return brData(ini) + ' a ' + brData(fim)
+}
+
+const STATUS = {
+  aprovada:     { rot: 'aprovada',     estilo: 'bom' },
+  concluida:    { rot: 'concluída',    estilo: 'bom' },
+  barrada:      { rot: 'barrada',      estilo: 'ruim' },
+  cancelada:    { rot: 'cancelada',    estilo: 'ruim' },
+  pendente:     { rot: 'pendente',     estilo: 'neutro' },
+  em_validacao: { rot: 'em validação', estilo: 'neutro' },
+}
 
 const s = {
   title: { fontSize: 20, fontWeight: 500, color: COR_TEXTO, marginBottom: 3 },
-  sub: { fontSize: 13, color: COR_MEDIA, marginBottom: 18 },
+  sub: { fontSize: 13, color: COR_MEDIA },
 
-  barraTopo: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 },
+  topo: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          gap: 12, flexWrap: 'wrap', marginBottom: 16 },
+  btnNova: { padding: '11px 20px', fontSize: 14, fontWeight: 600, borderRadius: 10,
+             border: 'none', background: COR_VERDE, color: '#fff', cursor: 'pointer',
+             boxShadow: '0 1px 3px rgba(27,175,122,.35)', whiteSpace: 'nowrap' },
+
+  barraTopo: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 },
   chip: { padding: '7px 14px', fontSize: 12.5, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.12)', background: '#ffffff', color: COR_MEDIA, cursor: 'pointer', whiteSpace: 'nowrap' },
   chipOn: { background: COR_TEXTO, color: '#ffffff', borderColor: COR_TEXTO },
   dataInput: { padding: '6px 10px', fontSize: 12.5, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)' },
+  periodoNota: { fontSize: 11.5, color: COR_FRACA, marginBottom: 18 },
 
-  // 4 números, não 6. Cada um responde uma pergunta diferente.
   kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(158px, 1fr))', gap: 1,
           background: 'rgba(15,23,42,0.08)', border: '0.5px solid rgba(15,23,42,0.08)',
           borderRadius: 12, overflow: 'hidden', marginBottom: 20 },
@@ -82,16 +107,29 @@ const s = {
 
   tabela: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 },
   th: { textAlign: 'left', fontSize: 10, color: COR_FRACA, fontWeight: 600, padding: '6px 8px',
-        borderBottom: '0.5px solid rgba(15,23,42,0.10)', textTransform: 'uppercase', letterSpacing: '.4px' },
+        borderBottom: '0.5px solid rgba(15,23,42,0.10)', textTransform: 'uppercase', letterSpacing: '.4px',
+        whiteSpace: 'nowrap' },
+  thNum: { textAlign: 'right', fontSize: 10, color: COR_FRACA, fontWeight: 600, padding: '6px 8px',
+           borderBottom: '0.5px solid rgba(15,23,42,0.10)', textTransform: 'uppercase', letterSpacing: '.4px',
+           whiteSpace: 'nowrap' },
   td: { padding: '9px 8px', borderBottom: '0.5px solid rgba(15,23,42,0.05)', color: COR_TEXTO },
   tdNum: { padding: '9px 8px', borderBottom: '0.5px solid rgba(15,23,42,0.05)', color: COR_TEXTO,
            textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
+  tdZero: { padding: '9px 8px', borderBottom: '0.5px solid rgba(15,23,42,0.05)', color: '#cbd5e1',
+            textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
+  trTotal: { background: '#f8fafc', fontWeight: 700 },
 
-  tag: { fontSize: 10.5, color: COR_MEDIA, background: '#f1f5f9', borderRadius: 5, padding: '2px 7px' },
-  tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px' },
-  tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px' },
+  tag: { fontSize: 10.5, color: COR_MEDIA, background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
+  tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
+  tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
   nota: { fontSize: 11, color: COR_FRACA, marginTop: 12, lineHeight: 1.5 },
+}
+
+function TagStatus({ status }) {
+  const cfg = STATUS[status] || { rot: status || '—', estilo: 'neutro' }
+  const estilo = cfg.estilo === 'bom' ? s.tagBom : cfg.estilo === 'ruim' ? s.tagRuim : s.tag
+  return <span style={estilo}>{cfg.rot}</span>
 }
 
 // barra com rótulo e número visíveis: cor identifica, texto informa
@@ -118,6 +156,112 @@ function Barras({ itens, valorDe, secDe, rotuloDe }) {
   )
 }
 
+// A matriz que faltava: cada linha é uma pessoa, cada coluna um produto.
+// Sem isso o total por vendedor não diz O QUE a pessoa vende.
+function MatrizVendedorProduto({ vendedores, produtos }) {
+  if (!vendedores.length) return <div style={s.vazio}>Ninguém vendeu no período.</div>
+  const totalPorProduto = {}
+  let totalGeral = 0
+  for (const v of vendedores) {
+    for (const p of produtos) {
+      const n = Number((v.produtos || {})[p] || 0)
+      totalPorProduto[p] = (totalPorProduto[p] || 0) + n
+    }
+    totalGeral += Number(v.vendas || 0)
+  }
+  return (
+    <div style={{ overflowX: 'auto', scrollbarWidth: 'thin' }}>
+      <table style={s.tabela}>
+        <thead>
+          <tr>
+            <th style={s.th}>Vendedor</th>
+            {produtos.map(p => <th key={p} style={s.thNum}>{p}</th>)}
+            <th style={s.thNum}>Total</th>
+            <th style={s.thNum}>Barradas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vendedores.map((v, i) => {
+            const decididas = Number(v.vendas || 0) + Number(v.barradas || 0)
+            const pct = decididas ? Math.round(100 * Number(v.barradas || 0) / decididas) : null
+            return (
+              <tr key={v.nome + i}>
+                <td style={s.td}>{v.nome}</td>
+                {produtos.map(p => {
+                  const n = Number((v.produtos || {})[p] || 0)
+                  return <td key={p} style={n ? s.tdNum : s.tdZero}>{n || '·'}</td>
+                })}
+                <td style={{ ...s.tdNum, fontWeight: 700 }}>{inteiro(v.vendas)}</td>
+                <td style={s.tdNum}>
+                  {Number(v.barradas || 0) > 0
+                    ? <span style={pct >= 30 ? s.tagRuim : s.tag}>{v.barradas} · {pct}%</span>
+                    : <span style={{ color: COR_FRACA }}>—</span>}
+                </td>
+              </tr>
+            )
+          })}
+          <tr style={s.trTotal}>
+            <td style={s.td}>Total</td>
+            {produtos.map(p => <td key={p} style={s.tdNum}>{inteiro(totalPorProduto[p] || 0)}</td>)}
+            <td style={s.tdNum}>{inteiro(totalGeral)}</td>
+            <td style={s.tdNum} />
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// Tabela detalhada. Usada nos dois lados; o admin ganha a coluna de vendedor.
+function TabelaVendas({ lista, comVendedor }) {
+  if (!lista.length) return <div style={s.vazio}>Nenhuma venda no período escolhido.</div>
+  return (
+    <div style={{ overflowX: 'auto', maxHeight: '55vh', scrollbarWidth: 'thin' }}>
+      <table style={s.tabela}>
+        <thead>
+          <tr>
+            <th style={s.th}>Data</th>
+            <th style={s.th}>Cliente</th>
+            <th style={s.th}>Produto</th>
+            {comVendedor && <th style={s.th}>Vendedor</th>}
+            <th style={s.th}>Situação</th>
+            <th style={s.thNum}>Comissão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lista.map(v => (
+            <tr key={v.id}>
+              <td style={{ ...s.td, whiteSpace: 'nowrap' }}>{brData(v.data_venda)}</td>
+              <td style={{ ...s.td, maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={v.cliente}>
+                {v.cliente}
+                {!v.tem_comprovante && v.status === 'pendente' &&
+                  <span style={{ ...s.tagRuim, marginLeft: 6 }}>sem comprovante</span>}
+              </td>
+              <td style={s.td}>{v.produto || '—'}</td>
+              {comVendedor && (
+                <td style={s.td}>
+                  {v.eh_robo ? <span style={s.tag}>🤖 {v.vendedor}</span> : v.vendedor}
+                </td>
+              )}
+              <td style={s.td}>
+                <TagStatus status={v.status} />
+                {v.status === 'barrada' && v.motivo &&
+                  <div style={{ fontSize: 11, color: COR_MEDIA, marginTop: 3, maxWidth: 240 }}>{v.motivo}</div>}
+              </td>
+              <td style={s.tdNum}>
+                {v.conta_comissao === false
+                  ? <span style={s.tag}>histórico</span>
+                  : dinheiro(v.comissao)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function PainelVendas() {
   const { profile } = useAuth()
   const ehAdmin = profile?.role === 'admin'
@@ -139,12 +283,13 @@ export default function PainelVendas() {
 
   const carregar = useCallback(async () => {
     setCarregando(true); setErro('')
-    // o admin não precisa da própria produção aqui — ela já está no painel geral
-    const res = ehAdmin
-      ? [await supabase.rpc('venda_painel', { p_inicio: ini, p_fim: fim })]
-      : [await supabase.rpc('venda_minhas', { p_dias: 30 })]
-    if (res[0].error) setErro(res[0].error.message)
-    if (ehAdmin) setPainel(res[0].data || null); else setMeu(res[0].data || null)
+    // os dois lados recebem o MESMO período: era isso que fazia a tabela do
+    // vendedor mostrar 30 dias enquanto o resto da tela mostrava outra coisa
+    const r = ehAdmin
+      ? await supabase.rpc('venda_painel', { p_inicio: ini, p_fim: fim })
+      : await supabase.rpc('venda_minhas', { p_inicio: ini, p_fim: fim })
+    if (r.error) setErro(r.error.message)
+    if (ehAdmin) setPainel(r.data || null); else setMeu(r.data || null)
     setCarregando(false)
   }, [ehAdmin, ini, fim])
 
@@ -169,226 +314,243 @@ export default function PainelVendas() {
   const gargalo = painel?.aguardando_advogado || []
   const totalGargalo = gargalo.reduce((a, g) => a + Number(g.qtd || 0), 0)
   const robo = painel?.robo
+  const produtosPeriodo = painel?.produtos_periodo || []
+  const rotPer = rotuloPeriodo(periodo, ini, fim)
+
+  const mt = meu?.periodo_totais
+  const mAnt = meu?.anterior
+  const mDelta = useMemo(() => {
+    if (!mt || !mAnt) return null
+    const a = Number(mAnt.vendas || 0), h = Number(mt.vendas || 0)
+    return a === 0 ? null : Math.round(100 * (h - a) / a)
+  }, [mt, mAnt])
+
+  const filtro = (
+    <>
+      <div style={s.barraTopo}>
+        {PERIODOS.map(([v, l]) => (
+          <button key={v} style={{ ...s.chip, ...(periodo === v ? s.chipOn : {}) }}
+            onClick={() => setPeriodo(v)}>{l}</button>
+        ))}
+        <button style={{ ...s.chip, ...(periodo === 'custom' ? s.chipOn : {}) }}
+          onClick={() => setPeriodo('custom')}>Escolher</button>
+        {periodo === 'custom' && (<>
+          <input type="date" style={s.dataInput} value={ini} onChange={e => setIni(e.target.value)} />
+          <span style={{ color: COR_FRACA, fontSize: 12 }}>até</span>
+          <input type="date" style={s.dataInput} value={fim} onChange={e => setFim(e.target.value)} />
+        </>)}
+      </div>
+      <div style={s.periodoNota}>
+        Tudo abaixo — inclusive a tabela do fim da página — é de <b>{brData(ini)} a {brData(fim)}</b>.
+      </div>
+    </>
+  )
 
   return (
     <div>
-      <div style={s.title}>💵 Painel de vendas</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                    gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-        <div style={{ ...s.sub, marginBottom: 0 }}>
-          {ehAdmin ? 'Bolsa Família e produtos de contrato somados no mesmo número.'
-                   : 'Sua produção e sua comissão.'}
+      <div style={s.topo}>
+        <div>
+          <div style={s.title}>💵 Painel de vendas</div>
+          <div style={s.sub}>
+            {ehAdmin ? 'Todos os produtos somados no mesmo número.' : 'Sua produção e sua comissão.'}
+          </div>
         </div>
-        <button style={{ padding: '10px 18px', fontSize: 13.5, fontWeight: 600, borderRadius: 10,
-                         border: 'none', background: '#1baf7a', color: '#fff', cursor: 'pointer' }}
-          onClick={() => setModalVenda(true)}>+ Nova venda</button>
+        <button style={s.btnNova} onClick={() => setModalVenda(true)}>+ Cadastrar venda</button>
       </div>
 
       {erro && <div style={s.faixa('alerta')}>Não consegui carregar: {erro}</div>}
+      {filtro}
 
       {/* ================= ADMIN ================= */}
-      {ehAdmin && (<>
-        <div style={s.barraTopo}>
-          {PERIODOS.map(([v, l]) => (
-            <button key={v} style={{ ...s.chip, ...(periodo === v ? s.chipOn : {}) }}
-              onClick={() => setPeriodo(v)}>{l}</button>
-          ))}
-          <button style={{ ...s.chip, ...(periodo === 'custom' ? s.chipOn : {}) }}
-            onClick={() => setPeriodo('custom')}>Escolher</button>
-          {periodo === 'custom' && (<>
-            <input type="date" style={s.dataInput} value={ini} onChange={e => setIni(e.target.value)} />
-            <span style={{ color: COR_FRACA, fontSize: 12 }}>até</span>
-            <input type="date" style={s.dataInput} value={fim} onChange={e => setFim(e.target.value)} />
-          </>)}
+      {ehAdmin && painel && (<>
+        {totalGargalo > 0 && (
+          <div style={s.faixa('alerta')}>
+            <b>{inteiro(totalGargalo)} cliente(s)</b> entregues esperando alguém dizer se o advogado
+            aceitou. Sem essa decisão a venda não fecha e a comissão não sai.
+            {gargalo.map((g, i) => (
+              <span key={i}> · <b>{g.dono}</b>: {g.qtd} (há {g.mais_antiga_dias}d)</span>
+            ))}
+          </div>
+        )}
+
+        <div style={s.kpis}>
+          <div style={s.kpi}>
+            <div style={s.kpiNum}>{inteiro(t?.vendas)}</div>
+            <div style={s.kpiLab}>vendas aprovadas</div>
+            {delta !== null && (
+              <div style={{ ...s.kpiPe, color: delta >= 0 ? '#0f7a52' : '#b3322f' }}>
+                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}% vs período anterior
+              </div>
+            )}
+          </div>
+          <div style={s.kpi}>
+            <div style={{ ...s.kpiNum, color: Number(t?.barradas) > 0 ? COR_BARRADA : COR_TEXTO }}>
+              {inteiro(t?.barradas)}
+            </div>
+            <div style={s.kpiLab}>barradas pelo advogado</div>
+            {pctBarrada !== null && (
+              <div style={{ ...s.kpiPe, color: COR_MEDIA }}>{pctBarrada}% do que foi decidido</div>
+            )}
+          </div>
+          <div style={s.kpi}>
+            <div style={s.kpiNum}>{inteiro(t?.em_aberto)}</div>
+            <div style={s.kpiLab}>ainda sem decisão</div>
+            <div style={{ ...s.kpiPe, color: COR_FRACA }}>não contam como venda</div>
+          </div>
+          <div style={s.kpi}>
+            <div style={{ ...s.kpiNum, fontSize: 24 }}>{dinheiro(t?.comissao)}</div>
+            <div style={s.kpiLab}>comissão do período</div>
+            <div style={{ ...s.kpiPe, color: COR_FRACA }}>só do que o advogado aceitou</div>
+          </div>
         </div>
 
-        {carregando ? <div style={s.vazio}>Carregando...</div> : t && (<>
-          {/* o que trava caixa vem primeiro */}
-          {totalGargalo > 0 && (
-            <div style={s.faixa('alerta')}>
-              <b>{totalGargalo} cliente(s) entregues esperando alguém dizer se o advogado aceitou.</b>{' '}
-              Sem essa decisão a venda não fecha e a comissão não sai.
-              {gargalo.slice(0, 4).map((g, i) => (
-                <span key={i}> · {g.dono}: <b>{g.qtd}</b>
-                  {g.mais_antiga_dias > 0 ? ' (há ' + g.mais_antiga_dias + 'd)' : ''}</span>
-              ))}
-            </div>
+        <div style={s.faixa()}>
+          <b>Como ler:</b> uma venda entra como <b>ainda sem decisão</b> quando é cadastrada.
+          Quando o vendedor do advogado decide, ela vira <b>aprovada</b> (gera comissão) ou{' '}
+          <b>barrada</b> (não gera). Por isso os três números somados dão o total cadastrado no
+          período, e só o primeiro vira dinheiro.
+          {Number(t?.importadas || 0) > 0 && (
+            <> <b>Atenção:</b> {inteiro(t.importadas)} deste período vieram da importação —
+            entram na contagem mas não geram comissão, e por isso a comparação com o período
+            anterior fica escondida.</>
           )}
+        </div>
 
-          {Number(t.importadas) > 0 && Number(t.proprias) === 0 && (
-            <div style={s.faixa()}>
-              Todas as <b>{inteiro(t.importadas)}</b> vendas deste período vieram da importação
-              do histórico. Elas contam volume, mas <b>não geram comissão</b> — a comissão passa a
-              valer nas vendas registradas a partir da data que você definir.
-            </div>
-          )}
-
-          <div style={s.kpis}>
-            <div style={s.kpi}>
-              <div style={s.kpiNum}>{inteiro(t.vendas)}</div>
-              <div style={s.kpiLab}>vendas aprovadas</div>
-              <div style={{ ...s.kpiPe, color: delta == null ? COR_FRACA : (delta >= 0 ? '#0f7a52' : '#b3322f'),
-                            fontWeight: delta == null ? 400 : 700 }}>
-                {delta == null ? 'sem base comparável' :
-                  (delta >= 0 ? '▲ ' : '▼ ') + Math.abs(delta) + '% vs período anterior'}
-              </div>
-            </div>
-            <div style={s.kpi}>
-              <div style={{ ...s.kpiNum, color: Number(t.barradas) > 0 ? '#b3322f' : COR_TEXTO }}>
-                {inteiro(t.barradas)}
-              </div>
-              <div style={s.kpiLab}>barradas pelo advogado</div>
-              <div style={{ ...s.kpiPe, color: COR_FRACA }}>
-                {pctBarrada == null ? '—' : pctBarrada + '% do que foi decidido'}
-              </div>
-            </div>
-            <div style={s.kpi}>
-              <div style={s.kpiNum}>{inteiro(t.em_aberto)}</div>
-              <div style={s.kpiLab}>ainda sem decisão</div>
-              <div style={{ ...s.kpiPe, color: COR_FRACA }}>não contam como venda</div>
-            </div>
-            <div style={s.kpi}>
-              <div style={{ ...s.kpiNum, color: Number(t.comissao) > 0 ? '#0f7a52' : COR_TEXTO }}>
-                {dinheiro(t.comissao)}
-              </div>
-              <div style={s.kpiLab}>comissão do período</div>
-              <div style={{ ...s.kpiPe, color: COR_FRACA }}>
-                {Number(t.emprestado) > 0 ? dinheiro(t.emprestado) + ' emprestados no BF' : 'só o que já foi aprovado'}
-              </div>
-            </div>
-          </div>
-
-          {porDia.length > 1 && (
-            <div style={s.bloco}>
-              <div style={s.blocoTit}>Vendas por dia</div>
-              <div style={s.blocoSub}>Aprovadas em azul · barradas em vermelho embaixo</div>
+        <div style={s.colunas}>
+          <div style={s.bloco}>
+            <div style={s.blocoTit}>Vendas por dia</div>
+            <div style={s.blocoSub}>Aprovadas em azul · barradas em vermelho embaixo</div>
+            {porDia.length === 0 ? <div style={s.vazio}>Nada no período.</div> : (
               <div style={s.evo}>
                 {porDia.map((d, i) => (
-                  <div key={i} style={s.evoCol}
-                    title={brData(d.dia) + ': ' + d.vendas + ' aprovada(s), ' + d.barradas + ' barrada(s)'}>
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <div style={s.evoBarra(64 * Number(d.vendas || 0) / maxDia, CORES[0])} />
+                  <div key={i} style={s.evoCol} title={`${brData(d.dia)}: ${d.vendas} aprovadas, ${d.barradas} barradas`}>
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                                  height: 72, width: '100%', alignItems: 'center' }}>
+                      <div style={s.evoBarra(72 * Number(d.vendas || 0) / maxDia, CORES[0])} />
                       {Number(d.barradas) > 0 &&
-                        <div style={s.evoBarra(Math.min(18, 64 * Number(d.barradas) / maxDia), COR_BARRADA)} />}
+                        <div style={s.evoBarra(72 * Number(d.barradas) / maxDia, COR_BARRADA)} />}
                     </div>
                     <div style={s.evoDia}>{brData(d.dia)}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <div style={s.colunas}>
-            <div style={s.bloco}>
-              <div style={s.blocoTit}>Por produto</div>
-              <div style={s.blocoSub}>Barra azul = aprovadas · vermelho = barradas</div>
-              <Barras
-                itens={(painel.por_produto || []).slice(0, 5)}
-                valorDe={it => Number(it.vendas || 0)}
-                secDe={it => Number(it.barradas || 0)}
-                rotuloDe={it => it.produto} />
-            </div>
-
-            <div style={s.bloco}>
-              <div style={s.blocoTit}>Por vendedor</div>
-              <div style={s.blocoSub}>Só pessoas. Robô não tem meta nem comissão.</div>
-              {(painel.por_vendedor || []).length === 0
-                ? <div style={s.vazio}>Nenhuma venda no período.</div>
-                : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={s.tabela}>
-                      <thead><tr>
-                        <th style={s.th}>Vendedor</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>Vendas</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>Barradas</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>Comissão</th>
-                      </tr></thead>
-                      <tbody>
-                        {painel.por_vendedor.map((v, i) => {
-                          const tot = Number(v.vendas || 0) + Number(v.barradas || 0)
-                          const pct = tot === 0 ? null : Math.round(100 * Number(v.barradas || 0) / tot)
-                          return (
-                            <tr key={i}>
-                              <td style={s.td}>{v.nome}</td>
-                              <td style={s.tdNum}>{inteiro(v.vendas)}</td>
-                              <td style={s.tdNum}>
-                                {Number(v.barradas) === 0 ? <span style={{ color: COR_FRACA }}>—</span>
-                                  : <span style={pct >= 30 ? s.tagRuim : s.tag}>{v.barradas} · {pct}%</span>}
-                              </td>
-                              <td style={s.tdNum}>
-                                {Number(v.comissao) > 0 ? dinheiro(v.comissao)
-                                  : <span style={{ color: COR_FRACA }}>—</span>}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              {robo && Number(robo.vendas) > 0 && (
-                <div style={s.nota}>
-                  🤖 O atendimento por IA fechou <b>{inteiro(robo.vendas)}</b> e teve{' '}
-                  <b>{inteiro(robo.barradas)}</b> barradas no período. Fica fora do ranking de
-                  propósito — só entra aqui para o total não ficar sem explicação.
-                </div>
-              )}
-              <div style={s.nota}>
-                Percentual de barrada alto em uma pessoa costuma ser qualidade do cadastro,
-                não volume. Vale ver os motivos antes de cobrar meta.
+          <div style={s.bloco}>
+            <div style={s.blocoTit}>Por produto</div>
+            <div style={s.blocoSub}>Barra azul = aprovadas · vermelho = barradas</div>
+            <Barras itens={painel.por_produto || []}
+              rotuloDe={x => x.produto || '—'}
+              valorDe={x => Number(x.vendas || 0)}
+              secDe={x => Number(x.barradas || 0)} />
+            {/* o emprestado é só do Bolsa Família: como KPI global ele parecia
+                valer para a tela inteira. Fica junto do produto a que pertence. */}
+            {(painel.por_produto || []).filter(p => Number(p.emprestado || 0) > 0).map((p, i) => (
+              <div key={i} style={s.nota}>
+                <b>{p.produto}</b>: {dinheiro(p.emprestado)} emprestados às clientes no período.
               </div>
-            </div>
-          </div>
-        </>)}
-      </>)}
-
-      {/* ================= VENDEDOR ================= */}
-      {!ehAdmin && !carregando && meu && (<>
-        <div style={s.kpis}>
-          <div style={s.kpi}>
-            <div style={s.kpiNum}>{inteiro(meu.hoje?.vendas)}</div>
-            <div style={s.kpiLab}>vendas hoje</div>
-            <div style={{ ...s.kpiPe, color: '#0f7a52', fontWeight: 700 }}>{dinheiro(meu.hoje?.comissao)}</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={s.kpiNum}>{inteiro(meu.semana?.vendas)}</div>
-            <div style={s.kpiLab}>últimos 7 dias</div>
-            <div style={{ ...s.kpiPe, color: '#0f7a52', fontWeight: 700 }}>{dinheiro(meu.semana?.comissao)}</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={s.kpiNum}>{inteiro(meu.mes?.vendas)}</div>
-            <div style={s.kpiLab}>este mês</div>
-            <div style={{ ...s.kpiPe, color: '#0f7a52', fontWeight: 700 }}>{dinheiro(meu.mes?.comissao)}</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={{ ...s.kpiNum, color: Number(meu.mes?.barradas) > 0 ? '#b3322f' : COR_TEXTO }}>
-              {inteiro(meu.mes?.barradas)}
-            </div>
-            <div style={s.kpiLab}>barradas no mês</div>
-            <div style={{ ...s.kpiPe, color: COR_FRACA }}>
-              {Number(meu.em_aberto) > 0 ? inteiro(meu.em_aberto) + ' esperando decisão' : 'nada em espera'}
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* motivo e autor visíveis: quem barra e quem perde a comissão são
-            pessoas diferentes, e sem isso a vendedora só vê o valor sumir */}
+        <div style={s.bloco}>
+          <div style={s.blocoTit}>Vendedor por categoria</div>
+          <div style={s.blocoSub}>
+            Quantas de cada produto cada pessoa fechou no período. Só pessoas — robô não tem meta nem comissão.
+          </div>
+          <MatrizVendedorProduto vendedores={painel.por_vendedor || []} produtos={produtosPeriodo} />
+          <div style={s.nota}>
+            Percentual de barrada alto em uma pessoa costuma ser qualidade do cadastro, não volume.
+            Vale ver os motivos antes de cobrar meta.
+          </div>
+        </div>
+
+        {robo && Number(robo.vendas || 0) > 0 && (
+          <div style={s.faixa()}>
+            🤖 O atendimento por IA fechou <b>{inteiro(robo.vendas)}</b> e teve{' '}
+            <b>{inteiro(robo.barradas)}</b> barradas no período. Fica fora do ranking de propósito —
+            só entra aqui para o total não ficar sem explicação.
+          </div>
+        )}
+
+        <div style={s.bloco}>
+          <div style={s.blocoTit}>Vendas do período · {rotPer}</div>
+          <div style={s.blocoSub}>
+            {inteiro((painel.lista || []).length)} venda(s) listada(s), da mais recente para a mais antiga
+          </div>
+          <TabelaVendas lista={painel.lista || []} comVendedor />
+          <div style={s.nota}>
+            Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
+          </div>
+        </div>
+      </>)}
+
+      {/* ================= VENDEDOR ================= */}
+      {!ehAdmin && meu && (<>
+        <div style={s.kpis}>
+          <div style={s.kpi}>
+            <div style={s.kpiNum}>{inteiro(mt?.vendas)}</div>
+            <div style={s.kpiLab}>vendas aprovadas no período</div>
+            {mDelta !== null && (
+              <div style={{ ...s.kpiPe, color: mDelta >= 0 ? '#0f7a52' : '#b3322f' }}>
+                {mDelta >= 0 ? '▲' : '▼'} {Math.abs(mDelta)}% vs período anterior
+              </div>
+            )}
+          </div>
+          <div style={s.kpi}>
+            <div style={{ ...s.kpiNum, fontSize: 24 }}>{dinheiro(mt?.comissao)}</div>
+            <div style={s.kpiLab}>comissão do período</div>
+            <div style={{ ...s.kpiPe, color: COR_FRACA }}>só do que o advogado aceitou</div>
+          </div>
+          <div style={s.kpi}>
+            <div style={{ ...s.kpiNum, color: Number(mt?.barradas) > 0 ? COR_BARRADA : COR_TEXTO }}>
+              {inteiro(mt?.barradas)}
+            </div>
+            <div style={s.kpiLab}>barradas no período</div>
+          </div>
+          <div style={s.kpi}>
+            <div style={s.kpiNum}>{inteiro(meu.em_aberto)}</div>
+            <div style={s.kpiLab}>esperando decisão agora</div>
+            {Number(meu.sem_comprovante || 0) > 0 && (
+              <div style={{ ...s.kpiPe, color: '#b3322f' }}>
+                {meu.sem_comprovante} sem comprovante
+              </div>
+            )}
+          </div>
+        </div>
+
+        {Number(meu.sem_comprovante || 0) > 0 && (
+          <div style={s.faixa('alerta')}>
+            Você tem <b>{meu.sem_comprovante}</b> venda(s) sem comprovante. Sem ele a venda não é
+            considerada completa e não vai para a fila do advogado.
+          </div>
+        )}
+
+        <div style={s.bloco}>
+          <div style={s.blocoTit}>Sua produção por categoria</div>
+          <div style={s.blocoSub}>Barra azul = aprovadas · vermelho = barradas</div>
+          <Barras itens={meu.por_produto || []}
+            rotuloDe={x => x.produto || '—'}
+            valorDe={x => Number(x.vendas || 0)}
+            secDe={x => Number(x.barradas || 0)} />
+        </div>
+
         {(meu.barradas_recentes || []).length > 0 && (
           <div style={s.bloco}>
-            <div style={s.blocoTit}>Vendas que caíram</div>
-            <div style={s.blocoSub}>Com o motivo e quem registrou. Se discordar, fale com essa pessoa.</div>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={s.blocoTit}>Barradas recentes</div>
+            <div style={s.blocoSub}>O que o advogado recusou e por quê</div>
+            <div style={{ overflowX: 'auto', scrollbarWidth: 'thin' }}>
               <table style={s.tabela}>
                 <thead><tr>
-                  <th style={s.th}>Cliente</th>
-                  <th style={s.th}>Motivo</th>
-                  <th style={s.th}>Quem</th>
-                  <th style={s.th}>Reposição</th>
+                  <th style={s.th}>Cliente</th><th style={s.th}>Produto</th>
+                  <th style={s.th}>Motivo</th><th style={s.th}>Quem</th><th style={s.th}>Reposição</th>
                 </tr></thead>
                 <tbody>
                   {meu.barradas_recentes.map((b, i) => (
                     <tr key={i}>
-                      <td style={s.td}>{b.cliente}<div style={{ fontSize: 10.5, color: COR_FRACA }}>{b.produto}</div></td>
+                      <td style={s.td}>{b.cliente}</td>
+                      <td style={s.td}>{b.produto}</td>
                       <td style={{ ...s.td, maxWidth: 260 }}>{b.motivo}</td>
                       <td style={s.td}>{b.quem}</td>
                       <td style={s.td}>{b.reposicao_pedida
@@ -402,48 +564,18 @@ export default function PainelVendas() {
         )}
 
         <div style={s.bloco}>
-          <div style={s.blocoTit}>Minhas vendas · últimos 30 dias</div>
-          <div style={s.blocoSub}>Só gera comissão o que o advogado aceitou</div>
-          {(meu.lista || []).length === 0
-            ? <div style={s.vazio}>Nenhuma venda registrada ainda.</div>
-            : (
-              <div style={{ overflowX: 'auto', maxHeight: '52vh', scrollbarWidth: 'thin' }}>
-                <table style={s.tabela}>
-                  <thead><tr>
-                    <th style={s.th}>Data</th>
-                    <th style={s.th}>Cliente</th>
-                    <th style={s.th}>Situação</th>
-                    <th style={{ ...s.th, textAlign: 'right' }}>Comissão</th>
-                  </tr></thead>
-                  <tbody>
-                    {meu.lista.map(v => (
-                      <tr key={v.id}>
-                        <td style={s.td}>{brData(v.data_venda)}</td>
-                        <td style={s.td}>{v.cliente}
-                          <div style={{ fontSize: 10.5, color: COR_FRACA }}>{v.produto}</div></td>
-                        <td style={s.td}>
-                          {v.status === 'barrada'
-                            ? <span style={s.tagRuim} title={v.motivo || ''}>barrada</span>
-                            : v.status === 'aprovada' || v.status === 'concluida'
-                            ? <span style={s.tagBom}>aprovada</span>
-                            : <span style={s.tag}>{String(v.status).replace('_', ' ')}</span>}
-                        </td>
-                        <td style={s.tdNum}>
-                          {v.conta_comissao === false
-                            ? <span style={{ color: COR_FRACA, fontSize: 11 }}>histórico</span>
-                            : dinheiro(v.comissao)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <div style={s.blocoTit}>Minhas vendas · {rotPer}</div>
+          <div style={s.blocoSub}>
+            {inteiro((meu.lista || []).length)} venda(s) no período · só gera comissão o que o advogado aceitou
+          </div>
+          <TabelaVendas lista={meu.lista || []} />
           <div style={s.nota}>
             Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
           </div>
         </div>
       </>)}
+
+      {carregando && <div style={s.vazio}>Carregando...</div>}
 
       {modalVenda && (
         <ModalNovaVenda
