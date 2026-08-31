@@ -77,13 +77,31 @@ const s = {
   dataInput: { padding: '6px 10px', fontSize: 12.5, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)' },
   periodoNota: { fontSize: 11.5, color: COR_FRACA, marginBottom: 18 },
 
-  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(158px, 1fr))', gap: 1,
+  // Hierarquia em dois níveis: um número principal grande (o que o admin abre a
+  // tela para ver) e os de apoio menores ao lado. Quatro números do mesmo tamanho
+  // não têm hierarquia nenhuma — o olho não sabe onde pousar.
+  kpiGrade: { display: 'grid', gridTemplateColumns: 'minmax(230px, 1.15fr) 2.6fr',
+              gap: 12, marginBottom: 14, alignItems: 'stretch' },
+  kpiHero: { background: '#fff', border: '0.5px solid rgba(15,23,42,0.10)', borderRadius: 12,
+             padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+  // figura grande usa numeral proporcional: tabular deixa o número "solto"
+  heroNum: { fontSize: 46, fontWeight: 700, color: COR_TEXTO, lineHeight: 1, letterSpacing: '-1.6px' },
+  heroLab: { fontSize: 13, color: COR_MEDIA, marginTop: 7 },
+  heroPe: { fontSize: 12, marginTop: 10, lineHeight: 1.5 },
+
+  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(146px, 1fr))', gap: 1,
           background: 'rgba(15,23,42,0.08)', border: '0.5px solid rgba(15,23,42,0.08)',
-          borderRadius: 12, overflow: 'hidden', marginBottom: 20 },
-  kpi: { background: '#ffffff', padding: '15px 17px' },
-  kpiNum: { fontSize: 30, fontWeight: 700, color: COR_TEXTO, lineHeight: 1.05, letterSpacing: '-0.8px' },
-  kpiLab: { fontSize: 11.5, color: COR_MEDIA, marginTop: 5, lineHeight: 1.35 },
-  kpiPe: { fontSize: 11, marginTop: 7, lineHeight: 1.4 },
+          borderRadius: 12, overflow: 'hidden' },
+  kpi: { background: '#ffffff', padding: '14px 16px', display: 'flex', flexDirection: 'column',
+         justifyContent: 'center', minHeight: 84 },
+  kpiNum: { fontSize: 25, fontWeight: 700, color: COR_TEXTO, lineHeight: 1.05, letterSpacing: '-0.6px' },
+  kpiLab: { fontSize: 11.5, color: COR_MEDIA, marginTop: 4, lineHeight: 1.35 },
+  kpiPe: { fontSize: 11, marginTop: 6, lineHeight: 1.4 },
+
+  // "como ler" recolhido: útil na primeira vez, ruído da segunda em diante
+  comoLerBtn: { border: 'none', background: 'none', color: COR_MEDIA, fontSize: 12,
+                cursor: 'pointer', padding: '4px 0', marginBottom: 14, textDecoration: 'underline',
+                textUnderlineOffset: 3, fontFamily: 'inherit' },
 
   faixa: (tom) => ({
     fontSize: 12.5, lineHeight: 1.6, borderRadius: 10, padding: '11px 14px', marginBottom: 16,
@@ -312,6 +330,7 @@ export default function PainelVendas() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [modalVenda, setModalVenda] = useState(false)
+  const [comoLer, setComoLer] = useState(false)
 
   useEffect(() => {
     if (periodo === 'custom') return
@@ -346,6 +365,13 @@ export default function PainelVendas() {
     const a = Number(ant.vendas || 0), h = Number(t.vendas || 0)
     return a === 0 ? null : Math.round(100 * (h - a) / a)
   }, [t, ant])
+
+  // ritmo do período: 422 no mês não diz nada; 13 por dia diz se hoje foi bom
+  const mediaDia = useMemo(() => {
+    const d = Number(painel?.periodo?.dias || 0)
+    if (!t || d < 2) return null
+    return (Number(t.vendas || 0) / d).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  }, [t, painel])
 
   const porDia = painel?.por_dia || []
   // a coluna empilha aprovadas + barradas: a escala tem que ser da SOMA, senão
@@ -413,48 +439,93 @@ export default function PainelVendas() {
           </div>
         )}
 
-        <div style={s.kpis}>
-          <div style={s.kpi}>
-            <div style={s.kpiNum}>{inteiro(t?.vendas)}</div>
-            <div style={s.kpiLab}>vendas aprovadas</div>
-            {delta !== null && (
-              <div style={{ ...s.kpiPe, color: delta >= 0 ? '#0f7a52' : '#b3322f' }}>
-                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}% vs período anterior
+        <div style={s.kpiGrade}>
+          {/* o número que a tela existe para mostrar, sozinho e grande */}
+          <div style={s.kpiHero}>
+            <div style={s.heroNum}>{inteiro(t?.vendas)}</div>
+            <div style={s.heroLab}>vendas aprovadas</div>
+            <div style={s.heroPe}>
+              {delta !== null ? (
+                <span style={{ color: delta >= 0 ? '#0f7a52' : '#b3322f', fontWeight: 600 }}>
+                  {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}% vs período anterior
+                </span>
+              ) : <span style={{ color: COR_FRACA }}>sem base comparável</span>}
+              {mediaDia !== null && (
+                <span style={{ color: COR_MEDIA }}> · {mediaDia} por dia</span>
+              )}
+            </div>
+          </div>
+
+          <div style={s.kpis}>
+            <div style={s.kpi}>
+              <div style={{ ...s.kpiNum, color: Number(t?.barradas) > 0 ? COR_BARRADA_TXT : COR_TEXTO }}>
+                {inteiro(t?.barradas)}
+              </div>
+              <div style={s.kpiLab}>barradas pelo advogado</div>
+              {pctBarrada !== null && (
+                <div style={{ ...s.kpiPe, color: COR_MEDIA }}>{pctBarrada}% do que foi decidido</div>
+              )}
+            </div>
+
+            <div style={s.kpi}>
+              <div style={s.kpiNum}>{inteiro(t?.em_aberto)}</div>
+              <div style={s.kpiLab}>esperando decisão</div>
+              <div style={{ ...s.kpiPe, color: COR_FRACA }}>ainda não contam</div>
+            </div>
+
+            {/* gargalo acionável: some com um upload, por isso ganha um card */}
+            <div style={s.kpi}>
+              <div style={{ ...s.kpiNum, color: Number(t?.sem_comprovante) > 0 ? '#7c2d12' : COR_TEXTO }}>
+                {inteiro(t?.sem_comprovante)}
+              </div>
+              <div style={s.kpiLab}>sem comprovante</div>
+              <div style={{ ...s.kpiPe, color: Number(t?.sem_comprovante) > 0 ? '#7c2d12' : COR_FRACA }}>
+                {Number(t?.sem_comprovante) > 0 ? 'travadas antes do advogado' : 'nenhuma travada'}
+              </div>
+            </div>
+
+            <div style={s.kpi}>
+              <div style={{ ...s.kpiNum, fontSize: 21 }}>{dinheiro(t?.comissao)}</div>
+              <div style={s.kpiLab}>comissão a pagar</div>
+              <div style={{ ...s.kpiPe, color: COR_FRACA }}>
+                {Number(t?.comissao_paga || 0) > 0
+                  ? <>{dinheiro(t.comissao_paga)} já paga</>
+                  : 'nada pago ainda'}
+              </div>
+            </div>
+
+            {Number(t?.emprestado || 0) > 0 && (
+              <div style={s.kpi}>
+                <div style={{ ...s.kpiNum, fontSize: 21 }}>{dinheiro(t?.emprestado)}</div>
+                <div style={s.kpiLab}>emprestado no BF</div>
+                <div style={{ ...s.kpiPe, color: COR_FRACA }}>
+                  {Number(t?.ticket_bf || 0) > 0 ? <>{dinheiro(t.ticket_bf)} por venda</> : ''}
+                </div>
               </div>
             )}
           </div>
-          <div style={s.kpi}>
-            <div style={{ ...s.kpiNum, color: Number(t?.barradas) > 0 ? COR_BARRADA : COR_TEXTO }}>
-              {inteiro(t?.barradas)}
-            </div>
-            <div style={s.kpiLab}>barradas pelo advogado</div>
-            {pctBarrada !== null && (
-              <div style={{ ...s.kpiPe, color: COR_MEDIA }}>{pctBarrada}% do que foi decidido</div>
-            )}
-          </div>
-          <div style={s.kpi}>
-            <div style={s.kpiNum}>{inteiro(t?.em_aberto)}</div>
-            <div style={s.kpiLab}>ainda sem decisão</div>
-            <div style={{ ...s.kpiPe, color: COR_FRACA }}>não contam como venda</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={{ ...s.kpiNum, fontSize: 24 }}>{dinheiro(t?.comissao)}</div>
-            <div style={s.kpiLab}>comissão do período</div>
-            <div style={{ ...s.kpiPe, color: COR_FRACA }}>só do que o advogado aceitou</div>
-          </div>
         </div>
 
-        <div style={s.faixa()}>
-          <b>Como ler:</b> uma venda entra como <b>ainda sem decisão</b> quando é cadastrada.
-          Quando o vendedor do advogado decide, ela vira <b>aprovada</b> (gera comissão) ou{' '}
-          <b>barrada</b> (não gera). Por isso os três números somados dão o total cadastrado no
-          período, e só o primeiro vira dinheiro.
-          {Number(t?.importadas || 0) > 0 && (
-            <> <b>Atenção:</b> {inteiro(t.importadas)} deste período vieram da importação —
-            entram na contagem mas não geram comissão, e por isso a comparação com o período
-            anterior fica escondida.</>
-          )}
-        </div>
+        {Number(t?.importadas || 0) > 0 && (
+          <div style={s.faixa()}>
+            <b>{inteiro(t.importadas)}</b> deste período vieram da importação: entram na contagem
+            mas não geram comissão — e é por isso que a comparação com o período anterior fica
+            escondida (comparar importação com operação inventa uma variação que não aconteceu).
+          </div>
+        )}
+
+        <button style={s.comoLerBtn} onClick={() => setComoLer(v => !v)}>
+          {comoLer ? 'esconder' : 'como ler estes números'}
+        </button>
+        {comoLer && (
+          <div style={s.faixa()}>
+            Uma venda entra como <b>esperando decisão</b> quando é cadastrada. Quando o vendedor do
+            advogado decide, ela vira <b>aprovada</b> (gera comissão) ou <b>barrada</b> (não gera).
+            Os três somados dão o total cadastrado no período, e só o primeiro vira dinheiro.
+            <br /><b>Sem comprovante</b> é diferente: a venda nem chega ao advogado até alguém
+            anexar o papel — é a fila que depende só de você.
+          </div>
+        )}
 
         <div style={s.colunas}>
           <div style={s.bloco}>
