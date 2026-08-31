@@ -25,6 +25,15 @@ const DOCS = [
 const COR = { texto: '#0f172a', media: '#5b6b84', fraca: '#94a3b8',
               verde: '#1baf7a', vermelho: '#b3322f', trilho: '#eef2f7' }
 
+// em que etapa a venda caiu — cada uma e um problema diferente
+const ETAPA = {
+  advogado:   { onde: 'na decisão do advogado' },
+  pos_venda:  { onde: 'na conferência do pós-venda' },
+  revisao_ia: { onde: 'na revisão IA, antes de virar contrato' },
+  cancelado:  { onde: 'por cancelamento da cliente' },
+  outro:      { onde: 'em uma etapa não registrada' },
+}
+
 const ehImagem = (u) => /\.(jpe?g|png|webp|gif|bmp|heic)(\?|$)/i.test(String(u || ''))
 const cpfBonito = (c) => {
   const n = String(c || '').replace(/\D/g, '')
@@ -85,6 +94,9 @@ const s = {
   erro: { fontSize: 12.5, color: COR.vermelho, background: 'rgba(227,73,72,.10)',
           border: '0.5px solid rgba(227,73,72,.35)', borderRadius: 9, padding: '10px 12px', marginBottom: 12 },
   carregando: { padding: '48px 10px', textAlign: 'center', color: COR.fraca, fontSize: 13.5 },
+  barrada: { fontSize: 13, lineHeight: 1.6, color: COR.vermelho, background: 'rgba(227,73,72,.08)',
+             border: '0.5px solid rgba(227,73,72,.30)', borderRadius: 10, padding: '11px 13px',
+             marginBottom: 4, marginTop: 2 },
 
   lupa: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 80, display: 'flex',
           alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' },
@@ -156,10 +168,14 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
               <div style={{ minWidth: 0 }}>
                 <div style={s.nome}>{cli.nome || 'Cliente'}</div>
                 <div style={s.sub}>
-                  {ven.produto || cli.produto || '—'} · vendeu <b>{ven.vendedora}</b> ·
-                  entregue ao advogado {dataBR(lote.data_entrega)}
-                  {Number(lote.dias_desde_entrega) > 0 && ` (há ${lote.dias_desde_entrega}d)`}
-                  {lote.tipo === 'reposicao' && ' · lote de reposição'}
+                  {ven.produto || cli.produto || '—'} · vendeu <b>{ven.vendedora}</b>
+                  {/* venda de lead BF ou que ainda nao foi para advogado nenhum
+                      nao tem lote: a ficha diz isso em vez de mostrar "—" */}
+                  {d?.lote ? (<>
+                    {' · '}entregue ao advogado {dataBR(lote.data_entrega)}
+                    {Number(lote.dias_desde_entrega) > 0 && ` (há ${lote.dias_desde_entrega}d)`}
+                    {lote.tipo === 'reposicao' && ' · lote de reposição'}
+                  </>) : <> · ainda não foi para nenhum advogado</>}
                 </div>
               </div>
               <button style={s.fechar} onClick={aoFechar} title="Fechar">✕</button>
@@ -167,6 +183,27 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
 
             <div style={s.corpo}>
               {erro && <div style={s.erro}>{erro}</div>}
+
+              {/* O motivo saiu da tabela (texto livre quebrava o alinhamento) e
+                  ganhou destaque aqui, junto da etapa em que a venda caiu. */}
+              {ven.origem_barrada && (
+                <div style={s.barrada}>
+                  <b>Caiu {ETAPA[ven.origem_barrada]?.onde || 'em uma etapa não registrada'}</b>
+                  {ven.barrada_em && <> em {dataBR(ven.barrada_em)}</>}
+                  {ven.decidido_por && <> · por {ven.decidido_por}</>}
+                  {ven.motivo_barrada
+                    ? <div style={{ marginTop: 5 }}>Motivo: <b>{ven.motivo_barrada}</b></div>
+                    : <div style={{ marginTop: 5, opacity: .8 }}>Sem motivo registrado.</div>}
+                  {ven.reposicao_pedida && <div style={{ marginTop: 5 }}>Reposição foi pedida.</div>}
+                </div>
+              )}
+
+              {cli.fora_do_crm && (
+                <div style={s.aviso}>
+                  Esta venda é de um lead do funil do Bolsa Família e ainda não virou cliente
+                  no CRM — por isso não há documentos nem endereço aqui.
+                </div>
+              )}
 
               <div style={s.secao}>Dados da cliente</div>
               <div style={s.grade}>
@@ -204,6 +241,7 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
                 )}
               </div>
 
+              {!cli.fora_do_crm && (<>
               <div style={s.secao}>
                 Documentos {faltando.length > 0 && <span style={s.faltaTag}>faltam {faltando.length}</span>}
               </div>
@@ -240,6 +278,8 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
                 })}
               </div>
 
+              </>)}
+
               {comps.length > 0 && (<>
                 <div style={s.secao}>Comprovantes da venda</div>
                 <div style={s.docs}>
@@ -268,6 +308,11 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
                     : <>✕ <b>Não aceitou</b>{ven.decidido_por ? <> — registrado por {ven.decidido_por}</> : null}.
                        {ven.adv_motivo && <> Motivo: {ven.adv_motivo}.</>}
                        {ven.reposicao_pedida && <> Reposição pedida.</>}</>}
+                </div>
+              ) : !(aoAceitar || aoBarrar) ? (
+                <div style={{ fontSize: 12.5, color: COR.media, lineHeight: 1.6 }}>
+                  Esta venda ainda espera a decisão do advogado. Ela é registrada na tela{' '}
+                  <b>O advogado aceitou?</b>.
                 </div>
               ) : (<>
                 <div style={{ fontSize: 12.5, color: COR.media, marginBottom: 11, lineHeight: 1.6 }}>
