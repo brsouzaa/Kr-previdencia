@@ -45,6 +45,8 @@ const DOC_LABELS = {
   comprovante_bolsa_2: '🩷 Bolsa Família 2',
   comprovante_bolsa_3: '🩷 Bolsa Família 3',
   cartao_sus: '💳 Cartão SUS',
+  ctps_digital: '📘 CTPS digital',
+  extrato_fgts: '💰 Extrato FGTS',
   outros: '📎 Outros',
   certidao_obito_frente: '📜 Óbito (frente)',
   certidao_obito_verso: '📜 Óbito (verso)',
@@ -57,7 +59,8 @@ const DOC_LABELS = {
 
 const DOCS_POR_PRODUTO = {
   'Maternidade': ['rg_frente', 'rg_verso', 'comprovante_residencia', 'comprovante_gravidez', 'comprovante_bolsa_1', 'comprovante_bolsa_2', 'comprovante_bolsa_3', 'cartao_sus', 'outros'],
-  'Maternidade Mãe': ['rg_frente', 'rg_verso', 'comprovante_residencia', 'certidao_nascimento_bebe', 'comprovante_bolsa_1', 'comprovante_bolsa_2', 'comprovante_bolsa_3', 'cartao_sus', 'outros'],
+  // CTPS digital e FGTS entraram como obrigatorios em 31/08
+  'Maternidade Mãe': ['rg_frente', 'rg_verso', 'ctps_digital', 'extrato_fgts', 'comprovante_residencia', 'certidao_nascimento_bebe', 'comprovante_bolsa_1', 'comprovante_bolsa_2', 'comprovante_bolsa_3', 'cartao_sus', 'outros'],
   'Gestante até 5 meses': ['rg_frente', 'rg_verso', 'comprovante_residencia', 'comprovante_gravidez', 'cartao_sus', 'outros'],
   'Pensão por Morte': ['rg_frente', 'rg_verso', 'certidao_obito_frente', 'certidao_obito_verso', 'certidao_casamento_frente', 'certidao_casamento_verso', 'rgs_filhos', 'rg_responsavel_legal_frente', 'rg_responsavel_legal_verso', 'comprovante_residencia', 'outros'],
 }
