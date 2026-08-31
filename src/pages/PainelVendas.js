@@ -52,6 +52,17 @@ const rotuloPeriodo = (p, ini, fim) => {
   return brData(ini) + ' a ' + brData(fim)
 }
 
+// De onde veio a barrada. Sao ETAPAS diferentes da operacao e cada uma pede uma
+// acao diferente — chamar todas de "barrada" escondia isso. Confirmado no banco:
+// das 742 barradas da base, ZERO sao do advogado (502 Revisao IA, 240 pos-venda).
+const ORIGEM_BARRADA = {
+  advogado:   { rot: 'advogado', desc: 'o advogado nao ficou com a cliente' },
+  pos_venda:  { rot: 'pós-venda', desc: 'caiu na conferencia do pos-venda' },
+  revisao_ia: { rot: 'revisão IA', desc: 'caiu na revisao antes de virar contrato' },
+  cancelado:  { rot: 'cancelada', desc: 'cliente cancelada' },
+  outro:      { rot: 'outra etapa', desc: 'barrada sem etapa registrada' },
+}
+
 const STATUS = {
   aprovada:     { rot: 'aprovada',     estilo: 'bom' },
   concluida:    { rot: 'concluída',    estilo: 'bom' },
@@ -152,6 +163,8 @@ const s = {
   trTotal: { background: '#f8fafc', fontWeight: 700 },
 
   tag: { fontSize: 10.5, color: COR_MEDIA, background: '#f1f5f9', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
+  tagEtapa: { fontSize: 10, fontWeight: 600, color: '#7c2d12', background: 'rgba(237,161,0,.16)',
+              borderRadius: 5, padding: '2px 6px', whiteSpace: 'nowrap' },
   tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
@@ -302,7 +315,15 @@ function TabelaVendas({ lista, comVendedor }) {
               )}
               <td style={s.td}>
                 <TagStatus status={v.status} />
-                {v.status === 'barrada' && v.motivo &&
+                {/* qual ETAPA barrou. Advogado, pos-venda e revisao IA sao
+                    problemas diferentes e pedem acoes diferentes. */}
+                {v.origem_barrada && ORIGEM_BARRADA[v.origem_barrada] && (
+                  <span style={{ ...s.tagEtapa, marginLeft: 5 }}
+                    title={ORIGEM_BARRADA[v.origem_barrada].desc}>
+                    {ORIGEM_BARRADA[v.origem_barrada].rot}
+                  </span>
+                )}
+                {v.motivo &&
                   <div style={{ fontSize: 11, color: COR_MEDIA, marginTop: 3, maxWidth: 240 }}>{v.motivo}</div>}
               </td>
               <td style={s.tdNum}>
@@ -322,8 +343,9 @@ export default function PainelVendas() {
   const { profile } = useAuth()
   const ehAdmin = profile?.role === 'admin'
 
-  const [periodo, setPeriodo] = useState('mes')
-  const [ini, setIni] = useState(inicioMes())
+  // abre em HOJE: o admin entra para saber como esta o dia, nao o acumulado
+  const [periodo, setPeriodo] = useState('hoje')
+  const [ini, setIni] = useState(hojeISO())
   const [fim, setFim] = useState(hojeISO())
   const [painel, setPainel] = useState(null)
   const [meu, setMeu] = useState(null)
@@ -365,6 +387,17 @@ export default function PainelVendas() {
     const a = Number(ant.vendas || 0), h = Number(t.vendas || 0)
     return a === 0 ? null : Math.round(100 * (h - a) / a)
   }, [t, ant])
+
+  // "20% do que foi decidido" nao diz ONDE a venda caiu. Etapa diferente = acao
+  // diferente: revisao IA e cadastro, pos-venda e conferencia, advogado e perfil.
+  const resumoBarradas = useMemo(() => {
+    const o = painel?.barradas_por_origem || {}
+    const partes = Object.entries(o)
+      .filter(([, n]) => Number(n) > 0)
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([k, n]) => `${inteiro(n)} ${(ORIGEM_BARRADA[k] || { rot: k }).rot}`)
+    return partes.length ? partes.join(' · ') : ''
+  }, [painel])
 
   // ritmo do período: 422 no mês não diz nada; 13 por dia diz se hoje foi bom
   const mediaDia = useMemo(() => {
@@ -461,16 +494,25 @@ export default function PainelVendas() {
               <div style={{ ...s.kpiNum, color: Number(t?.barradas) > 0 ? COR_BARRADA_TXT : COR_TEXTO }}>
                 {inteiro(t?.barradas)}
               </div>
-              <div style={s.kpiLab}>barradas pelo advogado</div>
-              {pctBarrada !== null && (
-                <div style={{ ...s.kpiPe, color: COR_MEDIA }}>{pctBarrada}% do que foi decidido</div>
-              )}
+              {/* "barradas pelo advogado" era mentira: das 742 da base, nenhuma
+                  e do advogado. Agora o rotulo diz a etapa de verdade. */}
+              <div style={s.kpiLab}>barradas</div>
+              <div style={{ ...s.kpiPe, color: COR_MEDIA }}>
+                {resumoBarradas || (pctBarrada !== null ? `${pctBarrada}% do que foi decidido` : '')}
+              </div>
             </div>
 
+            {/* MESMA fonte da tela "O advogado aceitou?" — antes este card contava
+                o status da venda e dava um numero diferente do da outra tela,
+                sem uma venda sequer em comum entre os dois. */}
             <div style={s.kpi}>
-              <div style={s.kpiNum}>{inteiro(t?.em_aberto)}</div>
-              <div style={s.kpiLab}>esperando decisão</div>
-              <div style={{ ...s.kpiPe, color: COR_FRACA }}>ainda não contam</div>
+              <div style={s.kpiNum}>{inteiro(painel?.aguardando_advogado_total)}</div>
+              <div style={s.kpiLab}>esperando o advogado</div>
+              <div style={{ ...s.kpiPe, color: COR_FRACA }}>
+                {Number(t?.em_aberto || 0) > 0
+                  ? <>+{inteiro(t.em_aberto)} sem validação interna</>
+                  : 'mesmo número da tela do advogado'}
+              </div>
             </div>
 
             {/* gargalo acionável: some com um upload, por isso ganha um card */}
