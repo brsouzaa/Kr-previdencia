@@ -330,6 +330,11 @@ export default function Layout({ children, page, setPage }) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
   }
 
+  // Planejamento pessoal do Bruno: primeiro item do menu, so pra ele (por ID).
+  if (profile?.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15' && !nav.some(n => n.key === 'meu_planejamento')) {
+    nav = [{ key: 'meu_planejamento', label: '🎯 Meu planejamento' }, ...nav]
+  }
+
   // Vendedoras do Retroativo (Maryana, Sthefany, Eduarda): board do Retroativo no menu,
   // sem tirar nada do que elas ja tinham. La elas so enxergam pre-aprovado real pra frente.
   const IDS_VENDAS_RETROATIVO = [
