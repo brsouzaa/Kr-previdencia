@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import ModalNovaVenda from '../components/ModalNovaVenda'
@@ -183,6 +183,10 @@ const s = {
   tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
+  btnLinha: { fontSize: 11.5, padding: '4px 9px', marginLeft: 5, borderRadius: 7, cursor: 'pointer',
+              border: '1px solid rgba(15,23,42,0.14)', background: '#fff', color: COR_MEDIA },
+  btnLinhaRuim: { color: COR_BARRADA_TXT, borderColor: 'rgba(227,73,72,.3)' },
+  travada: { fontSize: 11.5, color: COR_FRACA, cursor: 'help' },
   nota: { fontSize: 11, color: COR_FRACA, marginTop: 12, lineHeight: 1.5 },
 }
 
@@ -343,8 +347,18 @@ function aplicaFiltro(lista, f) {
   })
 }
 
+// por que a venda não pode mais ser mexida — o vendedor precisa saber, senão
+// acha que a tela travou sem motivo
+function motivoTravada(v) {
+  if (v.comissao_paga) return 'comissão já paga — não dá mais para desfazer'
+  if (v.status === 'aprovada' || v.status === 'concluida' || v.status === 'barrada')
+    return 'o advogado já decidiu esta venda'
+  return 'veio do fluxo automático do contrato, não é uma anotação'
+}
+
 function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, subtitulo,
-                       busca, setBusca, achados, buscando, aoBuscarTudo, aoLimparBusca }) {
+                       busca, setBusca, achados, buscando, aoBuscarTudo, aoLimparBusca,
+                       aoCancelar, aoExcluir }) {
   const emBusca = !!achados
   const base = emBusca ? achados : filtraTexto(lista, busca)
   const visivel = aplicaFiltro(base, filtro)
@@ -413,6 +427,7 @@ function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, 
                 {comVendedor && <th style={s.th}>Vendedor</th>}
                 <th style={s.th}>Situação</th>
                 <th style={s.thNum}>Comissão</th>
+                {aoCancelar && <th style={s.th}></th>}
               </tr>
             </thead>
             <tbody>
@@ -448,6 +463,23 @@ function TabelaVendas({ lista, comVendedor, aoAbrir, filtro, setFiltro, titulo, 
                       ? <span style={s.tag}>histórico</span>
                       : dinheiro(v.comissao)}
                   </td>
+                  {/* 31/08: o painel também serve de anotação, então dá para desfazer
+                      o que você mesmo anotou. Quem diz se pode é o banco (pode_editar),
+                      com o mesmo critério das RPCs — nunca um cálculo só da tela. */}
+                  {aoCancelar && (
+                    <td style={{ ...s.td, whiteSpace: 'nowrap', textAlign: 'right' }}
+                        onClick={e => e.stopPropagation()}>
+                      {v.pode_editar ? (
+                        <>
+                          <button style={s.btnLinha} title="Marcar como cancelada, mantendo o registro"
+                            onClick={() => aoCancelar(v)}>cancelar</button>
+                          <button style={{ ...s.btnLinha, ...s.btnLinhaRuim }}
+                            title="Apagar de vez esta anotação"
+                            onClick={() => aoExcluir && aoExcluir(v)}>excluir</button>
+                        </>
+                      ) : <span style={s.travada} title={motivoTravada(v)}>—</span>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -491,6 +523,36 @@ export default function PainelVendas() {
   }, [busca])
 
   const limparBusca = useCallback(() => { setBusca(''); setAchados(null); setErro('') }, [])
+  const carregarRef = useRef(null)
+
+  // 31/08: desfazer a própria anotação. A confirmação é obrigatória porque as duas
+  // ações são silenciosas — nada avisa o time que a venda saiu da contagem.
+  // Quem tem a palavra final é a RPC: se ela recusar, a tela mostra o motivo dela.
+  const traduzAcao = (m) => {
+    if (/VENDA_DO_FLUXO_AUTOMATICO/.test(m))
+      return 'Esta venda veio do fluxo do contrato, não é uma anotação sua. Ela só sai do painel pelo CRM.'
+    if (/VENDA_DE_OUTRA_PESSOA/.test(m)) return 'Esta venda é de outro vendedor.'
+    if (/COMISSAO_JA_PAGA/.test(m)) return 'A comissão já foi paga — não dá mais para desfazer.'
+    if (/ADVOGADO_JA_DECIDIU/.test(m)) return 'O advogado já decidiu esta venda.'
+    if (/SO_APAGA_VENDA_SEM_DECISAO/.test(m)) return 'Só dá para apagar venda que ainda não foi decidida. Use cancelar.'
+    return m
+  }
+
+  const cancelarVenda = useCallback(async (v) => {
+    const motivo = window.prompt('Cancelar a venda de ' + v.cliente + '.\nPor quê?')
+    if (motivo === null) return
+    const { error } = await supabase.rpc('venda_cancelar', { p_venda_id: v.id, p_motivo: motivo })
+    if (error) { setErro(traduzAcao(error.message)); return }
+    setErro(''); carregarRef.current && carregarRef.current()
+  }, [])
+
+  const excluirVenda = useCallback(async (v) => {
+    if (!window.confirm('Apagar de vez a anotação da venda de ' + v.cliente
+      + '?\nIsso não pode ser desfeito. Para manter o registro, use cancelar.')) return
+    const { error } = await supabase.rpc('venda_excluir', { p_venda_id: v.id })
+    if (error) { setErro(traduzAcao(error.message)); return }
+    setErro(''); carregarRef.current && carregarRef.current()
+  }, [])
 
   useEffect(() => {
     if (periodo === 'custom') return
@@ -511,6 +573,9 @@ export default function PainelVendas() {
   }, [ehAdmin, ini, fim])
 
   useEffect(() => { carregar() }, [carregar])
+  // cancelar/excluir precisam recarregar a tela, mas são declarados antes de
+  // `carregar` — o ref evita reordenar meio arquivo só por causa disso
+  useEffect(() => { carregarRef.current = carregar }, [carregar])
 
   const t = painel?.totais
   const ant = painel?.anterior
@@ -784,8 +849,9 @@ export default function PainelVendas() {
           achados={achados} buscando={buscando}
           aoBuscarTudo={buscarNoHistorico} aoLimparBusca={limparBusca}
           aoAbrir={(v) => setFichaVenda(v)}
+          aoCancelar={cancelarVenda} aoExcluir={excluirVenda}
           subtitulo={<div style={s.nota}>
-            Marcadas como <b>histórico</b> vieram da importação e não geram comissão.
+            Cada linha é uma venda que alguém anotou. Clique para ver a ficha da cliente.
           </div>} />
       </>)}
 
@@ -874,9 +940,10 @@ export default function PainelVendas() {
           achados={achados} buscando={buscando}
           aoBuscarTudo={buscarNoHistorico} aoLimparBusca={limparBusca}
           aoAbrir={(v) => setFichaVenda(v)}
+          aoCancelar={cancelarVenda} aoExcluir={excluirVenda}
           subtitulo={<div style={s.nota}>
-            Só gera comissão o que o advogado aceitou. Marcadas como <b>histórico</b>
-            vieram da importação.
+            Só gera comissão o que o advogado aceitou. Enquanto ele não decide,
+            você pode cancelar ou apagar o que anotou.
           </div>} />
       </>)}
 
