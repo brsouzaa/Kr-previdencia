@@ -817,10 +817,11 @@ export default function PainelVendas() {
       {filtro}
 
       {/* o bloco de confirmar e do DONO da tela, admin ou nao: sao as vendas
-          dele proprio esperando confirmacao, nao as da equipe. */}
-      {ehAdmin && (
-        <ConfirmarMinhas lista={paraConfirmar} aoConfirmar={confirmarVendas} confirmando={confirmando} />
-      )}
+          dele proprio esperando confirmacao, nao as da equipe.
+          02/09 (correcao): estava gated em ehAdmin, contra o proprio comentario
+          acima — so o Bruno via. A RPC venda_minhas_para_confirmar ja filtra por
+          auth.uid(), entao cada uma so enxerga as suas. */}
+      <ConfirmarMinhas lista={paraConfirmar} aoConfirmar={confirmarVendas} confirmando={confirmando} />
 
       {/* ================= ADMIN ================= */}
       {ehAdmin && painel && (<>
@@ -1014,8 +1015,11 @@ export default function PainelVendas() {
       </>)}
 
       {/* ================= VENDEDOR ================= */}
+      {/* 02/09: o ConfirmarMinhas saiu daqui e subiu para logo abaixo do filtro,
+          fora de qualquer condicao. Aqui ele dependia de `meu`, o retorno da RPC
+          venda_minhas — se ela nao trouxesse nada, a vendedora perdia tambem o
+          bloco de confirmar, que nao tem relacao nenhuma com aquele periodo. */}
       {!ehAdmin && meu && (<>
-        <ConfirmarMinhas lista={paraConfirmar} aoConfirmar={confirmarVendas} confirmando={confirmando} />
         <div style={s.kpis}>
           <div style={s.kpi}>
             <div style={s.kpiNum}>{inteiro(mt?.vendas)}</div>
