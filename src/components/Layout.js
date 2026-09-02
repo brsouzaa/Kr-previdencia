@@ -372,6 +372,18 @@ export default function Layout({ children, page, setPage }) {
     nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
   }
 
+  // Atendente EXCLUSIVO do Bolsa Familia: menu com UM item so.
+  // Por ID e por ultimo de proposito — sobrescreve tudo o que o role dele
+  // (simulador_emprestimo, o mesmo da Joana) tinha adicionado acima, inclusive
+  // o Painel de vendas. O role foi mantido igual ao da Joana para que a tela do
+  // BF se comporte identica; quem corta o menu e esta regra, nao o papel.
+  const IDS_SO_BOLSA_FAMILIA = [
+    '9c02285d-6947-45e9-a4c3-d0c23815dc06', // Jose Carlos Iha — 02/09
+  ]
+  if (IDS_SO_BOLSA_FAMILIA.includes(profile?.id)) {
+    nav = [{ key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
+  }
+
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
   useEffect(() => {
     if (profile?.role !== 'vendedor' && profile?.role !== 'admin') return
