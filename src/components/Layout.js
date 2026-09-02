@@ -38,6 +38,7 @@ const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
 ]
 
 const NAV_PRODUTOR = [
