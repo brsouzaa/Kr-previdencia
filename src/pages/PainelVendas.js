@@ -722,7 +722,9 @@ export default function PainelVendas() {
   // cancelar/excluir precisam recarregar a tela, mas são declarados antes de
   // `carregar` — o ref evita reordenar meio arquivo só por causa disso
   useEffect(() => { carregarRef.current = carregar }, [carregar])
-  useEffect(() => { if (!ehAdmin) carregarParaConfirmar() }, [ehAdmin, carregarParaConfirmar])
+  // 02/09: o admin tambem vende de vez em quando e tem venda para registrar.
+  // Antes o bloco so carregava para nao-admin e o Bruno nao via as dele.
+  useEffect(() => { carregarParaConfirmar() }, [carregarParaConfirmar])
 
   const t = painel?.totais
   const ant = painel?.anterior
@@ -813,6 +815,12 @@ export default function PainelVendas() {
         <div style={s.faixa()} onClick={() => setAviso('')} title="clique para esconder">{aviso}</div>
       )}
       {filtro}
+
+      {/* o bloco de confirmar e do DONO da tela, admin ou nao: sao as vendas
+          dele proprio esperando confirmacao, nao as da equipe. */}
+      {ehAdmin && (
+        <ConfirmarMinhas lista={paraConfirmar} aoConfirmar={confirmarVendas} confirmando={confirmando} />
+      )}
 
       {/* ================= ADMIN ================= */}
       {ehAdmin && painel && (<>
