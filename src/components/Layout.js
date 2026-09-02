@@ -338,7 +338,13 @@ export default function Layout({ children, page, setPage }) {
     nav = [{ key: 'validacao_advogado', label: '⚖️ O advogado aceitou?' },
            { key: 'painel_vendas', label: '💵 Painel de vendas' }, ...nav]
   }
-  if (['vendedor_operador','coordenador_b2c'].includes(profile?.role) && !nav.some(n => n.key === 'painel_vendas')) {
+  // 02/09: 'simulador_emprestimo' e 'analista' entraram na lista. A Duda (11.828
+  // leads na carteira) e a Sthefany atendem cliente e podem fechar venda, mas o
+  // papel delas nao dava acesso ao painel — elas abriam o sistema e o item nem
+  // aparecia no menu. Decisao do Bruno: incluir, porque em algum momento elas
+  // tambem vao querer anotar uma venda.
+  if (['vendedor_operador','coordenador_b2c','simulador_emprestimo','analista']
+        .includes(profile?.role) && !nav.some(n => n.key === 'painel_vendas')) {
     nav = [{ key: 'painel_vendas', label: '💵 Painel de vendas' }, ...nav]
   }
 
