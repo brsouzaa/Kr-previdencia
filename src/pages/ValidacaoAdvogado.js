@@ -38,6 +38,9 @@ const s = {
   linha: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 },
   chip: { padding: '7px 13px', fontSize: 12.5, fontWeight: 500, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.12)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer', whiteSpace: 'nowrap' },
   chipOn: { background: '#0f172a', color: '#ffffff', borderColor: '#0f172a' },
+  filtroDono: { padding: '7px 11px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer',
+                border: '0.5px solid rgba(15,23,42,0.14)', background: '#fff', color: '#0f172a',
+                maxWidth: 260 },
   busca: { flex: '1 1 240px', minWidth: 180, padding: '9px 12px', fontSize: 13.5, borderRadius: 9, border: '0.5px solid rgba(15,23,42,0.18)', boxSizing: 'border-box' },
 
   resumo: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 },
@@ -82,6 +85,7 @@ export default function ValidacaoAdvogado() {
   const [erro, setErro] = useState('')
   const [aba, setAba] = useState('pendentes')
   const [busca, setBusca] = useState('')
+  const [dono, setDono] = useState('todos')   // filtro por vendedor B2B (02/09)
   const [modal, setModal] = useState(null)   // { item, motivo, outro, repor }
   const [ficha, setFicha] = useState(null)   // item cuja ficha esta aberta
   const [salvando, setSalvando] = useState(false)
@@ -149,16 +153,23 @@ export default function ValidacaoAdvogado() {
     carregar()
   }
 
+  // 02/09: os vendedores B2B que aparecem NESTA lista, para o filtro. Sai da
+  // propria lista em vez de uma tabela de gente: assim o menu nunca oferece um
+  // nome que nao tem nada para mostrar.
+  const donosB2B = [...new Set(lista.map(i => i.dono_advogado).filter(Boolean))].sort()
+
   const filtrada = lista.filter(i => {
     // aba manda antes da busca: "Barrados" e a tela que o Bruno abre para ver
     // o que caiu e cobrar motivo
     if (aba === 'aceitos'  && !i.adv_validado_em) return false
     if (aba === 'barrados' && !i.adv_barrado_em) return false
+    if (dono !== 'todos' && i.dono_advogado !== dono) return false
     if (!busca.trim()) return true
     const b = busca.toLowerCase().replace(/\D/g, '') || busca.toLowerCase()
     return String(i.cliente_nome || '').toLowerCase().includes(busca.toLowerCase())
       || String(i.cpf || '').replace(/\D/g, '').includes(b)
       || String(i.advogado_nome || '').toLowerCase().includes(busca.toLowerCase())
+      || String(i.dono_advogado || '').toLowerCase().includes(busca.toLowerCase())
   })
   const pendentes = lista.filter(i => !i.adv_validado_em && !i.adv_barrado_em)
   const antigos = pendentes.filter(i => Number(i.dias_desde_entrega) >= 3).length
@@ -179,7 +190,21 @@ export default function ValidacaoAdvogado() {
           <button key={v} style={{ ...s.chip, ...(aba === v ? s.chipOn : {}) }}
             onClick={() => setAba(v)}>{l}</button>
         ))}
-        <input style={s.busca} value={busca} placeholder="Buscar por nome, CPF ou advogado..."
+        {/* 02/09: filtro por vendedor B2B. Só aparece quando há mais de um na
+            lista — com um nome só, o menu não decide nada e vira ruído. */}
+        {donosB2B.length > 1 && (
+          <select style={s.filtroDono} value={dono} onChange={e => setDono(e.target.value)}>
+            <option value="todos">Todos os vendedores B2B ({donosB2B.length})</option>
+            {donosB2B.map(d => (
+              <option key={d} value={d}>
+                {d} ({lista.filter(i => i.dono_advogado === d
+                       && (aba === 'pendentes' ? (!i.adv_validado_em && !i.adv_barrado_em)
+                         : aba === 'aceitos' ? !!i.adv_validado_em : !!i.adv_barrado_em)).length})
+              </option>
+            ))}
+          </select>
+        )}
+        <input style={s.busca} value={busca} placeholder="Buscar por nome, CPF, advogado ou vendedor B2B..."
           onChange={e => setBusca(e.target.value)} />
       </div>
 
@@ -226,6 +251,11 @@ export default function ValidacaoAdvogado() {
                     CPF {cpfBonito(it.cpf)} · {it.telefone || 'sem telefone'}<br />
                     Advogado: <b>{it.advogado_nome || '—'}</b> · entregue em {brData(it.data_entrega)}
                     {it.lote_tipo === 'reposicao' && <span style={s.tagAlerta}> lote de reposição</span>}
+                    <br />
+                    {/* 02/09 (Bruno): faltava saber QUEM vai atrás do advogado. O
+                        vendedor B2B é o dono da relação com ele — sem esse nome, o
+                        card dizia que a decisão está parada mas não com quem cobrar. */}
+                    Quem cobra o advogado: <b>{it.dono_advogado || '— sem vendedor B2B'}</b>
                     <br />
                     Vendeu: <b>{it.vendedora_da_venda || '—'}</b>
                     {Number(it.comissao_valor) > 0 &&
