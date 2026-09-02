@@ -151,10 +151,19 @@ const IDS_TIME_MARYANA = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
+// Atendente EXCLUSIVO do Bolsa Familia: uma tela so, nada do resto do sistema.
+// O role e o mesmo da Joana (simulador_emprestimo) para a tela do BF se comportar
+// identica; o corte de acesso e feito aqui por ID, nao pelo papel.
+const IDS_SO_BOLSA_FAMILIA = [
+  '9c02285d-6947-45e9-a4c3-d0c23815dc06', // Jose Carlos Iha — 02/09
+]
+
 function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
   if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // Atendente so do Bolsa Familia: avaliado ANTES de tudo, para o role nao abrir outra porta.
+  if (IDS_SO_BOLSA_FAMILIA.includes(profile.id)) return page === 'revisao_ia_bf'
   // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
   // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
   if (page === 'painel_vendas') return ['admin','vendedor','vendedor_operador','supervisor_producao','coordenador_b2c'].includes(role)
@@ -206,7 +215,8 @@ function AppInner() {
 
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) || IDS_SO_BOLSA_FAMILIA.includes(profile.id)
+        ? 'revisao_ia_bf' : paginaInicial(profile.role))
     }
   }, [profile, page])
 
@@ -284,7 +294,9 @@ function AppInner() {
     mesa_advogada: <MesaAdvogada />,
   }
 
-  const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+  const paginaSegura = paginaPermitida(profile, page) ? page
+    : (IDS_OPERACAO_LICENCIADA.includes(profile.id) || IDS_SO_BOLSA_FAMILIA.includes(profile.id)
+        ? 'revisao_ia_bf' : paginaInicial(profile.role))
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
