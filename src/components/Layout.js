@@ -27,6 +27,12 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// Fila de entregas: item por ID, sem mexer no menu do papel (coordenador_b2c
+// nao tem essa tela por padrao)
+const IDS_FILA_ENTREGAS = [
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
+]
+
 // Clientes (consulta geral de clientes e documentos): item por ID
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
@@ -372,16 +378,9 @@ export default function Layout({ children, page, setPage }) {
     nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
   }
 
-  // Atendente EXCLUSIVO do Bolsa Familia: menu com UM item so.
-  // Por ID e por ultimo de proposito — sobrescreve tudo o que o role dele
-  // (simulador_emprestimo, o mesmo da Joana) tinha adicionado acima, inclusive
-  // o Painel de vendas. O role foi mantido igual ao da Joana para que a tela do
-  // BF se comporte identica; quem corta o menu e esta regra, nao o papel.
-  const IDS_SO_BOLSA_FAMILIA = [
-    '9c02285d-6947-45e9-a4c3-d0c23815dc06', // Jose Carlos Iha — 02/09
-  ]
-  if (IDS_SO_BOLSA_FAMILIA.includes(profile?.id)) {
-    nav = [{ key: 'revisao_ia_bf', label: '🩷 Revisão IA Bolsa Família' }]
+  // Fila de entregas por ID: a coordenadora nao tem essa tela no menu do papel dela
+  if (IDS_FILA_ENTREGAS.includes(profile?.id) && !nav.some(n => n.key === 'fila')) {
+    nav = [...nav, { key: 'fila', label: '📦 Fila de entregas' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
