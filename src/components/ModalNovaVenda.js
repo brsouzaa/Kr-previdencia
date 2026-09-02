@@ -226,6 +226,7 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
     if (faltando.length) return false
     if (exigeValor && !(Number(valorEmprestado) > 0)) return false
     if (modo === 'indicacao') return nome.trim().length > 2 && soDigitos(cpf).length === 11
+    if (escolhido && escolhido.ja_anotada) return false   // já é de alguém
     return !!escolhido
   })()
 
@@ -269,6 +270,11 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
     if (/DATA_NO_FUTURO/.test(m)) return 'A data da venda não pode ser no futuro.'
     if (/DATA_MUITO_ANTIGA/.test(m)) return 'Essa data é antiga demais. Se a venda é mesmo dessa data, fale com o Bruno.'
     if (/TIPO_DE_DOCUMENTO_INVALIDO/.test(m)) return 'Documento não reconhecido pelo sistema.'
+    // 02/09: com a adoção, "já existe venda" deixou de ser bloqueio — a anotação
+    // assume a linha que o gatilho criou. Só estes três casos recusam mesmo.
+    if (/VENDA_JA_ANOTADA/.test(m)) return 'Essa venda já foi anotada por alguém. Ela já está no painel.'
+    if (/ADVOGADO_JA_DECIDIU/.test(m)) return 'O advogado já decidiu esta venda — ela não pode mais ser anotada.'
+    if (/COMISSAO_JA_PAGA/.test(m)) return 'A comissão desta venda já foi paga — não dá mais para alterar.'
     if (/duplicate key|uq_vendas/.test(m)) return 'Essa pessoa já tem uma venda registrada.'
     return m
   }
@@ -325,7 +331,10 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
                     <div style={s.achadoNome}>
                       {a.nome || '(sem nome)'}
                       {ehLead && <span style={s.selo('#7c2d12', 'rgba(237,161,0,.16)')}>funil BF</span>}
-                      {a.ja_tem_venda && <span style={s.selo(COR.vermelho, 'rgba(227,73,72,.12)')}>já tem venda</span>}
+                      {/* 02/09: "já tem venda" assustava à toa — quase toda cliente tem
+                          a venda que o gatilho criou, e é exatamente essa que a anotação
+                          adota. Só é problema quando ALGUÉM já anotou. */}
+                      {a.ja_anotada && <span style={s.selo(COR.vermelho, 'rgba(227,73,72,.12)')}>já anotada</span>}
                     </div>
                     <div style={s.achadoMeta}>
                       {cpfBonito(a.cpf) || 'sem CPF'} · {a.telefone || 'sem telefone'} · {a.produto}
@@ -403,7 +412,11 @@ export default function ModalNovaVenda({ aoFechar, aoSalvar }) {
               ? 'Falta anexar: ' + faltando.map(d => d.rotulo).join(' e ')
               : (exigeValor && !(Number(valorEmprestado) > 0))
                 ? 'Falta informar o valor emprestado'
-                : podeSalvar ? 'Tudo certo para registrar' : 'Escolha a cliente'}
+                : escolhido && escolhido.ja_anotada ? 'Esta venda já foi anotada por alguém'
+                : podeSalvar ? (escolhido && escolhido.ja_tem_venda
+                    ? 'Tudo certo — esta venda passa a contar como sua'
+                    : 'Tudo certo para registrar')
+                  : 'Escolha a cliente'}
           </div>
           <button style={s.btnSec} disabled={salvando} onClick={() => aoFechar && aoFechar()}>Cancelar</button>
           <button style={{ ...s.btn, ...(podeSalvar ? {} : s.btnOff) }}
