@@ -98,6 +98,11 @@ const IDS_OPERACAO_LICENCIADA = [
   '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
 ]
 
+// Fila de entregas: acesso por ID, sem mexer nas telas do papel
+const IDS_FILA_ENTREGAS = [
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
+]
+
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
@@ -169,6 +174,8 @@ function paginaPermitida(profile, page) {
   if (IDS_VENDAS_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
+  // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
+  if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
   if (IDS_TIME_MARYANA.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt','revisao_ia_gestante'].includes(page)) return true
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
