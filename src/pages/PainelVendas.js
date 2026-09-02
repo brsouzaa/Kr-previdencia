@@ -183,6 +183,34 @@ const s = {
   tagRuim: { fontSize: 10.5, fontWeight: 700, color: '#b3322f', background: 'rgba(227,73,72,.13)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   tagBom: { fontSize: 10.5, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.15)', borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' },
   vazio: { fontSize: 12.5, color: COR_FRACA, padding: '20px 6px', textAlign: 'center' },
+  confBloco: { background: '#fff', border: '1px solid rgba(42,120,214,.35)', borderRadius: 12,
+               padding: 16, marginBottom: 16 },
+  confTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  confTit: { fontSize: 14.5, fontWeight: 650, color: COR_TEXTO },
+  confSub: { fontSize: 12, color: COR_MEDIA, marginTop: 3, lineHeight: 1.5 },
+  confVer: { border: 'none', background: 'none', color: COR_MEDIA, fontSize: 12, cursor: 'pointer',
+             textDecoration: 'underline', textUnderlineOffset: 3, fontFamily: 'inherit', whiteSpace: 'nowrap' },
+  confAcoes: { display: 'flex', alignItems: 'center', gap: 12, margin: '14px 0 10px', flexWrap: 'wrap' },
+  confTodas: { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5,
+               color: COR_MEDIA, cursor: 'pointer' },
+  confBtn: { marginLeft: 'auto', padding: '9px 18px', fontSize: 13.5, fontWeight: 600, borderRadius: 9,
+             border: 'none', background: COR_VERDE, color: '#fff', cursor: 'pointer' },
+  confBtnOff: { opacity: .4, cursor: 'not-allowed' },
+  confLista: { maxHeight: '42vh', overflowY: 'auto', scrollbarWidth: 'thin',
+               border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 9 },
+  confLinha: (on) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px',
+    borderBottom: '0.5px solid rgba(15,23,42,0.06)', cursor: 'pointer',
+    background: on ? 'rgba(42,120,214,.06)' : '#fff' }),
+  confNome: { fontSize: 13, fontWeight: 600, color: COR_TEXTO, overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  confMeta: { fontSize: 11.5, color: COR_MEDIA, marginTop: 2 },
+  confSelo: { fontSize: 10, fontWeight: 700, color: '#0f7a52', background: 'rgba(27,175,122,.12)',
+              borderRadius: 5, padding: '2px 6px', marginLeft: 6 },
+  confFalta: { fontSize: 10, fontWeight: 700, color: '#7c2d12', background: 'rgba(237,161,0,.16)',
+               borderRadius: 5, padding: '2px 6px', marginLeft: 6 },
+  confUma: { fontSize: 11.5, padding: '5px 11px', borderRadius: 7, cursor: 'pointer',
+             border: '1px solid rgba(42,120,214,.4)', background: '#fff', color: COR_APROVADA,
+             fontWeight: 600, whiteSpace: 'nowrap' },
   btnLinha: { fontSize: 11.5, padding: '4px 9px', marginLeft: 5, borderRadius: 7, cursor: 'pointer',
               border: '1px solid rgba(15,23,42,0.14)', background: '#fff', color: COR_MEDIA },
   btnLinhaRuim: { color: COR_BARRADA_TXT, borderColor: 'rgba(227,73,72,.3)' },
@@ -346,6 +374,93 @@ function aplicaFiltro(lista, f) {
     }
   })
 }
+
+// ═══ 02/09: CONFIRMAR MINHAS VENDAS ═══════════════════════════════════════
+// O painel nasceu com o fluxo invertido: a vendedora tinha que PROCURAR cada
+// cliente para anotar a venda. Para a Gislaine isso eram 293 buscas — na prática,
+// ninguém fazia, e o painel dela ficava vazio.
+// Agora o painel mostra o que JÁ é dela e ela só confirma. Uma linha, um clique;
+// ou marca várias e confirma de uma vez.
+// O comprovante continua obrigatório (regra do Bruno de 31/08): confirmar diz
+// "esta venda é minha", não substitui o documento — a venda confirmada sem
+// documento aparece na fila de "sem comprovante" até alguém anexar.
+function ConfirmarMinhas({ lista, aoConfirmar, confirmando }) {
+  const [sel, setSel] = useState(() => new Set())
+  const [aberto, setAberto] = useState(true)
+
+  const alterna = (id) => setSel(a => {
+    const n = new Set(a)
+    if (n.has(id)) n.delete(id); else n.add(id)
+    return n
+  })
+  const todasMarcadas = lista.length > 0 && sel.size === lista.length
+  const marcarTodas = () => setSel(todasMarcadas ? new Set() : new Set(lista.map(v => v.venda_id)))
+
+  if (!lista.length) return null
+  return (
+    <div style={s.confBloco}>
+      <div style={s.confTopo}>
+        <div>
+          <div style={s.confTit}>
+            {inteiro(lista.length)} venda{lista.length !== 1 ? 's' : ''} sua{lista.length !== 1 ? 's' : ''} esperando confirmação
+          </div>
+          <div style={s.confSub}>
+            O sistema já registrou estas vendas no seu nome. Confirme para elas entrarem na sua produção.
+          </div>
+        </div>
+        <button style={s.confVer} onClick={() => setAberto(v => !v)}>
+          {aberto ? 'esconder' : 'ver a lista'}
+        </button>
+      </div>
+
+      {aberto && (<>
+        <div style={s.confAcoes}>
+          <label style={s.confTodas}>
+            <input type="checkbox" checked={todasMarcadas} onChange={marcarTodas} />
+            {todasMarcadas ? 'desmarcar todas' : 'marcar todas as ' + inteiro(lista.length)}
+          </label>
+          <button
+            style={{ ...s.confBtn, ...(sel.size && !confirmando ? {} : s.confBtnOff) }}
+            disabled={!sel.size || confirmando}
+            onClick={() => aoConfirmar([...sel], () => setSel(new Set()))}>
+            {confirmando ? 'Confirmando...'
+              : sel.size ? 'Confirmar ' + inteiro(sel.size) + (sel.size === 1 ? ' venda' : ' vendas')
+              : 'Confirmar'}
+          </button>
+        </div>
+
+        <div style={s.confLista}>
+          {lista.map(v => (
+            <label key={v.venda_id} style={s.confLinha(sel.has(v.venda_id))}>
+              <input type="checkbox" checked={sel.has(v.venda_id)}
+                onChange={() => alterna(v.venda_id)} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={s.confNome}>{v.cliente}</div>
+                <div style={s.confMeta}>
+                  {brData(v.data_venda)} · {v.produto || '—'}
+                  {v.tem_contrato_assinado && <span style={s.confSelo}>contrato assinado</span>}
+                  {!v.pronta && <span style={s.confFalta}>falta {rotuloDocs(v.falta)}</span>}
+                </div>
+              </div>
+              <button style={s.confUma} disabled={confirmando}
+                onClick={(e) => { e.preventDefault(); aoConfirmar([v.venda_id]) }}>
+                é minha
+              </button>
+            </label>
+          ))}
+        </div>
+      </>)}
+    </div>
+  )
+}
+
+// os nomes tecnicos do banco nao servem para a vendedora ler
+const ROTULO_DOC = {
+  crefisa: 'print da Crefisa', ctps_digital: 'CTPS digital',
+  extrato_fgts: 'extrato FGTS', comprovante: 'comprovante',
+}
+const rotuloDocs = (arr) =>
+  (arr || []).map(k => ROTULO_DOC[k] || k).join(' e ') || 'documento'
 
 // por que a venda não pode mais ser mexida — o vendedor precisa saber, senão
 // acha que a tela travou sem motivo
@@ -525,6 +640,37 @@ export default function PainelVendas() {
   const limparBusca = useCallback(() => { setBusca(''); setAchados(null); setErro('') }, [])
   const carregarRef = useRef(null)
 
+  // 02/09: as vendas que ja sao dela e ainda nao foram confirmadas
+  const [paraConfirmar, setParaConfirmar] = useState([])
+  const [confirmando, setConfirmando] = useState(false)
+  // aviso e diferente de erro: "1 confirmada, 1 recusada" e resultado normal,
+  // nao falha de carregamento. Sair com o prefixo "Não consegui carregar"
+  // faria a vendedora achar que o sistema quebrou.
+  const [aviso, setAviso] = useState('')
+
+  const carregarParaConfirmar = useCallback(async () => {
+    const { data, error } = await supabase.rpc('venda_minhas_para_confirmar', { p_limite: 500 })
+    if (error) { console.error(error); return }
+    setParaConfirmar(data || [])
+  }, [])
+
+  const confirmarVendas = useCallback(async (ids, aoTerminar) => {
+    setConfirmando(true)
+    const { data, error } = await supabase.rpc('venda_confirmar_minhas', { p_ids: ids })
+    setConfirmando(false)
+    if (error) { setErro(error.message); return }
+    // recusa nao e erro de sistema: a venda pode ter sido decidida enquanto a
+    // tela estava aberta. Diz quantas entraram e por que as outras nao.
+    const n = Number(data?.confirmadas || 0), r = Number(data?.recusadas || 0)
+    const motivos = [...new Set((data?.detalhe || []).map(d => d.motivo))].join(', ')
+    setAviso(r > 0
+      ? n + ' confirmada(s). ' + r + ' não entrou(entraram): ' + motivos + '.'
+      : n + (n === 1 ? ' venda confirmada.' : ' vendas confirmadas.'))
+    aoTerminar && aoTerminar()
+    await carregarParaConfirmar()
+    carregarRef.current && carregarRef.current()
+  }, [carregarParaConfirmar])
+
   // 31/08: desfazer a própria anotação. A confirmação é obrigatória porque as duas
   // ações são silenciosas — nada avisa o time que a venda saiu da contagem.
   // Quem tem a palavra final é a RPC: se ela recusar, a tela mostra o motivo dela.
@@ -576,6 +722,7 @@ export default function PainelVendas() {
   // cancelar/excluir precisam recarregar a tela, mas são declarados antes de
   // `carregar` — o ref evita reordenar meio arquivo só por causa disso
   useEffect(() => { carregarRef.current = carregar }, [carregar])
+  useEffect(() => { if (!ehAdmin) carregarParaConfirmar() }, [ehAdmin, carregarParaConfirmar])
 
   const t = painel?.totais
   const ant = painel?.anterior
@@ -662,6 +809,9 @@ export default function PainelVendas() {
       </div>
 
       {erro && <div style={s.faixa('alerta')}>Não consegui carregar: {erro}</div>}
+      {aviso && (
+        <div style={s.faixa()} onClick={() => setAviso('')} title="clique para esconder">{aviso}</div>
+      )}
       {filtro}
 
       {/* ================= ADMIN ================= */}
@@ -857,6 +1007,7 @@ export default function PainelVendas() {
 
       {/* ================= VENDEDOR ================= */}
       {!ehAdmin && meu && (<>
+        <ConfirmarMinhas lista={paraConfirmar} aoConfirmar={confirmarVendas} confirmando={confirmando} />
         <div style={s.kpis}>
           <div style={s.kpi}>
             <div style={s.kpiNum}>{inteiro(mt?.vendas)}</div>
