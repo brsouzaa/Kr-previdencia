@@ -12,8 +12,13 @@ export const IDS_AGENTES_BF = [
 ]
 
 // Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
+// Esta lista e LOCAL desta tela de proposito. As copias no App.js e no Layout.js
+// controlam menu e acesso a outras telas; quem entra aqui ganha o modo supervisao
+// SOMENTE no board do Bolsa Familia.
 const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+  '9c02285d-6947-45e9-a4c3-d0c23815dc06', // Jose Carlos Iha — 02/09: supervisao igual a Egle,
+                                          // sem entrar em bf_agentes (nao recebe lead no rateio)
 ]
 
 // ===== OPERAÇÕES LICENCIADAS (Ronaldo / Leandro) =====
