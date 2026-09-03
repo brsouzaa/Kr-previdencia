@@ -96,6 +96,10 @@ const s = {
   btnVerde: { display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' },
   btn: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
   btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', marginRight: 6 },
+  textarea: { width: '100%', minHeight: 84, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(15,23,42,0.18)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit', resize: 'vertical' },
+  btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#232a37', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 6 },
+  btnEnviarOff: { width: '100%', padding: 12, background: '#e2e8f0', color: '#94a3b8', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'not-allowed', marginBottom: 6 },
+  avisoEnvio: { fontSize: 11, color: '#5b6b84', marginBottom: 12 },
 }
 
 // Faixa de datas a partir do preset (mesmo padrao das outras Revisoes IA)
@@ -139,6 +143,8 @@ export default function RevisaoIAGestante() {
   const [lead, setLead] = useState(null)
   const [mensagens, setMensagens] = useState([])
   const [agindo, setAgindo] = useState(false)
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
@@ -171,7 +177,30 @@ export default function RevisaoIAGestante() {
     if (res?.ok) setMensagens(res.mensagens || [])
   }, [])
 
-  const abrirCard = async (l) => { setLead(l); setMensagens([]); recarregarConversa(l) }
+  const abrirCard = async (l) => { setLead(l); setMensagens([]); setTexto(''); recarregarConversa(l) }
+
+  // 03/09 — responder a cliente direto daqui, sem abrir o Chatwoot.
+  // Reusa a MESMA edge do Bolsa Familia (bf-disparar-mensagem). Ela ja e generica:
+  // busca o lead por id em maismae.leads (sem filtro de funil), roteia pela conta de
+  // chatwoot do proprio lead e, com `acao: null`, NAO mexe no sub_estado — o mapa de
+  // acoes dela e so do BF. Nada foi alterado no banco nem na edge por causa disso.
+  // Efeito colateral que e proposital: bf_disparar_patch_lead pausa a Ana no lead
+  // assim que um humano manda mensagem. Por isso o aviso embaixo do campo.
+  const enviarTexto = async () => {
+    const t = (texto || '').trim()
+    if (!lead || !t) return
+    if (!lead.chatwoot_conversation_id) { alert('Este lead nao tem conversa no Chatwoot vinculada.'); return }
+    setEnviando(true)
+    const { data, error } = await supabase.functions.invoke('bf-disparar-mensagem', {
+      body: { lead_id: lead.id, texto: t, agente_id: profile?.id, acao: null },
+    })
+    setEnviando(false)
+    if (error || !data?.ok) { alert('Nao enviou: ' + (error?.message || data?.erro || 'falhou')); return }
+    setTexto('')
+    setLead(l => (l ? { ...l, ana_pausada: true, bf_em_tratamento: true } : l))
+    recarregarConversa(lead)
+    carregar()
+  }
 
   // conversa em tempo real: recarrega a cada 8s enquanto o modal estiver aberto
   useEffect(() => {
@@ -363,7 +392,7 @@ export default function RevisaoIAGestante() {
             </div>
 
             {linkChatwoot(lead)
-              ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={s.btnVerde}>💬 Abrir conversa no Chatwoot</a>
+              ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={{ ...s.btnVerde, background: 'transparent', color: '#059669', border: '1px solid #34d399' }}>💬 Abrir no Chatwoot (mandar foto, áudio, arquivo)</a>
               : <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -377,6 +406,35 @@ export default function RevisaoIAGestante() {
               ))}
               {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
             </div>
+
+            {/* 03/09 — responder daqui mesmo, igual ao Revisao IA Bolsa Familia.
+                A mensagem sai pelo Chatwoot na conta do proprio lead. */}
+            {lead.chatwoot_conversation_id ? (
+              <>
+                <textarea
+                  style={s.textarea}
+                  value={texto}
+                  disabled={enviando}
+                  placeholder="Escreve a resposta pra cliente… (sai pelo WhatsApp, via Chatwoot)"
+                  onChange={e => setTexto(e.target.value)}
+                />
+                <button
+                  style={(enviando || !texto.trim()) ? s.btnEnviarOff : s.btnEnviar}
+                  disabled={enviando || !texto.trim()}
+                  onClick={enviarTexto}
+                >
+                  {enviando ? 'Enviando…' : '📨 Enviar pra cliente'}
+                </button>
+                <div style={s.avisoEnvio}>
+                  Ao enviar, a <strong>Ana pausa sozinha</strong> neste atendimento — ela não responde mais
+                  até você clicar em <strong>🤖 Devolver pra IA</strong> lá em cima.
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                Sem conversa no Chatwoot vinculada — não dá pra responder por aqui.
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {ehSupervisor && lead.bf_agente_id !== profile.id && (
