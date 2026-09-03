@@ -98,6 +98,12 @@ const IDS_OPERACAO_LICENCIADA = [
   '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
 ]
 
+// Revisao IA Gestante por ID: entra SO nessa revisao, sem o pacote das quatro
+// que o time da Maryana recebe (IDS_TIME_MARYANA)
+const IDS_REVISAO_GESTANTE = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro — 03/09
+]
+
 // Fila de entregas: acesso por ID, sem mexer nas telas do papel
 const IDS_FILA_ENTREGAS = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
@@ -153,7 +159,7 @@ const IDS_TIME_MARYANA = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
   '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
-  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
@@ -177,6 +183,8 @@ function paginaPermitida(profile, page) {
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
+  // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
+  if (IDS_REVISAO_GESTANTE.includes(profile.id) && page === 'revisao_ia_gestante') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
   if (IDS_TIME_MARYANA.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt','revisao_ia_gestante'].includes(page)) return true
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
