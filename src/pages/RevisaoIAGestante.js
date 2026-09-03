@@ -100,6 +100,12 @@ const s = {
   btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#232a37', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 6 },
   btnEnviarOff: { width: '100%', padding: 12, background: '#e2e8f0', color: '#94a3b8', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'not-allowed', marginBottom: 6 },
   avisoEnvio: { fontSize: 11, color: '#5b6b84', marginBottom: 12 },
+  msgImg: { display: 'block', maxWidth: 150, maxHeight: 150, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', marginTop: 4, cursor: 'zoom-in' },
+  msgArquivo: { display: 'inline-block', fontSize: 11, fontWeight: 700, textDecoration: 'none', color: '#2563eb', background: 'rgba(96,165,250,.12)', borderRadius: 6, padding: '5px 9px', marginTop: 4 },
+  anexoSolto: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, paddingTop: 8, borderTop: '0.5px dashed rgba(15,23,42,0.14)' },
+  anexoSoltoImg: { width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)' },
+  lightbox: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' },
+  lightboxImg: { maxWidth: '92vw', maxHeight: '92vh', borderRadius: 10 },
 }
 
 // Faixa de datas a partir do preset (mesmo padrao das outras Revisoes IA)
@@ -145,6 +151,8 @@ export default function RevisaoIAGestante() {
   const [agindo, setAgindo] = useState(false)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [anexos, setAnexos] = useState([])
+  const [zoom, setZoom] = useState(null)
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
@@ -170,14 +178,15 @@ export default function RevisaoIAGestante() {
   }, [ehSupervisor])
 
   const recarregarConversa = useCallback(async (l) => {
-    if (!l?.chatwoot_conversation_id) { setMensagens([]); return }
+    if (!l?.chatwoot_conversation_id) { setMensagens([]); setAnexos([]); return }
     const { data: res } = await supabase.functions.invoke('bf-conversa', {
       body: { conversation_id: l.chatwoot_conversation_id, account_id: 1, limit: 12 },
     })
-    if (res?.ok) setMensagens(res.mensagens || [])
+    // a edge ja devolvia `anexos` (foto do RG, comprovante, audio) — o gestante so ignorava
+    if (res?.ok) { setMensagens(res.mensagens || []); setAnexos(res.anexos || []) }
   }, [])
 
-  const abrirCard = async (l) => { setLead(l); setMensagens([]); setTexto(''); recarregarConversa(l) }
+  const abrirCard = async (l) => { setLead(l); setMensagens([]); setAnexos([]); setTexto(''); recarregarConversa(l) }
 
   // 03/09 — responder a cliente direto daqui, sem abrir o Chatwoot.
   // Reusa a MESMA edge do Bolsa Familia (bf-disparar-mensagem). Ela ja e generica:
@@ -270,6 +279,29 @@ export default function RevisaoIAGestante() {
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
   const criticos = board.filter(c => ['FALHA_EMISSAO', 'LINK_EXPIRADO', 'AGUARD_ASSINATURA'].includes(c.coluna2)).length
   const cincoMais = board.filter(c => c.cinco_mais).length
+
+  // Anexos x mensagens: a edge devolve os dois em listas separadas, mas os dois
+  // carimbam o MESMO created_at da mensagem original do Chatwoot — entao da pra
+  // casar por timestamp e desenhar o arquivo dentro da bolha certa.
+  const anexosPorMsg = new Map()
+  for (const a of anexos) {
+    if (!a?.criado_em) continue
+    if (!anexosPorMsg.has(a.criado_em)) anexosPorMsg.set(a.criado_em, [])
+    anexosPorMsg.get(a.criado_em).push(a)
+  }
+  // Sobra quem nao casou: anexo mais antigo que o corte de 12 mensagens, ou preso
+  // numa mensagem que a edge descartou (privada / tipo diferente de 0 e 1).
+  // Esses aparecem numa faixa embaixo em vez de sumir da tela.
+  const horasNaTela = new Set(mensagens.map(m => m.created_at))
+  const anexosSoltos = anexos.filter(a => !a?.criado_em || !horasNaTela.has(a.criado_em))
+
+  const renderAnexo = (a, i) => (
+    a.tipo === 'image'
+      ? <img key={i} src={a.thumb || a.url} alt="anexo" style={s.msgImg} onClick={() => setZoom(a.url)} />
+      : <a key={i} href={a.url} target="_blank" rel="noreferrer" style={s.msgArquivo} onClick={e => e.stopPropagation()}>
+          {a.tipo === 'audio' ? '🎧 Áudio' : a.tipo === 'video' ? '🎬 Vídeo' : `📄 ${a.ext ? a.ext.toUpperCase() : 'Arquivo'}`} · abrir
+        </a>
+  )
 
   return (
     <div>
@@ -401,11 +433,35 @@ export default function RevisaoIAGestante() {
                 onClick={() => recarregarConversa(lead)}>🔄 Atualizar conversa</button>
             </div>
             <div style={s.msgs}>
-              {mensagens.map((m, i) => (
-                <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>{m.content}</div>
-              ))}
+              {mensagens.map((m, i) => {
+                const anx = anexosPorMsg.get(m.created_at) || []
+                // quando a msg e so o marcador "📎 arquivo do cliente", o arquivo
+                // ja diz tudo — o texto vira ruido e sai.
+                const soMarcador = anx.length > 0 && /^📎 arquivo (do cliente|enviado)$/.test(m.content || '')
+                return (
+                  <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>
+                    {!soMarcador && m.content}
+                    {anx.map(renderAnexo)}
+                  </div>
+                )
+              })}
               {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
             </div>
+
+            {anexosSoltos.length > 0 && (
+              <div style={s.anexoSolto}>
+                <div style={{ width: '100%', fontSize: 11, fontWeight: 700, color: '#5b6b84' }}>
+                  📎 Outros arquivos da conversa ({anexosSoltos.length}) — fora das últimas mensagens
+                </div>
+                {anexosSoltos.map((a, i) => (
+                  a.tipo === 'image'
+                    ? <img key={i} src={a.thumb || a.url} alt="anexo" style={{ ...s.anexoSoltoImg, cursor: 'zoom-in' }} onClick={() => setZoom(a.url)} />
+                    : <a key={i} href={a.url} target="_blank" rel="noreferrer" style={s.msgArquivo}>
+                        {a.tipo === 'audio' ? '🎧 Áudio' : a.tipo === 'video' ? '🎬 Vídeo' : `📄 ${a.ext ? a.ext.toUpperCase() : 'Arquivo'}`} · abrir
+                      </a>
+                ))}
+              </div>
+            )}
 
             {/* 03/09 — responder daqui mesmo, igual ao Revisao IA Bolsa Familia.
                 A mensagem sai pelo Chatwoot na conta do proprio lead. */}
@@ -450,6 +506,13 @@ export default function RevisaoIAGestante() {
               <button style={s.btnG} onClick={() => setLead(null)}>Fechar</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* clicou na foto do RG/comprovante: abre em tamanho cheio, clique em qualquer lugar fecha */}
+      {zoom && (
+        <div style={s.lightbox} onClick={() => setZoom(null)}>
+          <img src={zoom} alt="anexo" style={s.lightboxImg} onClick={e => e.stopPropagation()} />
         </div>
       )}
     </div>
