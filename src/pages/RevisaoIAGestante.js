@@ -87,12 +87,27 @@ const s = {
   badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
   cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
   tagFalha: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#dc2626', borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '3vh 12px', overflowY: 'auto' },
-  modal: { background: '#ffffff', borderRadius: 14, width: '100%', maxWidth: 620, padding: '1.25rem', maxHeight: '92vh', overflowY: 'auto' },
-  ficha: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13, background: '#f1f5f9', borderRadius: 10, padding: 12, marginBottom: 12 },
-  msgs: { maxHeight: 200, overflowY: 'auto', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 6 },
-  msgCliente: { alignSelf: 'flex-start', background: '#e2e8f0', borderRadius: '10px 10px 10px 2px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
-  msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.14)', borderRadius: '10px 10px 2px 10px', padding: '6px 10px', fontSize: 12, maxWidth: '85%' },
+  // Modal em 3 faixas: cabecalho fixo, miolo que rola, rodape de acoes fixo.
+  // A conversa tem scroll PROPRIO dentro do miolo — antes ela era um bloco de 200px
+  // no meio de uma pagina que rolava inteira, e a pessoa perdia o fio.
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 50, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2vh 12px' },
+  modal: { background: '#ffffff', borderRadius: 16, width: '100%', maxWidth: 660, maxHeight: '96vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(15,23,42,0.28)' },
+  mHead: { padding: '14px 18px 12px', borderBottom: '0.5px solid rgba(15,23,42,0.10)', flexShrink: 0 },
+  mHeadTopo: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  mNome: { fontSize: 17, fontWeight: 650, color: '#0f172a', lineHeight: 1.25 },
+  mEtapa: { fontSize: 12, color: '#5b6b84', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  mX: { flexShrink: 0, width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#5b6b84', fontSize: 16, cursor: 'pointer', lineHeight: 1 },
+  mCorpo: { padding: '12px 18px', overflowY: 'auto', flex: 1, minHeight: 0 },
+  mFoot: { padding: '10px 18px 14px', borderTop: '0.5px solid rgba(15,23,42,0.10)', flexShrink: 0, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  pill: { fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 9px', background: '#f1f5f9', color: '#5b6b84', whiteSpace: 'nowrap' },
+  ficha: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 },
+  secTitulo: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  msgs: { height: '38vh', minHeight: 200, overflowY: 'auto', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 12, padding: 12, marginBottom: 12, display: 'flex', flexDirection: 'column-reverse', gap: 7 },
+  msgCliente: { alignSelf: 'flex-start', background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: '12px 12px 12px 3px', padding: '7px 11px', fontSize: 12.5, lineHeight: 1.45, maxWidth: '84%', color: '#0f172a', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+  msgAna: { alignSelf: 'flex-end', background: 'rgba(52,211,153,.15)', borderRadius: '12px 12px 3px 12px', padding: '7px 11px', fontSize: 12.5, lineHeight: 1.45, maxWidth: '84%', color: '#0f172a', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+  // comentario interno do time (nota privada do Chatwoot) — nao foi pra cliente
+  msgNota: { alignSelf: 'center', width: '94%', background: 'rgba(251,191,36,.14)', border: '0.5px dashed #fbbf24', borderRadius: 10, padding: '7px 11px', fontSize: 12, lineHeight: 1.45, color: '#78350f', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+  msgNotaTag: { fontSize: 10, fontWeight: 700, color: '#b45309', display: 'block', marginBottom: 2 },
   btnVerde: { display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' },
   btn: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
   btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', marginRight: 6 },
@@ -106,6 +121,17 @@ const s = {
   anexoSoltoImg: { width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)' },
   lightbox: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' },
   lightboxImg: { maxWidth: '92vw', maxHeight: '92vh', borderRadius: 10 },
+  // busca por cliente (mesmo padrao do Revisao IA Retroativo)
+  buscaWrap: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
+  buscaInput: { flex: '1 1 300px', maxWidth: 420, padding: '9px 12px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', background: '#ffffff', color: '#0f172a', boxSizing: 'border-box' },
+  buscaBtn: { padding: '9px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#60a5fa', color: '#232a37', cursor: 'pointer' },
+  buscaRes: { display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  buscaVazio: { fontSize: 13, color: '#5b6b84', padding: '10px 12px', background: '#f1f5f9', borderRadius: 10, marginBottom: 16 },
+  buscaCard: { flex: '1 1 320px', maxWidth: 460, padding: 12, borderRadius: 10, background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.14)' },
+  buscaTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 },
+  buscaTag: { fontSize: 10, fontWeight: 700, color: '#2563eb', background: 'rgba(96,165,250,.14)', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' },
+  buscaComo: { fontSize: 10, color: '#94a3b8', marginTop: 6 },
+  buscaAbrir: { marginTop: 8, width: '100%', padding: '8px 10px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: 'none', background: '#34d399', color: '#232a37', cursor: 'pointer' },
 }
 
 // Faixa de datas a partir do preset (mesmo padrao das outras Revisoes IA)
@@ -153,6 +179,14 @@ export default function RevisaoIAGestante() {
   const [enviando, setEnviando] = useState(false)
   const [anexos, setAnexos] = useState([])
   const [zoom, setZoom] = useState(null)
+  const [carregandoConversa, setCarregandoConversa] = useState(false)
+  const [conversaCompleta, setConversaCompleta] = useState(true)
+  // Busca por CPF / telefone / nome. Igual ao Revisao IA Retroativo: a tela tem
+  // filtro de entrada e de atividade, entao cliente antigo some do board e nao da
+  // pra achar rolando. A busca IGNORA os filtros e varre o funil gestante inteiro.
+  const [busca, setBusca] = useState('')
+  const [buscando, setBuscando] = useState(false)
+  const [achados, setAchados] = useState(null)   // null = ainda nao buscou
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
@@ -177,16 +211,69 @@ export default function RevisaoIAGestante() {
       .then(({ data }) => setAgentes(data || []))
   }, [ehSupervisor])
 
-  const recarregarConversa = useCallback(async (l) => {
+  // 03/09 — a conversa vinha cortada em 12 mensagens porque era o que a tela pedia,
+  // e o Chatwoot so devolve ~20 por requisicao. A edge ganhou dois parametros
+  // OPCIONAIS (default off, pra nao mexer no BF/CLT/Retroativo):
+  //   paginar       -> segue o cursor `before` ate juntar o limite pedido
+  //   incluir_notas -> traz tambem as notas privadas (os comentarios do time)
+  // `completa`:
+  //   true  -> carga inicial e botao Atualizar: pagina o Chatwoot ate a conversa toda.
+  //   false -> tick de 8s: UMA requisicao so, e faz merge com o que ja esta na tela.
+  // Sem essa separacao o auto-refresh dispararia ate 12 chamadas ao Chatwoot a cada
+  // 8 segundos por atendente com o card aberto — nao vale o preco.
+  const recarregarConversa = useCallback(async (l, comLoading, completa) => {
     if (!l?.chatwoot_conversation_id) { setMensagens([]); setAnexos([]); return }
+    if (comLoading) setCarregandoConversa(true)
     const { data: res } = await supabase.functions.invoke('bf-conversa', {
-      body: { conversation_id: l.chatwoot_conversation_id, account_id: 1, limit: 12 },
+      body: {
+        conversation_id: l.chatwoot_conversation_id, account_id: 1,
+        limit: completa ? 200 : 30,
+        paginar: !!completa,
+        incluir_notas: true,   // os comentarios internos do time
+      },
     })
-    // a edge ja devolvia `anexos` (foto do RG, comprovante, audio) — o gestante so ignorava
-    if (res?.ok) { setMensagens(res.mensagens || []); setAnexos(res.anexos || []) }
+    if (comLoading) setCarregandoConversa(false)
+    if (!res?.ok) return
+    const chave = (m) => `${m.created_at}|${m.role}|${m.content}`
+    if (completa) {
+      // a edge ja devolvia `anexos` (foto do RG, comprovante, audio) — o gestante so ignorava
+      setMensagens(res.mensagens || [])
+      setAnexos(res.anexos || [])
+      setConversaCompleta(res.completo !== false)
+    } else {
+      setMensagens(ant => {
+        const vistas = new Set(ant.map(chave))
+        const novas = (res.mensagens || []).filter(m => !vistas.has(chave(m)))
+        if (novas.length === 0) return ant
+        return [...novas, ...ant].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+      })
+      setAnexos(ant => {
+        const ids = new Set(ant.map(a => a.id ?? a.url))
+        const novos = (res.anexos || []).filter(a => !ids.has(a.id ?? a.url))
+        return novos.length ? [...ant, ...novos] : ant
+      })
+    }
   }, [])
 
-  const abrirCard = async (l) => { setLead(l); setMensagens([]); setAnexos([]); setTexto(''); recarregarConversa(l) }
+  const abrirCard = async (l) => {
+    setLead(l); setMensagens([]); setAnexos([]); setTexto(''); setConversaCompleta(true)
+    recarregarConversa(l, true, true)
+  }
+
+  async function buscarCliente() {
+    const termo = (busca || '').trim()
+    const so_numeros = termo.replace(/\D/g, '')
+    if (so_numeros.length < 8 && termo.length < 3) {
+      alert('Digite o CPF, os 8 últimos dígitos do telefone, ou pelo menos 3 letras do nome.')
+      return
+    }
+    setBuscando(true)
+    const { data, error } = await supabase.rpc('gestante_buscar_lead', { p_termo: termo })
+    setBuscando(false)
+    if (error) { alert('Erro na busca: ' + error.message); return }
+    setAchados(data || [])
+  }
+  const limparBusca = () => { setBusca(''); setAchados(null) }
 
   // 03/09 — responder a cliente direto daqui, sem abrir o Chatwoot.
   // Reusa a MESMA edge do Bolsa Familia (bf-disparar-mensagem). Ela ja e generica:
@@ -207,14 +294,14 @@ export default function RevisaoIAGestante() {
     if (error || !data?.ok) { alert('Nao enviou: ' + (error?.message || data?.erro || 'falhou')); return }
     setTexto('')
     setLead(l => (l ? { ...l, ana_pausada: true, bf_em_tratamento: true } : l))
-    recarregarConversa(lead)
+    recarregarConversa(lead, false, false)
     carregar()
   }
 
   // conversa em tempo real: recarrega a cada 8s enquanto o modal estiver aberto
   useEffect(() => {
     if (!lead) return
-    const t = setInterval(() => { recarregarConversa(lead) }, 8000)
+    const t = setInterval(() => { recarregarConversa(lead, false, false) }, 8000)
     return () => clearInterval(t)
   }, [lead, recarregarConversa])
 
@@ -348,6 +435,48 @@ export default function RevisaoIAGestante() {
         <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
       </div>
 
+      {/* Busca por cliente — mesmo padrao do Revisao IA Retroativo. Ignora os
+          filtros de entrada/atividade e varre o funil gestante inteiro, porque
+          cliente antigo simplesmente nao esta no board pra ser achado rolando. */}
+      <div style={s.buscaWrap}>
+        <input
+          style={s.buscaInput}
+          value={busca}
+          placeholder="🔎 Achar cliente: CPF, telefone ou nome"
+          onChange={e => setBusca(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') buscarCliente() }}
+        />
+        <button style={s.buscaBtn} onClick={buscarCliente} disabled={buscando}>
+          {buscando ? 'Buscando…' : 'Buscar'}
+        </button>
+        {achados !== null && <button style={s.chip} onClick={limparBusca}>✕ limpar busca</button>}
+      </div>
+
+      {achados !== null && achados.length === 0 && (
+        <div style={s.buscaVazio}>Nenhuma cliente do funil gestante com esse CPF, telefone ou nome.</div>
+      )}
+      {achados !== null && achados.length > 0 && (
+        <div style={s.buscaRes}>
+          {achados.map(c => (
+            <div key={c.id} style={s.buscaCard}>
+              <div style={s.buscaTopo}>
+                <strong style={{ fontSize: 13, color: '#0f172a' }}>{c.nome || 'Sem nome'}</strong>
+                <span style={s.buscaTag}>{(COLUNAS.find(x => x[0] === c.coluna2) || [])[1] || c.coluna2}</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#5b6b84' }}>
+                📞 {c.tel || '—'} · 🤰 {c.meses != null ? `${c.meses}m` : '?'}
+                {c.agente_nome ? ` · 👤 ${c.agente_nome}` : ' · sem dono'}
+              </div>
+              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>
+                parada há {fmtParado(c.minutos_parado)} · {c.ana_pausada ? '🧑 IA pausada' : '🤖 IA ativa'}
+              </div>
+              <div style={s.buscaComo}>achou por {c.achou_por}</div>
+              <button style={s.buscaAbrir} onClick={() => abrirCard(c)}>Abrir atendimento</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={s.board}>
         {COLUNAS.map(([key, label]) => {
           const cards = visiveis.filter(c => c.coluna2 === key)
@@ -384,18 +513,31 @@ export default function RevisaoIAGestante() {
       {lead && (
         <div style={s.overlay} onClick={() => setLead(null)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome || 'Sem nome'}</div>
-            <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
-              {(COLUNAS.find(c => c[0] === lead.coluna2) || [])[1] || lead.coluna2} · parada há {fmtParado(lead.minutos_parado)}
+          <div style={s.mHead}>
+            <div style={s.mHeadTopo}>
+              <div>
+                <div style={s.mNome}>{lead.nome || 'Sem nome'}</div>
+                <div style={s.mEtapa}>
+                  <span>{(COLUNAS.find(c => c[0] === lead.coluna2) || [])[1] || lead.coluna2}</span>
+                  <span style={{ color: lead.cor === 'vermelho' ? '#dc2626' : lead.cor === 'amarelo' ? '#b45309' : '#5b6b84' }}>
+                    {lead.cor === 'vermelho' ? '🔴 ' : lead.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(lead.minutos_parado)}
+                  </span>
+                </div>
+              </div>
+              <button style={s.mX} onClick={() => setLead(null)} title="Fechar">✕</button>
             </div>
+          </div>
 
+          <div style={s.mCorpo}>
             <div style={s.ficha}>
-              <div>🤰 Gestação: <strong style={{ color: lead.cinco_mais ? '#db2777' : '#0f172a' }}>{lead.meses != null ? `${lead.meses} meses` : '—'}{lead.cinco_mais ? ' (5+)' : ''}</strong></div>
-              <div>📞 {lead.tel || '—'}</div>
-              <div>📄 Contrato: {lead.status_contrato || '—'}</div>
-              <div>🕐 Emitido: {lead.emitido_em ? new Date(lead.emitido_em).toLocaleString('pt-BR') : '—'}</div>
-              {ehSupervisor && <div>👤 {lead.agente_nome || 'sem dono'}</div>}
-              <div>Etapa IA: {lead.estado || '—'}</div>
+              <span style={{ ...s.pill, ...(lead.cinco_mais ? { background: 'rgba(244,114,182,.16)', color: '#db2777' } : {}) }}>
+                🤰 {lead.meses != null ? `${lead.meses} meses` : 'meses ?'}{lead.cinco_mais ? ' · 5+' : ''}
+              </span>
+              <span style={s.pill}>📞 {lead.tel || '—'}</span>
+              <span style={s.pill}>📄 {lead.status_contrato || 'sem contrato'}</span>
+              {lead.emitido_em && <span style={s.pill}>🕐 {new Date(lead.emitido_em).toLocaleString('pt-BR')}</span>}
+              {ehSupervisor && <span style={s.pill}>👤 {lead.agente_nome || 'sem dono'}</span>}
+              <span style={{ ...s.pill, color: '#94a3b8' }}>IA: {lead.sub_estado || lead.estado || '—'}</span>
             </div>
 
             {lead.falha_motivo && (
@@ -423,14 +565,14 @@ export default function RevisaoIAGestante() {
               </div>
             </div>
 
-            {linkChatwoot(lead)
-              ? <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer" style={{ ...s.btnVerde, background: 'transparent', color: '#059669', border: '1px solid #34d399' }}>💬 Abrir no Chatwoot (mandar foto, áudio, arquivo)</a>
-              : <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>Sem conversa no Chatwoot vinculada.</div>}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84' }}>💬 Conversa <span style={{ color: '#059669', fontWeight: 500 }}>· atualiza sozinha</span></span>
-              <button style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, cursor: 'pointer' }}
-                onClick={() => recarregarConversa(lead)}>🔄 Atualizar conversa</button>
+            <div style={s.secTitulo}>
+              <span>
+                💬 Conversa {mensagens.length > 0 && `· ${mensagens.length} mensagens`}
+                {!conversaCompleta && <span style={{ color: '#b45309' }}> · só as mais recentes</span>}
+              </span>
+              <button style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 8, cursor: 'pointer', textTransform: 'none', letterSpacing: 0 }}
+                onClick={() => recarregarConversa(lead, true, true)} disabled={carregandoConversa}>
+                {carregandoConversa ? 'Carregando…' : '🔄 Atualizar'}</button>
             </div>
             <div style={s.msgs}>
               {mensagens.map((m, i) => {
@@ -438,6 +580,14 @@ export default function RevisaoIAGestante() {
                 // quando a msg e so o marcador "📎 arquivo do cliente", o arquivo
                 // ja diz tudo — o texto vira ruido e sai.
                 const soMarcador = anx.length > 0 && /^📎 arquivo (do cliente|enviado)$/.test(m.content || '')
+                // 'nota' = comentario interno escrito no Chatwoot; nao foi pra cliente
+                if (m.role === 'nota') return (
+                  <div key={i} style={s.msgNota}>
+                    <span style={s.msgNotaTag}>📝 comentário interno{m.autor ? ` · ${m.autor}` : ''}</span>
+                    {!soMarcador && m.content}
+                    {anx.map(renderAnexo)}
+                  </div>
+                )
                 return (
                   <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>
                     {!soMarcador && m.content}
@@ -445,7 +595,11 @@ export default function RevisaoIAGestante() {
                   </div>
                 )
               })}
-              {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
+              {mensagens.length === 0 && (
+                <div style={{ fontSize: 12, color: '#64748b' }}>
+                  {carregandoConversa ? 'Carregando a conversa…' : 'Sem mensagens.'}
+                </div>
+              )}
             </div>
 
             {anexosSoltos.length > 0 && (
@@ -492,21 +646,29 @@ export default function RevisaoIAGestante() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {ehSupervisor && lead.bf_agente_id !== profile.id && (
-                <button style={{ ...s.btn, background: '#f472b6' }} disabled={agindo} onClick={() => puxarPraMim(lead)}>🙋 Puxar pra mim</button>
-              )}
-              {ehSupervisor && (
-                <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#f1f5f9', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                  value="" disabled={agindo} onChange={e => redistribuir(lead, e.target.value)}>
-                  <option value="">↪ Distribuir para…</option>
-                  {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                </select>
-              )}
-              <button style={s.btnG} onClick={() => setLead(null)}>Fechar</button>
-            </div>
+            {linkChatwoot(lead) && (
+              <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
+                style={{ display: 'block', textAlign: 'center', textDecoration: 'none', padding: '9px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: 'transparent', color: '#059669', border: '1px solid #34d399' }}>
+                💬 Abrir no Chatwoot — pra mandar foto, áudio ou arquivo
+              </a>
+            )}
+          </div>
+
+          <div style={s.mFoot}>
+            {ehSupervisor && lead.bf_agente_id !== profile.id && (
+              <button style={{ ...s.btn, background: '#f472b6', marginRight: 0 }} disabled={agindo} onClick={() => puxarPraMim(lead)}>🙋 Puxar pra mim</button>
+            )}
+            {ehSupervisor && (
+              <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#f1f5f9', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                value="" disabled={agindo} onChange={e => redistribuir(lead, e.target.value)}>
+                <option value="">↪ Distribuir para…</option>
+                {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+              </select>
+            )}
+            <button style={{ ...s.btnG, marginLeft: 'auto', marginRight: 0 }} onClick={() => setLead(null)}>Fechar</button>
           </div>
         </div>
+      </div>
       )}
 
       {/* clicou na foto do RG/comprovante: abre em tamanho cheio, clique em qualquer lugar fecha */}
