@@ -29,9 +29,28 @@ const CHATWOOT_ACC = '1'
 const linkChatwoot = (c) => c?.chatwoot_conversation_id
   ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 
+// 03/09 — colunas REDESENHADAS na ordem real do funil, confirmada lendo as mensagens
+// que a IA manda em cada sub_estado (maismae.mensagens) + o flag preco_aceito_em.
+// Antes: 'Coletando cadastro' era uma coluna so, com 2.070 leads misturando o comeco
+// (pedido de CEP) e o fim (cadastro completo) do funil.
+// A ordem abaixo vem do banco, nao de suposicao:
+//   PERGUNTANDO_NOME/ANALISE_MESES NAO pergunta nome — pergunta meses de gravidez.
+//   EXPLICANDO/TURNO_2 e o pitch ("liberar mais de R$6 mil", "nao paga nada agora").
+//   O aceite grava preco_aceito_em e a IA JA pede o CEP na mesma mensagem.
+//   MESES_GRAVIDEZ e o FIM da coleta ("cadastro 100% completo"), nao o comeco.
+// A quebra do CEP em duas colunas e o achado que muda a operacao: dos 914 parados
+// no CEP, so 183 (20%) tinham aceitado a proposta. Os outros 731 travaram ANTES,
+// na oferta — lead frio disfarcado de lead em cadastro.
 const COLUNAS = [
-  ['CONVERSA', '💬 Em conversa (IA)'],
-  ['CADASTRO', '📋 Coletando cadastro'],
+  ['QUALIFICANDO', '🤰 Qualificando meses'],
+  ['OFERTA', '💰 Na oferta'],
+  ['FRIO', '❄️ Travou na oferta'],
+  ['ENDERECO', '📍 Endereço'],
+  ['RG_FRENTE', '🪪 RG frente'],
+  ['RG_VERSO', '🪪 RG verso'],
+  ['COMPROVANTE', '📄 Comprov. gravidez'],
+  ['FECHAMENTO', '✅ Fechamento'],
+  ['CADASTRO_COMPLETO', '📋 Cadastro completo'],
   ['PRECISA_HUMANO', '🙋 Precisa humano'],
   ['FALHA_EMISSAO', '🛑 FALHA na emissão'],
   ['AGUARD_ASSINATURA', '✍️ Aguard. assinatura'],
@@ -125,7 +144,9 @@ export default function RevisaoIAGestante() {
     if (!profile?.id) return
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const { data } = await supabase.rpc('gestante_board', {
+    // gestante_board2: mesma funcao de antes + o campo `coluna2` (funil redesenhado).
+    // A gestante_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
+    const { data } = await supabase.rpc('gestante_board2', {
       p_agente: ehSupervisor ? (filtroAgente || null) : profile.id,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
@@ -160,6 +181,11 @@ export default function RevisaoIAGestante() {
   }, [lead, recarregarConversa])
 
   const distribuir = async () => {
+    // ATENCAO: aqui continua sendo `c.coluna` (nomes ANTIGOS) de proposito. Quem distribui
+    // de verdade e a gestante_atribuir_agentes no banco, e ela usa gestante_coluna (v1) —
+    // se essa contagem usasse coluna2 o numero no aviso mentiria sobre o que vai ser feito.
+    // 'CADASTRO' (v1) hoje engloba tudo que na tela virou ❄️ Travou na oferta + 📍 Endereço
+    // + RG + Comprovante + Fechamento + Cadastro completo.
     const semDono = board.filter(c => !c.bf_agente_id && ['CADASTRO', 'PRECISA_HUMANO', 'FALHA_EMISSAO', 'AGUARD_ASSINATURA'].includes(c.coluna)).length
     // 03/09: o aviso dizia "entre Leticia e Gislaine", fixo no texto. As duas sairam
     // da fila e hoje so o Leandro recebe — com o pool em uma pessoa, TUDO cai nele de
@@ -210,10 +236,10 @@ export default function RevisaoIAGestante() {
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
   if (so5mais) visiveis = visiveis.filter(c => c.cinco_mais)
   if (!ehSupervisor) {
-    visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna))
+    visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna2))
   }
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
-  const criticos = board.filter(c => ['FALHA_EMISSAO', 'LINK_EXPIRADO', 'AGUARD_ASSINATURA'].includes(c.coluna)).length
+  const criticos = board.filter(c => ['FALHA_EMISSAO', 'LINK_EXPIRADO', 'AGUARD_ASSINATURA'].includes(c.coluna2)).length
   const cincoMais = board.filter(c => c.cinco_mais).length
 
   return (
@@ -221,7 +247,7 @@ export default function RevisaoIAGestante() {
       <div style={s.title}>🤰 Revisão IA — Gestante</div>
       <div style={s.sub}>
         {ehSupervisor
-          ? 'Funil gestante (5+ meses destacadas 🤰). Colunas mudam sozinhas conforme o contrato. Críticos são auto-atribuídos ao time.'
+          ? 'Funil gestante na ordem real (5+ meses destacadas 🤰). Colunas mudam sozinhas conforme a IA avança. ❄️ Travou na oferta = ainda não aceitou a proposta.'
           : 'Seus atendimentos: quem TRAVOU (🟡 10min · 🔴 20min) e SEMPRE os críticos seus — falha de emissão, link expirado e aguardando assinatura.'}
       </div>
 
@@ -263,7 +289,7 @@ export default function RevisaoIAGestante() {
 
       <div style={s.board}>
         {COLUNAS.map(([key, label]) => {
-          const cards = visiveis.filter(c => c.coluna === key)
+          const cards = visiveis.filter(c => c.coluna2 === key)
           const critica = COLUNAS_CRITICAS.includes(key) && key !== 'PRECISA_HUMANO'
           if (key === 'OUTROS' && cards.length === 0) return null
           return (
@@ -299,7 +325,7 @@ export default function RevisaoIAGestante() {
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome || 'Sem nome'}</div>
             <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
-              {(COLUNAS.find(c => c[0] === lead.coluna) || [])[1] || lead.coluna} · parada há {fmtParado(lead.minutos_parado)}
+              {(COLUNAS.find(c => c[0] === lead.coluna2) || [])[1] || lead.coluna2} · parada há {fmtParado(lead.minutos_parado)}
             </div>
 
             <div style={s.ficha}>
@@ -318,7 +344,7 @@ export default function RevisaoIAGestante() {
             )}
             {lead.link_assinatura && (
               <div style={{ fontSize: 12, background: '#f1f5f9', borderRadius: 8, padding: 10, marginBottom: 10, wordBreak: 'break-all' }}>
-                🔗 Link de assinatura{lead.coluna === 'LINK_EXPIRADO' ? ' (EXPIRADO — precisa reemitir)' : ''}:<br />
+                🔗 Link de assinatura{lead.coluna2 === 'LINK_EXPIRADO' ? ' (EXPIRADO — precisa reemitir)' : ''}:<br />
                 <a href={lead.link_assinatura} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>{lead.link_assinatura}</a>
               </div>
             )}
