@@ -27,6 +27,12 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// Revisao IA Gestante por ID: entra SO nessa revisao, sem o pacote das quatro
+// que o time da Maryana recebe (IDS_TIME_MARYANA)
+const IDS_REVISAO_GESTANTE = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro — 03/09
+]
+
 // Fila de entregas: item por ID, sem mexer no menu do papel (coordenador_b2c
 // nao tem essa tela por padrao)
 const IDS_FILA_ENTREGAS = [
@@ -306,7 +312,7 @@ export default function Layout({ children, page, setPage }) {
     'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
     '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
     'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
-    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
     'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   ]
   if (IDS_TIME_MARYANA.includes(profile?.id)) {
@@ -382,6 +388,11 @@ export default function Layout({ children, page, setPage }) {
   // Fila de entregas por ID: a coordenadora nao tem essa tela no menu do papel dela
   if (IDS_FILA_ENTREGAS.includes(profile?.id) && !nav.some(n => n.key === 'fila')) {
     nav = [...nav, { key: 'fila', label: '📦 Fila de entregas' }]
+  }
+
+  // Revisao IA Gestante por ID: uma revisao so, sem o pacote das quatro
+  if (IDS_REVISAO_GESTANTE.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_gestante')) {
+    nav = [...nav, { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
