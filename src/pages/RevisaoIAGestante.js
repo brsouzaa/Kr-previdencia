@@ -8,10 +8,19 @@ import { useAuth } from '../lib/AuthContext'
 // Críticos (falha de emissão c/ motivo, link expirado, aguard. assinatura) são AUTO-ATRIBUÍDOS
 // ao time e SEMPRE visíveis pra vendedora dona. Supervisora: Maryana (distribui e toma atendimento).
 
-const ID_MARYANA = 'be98f268-314f-4114-acc3-7bb9ce7635fd'
+// Supervisao do funil gestante: veem o board inteiro, distribuem e tomam atendimento.
+const IDS_SUPERVISOR_GESTANTE = [
+  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 03/09: cuidando do setor
+]
+
+// Quem aparece no filtro por atendente. Leticia e Gislaine seguem aqui porque
+// ainda sao donas de 279 e 278 leads, mesmo tendo saido da fila de distribuicao
+// em 03/09 (so o Leandro recebe lead novo).
 const TIME_GESTANTE = [
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 03/09
 ]
 
 // SOMENTE Chatwoot novo (grupookr) — o board já filtra no banco; nada da VendeAI aqui.
@@ -98,7 +107,7 @@ function fmtParado(min) {
 
 export default function RevisaoIAGestante() {
   const { profile } = useAuth()
-  const ehSupervisor = profile?.role === 'admin' || profile?.id === ID_MARYANA
+  const ehSupervisor = profile?.role === 'admin' || IDS_SUPERVISOR_GESTANTE.includes(profile?.id)
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
   const [so5mais, setSo5mais] = useState(false)
@@ -152,7 +161,10 @@ export default function RevisaoIAGestante() {
 
   const distribuir = async () => {
     const semDono = board.filter(c => !c.bf_agente_id && ['CADASTRO', 'PRECISA_HUMANO', 'FALHA_EMISSAO', 'AGUARD_ASSINATURA'].includes(c.coluna)).length
-    if (!window.confirm(`⚖️ Distribuir ${semDono} atendimentos SEM DONO (cadastros e críticos) entre Letícia e Gislaine?\n\nAssinados, conversas com a IA e perdidos NÃO são distribuídos.\n\nTem certeza?`)) return
+    // 03/09: o aviso dizia "entre Leticia e Gislaine", fixo no texto. As duas sairam
+    // da fila e hoje so o Leandro recebe — com o pool em uma pessoa, TUDO cai nele de
+    // uma vez. O numero e o destino agora aparecem antes de confirmar.
+    if (!window.confirm(`⚖️ Distribuir ${semDono} atendimento(s) SEM DONO (cadastros e críticos)?\n\n⚠️ Vão TODOS para quem está na fila de distribuição da gestante — hoje é uma pessoa só.\n\nAssinados, conversas com a IA e perdidos NÃO são distribuídos.\n\nTem certeza?`)) return
     const { data } = await supabase.rpc('gestante_atribuir_agentes')
     alert(data?.ok ? `✅ ${data.atribuidos} distribuídos no time` : (data?.erro || 'Erro'))
     carregar()
