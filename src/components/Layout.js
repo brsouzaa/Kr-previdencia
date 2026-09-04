@@ -45,6 +45,13 @@ const IDS_ACESSO_CLIENTES = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
+]
+
+// Supervisao Producao por ID (mesma lista do App.js — se as duas nao baterem,
+// o item aparece no menu e a pagina nega, que foi o bug do painel de vendas em 02/09)
+const IDS_SUPERVISAO_PRODUCAO = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09
 ]
 
 const NAV_PRODUTOR = [
@@ -383,6 +390,11 @@ export default function Layout({ children, page, setPage }) {
   // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana)
   if (IDS_ACESSO_CLIENTES.includes(profile?.id) && !nav.some(n => n.key === 'clientes')) {
     nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
+  }
+
+  // Supervisao Producao por ID: o papel do Leandro (vendedor_operador) nao tem essa tela
+  if (IDS_SUPERVISAO_PRODUCAO.includes(profile?.id) && !nav.some(n => n.key === 'supervisor_producao')) {
+    nav = [...nav, { key: 'supervisor_producao', label: '📊 Supervisão Produção' }]
   }
 
   // Fila de entregas por ID: a coordenadora nao tem essa tela no menu do papel dela
