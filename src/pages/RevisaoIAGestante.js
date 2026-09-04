@@ -76,15 +76,25 @@ const s = {
   chipOn: { background: '#f87171', color: '#232a37', borderColor: '#f87171' },
   kpi: { fontSize: 13, color: '#5b6b84', padding: '6px 12px', background: 'rgba(96,165,250,.10)', borderRadius: 8 },
   board: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' },
-  col: { minWidth: 235, maxWidth: 235, background: '#e2e8f0', borderRadius: 10, padding: 8, flexShrink: 0 },
-  colTitulo: { fontSize: 12, fontWeight: 600, color: '#5b6b84', padding: '4px 6px 8px', display: 'flex', justifyContent: 'space-between' },
-  card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
-  cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
+  col: { minWidth: 240, maxWidth: 240, background: '#eef2f7', borderRadius: 12, padding: 9, flexShrink: 0 },
+  colTitulo: { fontSize: 11.5, fontWeight: 700, color: '#64748b', padding: '3px 4px 9px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, letterSpacing: '.01em' },
+  colContador: { fontSize: 10.5, fontWeight: 700, color: '#64748b', background: 'rgba(15,23,42,.06)', borderRadius: 999, padding: '1px 8px', flexShrink: 0 },
+  // 04/09 — card em 3 linhas com hierarquia: quem é / o que é / quando foi.
+  // Antes eram 4 blocos soltos e o selo verde grande roubava a atencao do nome.
+  card: { borderRadius: 10, padding: '9px 11px', marginBottom: 8, cursor: 'pointer', transition: 'box-shadow .12s' },
+  // quem esta online ganha um leve destaque, sem competir com a borda do SLA
+  cardOnline: { boxShadow: '0 0 0 1.5px rgba(52,211,153,.55)' },
+  cardTopo: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  cardDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0, display: 'inline-block' },
+  cardTags: { display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, flexWrap: 'wrap' },
+  cardTempos: { display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: '#64748b', flexWrap: 'wrap' },
+  cardDono: { fontSize: 10.5, color: '#94a3b8', marginTop: 4 },
   cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
-  badge5: { fontSize: 10, background: 'rgba(244,114,182,.20)', color: '#db2777', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
-  badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.16)', color: '#5b6b84', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
-  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  badge5: { fontSize: 10, background: 'rgba(244,114,182,.18)', color: '#db2777', borderRadius: 999, padding: '2px 8px', fontWeight: 700, display: 'inline-block', whiteSpace: 'nowrap' },
+  badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.14)', color: '#64748b', borderRadius: 999, padding: '2px 8px', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' },
+  badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.12)', color: '#2563eb', borderRadius: 999, padding: '2px 8px', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' },
+  badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.16)', color: '#7c3aed', borderRadius: 999, padding: '2px 8px', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' },
   // 04/09 — semaforo de presenca no app: online agora (verde cheio), ate 1h (verde),
   // ate 20h (amarelo), acima disso (vermelho).
   appOnline: { fontSize: 10, background: '#34d399', color: '#0f172a', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
@@ -190,6 +200,10 @@ function fmtHa(min) {
 }
 
 const ESTILOS_APP = { online: 'appOnline', verde: 'appVerde', amarelo: 'appAmarelo', vermelho: 'appVermelho' }
+// no card o semaforo vira um ponto + o texto colorido, em vez de um selo grande:
+// o nome da cliente volta a ser a primeira coisa que a pessoa le.
+const CORES_APP = { online: '#10b981', verde: '#34d399', amarelo: '#fbbf24', vermelho: '#f87171' }
+const CORES_APP_TEXTO = { online: '#047857', verde: '#059669', amarelo: '#b45309', vermelho: '#dc2626' }
 
 function seloApp(min) {
   if (min == null) return null   // nunca apareceu no app: sem selo
@@ -517,18 +531,27 @@ export default function RevisaoIAGestante() {
           {achados.map(c => (
             <div key={c.id} style={s.buscaCard}>
               <div style={s.buscaTopo}>
-                <strong style={{ fontSize: 13, color: '#0f172a' }}>{c.nome || 'Sem nome'}</strong>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                  {(() => { const sa = seloApp(c.pwa_min)
+                    return <span style={{ ...s.cardDot, background: sa ? CORES_APP[sa.nivel] : '#cbd5e1' }} /> })()}
+                  <strong style={{ fontSize: 13, color: '#0f172a' }}>{c.nome || 'Sem nome'}</strong>
+                </span>
                 <span style={s.buscaTag}>{(COLUNAS.find(x => x[0] === c.coluna2) || [])[1] || c.coluna2}</span>
               </div>
               <div style={{ fontSize: 12, color: '#5b6b84' }}>
                 📞 {c.tel || '—'} · 🤰 {c.meses != null ? `${c.meses}m` : '?'}
                 {c.agente_nome ? ` · 👤 ${c.agente_nome}` : ' · sem dono'}
               </div>
-              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                <span>💬 última msg há {fmtParado(c.minutos_parado)}</span>
-                <span>· {c.ana_pausada ? '🧑 IA pausada' : '🤖 IA ativa'}</span>
-                {(() => { const sa = seloApp(c.pwa_min); return sa
-                  ? <span style={estiloApp(sa)}>{sa.texto}</span> : null })()}
+              <div style={s.cardTempos}>
+                {(() => { const sa = seloApp(c.pwa_min)
+                  if (!sa) return <span style={{ color: '#94a3b8' }}>sem app</span>
+                  return <strong style={{ color: CORES_APP_TEXTO[sa.nivel] }}>
+                    {sa.nivel === 'online' ? 'online agora' : `online há ${fmtHa(c.pwa_min)}`}
+                  </strong> })()}
+                <span style={{ color: '#cbd5e1' }}>·</span>
+                <span>msg há {fmtParado(c.minutos_parado)}</span>
+                <span style={{ color: '#cbd5e1' }}>·</span>
+                <span>{c.ana_pausada ? '🧑 IA pausada' : '🤖 IA ativa'}</span>
               </div>
               <div style={s.buscaComo}>achou por {c.achou_por}</div>
               <button style={s.buscaAbrir} onClick={() => abrirCard(c)}>Abrir atendimento</button>
@@ -545,26 +568,41 @@ export default function RevisaoIAGestante() {
           return (
             <div key={key} style={{ ...s.col, ...(critica ? { border: '2px solid #f87171' } : {}) }}>
               <div style={{ ...s.colTitulo, ...(critica ? { color: '#dc2626', fontWeight: 700 } : {}) }}>
-                <span>{label}</span><span>{cards.length}</span>
+                <span>{label}</span><span style={s.colContador}>{cards.length}</span>
               </div>
               {cards.map(c => (
-                <div key={c.id} style={{ ...s.card, ...(CORES[c.cor] || CORES.normal) }} onClick={() => abrirCard(c)}>
-                  <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                <div key={c.id} style={{ ...s.card, ...(CORES[c.cor] || CORES.normal), ...(c.pwa_min != null && c.pwa_min <= APP_VERDE_MIN ? s.cardOnline : {}) }} onClick={() => abrirCard(c)}>
+                  {/* linha 1 — quem é, e o ponto de presença alinhado à direita */}
+                  <div style={s.cardTopo}>
+                    <span style={s.cardNome}>{c.nome || 'Sem nome'}</span>
+                    {(() => { const sa = seloApp(c.pwa_min)
+                      return <span style={{ ...s.cardDot, background: sa ? CORES_APP[sa.nivel] : '#cbd5e1' }}
+                        title={sa ? sa.texto : 'Nunca abriu o app'} /> })()}
+                  </div>
+
+                  {/* linha 2 — atributos que não mudam a toda hora */}
+                  <div style={s.cardTags}>
                     <span style={c.cinco_mais ? s.badge5 : s.badgeMenos5}>🤰 {c.meses != null ? `${c.meses}m` : '?'}{c.cinco_mais ? ' · 5+' : ''}</span>
-                    <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑' : '🤖'}</span>
+                    <span style={c.ana_pausada ? s.badgeHumano : s.badgeIA}>{c.ana_pausada ? '🧑 humano' : '🤖 IA'}</span>
                     {c.chatwoot_conversation_id && (
                       <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} style={s.cardChat}>💬</a>
                     )}
-                    {(() => { const sa = seloApp(c.pwa_min); return sa
-                      ? <span style={estiloApp(sa)} title="Presença no app da cliente — não é a conversa">{sa.texto}</span>
-                      : <span style={{ ...s.badgeMenos5, color: '#94a3b8' }} title="Nunca abriu o app">⚪ sem app</span> })()}
                   </div>
-                  {/* os DOIS tempos, cada um com seu rotulo: a conversa e o app */}
-                  <div style={s.cardMeta}>
-                    💬 {c.cor === 'vermelho' ? '🔴 ' : c.cor === 'amarelo' ? '🟡 ' : ''}última msg há {fmtParado(c.minutos_parado)}
-                    {ehSupervisor && c.agente_nome ? ` · 👤 ${c.agente_nome}` : ''}
+
+                  {/* linha 3 — os dois tempos numa linha só. O do app leva a cor
+                      (é o que decide chamar agora); o da conversa fica neutro, porque
+                      a borda do card já diz se estourou o SLA. */}
+                  <div style={s.cardTempos}>
+                    {(() => { const sa = seloApp(c.pwa_min)
+                      if (!sa) return <span style={{ color: '#94a3b8' }}>sem app</span>
+                      return <strong style={{ color: CORES_APP_TEXTO[sa.nivel] }}>
+                        {sa.nivel === 'online' ? 'online agora' : `online há ${fmtHa(c.pwa_min)}`}
+                      </strong> })()}
+                    <span style={{ color: '#cbd5e1' }}>·</span>
+                    <span>msg há {fmtParado(c.minutos_parado)}</span>
                   </div>
+
+                  {ehSupervisor && c.agente_nome && <div style={s.cardDono}>👤 {c.agente_nome}</div>}
                   {key === 'FALHA_EMISSAO' && c.falha_motivo && <div style={s.tagFalha}>🛑 {c.falha_motivo}</div>}
                   {key === 'LINK_EXPIRADO' && <div style={s.tagFalha}>⏰ reemitir/reenviar link</div>}
                 </div>
