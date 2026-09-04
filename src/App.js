@@ -114,6 +114,14 @@ const IDS_ACESSO_CLIENTES = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
+]
+
+// Supervisao Producao por ID: quem supervisiona um setor sem ter o papel
+// supervisor_producao. O papel do Leandro e vendedor_operador, que nao tem
+// essa tela — mas ele cuida do funil gestante e precisa acompanhar a producao.
+const IDS_SUPERVISAO_PRODUCAO = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09
 ]
 
 function PortalRoute() {
@@ -181,6 +189,8 @@ function paginaPermitida(profile, page) {
   if (IDS_VENDAS_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
+  // Supervisao Producao por ID (Leandro): a tela nao faz parte do papel vendedor_operador
+  if (IDS_SUPERVISAO_PRODUCAO.includes(profile.id) && page === 'supervisor_producao') return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
   // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
