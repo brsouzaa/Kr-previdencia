@@ -128,6 +128,13 @@ const s = {
   btn: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#60a5fa', color: '#232a37', marginRight: 6 },
   btnG: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '0.5px solid rgba(15,23,42,0.11)', background: '#ffffff', color: '#5b6b84', marginRight: 6 },
   textarea: { width: '100%', minHeight: 84, padding: 10, fontSize: 13, borderRadius: 10, border: '0.5px solid rgba(15,23,42,0.18)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit', resize: 'vertical' },
+  // o campo muda de cara no modo comentario: erro aqui manda pra cliente um recado interno
+  textareaNota: { background: 'rgba(251,191,36,.08)', border: '1px dashed #fbbf24' },
+  modoWrap: { display: 'flex', gap: 6, marginBottom: 8 },
+  modoBtn: { flex: 1, padding: '8px 10px', fontSize: 12, fontWeight: 600, borderRadius: 9, border: '0.5px solid rgba(15,23,42,0.12)', background: '#f8fafc', color: '#64748b', cursor: 'pointer' },
+  modoBtnOnCliente: { background: 'rgba(52,211,153,.16)', color: '#047857', borderColor: '#34d399', fontWeight: 700 },
+  modoBtnOnNota: { background: 'rgba(251,191,36,.18)', color: '#b45309', borderColor: '#fbbf24', fontWeight: 700 },
+  msgHora: { display: 'block', fontSize: 9.5, opacity: .65, marginTop: 3, fontWeight: 600 },
   btnEnviar: { width: '100%', padding: 12, background: '#34d399', color: '#232a37', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 6 },
   btnEnviarOff: { width: '100%', padding: 12, background: '#e2e8f0', color: '#94a3b8', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'not-allowed', marginBottom: 6 },
   avisoEnvio: { fontSize: 11, color: '#5b6b84', marginBottom: 12 },
@@ -193,6 +200,22 @@ const APP_ONLINE_MIN = 2      // ate 2 min = app aberto agora
 const APP_VERDE_MIN = 60      // ate 1h = 🟢
 const APP_AMARELO_MIN = 1200  // ate 20h = 🟡, acima disso 🔴
 
+// Hora da mensagem. Mostra so HH:MM quando e de hoje; de ontem pra tras entra a
+// data, senao "14:32" numa conversa de 3 dias atras engana quem esta lendo.
+function fmtHora(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const hoje = new Date()
+  const mesmoDia = d.getDate() === hoje.getDate() && d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()
+  if (mesmoDia) return hora
+  const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1)
+  const ehOntem = d.getDate() === ontem.getDate() && d.getMonth() === ontem.getMonth() && d.getFullYear() === ontem.getFullYear()
+  if (ehOntem) return `ontem ${hora}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`
+}
+
 function fmtHa(min) {
   if (min < 60) return `${min} min`
   if (min < 1440) return `${Math.floor(min / 60)}h`
@@ -231,6 +254,7 @@ export default function RevisaoIAGestante() {
   const [agindo, setAgindo] = useState(false)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [modo, setModo] = useState('cliente')   // 'cliente' = vai pro WhatsApp | 'nota' = comentário interno
   const [anexos, setAnexos] = useState([])
   const [zoom, setZoom] = useState(null)
   const [carregandoConversa, setCarregandoConversa] = useState(false)
@@ -310,7 +334,7 @@ export default function RevisaoIAGestante() {
   }, [])
 
   const abrirCard = async (l) => {
-    setLead(l); setMensagens([]); setAnexos([]); setTexto(''); setConversaCompleta(true)
+    setLead(l); setMensagens([]); setAnexos([]); setTexto(''); setModo('cliente'); setConversaCompleta(true)
     recarregarConversa(l, true, true)
   }
 
@@ -336,20 +360,26 @@ export default function RevisaoIAGestante() {
   // acoes dela e so do BF. Nada foi alterado no banco nem na edge por causa disso.
   // Efeito colateral que e proposital: bf_disparar_patch_lead pausa a Ana no lead
   // assim que um humano manda mensagem. Por isso o aviso embaixo do campo.
+  // `modo`: 'cliente' manda pelo WhatsApp; 'nota' grava comentario interno no
+  // Chatwoot (private=true) — a cliente NAO ve. E o comentario interno de
+  // proposito NAO pausa a Ana: escrever recado pra equipe nao pode desligar a
+  // IA do atendimento. Quem garante isso e a edge (v7): com `privada` ela nao
+  // chama o bf_disparar_patch_lead.
   const enviarTexto = async () => {
     const t = (texto || '').trim()
     if (!lead || !t) return
     if (!lead.chatwoot_conversation_id) { alert('Este lead nao tem conversa no Chatwoot vinculada.'); return }
+    const ehNota = modo === 'nota'
     setEnviando(true)
     const { data, error } = await supabase.functions.invoke('bf-disparar-mensagem', {
-      body: { lead_id: lead.id, texto: t, agente_id: profile?.id, acao: null },
+      body: { lead_id: lead.id, texto: t, agente_id: profile?.id, acao: null, privada: ehNota },
     })
     setEnviando(false)
     if (error || !data?.ok) { alert('Nao enviou: ' + (error?.message || data?.erro || 'falhou')); return }
     setTexto('')
-    setLead(l => (l ? { ...l, ana_pausada: true, bf_em_tratamento: true } : l))
+    if (!ehNota) setLead(l => (l ? { ...l, ana_pausada: true, bf_em_tratamento: true } : l))
     recarregarConversa(lead, false, false)
-    carregar()
+    if (!ehNota) carregar()
   }
 
   // conversa em tempo real: recarrega a cada 8s enquanto o modal estiver aberto
@@ -700,12 +730,14 @@ export default function RevisaoIAGestante() {
                     <span style={s.msgNotaTag}>📝 comentário interno{m.autor ? ` · ${m.autor}` : ''}</span>
                     {!soMarcador && m.content}
                     {anx.map(renderAnexo)}
+                    <span style={s.msgHora}>{fmtHora(m.created_at)}</span>
                   </div>
                 )
                 return (
                   <div key={i} style={m.role === 'user' ? s.msgCliente : s.msgAna}>
                     {!soMarcador && m.content}
                     {anx.map(renderAnexo)}
+                    <span style={{ ...s.msgHora, textAlign: m.role === 'user' ? 'left' : 'right' }}>{fmtHora(m.created_at)}</span>
                   </div>
                 )
               })}
@@ -735,23 +767,41 @@ export default function RevisaoIAGestante() {
                 A mensagem sai pelo Chatwoot na conta do proprio lead. */}
             {lead.chatwoot_conversation_id ? (
               <>
+                {/* escolher ANTES de escrever: o campo muda de cara junto, pra
+                    ninguem mandar pra cliente um recado que era pra equipe */}
+                <div style={s.modoWrap}>
+                  <button style={{ ...s.modoBtn, ...(modo === 'cliente' ? s.modoBtnOnCliente : {}) }}
+                    disabled={enviando} onClick={() => setModo('cliente')}>
+                    📨 Mensagem pra cliente
+                  </button>
+                  <button style={{ ...s.modoBtn, ...(modo === 'nota' ? s.modoBtnOnNota : {}) }}
+                    disabled={enviando} onClick={() => setModo('nota')}>
+                    📝 Comentário interno
+                  </button>
+                </div>
                 <textarea
-                  style={s.textarea}
+                  style={{ ...s.textarea, ...(modo === 'nota' ? s.textareaNota : {}) }}
                   value={texto}
                   disabled={enviando}
-                  placeholder="Escreve a resposta pra cliente… (sai pelo WhatsApp, via Chatwoot)"
+                  placeholder={modo === 'nota'
+                    ? 'Comentário só pra equipe — a cliente NÃO recebe isso.'
+                    : 'Escreve a resposta pra cliente… (sai pelo WhatsApp, via Chatwoot)'}
                   onChange={e => setTexto(e.target.value)}
                 />
                 <button
-                  style={(enviando || !texto.trim()) ? s.btnEnviarOff : s.btnEnviar}
+                  style={(enviando || !texto.trim()) ? s.btnEnviarOff
+                    : (modo === 'nota' ? { ...s.btnEnviar, background: '#fbbf24' } : s.btnEnviar)}
                   disabled={enviando || !texto.trim()}
                   onClick={enviarTexto}
                 >
-                  {enviando ? 'Enviando…' : '📨 Enviar pra cliente'}
+                  {enviando ? 'Enviando…' : (modo === 'nota' ? '📝 Salvar comentário' : '📨 Enviar pra cliente')}
                 </button>
                 <div style={s.avisoEnvio}>
-                  Ao enviar, a <strong>Ana pausa sozinha</strong> neste atendimento — ela não responde mais
-                  até você clicar em <strong>🤖 Devolver pra IA</strong> lá em cima.
+                  {modo === 'nota'
+                    ? <>Fica registrado na conversa <strong>só pra equipe</strong>. A cliente não recebe,
+                        e a <strong>Ana continua respondendo</strong> normalmente.</>
+                    : <>Ao enviar, a <strong>Ana pausa sozinha</strong> neste atendimento — ela não responde mais
+                        até você clicar em <strong>🤖 Devolver pra IA</strong> lá em cima.</>}
                 </div>
               </>
             ) : (
