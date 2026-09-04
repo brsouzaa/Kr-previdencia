@@ -85,6 +85,12 @@ const s = {
   badgeMenos5: { fontSize: 10, background: 'rgba(139,155,180,.16)', color: '#5b6b84', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
   badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
   badgeHumano: { fontSize: 10, background: 'rgba(167,139,250,.18)', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  // 04/09 — semaforo de presenca no app: online agora (verde cheio), ate 1h (verde),
+  // ate 20h (amarelo), acima disso (vermelho).
+  appOnline: { fontSize: 10, background: '#34d399', color: '#0f172a', borderRadius: 6, padding: '2px 7px', fontWeight: 800, display: 'inline-block' },
+  appVerde: { fontSize: 10, background: 'rgba(52,211,153,.20)', color: '#059669', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  appAmarelo: { fontSize: 10, background: 'rgba(251,191,36,.20)', color: '#b45309', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
+  appVermelho: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#dc2626', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
   cardChat: { fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '1px 7px', fontWeight: 700 },
   tagFalha: { fontSize: 10, background: 'rgba(248,113,113,.16)', color: '#dc2626', borderRadius: 6, padding: '3px 7px', marginTop: 4, fontWeight: 700 },
   // Modal em 3 faixas: cabecalho fixo, miolo que rola, rodape de acoes fixo.
@@ -160,12 +166,46 @@ function fmtParado(min) {
   return `${Math.floor(min / 1440)}d`
 }
 
+// 04/09 — PRESENÇA da cliente no PWA. Vem de public.pwa_visto (ultima atividade
+// por telefone), alimentada pelo cron pwa-visto-refresh de MINUTO em minuto.
+//
+// Por que da pra escrever "online" e nao so "esteve no app":
+// medido em 16.424 intervalos entre eventos consecutivos do mesmo telefone, com
+// o app aberto a cliente gera evento a cada 1,1s (mediana) — 96% dos intervalos
+// sao de ate 1 minuto e so 1,2% passam de 5 min. Entao atividade ha menos de
+// 2 minutos significa app aberto AGORA, nao "esteve". Com o cron de 1 min, a
+// defasagem maxima do dado e 1 minuto.
+//
+// Isso NAO e a conversa do Chatwoot. A cliente pode estar parada no chat ha 6h
+// e com o app aberto agora — e exatamente essa a hora de chamar. Os dois tempos
+// aparecem lado a lado no card e na ficha, cada um com seu rotulo.
+const APP_ONLINE_MIN = 2      // ate 2 min = app aberto agora
+const APP_VERDE_MIN = 60      // ate 1h = 🟢
+const APP_AMARELO_MIN = 1200  // ate 20h = 🟡, acima disso 🔴
+
+function fmtHa(min) {
+  if (min < 60) return `${min} min`
+  if (min < 1440) return `${Math.floor(min / 60)}h`
+  return `${Math.floor(min / 1440)}d`
+}
+
+const ESTILOS_APP = { online: 'appOnline', verde: 'appVerde', amarelo: 'appAmarelo', vermelho: 'appVermelho' }
+
+function seloApp(min) {
+  if (min == null) return null   // nunca apareceu no app: sem selo
+  if (min <= APP_ONLINE_MIN) return { texto: '🟢 online agora', nivel: 'online' }
+  if (min <= APP_VERDE_MIN) return { texto: `🟢 online há ${fmtHa(min)}`, nivel: 'verde' }
+  if (min <= APP_AMARELO_MIN) return { texto: `🟡 online há ${fmtHa(min)}`, nivel: 'amarelo' }
+  return { texto: `🔴 online há ${fmtHa(min)}`, nivel: 'vermelho' }
+}
+
 export default function RevisaoIAGestante() {
   const { profile } = useAuth()
   const ehSupervisor = profile?.role === 'admin' || IDS_SUPERVISOR_GESTANTE.includes(profile?.id)
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
   const [so5mais, setSo5mais] = useState(false)
+  const [soVivas, setSoVivas] = useState(false)
   const [filtroEntrada, setFiltroEntrada] = useState('tudo')
   const [filtroAtividade, setFiltroAtividade] = useState('mes')
   const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
@@ -360,12 +400,20 @@ export default function RevisaoIAGestante() {
   // Vendedora: só travados (amarelo/vermelho), em tratamento, e SEMPRE os críticos dela
   let visiveis = soVermelhos ? board.filter(c => c.cor === 'vermelho') : board
   if (so5mais) visiveis = visiveis.filter(c => c.cinco_mais)
+  // 04/09: "viva no app" = mexeu no PWA nas ultimas 3h. E o filtro que responde
+  // "quem eu chamo agora": cliente parada no chat mas ativa no app e a mais quente.
+  if (soVivas) visiveis = visiveis.filter(c => c.pwa_min != null && c.pwa_min <= APP_VERDE_MIN)
   if (!ehSupervisor) {
     visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna2))
   }
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
   const criticos = board.filter(c => ['FALHA_EMISSAO', 'LINK_EXPIRADO', 'AGUARD_ASSINATURA'].includes(c.coluna2)).length
   const cincoMais = board.filter(c => c.cinco_mais).length
+  const estiloApp = (sa) => s[ESTILOS_APP[sa.nivel]]
+  const vivasAgora = board.filter(c => c.pwa_min != null && c.pwa_min <= APP_VERDE_MIN).length
+  const onlineAgora = board.filter(c => c.pwa_min != null && c.pwa_min <= APP_ONLINE_MIN).length
+  // o caso que o selo existe pra resolver: parada na conversa e com o app aberto
+  const vivasEParadas = board.filter(c => c.pwa_min != null && c.pwa_min <= APP_VERDE_MIN && c.cor === 'vermelho').length
 
   // Anexos x mensagens: a edge devolve os dois em listas separadas, mas os dois
   // carimbam o MESMO created_at da mensagem original do Chatwoot — entao da pra
@@ -406,6 +454,10 @@ export default function RevisaoIAGestante() {
         <button style={{ ...s.chip, ...(so5mais ? { background: '#f472b6', color: '#232a37', borderColor: '#f472b6' } : {}) }} onClick={() => setSo5mais(v => !v)}>
           🤰 Só 5+ meses
         </button>
+        <button style={{ ...s.chip, ...(soVivas ? { background: '#34d399', color: '#0f172a', borderColor: '#34d399' } : {}) }}
+          onClick={() => setSoVivas(v => !v)} title="Cliente com o app aberto agora ou na última hora">
+          🟢 Online ({vivasAgora}){onlineAgora > 0 ? ` · ${onlineAgora} agora` : ''}
+        </button>
         <select style={s.chip} value={filtroEntrada} onChange={e => setFiltroEntrada(e.target.value)} title="Data de entrada do lead">
           {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
         </select>
@@ -423,6 +475,11 @@ export default function RevisaoIAGestante() {
         <span style={s.kpi}>Total: <strong>{board.length}</strong></span>
         <span style={{ ...s.kpi, background: 'rgba(244,114,182,.12)', color: '#db2777' }}>🤰 5+ meses: <strong>{cincoMais}</strong></span>
         <span style={{ ...s.kpi, background: 'rgba(248,113,113,.12)', color: '#dc2626' }}>🚨 Críticos: <strong>{criticos}</strong></span>
+        {vivasEParadas > 0 && (
+          <span style={{ ...s.kpi, background: 'rgba(52,211,153,.16)', color: '#059669' }} title="Não responde no chat, mas está online no app — é quem chamar primeiro">
+            🟢 Online mas paradas: <strong>{vivasEParadas}</strong>
+          </span>
+        )}
         {ehSupervisor && (
           <>
             <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
@@ -467,8 +524,11 @@ export default function RevisaoIAGestante() {
                 📞 {c.tel || '—'} · 🤰 {c.meses != null ? `${c.meses}m` : '?'}
                 {c.agente_nome ? ` · 👤 ${c.agente_nome}` : ' · sem dono'}
               </div>
-              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>
-                parada há {fmtParado(c.minutos_parado)} · {c.ana_pausada ? '🧑 IA pausada' : '🤖 IA ativa'}
+              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span>💬 última msg há {fmtParado(c.minutos_parado)}</span>
+                <span>· {c.ana_pausada ? '🧑 IA pausada' : '🤖 IA ativa'}</span>
+                {(() => { const sa = seloApp(c.pwa_min); return sa
+                  ? <span style={estiloApp(sa)}>{sa.texto}</span> : null })()}
               </div>
               <div style={s.buscaComo}>achou por {c.achou_por}</div>
               <button style={s.buscaAbrir} onClick={() => abrirCard(c)}>Abrir atendimento</button>
@@ -496,9 +556,13 @@ export default function RevisaoIAGestante() {
                     {c.chatwoot_conversation_id && (
                       <a href={linkChatwoot(c)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} style={s.cardChat}>💬</a>
                     )}
+                    {(() => { const sa = seloApp(c.pwa_min); return sa
+                      ? <span style={estiloApp(sa)} title="Presença no app da cliente — não é a conversa">{sa.texto}</span>
+                      : <span style={{ ...s.badgeMenos5, color: '#94a3b8' }} title="Nunca abriu o app">⚪ sem app</span> })()}
                   </div>
+                  {/* os DOIS tempos, cada um com seu rotulo: a conversa e o app */}
                   <div style={s.cardMeta}>
-                    {c.cor === 'vermelho' ? '🔴 ' : c.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(c.minutos_parado)}
+                    💬 {c.cor === 'vermelho' ? '🔴 ' : c.cor === 'amarelo' ? '🟡 ' : ''}última msg há {fmtParado(c.minutos_parado)}
                     {ehSupervisor && c.agente_nome ? ` · 👤 ${c.agente_nome}` : ''}
                   </div>
                   {key === 'FALHA_EMISSAO' && c.falha_motivo && <div style={s.tagFalha}>🛑 {c.falha_motivo}</div>}
@@ -519,9 +583,13 @@ export default function RevisaoIAGestante() {
                 <div style={s.mNome}>{lead.nome || 'Sem nome'}</div>
                 <div style={s.mEtapa}>
                   <span>{(COLUNAS.find(c => c[0] === lead.coluna2) || [])[1] || lead.coluna2}</span>
+                  {/* os dois tempos, sempre juntos e rotulados: a conversa e o app */}
                   <span style={{ color: lead.cor === 'vermelho' ? '#dc2626' : lead.cor === 'amarelo' ? '#b45309' : '#5b6b84' }}>
-                    {lead.cor === 'vermelho' ? '🔴 ' : lead.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(lead.minutos_parado)}
+                    💬 última msg há {fmtParado(lead.minutos_parado)}
                   </span>
+                  {(() => { const sa = seloApp(lead.pwa_min); return sa
+                    ? <span style={estiloApp(sa)}>{sa.texto}</span>
+                    : <span style={{ ...s.badgeMenos5, color: '#94a3b8' }}>⚪ nunca abriu o app</span> })()}
                 </div>
               </div>
               <button style={s.mX} onClick={() => setLead(null)} title="Fechar">✕</button>
@@ -537,6 +605,14 @@ export default function RevisaoIAGestante() {
               <span style={s.pill}>📄 {lead.status_contrato || 'sem contrato'}</span>
               {lead.emitido_em && <span style={s.pill}>🕐 {new Date(lead.emitido_em).toLocaleString('pt-BR')}</span>}
               {ehSupervisor && <span style={s.pill}>👤 {lead.agente_nome || 'sem dono'}</span>}
+              {/* presença no app repetida aqui na ficha, com o dado cru do lado —
+                  o rodapé de tempo do cabeçalho some quando a pessoa rola o modal */}
+              {(() => { const sa = seloApp(lead.pwa_min); return sa
+                ? <span style={{ ...s.pill, ...estiloApp(sa), fontSize: 11, borderRadius: 999, padding: '3px 9px' }}>
+                    {sa.nivel === 'online' ? '📱 app aberto agora' : `📱 app: ${fmtHa(lead.pwa_min)} atrás`}
+                  </span>
+                : <span style={{ ...s.pill, color: '#94a3b8' }}>📱 nunca abriu o app</span> })()}
+              <span style={s.pill}>💬 última msg: {fmtParado(lead.minutos_parado)} atrás</span>
               <span style={{ ...s.pill, color: '#94a3b8' }}>IA: {lead.sub_estado || lead.estado || '—'}</span>
             </div>
 
