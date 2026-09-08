@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
 // ═══════════════════════════════════════════════════════════════
 // CENTRAL DE RETORNO — interface do sistema de retrabalho multicanal
@@ -125,7 +126,7 @@ export default function CentralRetorno() {
     return () => clearInterval(t)
   }, [carregarOverview])
 
-  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
+  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['crefaz', '💡 Crefaz'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
 
   return (
     <div style={{ maxWidth: 1180 }}>
@@ -151,6 +152,7 @@ export default function CentralRetorno() {
 
       {ov && tela === 'painel' && <Painel ov={ov} />}
       {tela === 'leads' && <Leads />}
+      {tela === 'crefaz' && <Crefaz />}
       {ov && tela === 'conectores' && <Conectores ov={ov} recarregar={carregarOverview} />}
       {tela === 'campanhas' && <Campanhas />}
       {tela === 'email' && <Email />}
@@ -905,5 +907,329 @@ function Modal({ titulo, fechar, children }) {
         {children}
       </div>
     </div>
+  )
+}
+
+// ═══════════════ CREFAZ — crédito na conta de luz ═══════════════
+// 08/09. Tela operacional: o operador consulta o CPF na Crefaz por fora e volta
+// aqui pra marcar o resultado.
+//
+// POR QUE LÊ A TABELA E NÃO A VIEW crefaz_planilha_consulta:
+// a view nao devolve o `id` (sem ele nao da pra fazer o UPDATE) e filtra
+// status='aguardando_consulta' (o que deixaria os filtros por pre-aprovado,
+// negado e enviado sem nada pra mostrar). Entao a lista sai de crefaz_fila com
+// elegivel=true, que e o mesmo conjunto da view mais os ja consultados.
+// As METRICAS seguem vindo da view crefaz_metricas, que ja soma tudo.
+//
+// TEMPO REAL: canal do Supabase Realtime na tabela crefaz_fila (habilitada em
+// 08/09, com replica identity full pro payload do UPDATE vir completo). O evento
+// atualiza a linha no estado sem refazer a consulta; as metricas, que sao
+// agregado, essas sim sao relidas a cada evento.
+//
+// Acesso: policies bruno_le_crefaz_fila / bruno_marca_crefaz_fila (por ID,
+// decisao do Bruno em 08/09 — so ele opera por enquanto).
+const STATUS_CREFAZ = {
+  aguardando_consulta:  { label: 'Aguardando consulta', cor: '#b45309', bg: 'rgba(180,83,9,.10)' },
+  pre_aprovado:         { label: 'Pré-aprovado',        cor: '#059669', bg: 'rgba(5,150,105,.10)' },
+  negado:               { label: 'Negado',              cor: '#dc2626', bg: 'rgba(220,38,38,.10)' },
+  enviado_atendimento:  { label: 'Enviado ao atendimento', cor: '#2563eb', bg: 'rgba(37,99,235,.10)' },
+  inelegivel:           { label: 'Inelegível',          cor: '#5b6b84', bg: 'rgba(15,23,42,.06)' },
+}
+const FILTROS_STATUS = [
+  ['todos', 'Todos'],
+  ['aguardando_consulta', '⏳ Aguardando'],
+  ['pre_aprovado', '✅ Pré-aprovado'],
+  ['negado', '❌ Negado'],
+  ['enviado_atendimento', '📤 Enviado'],
+]
+const soDigitos = (v) => String(v || '').replace(/\D/g, '')
+const cpfBonito = (v) => {
+  const n = soDigitos(v)
+  return n.length === 11 ? n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : (v || '—')
+}
+const telBonito = (v) => {
+  const n = soDigitos(v).replace(/^55/, '')
+  if (n.length === 11) return n.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  if (n.length === 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  return v || '—'
+}
+const inteiroBR = (v) => (v === null || v === undefined || v === '') ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR')
+const dataBR = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('pt-BR') } catch { return d } }
+
+function Crefaz() {
+  const { profile } = useAuth()
+  const [linhas, setLinhas] = useState(null)
+  const [metricas, setMetricas] = useState(null)
+  const [erro, setErro] = useState('')
+  const [aoVivo, setAoVivo] = useState(false)
+  const [pulso, setPulso] = useState(null)      // id da linha que acabou de mudar
+  const [salvando, setSalvando] = useState(null)
+  const [copiado, setCopiado] = useState(null)
+  const [valores, setValores] = useState({})    // rascunho do valor por linha
+
+  const [fStatus, setFStatus] = useState('aguardando_consulta')
+  const [fConcessionaria, setFConcessionaria] = useState('todas')
+  const [fUf, setFUf] = useState('todas')
+  const [fValorMin, setFValorMin] = useState('')
+  const [busca, setBusca] = useState('')
+  const [limite, setLimite] = useState(60)
+
+  const carregar = useCallback(async () => {
+    const [f, m] = await Promise.all([
+      supabase.from('crefaz_fila')
+        .select('id, nome, cpf, telefone, ddd, uf, concessionaria, valor_max, status, valor_pre_aprovado, consultado_em, consultado_por, enviado_atendimento_em, criado_em')
+        .eq('elegivel', true).order('criado_em', { ascending: true }),
+      supabase.from('crefaz_metricas').select('*').maybeSingle(),
+    ])
+    if (f.error) { setErro(f.error.message); setLinhas([]); return }
+    setErro('')
+    setLinhas(f.data || [])
+    if (!m.error) setMetricas(m.data)
+  }, [])
+
+  const soMetricas = useCallback(async () => {
+    const { data, error } = await supabase.from('crefaz_metricas').select('*').maybeSingle()
+    if (!error) setMetricas(data)
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  // tempo real: cada INSERT/UPDATE/DELETE da tabela chega por websocket
+  useEffect(() => {
+    const canal = supabase.channel('crefaz-fila-ao-vivo')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crefaz_fila' }, (ev) => {
+        const nova = ev.new, velha = ev.old
+        setLinhas(prev => {
+          if (!prev) return prev
+          if (ev.eventType === 'DELETE') return prev.filter(l => l.id !== velha?.id)
+          if (!nova?.elegivel) return prev.filter(l => l.id !== nova?.id)  // saiu da fila
+          const achou = prev.some(l => l.id === nova.id)
+          if (!achou) return [...prev, nova].sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em))
+          return prev.map(l => (l.id === nova.id ? { ...l, ...nova } : l))
+        })
+        if (nova?.id) { setPulso(nova.id); setTimeout(() => setPulso(p => (p === nova.id ? null : p)), 1800) }
+        soMetricas()
+      })
+      .subscribe(st => setAoVivo(st === 'SUBSCRIBED'))
+    return () => { supabase.removeChannel(canal) }
+  }, [soMetricas])
+
+  async function marcar(linha, novoStatus) {
+    setSalvando(linha.id)
+    const patch = { status: novoStatus }
+    if (novoStatus === 'pre_aprovado' || novoStatus === 'negado') {
+      patch.consultado_em = new Date().toISOString()
+      patch.consultado_por = profile?.nome || profile?.id || 'operador'
+    }
+    if (novoStatus === 'pre_aprovado') {
+      const bruto = soDigitos(valores[linha.id])
+      if (!bruto) { alert('Informe o valor liberado antes de marcar como pré-aprovado.'); setSalvando(null); return }
+      patch.valor_pre_aprovado = parseInt(bruto, 10)
+    }
+    if (novoStatus === 'enviado_atendimento') patch.enviado_atendimento_em = new Date().toISOString()
+
+    const { data, error } = await supabase.from('crefaz_fila').update(patch).eq('id', linha.id).select()
+    setSalvando(null)
+    if (error) { setErro(`Não salvou: ${error.message}`); return }
+    // sem policy de UPDATE o PostgREST devolve 0 linhas SEM erro — por isso a checagem
+    if (!data || data.length === 0) {
+      setErro('Nada foi gravado: seu login não tem permissão de escrita nesta fila. Nenhuma alteração foi feita.')
+      return
+    }
+    setErro('')
+    setLinhas(prev => prev.map(l => (l.id === linha.id ? { ...l, ...data[0] } : l)))
+    setValores(v => { const n = { ...v }; delete n[linha.id]; return n })
+  }
+
+  async function copiarCpf(cpf, id) {
+    try {
+      await navigator.clipboard.writeText(soDigitos(cpf))
+      setCopiado(id); setTimeout(() => setCopiado(c => (c === id ? null : c)), 1400)
+    } catch { alert('Não consegui copiar. CPF: ' + soDigitos(cpf)) }
+  }
+
+  const concessionarias = useMemo(
+    () => Array.from(new Set((linhas || []).map(l => l.concessionaria).filter(Boolean))).sort(),
+    [linhas])
+  const ufs = useMemo(
+    () => Array.from(new Set((linhas || []).map(l => l.uf).filter(Boolean))).sort(),
+    [linhas])
+
+  const filtradas = useMemo(() => {
+    const min = fValorMin ? Number(soDigitos(fValorMin)) : null
+    const b = busca.trim().toLowerCase()
+    const bDig = soDigitos(busca)
+    return (linhas || []).filter(l => {
+      if (fStatus !== 'todos' && l.status !== fStatus) return false
+      if (fConcessionaria !== 'todas' && l.concessionaria !== fConcessionaria) return false
+      if (fUf !== 'todas' && l.uf !== fUf) return false
+      if (min !== null && Number(l.valor_max || 0) < min) return false
+      if (b) {
+        if (bDig) return soDigitos(l.cpf).includes(bDig) || soDigitos(l.telefone).includes(bDig)
+        return (l.nome || '').toLowerCase().includes(b)
+      }
+      return true
+    })
+  }, [linhas, fStatus, fConcessionaria, fUf, fValorMin, busca])
+
+  useEffect(() => { setLimite(60) }, [fStatus, fConcessionaria, fUf, fValorMin, busca])
+  const visiveis = filtradas.slice(0, limite)
+  const contaPorStatus = useMemo(() => {
+    const m = {}
+    ;(linhas || []).forEach(l => { m[l.status] = (m[l.status] || 0) + 1 })
+    return m
+  }, [linhas])
+
+  const m = metricas || {}
+  return (
+    <>
+      <Secao icone="💡" titulo="Crédito na conta de luz (Crefaz)"
+        sub="Consulta manual na Crefaz — marque aqui o resultado de cada CPF."
+        acao={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: aoVivo ? OK : NEUTRO }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: aoVivo ? OK : '#94a3b8', display: 'inline-block' }} />
+            {aoVivo ? 'ao vivo' : 'conectando...'}
+          </span>
+        }>
+        <div style={s.grid(150)}>
+          <Kpi label="Total perguntados" valor={m.total_perguntados ?? '—'} />
+          <Kpi label="Com conta no nome" valor={m.com_conta_no_nome ?? '—'} sub={`${m.sem_conta_no_nome ?? 0} sem conta no nome`} />
+          <Kpi label="Elegíveis na fila" valor={m.elegiveis_fila ?? '—'} cor={ROSA} borda={ROSA}
+            sub={`${m.conta_mas_ddd_fora ?? 0} têm conta mas o DDD não é coberto`} />
+          <Kpi label="% elegível" valor={m.pct_elegivel != null ? `${m.pct_elegivel}%` : '—'} />
+          <Kpi label="Pré-aprovados" valor={m.pre_aprovados ?? '—'} cor={OK} borda={OK} />
+        </div>
+      </Secao>
+
+      {erro && <div style={{ ...s.erroBox, marginBottom: 12 }}>⚠ {erro}</div>}
+
+      <Secao titulo="Fila de consulta" sub={`${filtradas.length} de ${(linhas || []).length} elegíveis`}
+        acao={<button onClick={carregar} style={s.btn(NEUTRO)}>↻ Recarregar</button>}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+          {FILTROS_STATUS.map(([k, lbl]) => (
+            <button key={k} onClick={() => setFStatus(k)} style={s.chip(fStatus === k)}>
+              {lbl}{k !== 'todos' && contaPorStatus[k] ? ` · ${contaPorStatus[k]}` : ''}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginBottom: 12 }}>
+          <div>
+            <label style={s.label}>Buscar</label>
+            <input style={s.input} placeholder="nome, CPF ou telefone" value={busca} onChange={e => setBusca(e.target.value)} />
+          </div>
+          <div>
+            <label style={s.label}>Concessionária</label>
+            <select style={s.input} value={fConcessionaria} onChange={e => setFConcessionaria(e.target.value)}>
+              <option value="todas">Todas</option>
+              {concessionarias.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={s.label}>UF</label>
+            <select style={s.input} value={fUf} onChange={e => setFUf(e.target.value)}>
+              <option value="todas">Todas</option>
+              {ufs.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={s.label}>Valor máx. a partir de</label>
+            <input style={s.input} placeholder="ex.: 1000" inputMode="numeric"
+              value={fValorMin} onChange={e => setFValorMin(e.target.value)} />
+          </div>
+        </div>
+
+        {linhas === null ? (
+          <div style={s.vazio}>Carregando...</div>
+        ) : filtradas.length === 0 ? (
+          <div style={s.vazio}>Nenhum lead com esses filtros.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={s.tabela}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Entrada</th>
+                  <th style={s.th}>Cliente</th>
+                  <th style={s.th}>CPF</th>
+                  <th style={s.th}>Telefone</th>
+                  <th style={s.th}>Concessionária</th>
+                  <th style={s.th}>Valor máx.</th>
+                  <th style={s.th}>Status</th>
+                  <th style={s.th}>Marcar resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiveis.map(l => {
+                  const st = STATUS_CREFAZ[l.status] || { label: l.status, cor: NEUTRO, bg: 'rgba(15,23,42,.06)' }
+                  const pendente = l.status === 'aguardando_consulta'
+                  const ocupado = salvando === l.id
+                  return (
+                    <tr key={l.id} style={pulso === l.id ? { background: 'rgba(219,39,119,.07)' } : undefined}>
+                      <td style={s.td}>{dataBR(l.criado_em)}</td>
+                      <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>{l.nome || '—'}</td>
+                      <td style={s.td}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {cpfBonito(l.cpf)}
+                          <button onClick={() => copiarCpf(l.cpf, l.id)} title="copiar CPF"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: copiado === l.id ? OK : '#2563eb', padding: 0 }}>
+                            {copiado === l.id ? '✓ copiado' : '⧉ copiar'}
+                          </button>
+                        </span>
+                      </td>
+                      <td style={s.td}>{telBonito(l.telefone)}<span style={{ color: '#5b6b84' }}> · {l.ddd}/{l.uf}</span></td>
+                      <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>{l.concessionaria || '—'}</td>
+                      <td style={s.td}>{inteiroBR(l.valor_max)}</td>
+                      <td style={s.td}>
+                        <span style={s.badge(st.cor, st.bg)}>{st.label}</span>
+                        {l.status === 'pre_aprovado' && l.valor_pre_aprovado != null && (
+                          <div style={{ fontSize: 11, color: OK, marginTop: 3 }}>liberado {inteiroBR(l.valor_pre_aprovado)}</div>
+                        )}
+                        {l.consultado_em && (
+                          <div style={{ fontSize: 10.5, color: '#5b6b84', marginTop: 2 }}>
+                            {fmtBR(l.consultado_em)}{l.consultado_por ? ` · ${l.consultado_por}` : ''}
+                          </div>
+                        )}
+                      </td>
+                      <td style={s.td}>
+                        {pendente ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <input placeholder="valor" inputMode="numeric" disabled={ocupado}
+                              value={valores[l.id] || ''}
+                              onChange={e => setValores(v => ({ ...v, [l.id]: e.target.value }))}
+                              style={{ ...s.input, width: 86, padding: '5px 8px', fontSize: 12 }} />
+                            <button disabled={ocupado} onClick={() => marcar(l, 'pre_aprovado')} style={s.btn(OK)}>✅ Pré-aprovado</button>
+                            <button disabled={ocupado} onClick={() => marcar(l, 'negado')} style={s.btn(ERRO)}>❌ Negado</button>
+                          </div>
+                        ) : l.status === 'pre_aprovado' ? (
+                          <button disabled={ocupado} onClick={() => marcar(l, 'enviado_atendimento')} style={s.btn('#2563eb')}>
+                            📤 Enviado ao atendimento
+                          </button>
+                        ) : l.status === 'enviado_atendimento' ? (
+                          <span style={{ fontSize: 11.5, color: '#5b6b84' }}>
+                            {l.enviado_atendimento_em ? `em ${fmtBR(l.enviado_atendimento_em)}` : 'enviado'}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 11.5, color: '#5b6b84' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {filtradas.length > visiveis.length && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button onClick={() => setLimite(n => n + 60)} style={s.btn(NEUTRO)}>
+                  ver mais {Math.min(60, filtradas.length - visiveis.length)} de {filtradas.length - visiveis.length}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <div style={s.nota}>
+          A regra de DDD e cobertura fica no backend — esta tela só lê a fila e grava o resultado da consulta.
+        </div>
+      </Secao>
+    </>
   )
 }
