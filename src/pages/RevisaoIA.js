@@ -149,12 +149,47 @@ export default function RevisaoIA() {
     setLoading(false)
   }
 
+  // === 08/09 — TRAVA DE ANEXO NAO SALVO ===
+  // O upload sobe pro bucket na hora, mas o vinculo com o cliente so e gravado
+  // quando alguem clica em "Salvar doc(s)". Quem anexava e trocava de cliente
+  // perdia tudo em silencio: o arquivo ficava em documentos-clientes/agatha/<id>/
+  // e o cadastro ficava sem nada. Medido em 08/09: 237 arquivos em 79 clientes,
+  // 4% de tudo que passou por esta tela (pico em maio: 180 arquivos, 50 clientes).
+  // Caso tipico: DANIELA MACIEL DO PRADO, 13/08 — RG frente, RG verso e
+  // comprovante de gravidez no bucket, cadastro vazio, cliente ja validada.
+  // Agora nenhuma saida acontece sem confirmacao explicita.
+  const temPendente = Object.keys(docsNovos).length > 0
+
+  function podeSair(oQueVaiFazer) {
+    if (!temPendente) return true
+    return window.confirm(
+      `⚠️ Você anexou ${Object.keys(docsNovos).length} documento(s) e ainda NÃO clicou em "Salvar doc(s)".\n\n` +
+      `Se ${oQueVaiFazer} agora, esses arquivos NÃO vão ficar no cadastro do cliente.\n\n` +
+      `Clique em Cancelar e depois em "💾 Salvar doc(s)" para não perder.`
+    )
+  }
+
+  function fecharCliente() {
+    if (!podeSair('fechar')) return
+    setSelecionado(null)
+    setDocsNovos({})
+  }
+
   function abrirCliente(c) {
+    if (selecionado && c.id !== selecionado.id && !podeSair('abrir outro cliente')) return
     setSelecionado(c)
     setDocsNovos({})
     setErro('')
     setSucesso('')
   }
+
+  // fechar a aba ou dar refresh com anexo pendente tambem avisa
+  useEffect(() => {
+    if (!temPendente) return
+    const h = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', h)
+    return () => window.removeEventListener('beforeunload', h)
+  }, [temPendente])
 
   async function uploadDoc(tipo, file) {
     if (!file || !selecionado) return
@@ -199,6 +234,8 @@ export default function RevisaoIA() {
 
   async function validar() {
     if (!selecionado || !profile) return
+    // validar tira o cliente da fila: sair daqui com anexo pendente e o pior caso
+    if (!podeSair('validar')) return
     if (!window.confirm(`Validar ${selecionado.nome} e enviar pra pós-venda da Luciane?`)) return
     setSalvando(true)
     setErro('')
@@ -222,6 +259,7 @@ export default function RevisaoIA() {
 
   async function barrar() {
     if (!selecionado || !profile || !motivoBarrar) return
+    if (!podeSair('barrar')) return
     setSalvando(true)
     setErro('')
     try {
@@ -355,7 +393,7 @@ export default function RevisaoIA() {
                   {estiloProduto(selecionado.produto).label}
                 </span>
               </div>
-              <button onClick={() => setSelecionado(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#5b6b84' }}>✕</button>
+              <button onClick={fecharCliente} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: temPendente ? '#b45309' : '#5b6b84' }} title={temPendente ? 'Há documento não salvo' : 'Fechar'}>✕</button>
             </div>
 
             {/* Dados básicos */}
@@ -445,11 +483,20 @@ export default function RevisaoIA() {
                   </div>
                 ))}
               </div>
-              {Object.keys(docsNovos).length > 0 && (
-                <button onClick={salvarDocs} disabled={salvando}
-                  style={{ marginTop: 12, padding: '8px 16px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
-                  💾 Salvar {Object.keys(docsNovos).length} doc(s)
-                </button>
+              {temPendente && (
+                <div style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(251,191,36,.14)', border: '1.5px solid #f59e0b', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12.5, color: '#b45309', fontWeight: 600, marginBottom: 8 }}>
+                    ⚠️ {Object.keys(docsNovos).length} documento(s) enviado(s) mas AINDA NÃO salvo(s) no cadastro
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#7c2d12', marginBottom: 10, lineHeight: 1.5 }}>
+                    O arquivo já subiu, mas só entra na ficha da cliente depois deste botão.
+                    Se sair sem clicar, ele não aparece na aba Clientes.
+                  </div>
+                  <button onClick={salvarDocs} disabled={salvando}
+                    style={{ padding: '10px 20px', background: '#f59e0b', color: '#231a07', border: 'none', borderRadius: 6, cursor: salvando ? 'wait' : 'pointer', fontSize: 13.5, fontWeight: 700 }}>
+                    {salvando ? '⏳ Salvando...' : `💾 Salvar ${Object.keys(docsNovos).length} doc(s) no cadastro`}
+                  </button>
+                </div>
               )}
             </Section>
 
