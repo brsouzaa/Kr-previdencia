@@ -942,6 +942,57 @@ const FILTROS_STATUS = [
   ['negado', '❌ Negado'],
   ['enviado_atendimento', '📤 Enviado'],
 ]
+// CEP sugerido por DDD — 08/09.
+// Serve SO pra preencher o campo de CEP da simulacao na Crefaz: e o centro da
+// cidade principal daquele DDD, nao o endereco do cliente. Fica no arquivo (e
+// nao no banco) por decisao do Bruno em 08/09.
+//
+// ATENCAO aos DDDs marcados `varias: true`. Neles a tabela crefaz_cobertura_ddd
+// lista MAIS DE UMA distribuidora (11 = Enel SP / CPFL / Elektro; 12, 13, 17 e
+// 18 = CPFL / Elektro), e e o CEP que decide qual delas atende — o que muda o
+// teto: CPFL vai a R$ 4.000, Elektro para em R$ 2.000. Sao 62 dos 221 da fila
+// (28%). Nesses a tela avisa que o CEP e aproximado; nos outros 22 a
+// concessionaria e unica e qualquer CEP da regiao serve.
+const CEP_POR_DDD = {
+  // BA — Coelba (unica)
+  '71': { cep: '40020-000', cidade: 'Salvador' },
+  '73': { cep: '45600-000', cidade: 'Itabuna' },
+  '74': { cep: '48900-000', cidade: 'Juazeiro' },
+  '75': { cep: '44001-000', cidade: 'Feira de Santana' },
+  '77': { cep: '45000-000', cidade: 'Vitória da Conquista' },
+  // CE — Enel CE (unica)
+  '85': { cep: '60060-000', cidade: 'Fortaleza' },
+  '88': { cep: '62010-000', cidade: 'Sobral' },
+  // MS — Elektro (unica)
+  '67': { cep: '79002-000', cidade: 'Campo Grande' },
+  // PE — Celpe (unica)
+  '81': { cep: '50010-000', cidade: 'Recife' },
+  '87': { cep: '56302-000', cidade: 'Petrolina' },
+  // RJ — Enel RJ (unica)
+  '21': { cep: '20031-000', cidade: 'Rio de Janeiro' },
+  '22': { cep: '28010-000', cidade: 'Campos dos Goytacazes' },
+  '24': { cep: '27210-000', cidade: 'Volta Redonda' },
+  // RN — Cosern (unica)
+  '84': { cep: '59012-000', cidade: 'Natal' },
+  // RS — RGE (unica)
+  '51': { cep: '90010-000', cidade: 'Porto Alegre' },
+  '53': { cep: '96010-000', cidade: 'Pelotas' },
+  '54': { cep: '95010-000', cidade: 'Caxias do Sul' },
+  '55': { cep: '97010-000', cidade: 'Santa Maria' },
+  // SP — CPFL sozinha nesses quatro
+  '14': { cep: '17010-000', cidade: 'Bauru' },
+  '15': { cep: '18010-000', cidade: 'Sorocaba' },
+  '16': { cep: '14010-000', cidade: 'Ribeirão Preto' },
+  '19': { cep: '13010-000', cidade: 'Campinas' },
+  // SP — mais de uma distribuidora no mesmo DDD: o CEP decide qual
+  '11': { cep: '01001-000', cidade: 'São Paulo', varias: true },
+  '12': { cep: '12210-000', cidade: 'São José dos Campos', varias: true },
+  '13': { cep: '11010-000', cidade: 'Santos', varias: true },
+  '17': { cep: '15010-000', cidade: 'São José do Rio Preto', varias: true },
+  '18': { cep: '19010-000', cidade: 'Presidente Prudente', varias: true },
+}
+const cepDoDdd = (ddd) => CEP_POR_DDD[String(ddd || '').trim()] || null
+
 const soDigitos = (v) => String(v || '').replace(/\D/g, '')
 const cpfBonito = (v) => {
   const n = soDigitos(v)
@@ -1041,11 +1092,13 @@ function Crefaz() {
     setValores(v => { const n = { ...v }; delete n[linha.id]; return n })
   }
 
-  async function copiarCpf(cpf, id) {
+  // copia so digitos: CPF e CEP entram na Crefaz sem mascara
+  async function copiar(texto, chave, rotulo) {
+    const limpo = soDigitos(texto)
     try {
-      await navigator.clipboard.writeText(soDigitos(cpf))
-      setCopiado(id); setTimeout(() => setCopiado(c => (c === id ? null : c)), 1400)
-    } catch { alert('Não consegui copiar. CPF: ' + soDigitos(cpf)) }
+      await navigator.clipboard.writeText(limpo)
+      setCopiado(chave); setTimeout(() => setCopiado(c => (c === chave ? null : c)), 1400)
+    } catch { alert(`Não consegui copiar. ${rotulo}: ${limpo}`) }
   }
 
   const concessionarias = useMemo(
@@ -1163,6 +1216,7 @@ function Crefaz() {
                   const st = STATUS_CREFAZ[l.status] || { label: l.status, cor: NEUTRO, bg: 'rgba(15,23,42,.06)' }
                   const pendente = l.status === 'aguardando_consulta'
                   const ocupado = salvando === l.id
+                  const cep = cepDoDdd(l.ddd)
                   return (
                     <tr key={l.id} style={pulso === l.id ? { background: 'rgba(219,39,119,.07)' } : undefined}>
                       <td style={s.td}>{dataBR(l.criado_em)}</td>
@@ -1170,14 +1224,33 @@ function Crefaz() {
                       <td style={s.td}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {cpfBonito(l.cpf)}
-                          <button onClick={() => copiarCpf(l.cpf, l.id)} title="copiar CPF"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: copiado === l.id ? OK : '#2563eb', padding: 0 }}>
-                            {copiado === l.id ? '✓ copiado' : '⧉ copiar'}
+                          <button onClick={() => copiar(l.cpf, `cpf-${l.id}`, 'CPF')} title="copiar CPF"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: copiado === `cpf-${l.id}` ? OK : '#2563eb', padding: 0 }}>
+                            {copiado === `cpf-${l.id}` ? '✓ copiado' : '⧉ copiar'}
                           </button>
                         </span>
                       </td>
                       <td style={s.td}>{telBonito(l.telefone)}<span style={{ color: '#5b6b84' }}> · {l.ddd}/{l.uf}</span></td>
-                      <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>{l.concessionaria || '—'}</td>
+                      <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>
+                        {l.concessionaria || '—'}
+                        {cep && (
+                          <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11.5, color: '#5b6b84', fontVariantNumeric: 'tabular-nums' }}>
+                              CEP {cep.cep}
+                            </span>
+                            <button onClick={() => copiar(cep.cep, `cep-${l.id}`, 'CEP')} title={`CEP de ${cep.cidade} — para a simulação`}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: copiado === `cep-${l.id}` ? OK : '#2563eb', padding: 0 }}>
+                              {copiado === `cep-${l.id}` ? '✓ copiado' : '⧉ copiar'}
+                            </button>
+                            {cep.varias && (
+                              <span title="Neste DDD há mais de uma distribuidora e o CEP é que define qual atende — confira o teto que a simulação devolver."
+                                style={{ fontSize: 10.5, color: ALERTA, fontWeight: 600, cursor: 'help' }}>
+                                ⚠ aprox.
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td style={s.td}>{inteiroBR(l.valor_max)}</td>
                       <td style={s.td}>
                         <span style={s.badge(st.cor, st.bg)}>{st.label}</span>
@@ -1228,6 +1301,10 @@ function Crefaz() {
         )}
         <div style={s.nota}>
           A regra de DDD e cobertura fica no backend — esta tela só lê a fila e grava o resultado da consulta.
+          <br />
+          O <b>CEP</b> ao lado da concessionária é o centro da cidade principal daquele DDD, para preencher a
+          simulação — não é o endereço do cliente. Onde aparece <b style={{ color: ALERTA }}>⚠ aprox.</b> existe
+          mais de uma distribuidora no mesmo DDD e é o CEP que define qual atende, então o teto pode vir diferente.
         </div>
       </Secao>
     </>
