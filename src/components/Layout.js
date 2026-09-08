@@ -46,6 +46,7 @@ const IDS_ACESSO_CLIENTES = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
+  'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
 ]
 
 // Supervisao Producao por ID (mesma lista do App.js — se as duas nao baterem,
