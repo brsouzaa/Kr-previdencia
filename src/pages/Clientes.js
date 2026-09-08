@@ -6,30 +6,30 @@ import { cores } from '../lib/tema'
 const URL_STORAGE = 'https://sdqslzpfbazehqcvibjy.supabase.co/storage/v1/object/comprovantes-mae/'
 
 const STATUS_INFO = {
-  aguardando_emissao:      { label: 'Aguardando emissão', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: '⏳' },
-  emitido:                 { label: 'Emitido', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📨' },
-  assinado:                { label: 'Assinado', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '🏆' },
-  aguardando_pos_venda:    { label: 'Assinou — pós-venda vai ligar', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📞' },
-  em_contato_pos_venda:    { label: 'Pós-venda em contato', cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: '📞' },
-  validado_pos_venda:      { label: 'Validado pós-venda', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '✓' },
-  barrado_pos_venda:       { label: 'Barrado pós-venda', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '❌' },
-  em_validacao:            { label: 'Em validação', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '🔍' },
-  validado:                { label: 'Validado', cor: '#34d399', bg: 'rgba(52,211,153,.14)', icon: '✅' },
-  entregue:                { label: 'Entregue', cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: '📦' },
-  devolvido_correcao_doc:  { label: 'Devolvido — corrigir doc', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
-  devolvido_reemissao:     { label: 'Devolvido — reemitir', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
-  expirado:                { label: 'Expirou', cor: '#f87171', bg: 'rgba(248,113,113,.14)', icon: '⌛' },
-  cancelado:               { label: 'Cancelado', cor: '#8b9bb4', bg: '#2b3340', icon: '❌' },
-  aguardando_revisao_ia:   { label: 'Aguardando revisão IA', cor: '#a78bfa', bg: 'rgba(167,139,250,.14)', icon: '🤖' },
+  aguardando_emissao:      { label: 'Aguardando emissão', cor: '#b45309', bg: 'rgba(251,191,36,.12)', icon: '⏳' },
+  emitido:                 { label: 'Emitido', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📨' },
+  assinado:                { label: 'Assinado', cor: '#15803d', bg: 'rgba(52,211,153,.14)', icon: '🏆' },
+  aguardando_pos_venda:    { label: 'Assinou — pós-venda vai ligar', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📞' },
+  em_contato_pos_venda:    { label: 'Pós-venda em contato', cor: '#b45309', bg: 'rgba(251,191,36,.12)', icon: '📞' },
+  validado_pos_venda:      { label: 'Validado pós-venda', cor: '#15803d', bg: 'rgba(52,211,153,.14)', icon: '✓' },
+  barrado_pos_venda:       { label: 'Barrado pós-venda', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '❌' },
+  em_validacao:            { label: 'Em validação', cor: '#15803d', bg: 'rgba(52,211,153,.14)', icon: '🔍' },
+  validado:                { label: 'Validado', cor: '#15803d', bg: 'rgba(52,211,153,.14)', icon: '✅' },
+  entregue:                { label: 'Entregue', cor: '#2563eb', bg: 'rgba(96,165,250,.12)', icon: '📦' },
+  devolvido_correcao_doc:  { label: 'Devolvido — corrigir doc', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
+  devolvido_reemissao:     { label: 'Devolvido — reemitir', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⚠️' },
+  expirado:                { label: 'Expirou', cor: '#dc2626', bg: 'rgba(248,113,113,.14)', icon: '⌛' },
+  cancelado:               { label: 'Cancelado', cor: '#475569', bg: 'rgba(15,23,42,.07)', icon: '❌' },
+  aguardando_revisao_ia:   { label: 'Aguardando revisão IA', cor: '#7c3aed', bg: 'rgba(167,139,250,.14)', icon: '🤖' },
 }
 
 const PRODUTO_ESTILO = {
-  'Maternidade': { cor: '#f472b6', bg: 'rgba(244,114,182,.12)', label: 'Maternidade' },
-  'Maternidade Mãe': { cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', label: 'Maternidade Mãe' },
-  'Gestante até 5 meses': { cor: '#60a5fa', bg: 'rgba(96,165,250,.12)', label: 'Gestante até 5 meses' },
-  'Pensão por Morte': { cor: '#94a3b8', bg: '#2b3340', label: 'Pensão por Morte' },
-  'BPC': { cor: '#34d399', bg: 'rgba(52,211,153,.14)', label: 'BPC' },
-  'Auxilio Acidente': { cor: '#fbbf24', bg: 'rgba(251,191,36,.12)', label: 'Auxílio Acidente' },
+  'Maternidade': { cor: '#db2777', bg: 'rgba(244,114,182,.12)', label: 'Maternidade' },
+  'Maternidade Mãe': { cor: '#b45309', bg: 'rgba(251,191,36,.12)', label: 'Maternidade Mãe' },
+  'Gestante até 5 meses': { cor: '#2563eb', bg: 'rgba(96,165,250,.12)', label: 'Gestante até 5 meses' },
+  'Pensão por Morte': { cor: '#475569', bg: 'rgba(15,23,42,.07)', label: 'Pensão por Morte' },
+  'BPC': { cor: '#15803d', bg: 'rgba(52,211,153,.14)', label: 'BPC' },
+  'Auxilio Acidente': { cor: '#b45309', bg: 'rgba(251,191,36,.12)', label: 'Auxílio Acidente' },
 }
 
 const DOC_LABELS = {
@@ -139,7 +139,7 @@ function formatarDataBr(dt) {
 function Campo({ label, valor, cor }) {
   if (valor === undefined || valor === null || valor === '') return null
   return (
-    <div style={{ fontSize: 13, color: cor || '#cbd5e1', minWidth: 0 }}>
+    <div style={{ fontSize: 13, color: cor || '#334155', minWidth: 0 }}>
       <div style={{ color: cores.suave, fontSize: 11, marginBottom: 1 }}>{label}</div>
       <div style={{ wordBreak: 'break-word' }}>{valor}</div>
     </div>
@@ -174,15 +174,15 @@ function SubstituirDocumento({ label, url, clienteId, chave, onSalvarDoc }) {
       <span style={{ color: cores.suave, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
       {url ? (
         <>
-          <a href={url} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline', whiteSpace: 'nowrap' }}>✓ ver</a>
+          <a href={url} target="_blank" rel="noreferrer" style={{ color: '#15803d', textDecoration: 'underline', whiteSpace: 'nowrap' }}>✓ ver</a>
           <button onClick={() => inputRef.current?.click()} disabled={enviando}
-            style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+            style={{ background: 'none', border: 'none', color: '#2563eb', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
             {enviando ? '⏳ subindo...' : '🔄 substituir'}
           </button>
         </>
       ) : (
         <button onClick={() => inputRef.current?.click()} disabled={enviando}
-          style={{ background: 'rgba(96,165,250,.12)', border: '1px solid rgba(96,165,250,.30)', color: '#60a5fa', borderRadius: 6, padding: '3px 8px', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
+          style={{ background: 'rgba(96,165,250,.12)', border: '1px solid rgba(96,165,250,.30)', color: '#2563eb', borderRadius: 6, padding: '3px 8px', cursor: enviando ? 'wait' : 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
           {enviando ? '⏳ subindo...' : '➕ anexar'}
         </button>
       )}
@@ -194,8 +194,8 @@ function SubstituirDocumento({ label, url, clienteId, chave, onSalvarDoc }) {
 
 function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
   if (!c) return null
-  const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
-  const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
+  const info = STATUS_INFO[c.status] || { cor: '#5b6b84', bg: 'rgba(15,23,42,.07)', label: c.status, icon: '' }
+  const prod = PRODUTO_ESTILO[c.produto] || { cor: '#5b6b84', bg: 'rgba(15,23,42,.07)', label: c.produto }
   const docs = c.documentos || {}
   const chaves = chavesDe(c.produto, docs)
   const anexados = chaves.filter(k => docs[k])
@@ -262,7 +262,7 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
             <div style={{ gridColumn: '1 / -1' }}>
               <Campo
                 label="⚖️ Advogado do contrato"
-                cor={adv ? '#a78bfa' : cores.suave}
+                cor={adv ? '#7c3aed' : cores.suave}
                 valor={adv
                   ? [adv.nome, adv.oab ? `OAB ${adv.oab}${adv.uf ? '/' + adv.uf : ''}` : null, adv.cidade]
                       .filter(Boolean).join(' · ')
@@ -286,8 +286,8 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
           <>
             <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>💬 Observações</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {c.observacao && <div style={{ fontSize: 12.5, color: '#cbd5e1', padding: '6px 10px', background: 'rgba(255,255,255,.04)', borderRadius: 6, fontStyle: 'italic' }}>"{c.observacao}"</div>}
-              {c.pos_venda_observacao && <div style={{ fontSize: 12.5, color: '#cbd5e1', padding: '6px 10px', background: 'rgba(251,191,36,.08)', borderRadius: 6 }}>🛎️ Pós-venda: {c.pos_venda_observacao}</div>}
+              {c.observacao && <div style={{ fontSize: 12.5, color: '#334155', padding: '6px 10px', background: 'rgba(255,255,255,.04)', borderRadius: 6, fontStyle: 'italic' }}>"{c.observacao}"</div>}
+              {c.pos_venda_observacao && <div style={{ fontSize: 12.5, color: '#334155', padding: '6px 10px', background: 'rgba(251,191,36,.08)', borderRadius: 6 }}>🛎️ Pós-venda: {c.pos_venda_observacao}</div>}
             </div>
           </>
         )}
@@ -307,13 +307,13 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
               <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
                 {p.gerid && (
                   <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#2563eb', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                     🖨️ Print GERID
                   </a>
                 )}
                 {p.cnis && (
                   <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#2563eb', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                     🖨️ Print CNIS
                   </a>
                 )}
@@ -321,7 +321,7 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
             ))}
             {c.link_assinatura && (
               <a href={c.link_assinatura} target="_blank" rel="noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#7c3aed', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
                 📨 Contrato de assinatura
               </a>
             )}
@@ -338,6 +338,83 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
   )
 }
 
+// 08/09 — filtros de Periodo, Produto e Advogado viraram menu flutuante.
+// Antes eram fileiras de chips ocupando ~200px de altura antes do primeiro
+// cliente aparecer. Agora e uma barra de tres botoes; o painel abre por cima.
+//
+// Nota de implementacao: e dropdown classico (position:absolute + clique fora +
+// ESC), nao a Popover API. A Popover API daria light-dismiss e camada de topo de
+// graca, mas as props `popover`/`popovertarget` so viraram nativas no React 19 e
+// este projeto esta no React 18.2 — usa-las aqui exigiria mexer via ref. Trinta
+// linhas previsiveis valem mais que a gambiarra.
+function MenuFiltro({ rotulo, icone, resumo, ativo, children, largura = 260 }) {
+  const [aberto, setAberto] = useState(false)
+  const caixaRef = useRef(null)
+
+  useEffect(() => {
+    if (!aberto) return
+    const clicouFora = e => { if (caixaRef.current && !caixaRef.current.contains(e.target)) setAberto(false) }
+    const apertouEsc = e => { if (e.key === 'Escape') setAberto(false) }
+    document.addEventListener('mousedown', clicouFora)
+    document.addEventListener('keydown', apertouEsc)
+    return () => {
+      document.removeEventListener('mousedown', clicouFora)
+      document.removeEventListener('keydown', apertouEsc)
+    }
+  }, [aberto])
+
+  return (
+    <div ref={caixaRef} style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setAberto(a => !a)}
+        aria-expanded={aberto}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px',
+          borderRadius: 10, cursor: 'pointer', fontSize: 12.5, maxWidth: 300,
+          background: ativo ? 'rgba(37,99,235,.08)' : cores.card,
+          border: `1px solid ${ativo ? '#2563eb' : 'rgba(15,23,42,.14)'}`,
+          color: ativo ? '#1d4ed8' : cores.texto,
+          fontWeight: ativo ? 600 : 500,
+        }}>
+        <span style={{ color: cores.suave, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+          {icone} {rotulo}
+        </span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resumo}</span>
+        <span style={{ color: cores.suave, fontSize: 10 }}>{aberto ? '▲' : '▼'}</span>
+      </button>
+
+      {aberto && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 60,
+          width: largura, maxWidth: '90vw', maxHeight: 380, overflowY: 'auto',
+          background: cores.card, border: '1px solid rgba(15,23,42,.14)',
+          borderRadius: 12, boxShadow: '0 12px 32px rgba(15,23,42,.16)', padding: 6,
+        }}
+          onClick={e => { if (e.target.dataset?.fecha === '1') setAberto(false) }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ItemMenu({ ativo, onClick, children, cor }) {
+  return (
+    <button type="button" onClick={onClick} data-fecha="1"
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: 8,
+        border: 'none', cursor: 'pointer', fontSize: 12.5,
+        background: ativo ? 'rgba(37,99,235,.10)' : 'transparent',
+        color: ativo ? '#1d4ed8' : (cor || cores.texto),
+        fontWeight: ativo ? 600 : 500,
+      }}
+      onMouseEnter={e => { if (!ativo) e.currentTarget.style.background = 'rgba(15,23,42,.05)' }}
+      onMouseLeave={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}>
+      {children}
+    </button>
+  )
+}
+
 export default function Clientes() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -349,6 +426,7 @@ export default function Clientes() {
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [filtroProduto, setFiltroProduto] = useState('todos')
   const [filtroAdvogado, setFiltroAdvogado] = useState('todos')
+  const [buscaAdvogado, setBuscaAdvogado] = useState('')
   const [soDocumentos, setSoDocumentos] = useState(false)
   const [selecionado, setSelecionado] = useState(null)
   const [limite, setLimite] = useState(80)
@@ -463,6 +541,13 @@ export default function Clientes() {
     () => clientes.filter(c => c.link_assinatura && !advogadoDe(c)).length,
     [clientes]
   )
+  const advogadosFiltrados = useMemo(() => {
+    const t = buscaAdvogado.trim().toLowerCase()
+    if (!t) return advogados
+    // sem acento: "gabriela moraes" acha "Gabriela Barbosa Morães"
+    const limpo = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    return advogados.filter(([nome]) => limpo(nome).includes(limpo(t)))
+  }, [advogados, buscaAdvogado])
   const countComDoc = useMemo(() => clientes.filter(temDoc).length, [clientes, temDoc])
 
   const filtrados = useMemo(() => {
@@ -500,22 +585,31 @@ export default function Clientes() {
     + (filtroAdvogado !== 'todos' ? 1 : 0) + (soDocumentos ? 1 : 0) + (busca.trim() ? 1 : 0)
   const limparFiltros = () => {
     setFiltroStatus('todos'); setFiltroProduto('todos'); setFiltroAdvogado('todos')
-    setSoDocumentos(false); setBusca('')
+    setSoDocumentos(false); setBusca(''); setBuscaAdvogado('')
   }
 
   const visiveis = filtrados.slice(0, limite)
   const restantes = filtrados.length - visiveis.length
 
   const s = {
+    // 08/09 — contraste. O conteudo do CRM e claro (tema.js: fundo #f2f5fa,
+    // card #ffffff) mas esta tela ainda usava a paleta "Viva" do tema escuro:
+    // #34d399, #60a5fa, #a78bfa, #fbbf24, #cbd5e1. Sobre branco isso da de
+    // 1,6:1 a 3:1 — abaixo do minimo legivel (4,5:1). Trocado pelos tons
+    // escuros equivalentes (#15803d, #2563eb, #7c3aed, #b45309, #334155),
+    // todos acima de 4,5:1. O chip ativo tambem inverteu: antes pintava o
+    // fundo com a cor e escrevia em #0b1220 — com cor escura ficava escuro
+    // sobre escuro. Agora ativo = fundo colorido + texto branco.
     chip: (ativo, cor, bg) => ({
       padding: '6px 12px', fontSize: 12, borderRadius: 16,
-      background: ativo ? cor : bg, color: ativo ? '#0b1220' : cor,
-      border: `1px solid ${cor}40`, cursor: 'pointer', fontWeight: 500,
-      whiteSpace: 'nowrap',
+      background: ativo ? cor : bg, color: ativo ? '#ffffff' : cor,
+      border: `1px solid ${ativo ? cor : cor + '55'}`, cursor: 'pointer',
+      fontWeight: ativo ? 600 : 500, whiteSpace: 'nowrap',
     }),
     badge: (cor, bg) => ({
       display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11,
-      fontWeight: 500, color: cor, background: bg, whiteSpace: 'nowrap',
+      fontWeight: 600, color: cor, background: bg, whiteSpace: 'nowrap',
+      boxShadow: `inset 0 0 0 1px ${cor}33`,
     }),
     // 08/09 — os filtros viraram um painel unico com rotulo em cada grupo.
     // Antes eram tres fileiras de chips soltas, sem dizer o que cada uma filtrava.
@@ -558,53 +652,74 @@ export default function Clientes() {
         value={busca} onChange={e => setBusca(e.target.value)} />
 
       <div style={s.painel}>
-        <div style={s.grupo}>
-          <div style={s.rotulo}>Período</div>
-          <div style={s.linhaChips}>
+        {/* barra de menus flutuantes: Periodo, Produto, Advogado */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', paddingBottom: 4 }}>
+          <MenuFiltro rotulo="Período" icone="🗓️" largura={230}
+            ativo={periodo !== 'todos'}
+            resumo={(PERIODOS.find(p => p.chave === periodo) || PERIODOS[0]).label}>
             {PERIODOS.map(p => (
-              <button key={p.chave} style={s.chip(periodo === p.chave, '#38bdf8', 'rgba(56,189,248,.10)')} onClick={() => setPeriodo(p.chave)}>
-                {p.label}
-              </button>
+              <ItemMenu key={p.chave} ativo={periodo === p.chave} onClick={() => setPeriodo(p.chave)}>
+                <span>{p.label}</span>
+                {periodo === p.chave && <span>✓</span>}
+              </ItemMenu>
             ))}
-          </div>
-        </div>
+          </MenuFiltro>
 
-        <div style={s.divisor} />
-
-        <div style={s.grupo}>
-          <div style={s.rotulo}>Produto</div>
-          <div style={s.linhaChips}>
-            <button style={s.chip(filtroProduto === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroProduto('todos')}>Todos</button>
+          <MenuFiltro rotulo="Produto" icone="📦" largura={250}
+            ativo={filtroProduto !== 'todos'}
+            resumo={filtroProduto === 'todos' ? 'Todos' : (PRODUTO_ESTILO[filtroProduto]?.label || filtroProduto)}>
+            <ItemMenu ativo={filtroProduto === 'todos'} onClick={() => setFiltroProduto('todos')}>
+              <span>Todos os produtos</span>
+              <span style={{ color: cores.suave, fontSize: 11 }}>{clientes.length}</span>
+            </ItemMenu>
             {produtos.map(p => {
-              const st = PRODUTO_ESTILO[p] || { cor: '#94a3b8', bg: '#2b3340' }
+              const st = PRODUTO_ESTILO[p] || { cor: cores.texto, label: p }
+              const n = clientes.filter(c => c.produto === p).length
               return (
-                <button key={p} style={s.chip(filtroProduto === p, st.cor, st.bg)} onClick={() => setFiltroProduto(p)}>
-                  {st.label}
-                </button>
+                <ItemMenu key={p} ativo={filtroProduto === p} cor={st.cor} onClick={() => setFiltroProduto(p)}>
+                  <span>{st.label}</span>
+                  <span style={{ color: cores.suave, fontSize: 11 }}>{n}</span>
+                </ItemMenu>
               )
             })}
-          </div>
-        </div>
+          </MenuFiltro>
 
-        <div style={s.divisor} />
-
-        {/* 08/09 — filtro por advogado. Select em vez de chip: sao dezenas de nomes
-            e viraria uma parede de botoes. Ordenado por volume, com a contagem. */}
-        <div style={s.grupo}>
-          <div style={s.rotulo}>⚖️ Advogado</div>
-          <div style={{ ...s.linhaChips, alignItems: 'center' }}>
-            <select style={{ ...s.select, borderColor: filtroAdvogado !== 'todos' ? '#a78bfa' : cores.cardBorda, color: filtroAdvogado !== 'todos' ? '#a78bfa' : cores.texto }}
-              value={filtroAdvogado} onChange={e => setFiltroAdvogado(e.target.value)}>
-              <option value="todos">Todos os advogados{advogados.length ? ` (${advogados.length})` : ''}</option>
-              {semAdvogado > 0 && <option value="__sem__">⚠️ Emitiu sem advogado registrado · {semAdvogado}</option>}
-              {advogados.map(([nome, n]) => (
-                <option key={nome} value={nome}>{nome} · {n}</option>
-              ))}
-            </select>
-            {advogados.length === 0 && (
-              <span style={{ fontSize: 11.5, color: cores.suave }}>nenhum contrato emitido no período</span>
+          {/* Advogado tem ~126 nomes: o menu traz busca e rolagem, coisa que a
+              lista de chips nao aguentava e o select nativo nao oferece. */}
+          <MenuFiltro rotulo="Advogado" icone="⚖️" largura={330}
+            ativo={filtroAdvogado !== 'todos'}
+            resumo={filtroAdvogado === 'todos'
+              ? `Todos${advogados.length ? ` (${advogados.length})` : ''}`
+              : (filtroAdvogado === '__sem__' ? 'Sem advogado registrado' : filtroAdvogado)}>
+            <input autoFocus value={buscaAdvogado} onChange={e => setBuscaAdvogado(e.target.value)}
+              placeholder="🔍 Buscar advogado..."
+              onClick={e => e.stopPropagation()}
+              style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, marginBottom: 4, boxSizing: 'border-box' }} />
+            <ItemMenu ativo={filtroAdvogado === 'todos'} onClick={() => { setFiltroAdvogado('todos'); setBuscaAdvogado('') }}>
+              <span>Todos os advogados</span>
+              <span style={{ color: cores.suave, fontSize: 11 }}>{advogados.length}</span>
+            </ItemMenu>
+            {semAdvogado > 0 && (
+              <ItemMenu ativo={filtroAdvogado === '__sem__'} cor="#b45309"
+                onClick={() => { setFiltroAdvogado('__sem__'); setBuscaAdvogado('') }}>
+                <span>⚠️ Emitiu sem advogado</span>
+                <span style={{ color: cores.suave, fontSize: 11 }}>{semAdvogado}</span>
+              </ItemMenu>
             )}
-          </div>
+            {advogadosFiltrados.map(([nome, n]) => (
+              <ItemMenu key={nome} ativo={filtroAdvogado === nome}
+                onClick={() => { setFiltroAdvogado(nome); setBuscaAdvogado('') }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+                <span style={{ color: cores.suave, fontSize: 11, flexShrink: 0 }}>{n}</span>
+              </ItemMenu>
+            ))}
+            {advogados.length === 0 && (
+              <div style={{ padding: '10px', fontSize: 12, color: cores.suave }}>Nenhum contrato emitido no período.</div>
+            )}
+            {advogados.length > 0 && advogadosFiltrados.length === 0 && (
+              <div style={{ padding: '10px', fontSize: 12, color: cores.suave }}>Nenhum advogado com esse nome.</div>
+            )}
+          </MenuFiltro>
         </div>
 
         <div style={s.divisor} />
@@ -612,11 +727,11 @@ export default function Clientes() {
         <div style={s.grupo}>
           <div style={s.rotulo}>Status</div>
           <div style={s.linhaChips}>
-            <button style={s.chip(filtroStatus === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroStatus('todos')}>
+            <button style={s.chip(filtroStatus === 'todos', '#2563eb', 'rgba(96,165,250,.10)')} onClick={() => setFiltroStatus('todos')}>
               Todos · {clientes.length}
             </button>
             {statuses.map(st => {
-              const info = STATUS_INFO[st] || { cor: '#94a3b8', bg: '#2b3340', label: st }
+              const info = STATUS_INFO[st] || { cor: '#5b6b84', bg: 'rgba(15,23,42,.07)', label: st }
               return (
                 <button key={st} style={s.chip(filtroStatus === st, info.cor, info.bg)} onClick={() => setFiltroStatus(st)}>
                   {info.icon} {info.label} · {countsStatus[st]}
@@ -629,12 +744,12 @@ export default function Clientes() {
         <div style={s.divisor} />
 
         <div style={{ ...s.grupo, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <button style={s.chip(soDocumentos, '#34d399', 'rgba(52,211,153,.12)')} onClick={() => setSoDocumentos(v => !v)}>
+          <button style={s.chip(soDocumentos, '#15803d', 'rgba(52,211,153,.12)')} onClick={() => setSoDocumentos(v => !v)}>
             📎 Só com documentos
           </button>
           {filtrosAtivos > 0 && (
             <button onClick={limparFiltros}
-              style={{ background: 'none', border: 'none', color: '#f87171', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: '6px 2px' }}>
+              style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: '6px 2px' }}>
               limpar {filtrosAtivos} filtro{filtrosAtivos !== 1 ? 's' : ''}
             </button>
           )}
@@ -649,7 +764,7 @@ export default function Clientes() {
             {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : '🔍 Nenhum cliente com esses filtros.'}
           </div>
           {filtrosAtivos > 0 && (
-            <button onClick={limparFiltros} style={s.chip(false, '#f87171', 'rgba(248,113,113,.10)')}>
+            <button onClick={limparFiltros} style={s.chip(false, '#dc2626', 'rgba(248,113,113,.10)')}>
               limpar {filtrosAtivos} filtro{filtrosAtivos !== 1 ? 's' : ''}
             </button>
           )}
@@ -657,14 +772,14 @@ export default function Clientes() {
       ) : <><div style={{ fontSize: 11.5, color: cores.suave, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span>Mostrando <strong style={{ color: cores.texto }}>{visiveis.length}</strong> de <strong style={{ color: cores.texto }}>{filtrados.length}</strong> cliente{filtrados.length !== 1 ? 's' : ''}</span>
         {filtroAdvogado !== 'todos' && (
-          <span style={s.badge('#a78bfa', 'rgba(167,139,250,.12)')}>
+          <span style={s.badge('#7c3aed', 'rgba(167,139,250,.12)')}>
             ⚖️ {filtroAdvogado === '__sem__' ? 'sem advogado registrado' : filtroAdvogado}
           </span>
         )}
       </div>
       {visiveis.map(c => {
-        const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
-        const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
+        const info = STATUS_INFO[c.status] || { cor: '#5b6b84', bg: 'rgba(15,23,42,.07)', label: c.status, icon: '' }
+        const prod = PRODUTO_ESTILO[c.produto] || { cor: '#5b6b84', bg: 'rgba(15,23,42,.07)', label: c.produto }
         const docs = c.documentos || {}
         const chaves = chavesDe(c.produto, docs)
         const anexados = chaves.filter(k => docs[k])
@@ -694,19 +809,19 @@ export default function Clientes() {
             <div style={{ fontSize: 11, color: cores.suave, marginTop: 4 }}>
               {c.cidade && c.uf ? `${c.cidade}/${c.uf}` : (c.cidade || c.uf || '')}
               {' · '}cadastro {tempoRelativo(c.created_at)}
-              {c.profiles?.nome && <> · 👤 <span style={{ color: '#cbd5e1' }}>{c.profiles.nome}</span></>}
-              {adv && <> · ⚖️ <span style={{ color: '#a78bfa' }}>{adv.nome}</span></>}
+              {c.profiles?.nome && <> · 👤 <span style={{ color: '#334155' }}>{c.profiles.nome}</span></>}
+              {adv && <> · ⚖️ <span style={{ color: '#7c3aed' }}>{adv.nome}</span></>}
             </div>
 
             {c.produto === 'Maternidade Mãe' && (
-              <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+              <div style={{ fontSize: 12, color: '#334155', marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
                 {c.dados_produto?.data_nascimento_bebe && <span>👶 Nascimento: {c.dados_produto.data_nascimento_bebe}</span>}
                 {c.dados_produto?.ja_trabalhou_clt && <span>💼 Já trabalhou CLT: {c.dados_produto.ja_trabalhou_clt}</span>}
                 {c.dados_produto?.trabalhava_no_nascimento && <span>💼 Trabalhava no nascimento: {c.dados_produto.trabalhava_no_nascimento}</span>}
               </div>
             )}
             {(c.produto === 'Gestante até 5 meses' || c.produto === 'Maternidade') && (
-              <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+              <div style={{ fontSize: 12, color: '#334155', marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
                 {c.data_prevista_parto && <span>🤰 Parto previsto: {c.data_prevista_parto}</span>}
                 {c.nis && <span>🪪 NIS: {c.nis}</span>}
               </div>
@@ -721,22 +836,22 @@ export default function Clientes() {
                   <div style={{
                     width: `${chaves.length ? Math.round(100 * anexados.length / chaves.length) : 0}%`,
                     height: '100%', borderRadius: 3,
-                    background: anexados.length === 0 ? '#f59e0b' : '#34d399',
+                    background: anexados.length === 0 ? '#b45309' : '#15803d',
                   }} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: anexados.length === 0 ? '#f59e0b' : '#34d399' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: anexados.length === 0 ? '#b45309' : '#15803d' }}>
                   {anexados.length === 0 ? 'sem documentos' : `${anexados.length}/${chaves.length} documentos`}
                 </span>
               </div>
-              {temPrints && <span style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa' }}>🖨️ prints GERID/CNIS</span>}
-              {c.link_assinatura && <span style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa' }}>📨 contrato emitido</span>}
+              {temPrints && <span style={{ fontSize: 11, fontWeight: 600, color: '#2563eb' }}>🖨️ prints GERID/CNIS</span>}
+              {c.link_assinatura && <span style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed' }}>📨 contrato emitido</span>}
             </div>
 
             {(anexados.length > 0 || temPrints || c.link_assinatura) ? (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {anexados.map(k => (
                   <a key={k} href={docs[k]} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(52,211,153,.10)', color: '#34d399', textDecoration: 'none', border: '1px solid rgba(52,211,153,.25)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(52,211,153,.10)', color: '#15803d', textDecoration: 'none', border: '1px solid rgba(52,211,153,.25)' }}>
                     {DOC_LABELS[k] || k}
                   </a>
                 ))}
@@ -744,13 +859,13 @@ export default function Clientes() {
                   <span key={i} style={{ display: 'inline-flex', gap: 6 }}>
                     {p.gerid && (
                       <a href={URL_STORAGE + p.gerid} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#2563eb', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                         🖨️ Print GERID
                       </a>
                     )}
                     {p.cnis && (
                       <a href={URL_STORAGE + p.cnis} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#60a5fa', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(96,165,250,.10)', color: '#2563eb', textDecoration: 'none', border: '1px solid rgba(96,165,250,.25)' }}>
                         🖨️ Print CNIS
                       </a>
                     )}
@@ -758,7 +873,7 @@ export default function Clientes() {
                 ))}
                 {c.link_assinatura && (
                   <a href={c.link_assinatura} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#a78bfa', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11.5, borderRadius: 8, background: 'rgba(167,139,250,.12)', color: '#7c3aed', textDecoration: 'none', border: '1px solid rgba(167,139,250,.30)' }}>
                     📨 Contrato de assinatura
                   </a>
                 )}
@@ -768,7 +883,7 @@ export default function Clientes() {
             )}
 
             {c.observacao && (
-              <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 8, padding: '6px 10px', background: 'rgba(255,255,255,.04)', borderRadius: 6, fontStyle: 'italic' }}>
+              <div style={{ fontSize: 12, color: '#334155', marginTop: 8, padding: '6px 10px', background: 'rgba(255,255,255,.04)', borderRadius: 6, fontStyle: 'italic' }}>
                 "{c.observacao}"
               </div>
             )}
@@ -777,7 +892,7 @@ export default function Clientes() {
       })}
       {restantes > 0 && (
         <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <button onClick={() => setLimite(l => l + 200)} style={{ padding: '10px 20px', fontSize: 13, background: 'rgba(56,189,248,.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,.30)', borderRadius: 10, cursor: 'pointer', fontWeight: 500 }}>
+          <button onClick={() => setLimite(l => l + 200)} style={{ padding: '10px 20px', fontSize: 13, background: 'rgba(56,189,248,.10)', color: '#0369a1', border: '1px solid rgba(56,189,248,.30)', borderRadius: 10, cursor: 'pointer', fontWeight: 500 }}>
             Ver mais {Math.min(restantes, 200)} cliente{Math.min(restantes, 200) !== 1 ? 's' : ''} ({restantes} restante{restantes !== 1 ? 's' : ''})
           </button>
         </div>
