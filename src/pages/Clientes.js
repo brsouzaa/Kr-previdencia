@@ -348,6 +348,7 @@ export default function Clientes() {
   const [total, setTotal] = useState(0)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [filtroProduto, setFiltroProduto] = useState('todos')
+  const [filtroAdvogado, setFiltroAdvogado] = useState('todos')
   const [soDocumentos, setSoDocumentos] = useState(false)
   const [selecionado, setSelecionado] = useState(null)
   const [limite, setLimite] = useState(80)
@@ -445,6 +446,23 @@ export default function Clientes() {
     statuses.forEach(st => { m[st] = clientes.filter(c => c.status === st).length })
     return m
   }, [clientes, statuses])
+
+  // 08/09 — filtro por advogado. Sao ~190 advogados no cadastro, mas so alguns
+  // aparecem nos clientes do periodo: a lista sai do que esta em tela, ja com a
+  // contagem, e vai ordenada por volume — quem tem mais cliente aparece primeiro.
+  const advogados = useMemo(() => {
+    const m = new Map()
+    clientes.forEach(c => {
+      const a = advogadoDe(c)
+      if (!a) return
+      m.set(a.nome, (m.get(a.nome) || 0) + 1)
+    })
+    return Array.from(m.entries()).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))
+  }, [clientes])
+  const semAdvogado = useMemo(
+    () => clientes.filter(c => c.link_assinatura && !advogadoDe(c)).length,
+    [clientes]
+  )
   const countComDoc = useMemo(() => clientes.filter(temDoc).length, [clientes, temDoc])
 
   const filtrados = useMemo(() => {
@@ -452,6 +470,13 @@ export default function Clientes() {
       .filter(c => {
         if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
         if (filtroProduto !== 'todos' && c.produto !== filtroProduto) return false
+        if (filtroAdvogado !== 'todos') {
+          const a = advogadoDe(c)
+          if (filtroAdvogado === '__sem__') {
+            // "emitiu sem advogado": so faz sentido para quem tem contrato
+            if (a || !c.link_assinatura) return false
+          } else if (!a || a.nome !== filtroAdvogado) return false
+        }
         if (soDocumentos && !temDoc(c)) return false
         if (busca.trim()) {
           const b = busca.trim().toLowerCase()
@@ -467,9 +492,16 @@ export default function Clientes() {
         return true
       })
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-  }, [clientes, prints, busca, filtroStatus, filtroProduto, soDocumentos, temDoc])
+  }, [clientes, prints, busca, filtroStatus, filtroProduto, filtroAdvogado, soDocumentos, temDoc])
 
-  useEffect(() => { setLimite(80) }, [busca, filtroStatus, filtroProduto, soDocumentos, periodo])
+  useEffect(() => { setLimite(80) }, [busca, filtroStatus, filtroProduto, filtroAdvogado, soDocumentos, periodo])
+
+  const filtrosAtivos = (filtroStatus !== 'todos' ? 1 : 0) + (filtroProduto !== 'todos' ? 1 : 0)
+    + (filtroAdvogado !== 'todos' ? 1 : 0) + (soDocumentos ? 1 : 0) + (busca.trim() ? 1 : 0)
+  const limparFiltros = () => {
+    setFiltroStatus('todos'); setFiltroProduto('todos'); setFiltroAdvogado('todos')
+    setSoDocumentos(false); setBusca('')
+  }
 
   const visiveis = filtrados.slice(0, limite)
   const restantes = filtrados.length - visiveis.length
@@ -485,6 +517,24 @@ export default function Clientes() {
       display: 'inline-block', padding: '3px 8px', borderRadius: 10, fontSize: 11,
       fontWeight: 500, color: cor, background: bg, whiteSpace: 'nowrap',
     }),
+    // 08/09 — os filtros viraram um painel unico com rotulo em cada grupo.
+    // Antes eram tres fileiras de chips soltas, sem dizer o que cada uma filtrava.
+    painel: {
+      background: cores.card, border: `1px solid ${cores.cardBorda}`,
+      borderRadius: 14, padding: '14px 16px', marginBottom: 14,
+    },
+    grupo: { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0' },
+    rotulo: {
+      fontSize: 10.5, fontWeight: 700, color: cores.suave, textTransform: 'uppercase',
+      letterSpacing: '.06em', minWidth: 74, paddingTop: 7, flexShrink: 0,
+    },
+    linhaChips: { display: 'flex', flexWrap: 'wrap', gap: 7, flex: 1, minWidth: 0 },
+    divisor: { height: 1, background: cores.cardBorda, opacity: .6, margin: '2px 0' },
+    select: {
+      padding: '7px 10px', fontSize: 12.5, borderRadius: 8, background: cores.card,
+      color: cores.texto, border: `1px solid ${cores.cardBorda}`, cursor: 'pointer',
+      maxWidth: 360, minWidth: 200, outline: 'none',
+    },
   }
 
   return (
@@ -503,54 +553,115 @@ export default function Clientes() {
       </div>
 
       <input
-        style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: `1px solid ${cores.cardBorda}`, borderRadius: 8, background: cores.card, outline: 'none', boxSizing: 'border-box', marginBottom: 12, color: cores.texto }}
+        style={{ width: '100%', padding: '11px 13px', fontSize: 14, border: `1px solid ${cores.cardBorda}`, borderRadius: 10, background: cores.card, outline: 'none', boxSizing: 'border-box', marginBottom: 12, color: cores.texto }}
         placeholder="🔍 Buscar por nome, CPF ou telefone..."
         value={busca} onChange={e => setBusca(e.target.value)} />
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        {PERIODOS.map(p => (
-          <button key={p.chave} style={s.chip(periodo === p.chave, '#38bdf8', 'rgba(56,189,248,.10)')} onClick={() => setPeriodo(p.chave)}>
-            🗓️ {p.label}
+      <div style={s.painel}>
+        <div style={s.grupo}>
+          <div style={s.rotulo}>Período</div>
+          <div style={s.linhaChips}>
+            {PERIODOS.map(p => (
+              <button key={p.chave} style={s.chip(periodo === p.chave, '#38bdf8', 'rgba(56,189,248,.10)')} onClick={() => setPeriodo(p.chave)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={s.divisor} />
+
+        <div style={s.grupo}>
+          <div style={s.rotulo}>Produto</div>
+          <div style={s.linhaChips}>
+            <button style={s.chip(filtroProduto === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroProduto('todos')}>Todos</button>
+            {produtos.map(p => {
+              const st = PRODUTO_ESTILO[p] || { cor: '#94a3b8', bg: '#2b3340' }
+              return (
+                <button key={p} style={s.chip(filtroProduto === p, st.cor, st.bg)} onClick={() => setFiltroProduto(p)}>
+                  {st.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={s.divisor} />
+
+        {/* 08/09 — filtro por advogado. Select em vez de chip: sao dezenas de nomes
+            e viraria uma parede de botoes. Ordenado por volume, com a contagem. */}
+        <div style={s.grupo}>
+          <div style={s.rotulo}>⚖️ Advogado</div>
+          <div style={{ ...s.linhaChips, alignItems: 'center' }}>
+            <select style={{ ...s.select, borderColor: filtroAdvogado !== 'todos' ? '#a78bfa' : cores.cardBorda, color: filtroAdvogado !== 'todos' ? '#a78bfa' : cores.texto }}
+              value={filtroAdvogado} onChange={e => setFiltroAdvogado(e.target.value)}>
+              <option value="todos">Todos os advogados{advogados.length ? ` (${advogados.length})` : ''}</option>
+              {semAdvogado > 0 && <option value="__sem__">⚠️ Emitiu sem advogado registrado · {semAdvogado}</option>}
+              {advogados.map(([nome, n]) => (
+                <option key={nome} value={nome}>{nome} · {n}</option>
+              ))}
+            </select>
+            {advogados.length === 0 && (
+              <span style={{ fontSize: 11.5, color: cores.suave }}>nenhum contrato emitido no período</span>
+            )}
+          </div>
+        </div>
+
+        <div style={s.divisor} />
+
+        <div style={s.grupo}>
+          <div style={s.rotulo}>Status</div>
+          <div style={s.linhaChips}>
+            <button style={s.chip(filtroStatus === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroStatus('todos')}>
+              Todos · {clientes.length}
+            </button>
+            {statuses.map(st => {
+              const info = STATUS_INFO[st] || { cor: '#94a3b8', bg: '#2b3340', label: st }
+              return (
+                <button key={st} style={s.chip(filtroStatus === st, info.cor, info.bg)} onClick={() => setFiltroStatus(st)}>
+                  {info.icon} {info.label} · {countsStatus[st]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={s.divisor} />
+
+        <div style={{ ...s.grupo, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <button style={s.chip(soDocumentos, '#34d399', 'rgba(52,211,153,.12)')} onClick={() => setSoDocumentos(v => !v)}>
+            📎 Só com documentos
           </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        <button style={s.chip(filtroProduto === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroProduto('todos')}>Todos os produtos</button>
-        {produtos.map(p => {
-          const st = PRODUTO_ESTILO[p] || { cor: '#94a3b8', bg: '#2b3340' }
-          return (
-            <button key={p} style={s.chip(filtroProduto === p, st.cor, st.bg)} onClick={() => setFiltroProduto(p)}>
-              {st.label}
+          {filtrosAtivos > 0 && (
+            <button onClick={limparFiltros}
+              style={{ background: 'none', border: 'none', color: '#f87171', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: '6px 2px' }}>
+              limpar {filtrosAtivos} filtro{filtrosAtivos !== 1 ? 's' : ''}
             </button>
-          )
-        })}
-        <button style={s.chip(soDocumentos, '#34d399', 'rgba(52,211,153,.12)')} onClick={() => setSoDocumentos(v => !v)}>
-          📎 Só com documentos
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        <button style={s.chip(filtroStatus === 'todos', '#60a5fa', 'rgba(96,165,250,.10)')} onClick={() => setFiltroStatus('todos')}>
-          Todos · {clientes.length}
-        </button>
-        {statuses.map(st => {
-          const info = STATUS_INFO[st] || { cor: '#94a3b8', bg: '#2b3340', label: st }
-          return (
-            <button key={st} style={s.chip(filtroStatus === st, info.cor, info.bg)} onClick={() => setFiltroStatus(st)}>
-              {info.icon} {info.label} · {countsStatus[st]}
-            </button>
-          )
-        })}
+          )}
+        </div>
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: cores.suave }}>Carregando...</div>
       ) : filtrados.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: cores.suave, background: cores.card, borderRadius: 14, border: `1px solid ${cores.cardBorda}` }}>
-          {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado.'}
+          <div style={{ fontSize: 14, marginBottom: filtrosAtivos ? 10 : 0 }}>
+            {clientes.length === 0 ? '📭 Nenhum cliente cadastrado ainda.' : '🔍 Nenhum cliente com esses filtros.'}
+          </div>
+          {filtrosAtivos > 0 && (
+            <button onClick={limparFiltros} style={s.chip(false, '#f87171', 'rgba(248,113,113,.10)')}>
+              limpar {filtrosAtivos} filtro{filtrosAtivos !== 1 ? 's' : ''}
+            </button>
+          )}
         </div>
-      ) : <><div style={{ fontSize: 11.5, color: cores.suave, marginBottom: 8 }}>Mostrando {visiveis.length} de {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}</div>
+      ) : <><div style={{ fontSize: 11.5, color: cores.suave, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>Mostrando <strong style={{ color: cores.texto }}>{visiveis.length}</strong> de <strong style={{ color: cores.texto }}>{filtrados.length}</strong> cliente{filtrados.length !== 1 ? 's' : ''}</span>
+        {filtroAdvogado !== 'todos' && (
+          <span style={s.badge('#a78bfa', 'rgba(167,139,250,.12)')}>
+            ⚖️ {filtroAdvogado === '__sem__' ? 'sem advogado registrado' : filtroAdvogado}
+          </span>
+        )}
+      </div>
       {visiveis.map(c => {
         const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
         const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
@@ -566,15 +677,17 @@ export default function Clientes() {
           <div key={c.id} onClick={() => setSelecionado(c)} style={{ background: cores.card, border: `1px solid ${cores.cardBorda}`, borderLeft: `3px solid ${info.cor}`, borderRadius: 14, padding: '1rem', marginBottom: 10, cursor: 'pointer', transition: 'border-color .15s, transform .1s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = cores.cardBorda }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 10, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: cores.texto, marginBottom: 2 }}>{c.nome}</div>
-                <div style={{ fontSize: 12, color: cores.suave }}>{c.cpf} · {c.telefone}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: cores.texto, marginBottom: 3, lineHeight: 1.25 }}>{c.nome}</div>
+                <div style={{ fontSize: 12, color: cores.suave, fontVariantNumeric: 'tabular-nums' }}>{c.cpf} · {c.telefone}</div>
               </div>
+              {/* "Ver detalhes" saiu: era um badge repetido em todo card, competindo
+                  com produto e status. O card inteiro ja e clicavel. */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={s.badge(prod.cor, prod.bg)}>{prod.label}</span>
                 <span style={s.badge(info.cor, info.bg)}>{info.icon} {info.label}</span>
-                <span style={s.badge('#a78bfa', 'rgba(167,139,250,.12)' )}>👁 Ver detalhes</span>
+                <span style={{ color: cores.suave, fontSize: 16, lineHeight: 1, paddingLeft: 2 }}>›</span>
               </div>
             </div>
 
@@ -599,10 +712,22 @@ export default function Clientes() {
               </div>
             )}
 
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: anexados.length > 0 ? '#34d399' : cores.suave }}>
-                📎 {anexados.length}/{chaves.length} documentos
-              </span>
+            {/* Barra de documentos: da pra ler o quanto falta sem contar chip por
+                chip. Zero anexo fica ambar, nao cinza — e uma pendencia, nao um
+                estado neutro. */}
+            <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ width: 46, height: 4, borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${chaves.length ? Math.round(100 * anexados.length / chaves.length) : 0}%`,
+                    height: '100%', borderRadius: 3,
+                    background: anexados.length === 0 ? '#f59e0b' : '#34d399',
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: anexados.length === 0 ? '#f59e0b' : '#34d399' }}>
+                  {anexados.length === 0 ? 'sem documentos' : `${anexados.length}/${chaves.length} documentos`}
+                </span>
+              </div>
               {temPrints && <span style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa' }}>🖨️ prints GERID/CNIS</span>}
               {c.link_assinatura && <span style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa' }}>📨 contrato emitido</span>}
             </div>
