@@ -57,11 +57,25 @@ const DOC_LABELS = {
   rg_responsavel_legal_verso: '🆔 RG resp. legal (verso)',
 }
 
+// 04/09 — CORRECAO. Este mapa listava chaves que ninguem grava
+// (comprovante_residencia, comprovante_bolsa_*, cartao_sus, certidao_nascimento_bebe)
+// e OMITIA justamente as que todo mundo grava (comprovante_1, comprovante_2,
+// comprovante_endereco). Resultado medido no banco em 04/09: 8.574 arquivos
+// anexados invisiveis nesta tela — 100% dos clientes de Maternidade (3.967),
+// Gestante (617) e Maternidade Mae (340). O contador "x/y" e o filtro
+// "so com documentos" erravam pelo mesmo motivo.
+//
+// A raiz: existem DUAS convencoes de nome no banco.
+//   - tela Novo Cliente (humano) grava comprovante_1 / comprovante_2 / comprovante_endereco
+//   - 🤖 IA Atendimento grava comprovante_1 + comprovante_gravidez, nunca comprovante_2
+// A lista abaixo cobre as duas, e o que sobrar aparece mesmo assim (ver chavesDe).
+// Referencia do que ja estava certo: components/FichaCliente.js (31/08).
 const DOCS_POR_PRODUTO = {
-  'Maternidade': ['rg_frente', 'rg_verso', 'comprovante_residencia', 'comprovante_gravidez', 'comprovante_bolsa_1', 'comprovante_bolsa_2', 'comprovante_bolsa_3', 'cartao_sus', 'outros'],
+  'Maternidade': ['rg_frente', 'rg_verso', 'comprovante_1', 'comprovante_2', 'comprovante_endereco', 'comprovante_gravidez', 'outros'],
   // CTPS digital e FGTS entraram como obrigatorios em 31/08
-  'Maternidade Mãe': ['rg_frente', 'rg_verso', 'ctps_digital', 'extrato_fgts', 'comprovante_residencia', 'certidao_nascimento_bebe', 'comprovante_bolsa_1', 'comprovante_bolsa_2', 'comprovante_bolsa_3', 'cartao_sus', 'outros'],
-  'Gestante até 5 meses': ['rg_frente', 'rg_verso', 'comprovante_residencia', 'comprovante_gravidez', 'cartao_sus', 'outros'],
+  'Maternidade Mãe': ['rg_frente', 'rg_verso', 'comprovante_1', 'comprovante_2', 'comprovante_endereco', 'ctps_digital', 'extrato_fgts', 'outros'],
+  'Gestante até 5 meses': ['rg_frente', 'rg_verso', 'comprovante_1', 'comprovante_2', 'comprovante_endereco', 'comprovante_gravidez', 'outros'],
+  // Pensao por Morte ja estava correto (0 arquivos invisiveis na conferencia de 04/09)
   'Pensão por Morte': ['rg_frente', 'rg_verso', 'certidao_obito_frente', 'certidao_obito_verso', 'certidao_casamento_frente', 'certidao_casamento_verso', 'rgs_filhos', 'rg_responsavel_legal_frente', 'rg_responsavel_legal_verso', 'comprovante_residencia', 'outros'],
 }
 
@@ -74,8 +88,32 @@ const PERIODOS = [
   { chave: '180', label: 'Últimos 6 meses' },
 ]
 
-function chavesDe(produto) {
-  return DOCS_POR_PRODUTO[produto] || DOCS_BASE
+// Os slots do produto MAIS qualquer chave que exista de fato no cliente e nao
+// esteja na lista. E isso que impede o bug de voltar: se a IA, o n8n ou uma tela
+// nova passarem a gravar uma chave que ninguem previu aqui, ela aparece do mesmo
+// jeito em vez de sumir em silencio.
+function chavesDe(produto, docs) {
+  const base = DOCS_POR_PRODUTO[produto] || DOCS_BASE
+  if (!docs) return base
+  const extras = Object.keys(docs).filter(k => docs[k] && !base.includes(k))
+  return extras.length ? [...base, ...extras] : base
+}
+
+// 08/09 — advogado para quem o cliente com link de assinatura foi direcionado.
+// Caminho: clientes.contrato_producao_id -> contratos_producao.advogado_id -> advogados.
+// Medido em 08/09: 3.698 de 3.706 clientes com link resolvem o advogado por aqui (99,8%).
+// O lote tambem tem advogado_id, mas cobre menos (3.689) e nao acrescenta nenhum caso
+// que o contrato ja nao resolva — por isso uma fonte so, sem fallback que confunda.
+function advogadoDe(c) {
+  const cp = c?.contratos_producao
+  const a = Array.isArray(cp) ? cp[0]?.advogados : cp?.advogados
+  if (!a || !a.nome_completo) return null
+  return {
+    nome: a.nome_completo,
+    oab: a.oab || null,
+    uf: a.estado || null,
+    cidade: a.cidade || null,
+  }
 }
 
 function tempoRelativo(dt) {
@@ -159,11 +197,12 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
   const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
   const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
   const docs = c.documentos || {}
-  const chaves = chavesDe(c.produto)
+  const chaves = chavesDe(c.produto, docs)
   const anexados = chaves.filter(k => docs[k])
   const printsCli = prints[c.id] || []
   const temPrints = printsCli.some(p => p.gerid || p.cnis)
   const endereco = [c.rua, c.numero, c.bairro].filter(Boolean).join(', ') || c.endereco || ''
+  const adv = advogadoDe(c)
   const dadosProd = c.dados_produto && typeof c.dados_produto === 'object' ? c.dados_produto : {}
   const LABELS_DADOS = {
     data_nascimento_bebe: '👶 Nascimento do bebê',
@@ -219,6 +258,17 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
           )}
           <Campo label="Cidade/UF" valor={[c.cidade, c.uf].filter(Boolean).join('/')} />
           <Campo label="CEP" valor={c.cep} />
+          {(adv || c.link_assinatura) && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Campo
+                label="⚖️ Advogado do contrato"
+                cor={adv ? '#a78bfa' : cores.suave}
+                valor={adv
+                  ? [adv.nome, adv.oab ? `OAB ${adv.oab}${adv.uf ? '/' + adv.uf : ''}` : null, adv.cidade]
+                      .filter(Boolean).join(' · ')
+                  : 'contrato emitido, mas sem advogado registrado'} />
+            </div>
+          )}
         </div>
 
         {Object.keys(dadosProd).length > 0 && (
@@ -312,7 +362,13 @@ export default function Clientes() {
     const desde = p === 'todos' ? null : new Date(Date.now() - parseInt(p, 10) * 86400000)
 
     let qCount = supabase.from('clientes').select('id', { count: 'exact', head: true })
-    let q = supabase.from('clientes').select('*, profiles!clientes_vendedor_operador_id_fkey(nome)')
+    // 08/09: traz junto o advogado do contrato de assinatura. Se a RLS de
+    // contratos_producao bloquear quem esta logado, o embed volta null e o resto
+    // da tela segue igual — nada quebra, so nao aparece o advogado.
+    let q = supabase.from('clientes').select(
+      '*, profiles!clientes_vendedor_operador_id_fkey(nome),' +
+      ' contratos_producao!clientes_contrato_producao_id_fkey(status, data_assinatura, advogados(nome_completo, oab, cidade, estado))'
+    )
     if (desde) {
       qCount = qCount.gte('created_at', desde.toISOString())
       q = q.gte('created_at', desde.toISOString())
@@ -371,7 +427,7 @@ export default function Clientes() {
 
   const temDoc = useCallback((c) => {
     const docs = c.documentos || {}
-    const anexados = chavesDe(c.produto).filter(k => docs[k])
+    const anexados = chavesDe(c.produto, docs).filter(k => docs[k])
     const temPrints = (prints[c.id] || []).some(p => p.gerid || p.cnis)
     return anexados.length > 0 || temPrints || !!c.link_assinatura
   }, [prints])
@@ -499,8 +555,9 @@ export default function Clientes() {
         const info = STATUS_INFO[c.status] || { cor: '#94a3b8', bg: '#2b3340', label: c.status, icon: '' }
         const prod = PRODUTO_ESTILO[c.produto] || { cor: '#94a3b8', bg: '#2b3340', label: c.produto }
         const docs = c.documentos || {}
-        const chaves = chavesDe(c.produto)
+        const chaves = chavesDe(c.produto, docs)
         const anexados = chaves.filter(k => docs[k])
+        const adv = advogadoDe(c)
         const printsCli = prints[c.id] || []
         const temPrints = printsCli.some(p => p.gerid || p.cnis)
         const totalDocs = anexados.length + printsCli.filter(p => p.gerid && p.cnis).length * 2 + (printsCli.some(p => p.gerid && !p.cnis) || printsCli.some(p => p.cnis && !p.gerid) ? 1 : 0) + (c.link_assinatura ? 1 : 0)
@@ -525,6 +582,7 @@ export default function Clientes() {
               {c.cidade && c.uf ? `${c.cidade}/${c.uf}` : (c.cidade || c.uf || '')}
               {' · '}cadastro {tempoRelativo(c.created_at)}
               {c.profiles?.nome && <> · 👤 <span style={{ color: '#cbd5e1' }}>{c.profiles.nome}</span></>}
+              {adv && <> · ⚖️ <span style={{ color: '#a78bfa' }}>{adv.nome}</span></>}
             </div>
 
             {c.produto === 'Maternidade Mãe' && (
