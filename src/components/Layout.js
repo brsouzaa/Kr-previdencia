@@ -47,13 +47,27 @@ const IDS_ACESSO_CLIENTES = [
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
 // Supervisao Producao por ID (mesma lista do App.js — se as duas nao baterem,
 // o item aparece no menu e a pagina nega, que foi o bug do painel de vendas em 02/09)
 const IDS_SUPERVISAO_PRODUCAO = [
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
+
+// Supervisao de SETOR por ID (09/09): quem supervisiona um setor sem largar a
+// venda. Uma lista para as quatro telas, em vez de quatro listas de um nome so —
+// as excecoes por ID ja passam de meia duzia neste arquivo.
+// Jose Carlos Galvao entrou aqui em 09/09: virou supervisor do gestante mas
+// CONTINUA vendendo, entao o papel dele segue vendedor_operador. Trocar para
+// supervisor_producao tiraria dele "Meus clientes" e "Meu desempenho", que sao
+// justamente as telas de quem vende.
+const IDS_SUPERVISAO_SETOR = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+]
+const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 const NAV_PRODUTOR = [
   { key: 'contratos', label: '📄 Gerar contratos' },
@@ -396,6 +410,17 @@ export default function Layout({ children, page, setPage }) {
   // Supervisao Producao por ID: o papel do Leandro (vendedor_operador) nao tem essa tela
   if (IDS_SUPERVISAO_PRODUCAO.includes(profile?.id) && !nav.some(n => n.key === 'supervisor_producao')) {
     nav = [...nav, { key: 'supervisor_producao', label: '📊 Supervisão Produção' }]
+  }
+
+  // Supervisao de setor por ID: as quatro telas de quem supervisiona sem largar a venda
+  if (IDS_SUPERVISAO_SETOR.includes(profile?.id)) {
+    const rotulos = {
+      fila_digitacao: '📥 Fila de digitação', revisao_ia: '🤖 Revisão IA',
+      ranking: '🏆 Ranking vendedoras', contratos: '📄 Gerar contratos (manual)',
+    }
+    TELAS_SUPERVISAO_SETOR.forEach(k => {
+      if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rotulos[k] }]
+    })
   }
 
   // Fila de entregas por ID: a coordenadora nao tem essa tela no menu do papel dela
