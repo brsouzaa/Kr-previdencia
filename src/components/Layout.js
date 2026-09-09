@@ -68,6 +68,15 @@ const IDS_SUPERVISAO_PRODUCAO = [
 const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
+
+// Revisao Crefaz (09/09): mesma lista do App.js — se as duas nao baterem, o item
+// aparece no menu e a pagina nega (bug de 02/09).
+const IDS_REVISAO_CREFAZ = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — opera a fila
+  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — acompanha
+]
+
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 const NAV_PRODUTOR = [
@@ -192,6 +201,7 @@ const GRUPO_DE = {
   painel_vendas: 'Gestão', validacao_advogado: 'Gestão',
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
+  revisao_crefaz: 'Operação IA',
   mesa_advogada: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
@@ -422,6 +432,11 @@ export default function Layout({ children, page, setPage }) {
     TELAS_SUPERVISAO_SETOR.forEach(k => {
       if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rotulos[k] }]
     })
+  }
+
+  // Revisao Crefaz por ID: a tela nao pertence a papel nenhum (a Duda e simulador_emprestimo)
+  if (IDS_REVISAO_CREFAZ.includes(profile?.id) && !nav.some(n => n.key === 'revisao_crefaz')) {
+    nav = [...nav, { key: 'revisao_crefaz', label: '💡 Revisão Crefaz' }]
   }
 
   // Fila de entregas por ID: a coordenadora nao tem essa tela no menu do papel dela
