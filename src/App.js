@@ -53,6 +53,7 @@ import ConfereCNIS from './pages/ConfereCNIS'
 import PainelDigitador from './pages/PainelDigitador'
 import Clientes from './pages/Clientes'
 import CentralRetorno from './pages/CentralRetorno'
+import RevisaoCrefaz from './pages/RevisaoCrefaz'
 import MesaAdvogada from './pages/MesaAdvogada'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
@@ -138,6 +139,16 @@ const IDS_SUPERVISAO_PRODUCAO = [
 const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
+
+// Revisao Crefaz (09/09): quem trabalha os clientes que o robo pre-aprovou no
+// Credito Conta de Luz. A Duda opera; Bruno e Egle acompanham. Nao existe mais
+// botao de "entregar" na Central — todo pre-aprovado sobe pra tela sozinho.
+const IDS_REVISAO_CREFAZ = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — opera a fila
+  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — acompanha
+]
+
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 function PortalRoute() {
@@ -211,6 +222,8 @@ function paginaPermitida(profile, page) {
   if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
+  // Revisao Crefaz por ID (Duda opera, Egle acompanha): a tela nao pertence a papel nenhum
+  if (IDS_REVISAO_CREFAZ.includes(profile.id) && page === 'revisao_crefaz') return true
   // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
   if (IDS_REVISAO_GESTANTE.includes(profile.id) && page === 'revisao_ia_gestante') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
@@ -330,6 +343,7 @@ function AppInner() {
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
     mesa_advogada: <MesaAdvogada />,
+    revisao_crefaz: <RevisaoCrefaz />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
