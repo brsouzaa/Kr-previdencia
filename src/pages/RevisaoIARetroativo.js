@@ -183,6 +183,9 @@ const s = {
   btnFechar: { padding: '9px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 12, cursor: 'pointer' },
   btnNegar: { padding: '9px 12px', background: 'rgba(248,113,113,.14)', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   btnFechou: { padding: '10px 16px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  // 09/09: bloco que substitui o botao quando a venda JA esta marcada
+  vendaFeita: { padding: '10px 12px', background: 'rgba(52,211,153,.12)', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 10, fontSize: 12.5 },
+  btnDesfazer: { marginTop: 8, padding: '8px 14px', background: '#ffffff', color: '#b45309', border: '1px solid #fbbf24', borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   fechLinha: (r) => ({
     padding: '8px 10px', borderRadius: 8, marginBottom: 6, fontSize: 13,
     background: r === 'FECHOU' ? 'rgba(52,211,153,.12)' : r === 'NEGOU' ? 'rgba(248,113,113,.10)' : 'rgba(251,191,36,.14)',
@@ -257,6 +260,15 @@ export default function RevisaoIARetroativo() {
   // pra nao mexer no mae_board (que alimenta o board inteiro) nem pesar o carregamento.
   const [gerid, setGerid] = useState(null)
   const [geridCarregando, setGeridCarregando] = useState(false)
+  // 09/09 (Bruno): DESFAZER o "Fechei a venda". A Gislaine marcou a Kessia por engano
+  // e nao tinha como corrigir sozinha — virou pedido no chat e SQL na mao no banco de
+  // producao, com o numero errado no fechamento do dia ate alguem reverter.
+  // O mae_board nao devolve venda_fechada, e eu NAO mexo nele (alimenta o board inteiro,
+  // mesma decisao do print do GERID acima): busco o status ao abrir a ficha.
+  // Quem pode desfazer e decidido no BANCO (mae_venda_status) — a tela so obedece.
+  const [venda, setVenda] = useState(null)
+  const [vendaCarregando, setVendaCarregando] = useState(false)
+  const [desfazendo, setDesfazendo] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [fechAberto, setFechAberto] = useState(false)
@@ -410,9 +422,29 @@ export default function RevisaoIARetroativo() {
     setGerid((data && data[0]) || null)   // sem print => null, a ficha nem mostra o bloco
   }
 
+  async function carregarVenda(leadId) {
+    setVenda(null)
+    if (!leadId) return
+    setVendaCarregando(true)
+    const { data } = await supabase.rpc('mae_venda_status', { p_lead_id: leadId })
+    setVendaCarregando(false)
+    setVenda(data || null)
+  }
+
+  const desfazerVenda = async (l) => {
+    if (!window.confirm('Desfazer a marcacao de VENDA FECHADA dessa cliente?\n\nEla volta a ficar em aberto no seu fechamento do dia. Nao marca como negada.')) return
+    setDesfazendo(true)
+    const r = await supabase.rpc('mae_venda_desfazer', { p_lead_id: l.id, p_motivo: null })
+    setDesfazendo(false)
+    if (r.error || !r.data?.ok) { alert('Nao deu pra desfazer: ' + (r.error?.message || r.data?.erro || 'erro')); return }
+    await carregarVenda(l.id)
+    carregar()
+  }
+
   const abrirLead = async (l) => {
     setLead(l)
     carregarGerid(l && l.id)
+    carregarVenda(l && l.id)
     setMensagens([])
     setAnexos([])
     setCarregandoAnexos(true)
@@ -426,7 +458,7 @@ export default function RevisaoIARetroativo() {
     return () => clearInterval(t)
   }, [lead, recarregarConversa])
 
-  const fechar = () => { setLead(null); setMensagens([]); setAnexos([]); setGerid(null) }
+  const fechar = () => { setLead(null); setMensagens([]); setAnexos([]); setGerid(null); setVenda(null) }
 
 
   // Pega o card (marca selo) sem mandar mensagem
@@ -479,6 +511,8 @@ export default function RevisaoIARetroativo() {
     const r = await supabase.rpc('mae_vendedora_fechou', { p_lead_id: id, p_vendedora: profile?.id })
     if (r.error || !r.data?.ok) { alert('Não deu: ' + (r.error?.message || r.data?.erro || 'erro')); return }
     fechar(); carregar()
+    // o status fica carregado pra proxima vez que a ficha abrir mostrar o desfazer
+    carregarVenda(id)
   }
 
   const abrirFechamento = async () => {
@@ -896,10 +930,40 @@ export default function RevisaoIARetroativo() {
 
             {lead.cnis_aprovado === 'true' && (
               <div style={{ marginBottom: 10 }}>
-                <button style={s.btnFechou} onClick={() => fecharVenda(lead.id)}>✅ Fechei a venda</button>
-                <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
-                  Use também quando fechar pelo WhatsApp — é assim que entra no seu fechamento do dia.
-                </div>
+                {vendaCarregando ? (
+                  <div style={{ fontSize: 12, color: '#5b6b84' }}>conferindo o fechamento…</div>
+                ) : venda?.fechada ? (
+                  // Ja marcada: o botao de fechar SOME e da lugar ao aviso + desfazer.
+                  // Antes o botao continuava ali e a RPC recusava com "ja esta marcada
+                  // como fechada" — parecia bug em vez de estado.
+                  <div style={s.vendaFeita}>
+                    <div style={{ fontWeight: 700, color: '#047857' }}>
+                      ✅ Venda fechada por {venda.por_nome}
+                      {venda.em ? ` · ${new Date(venda.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}
+                    </div>
+                    {venda.pode_desfazer ? (
+                      <>
+                        <button style={s.btnDesfazer} disabled={desfazendo} onClick={() => desfazerVenda(lead)}>
+                          {desfazendo ? 'desfazendo…' : '↩︎ Marquei errado, desfazer'}
+                        </button>
+                        <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
+                          A cliente volta a ficar em aberto no fechamento do dia. Não marca como negada.
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 6 }}>
+                        Não dá pra desfazer aqui: {venda.motivo || 'sem permissão'}.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <button style={s.btnFechou} onClick={() => fecharVenda(lead.id)}>✅ Fechei a venda</button>
+                    <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
+                      Use também quando fechar pelo WhatsApp — é assim que entra no seu fechamento do dia.
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
