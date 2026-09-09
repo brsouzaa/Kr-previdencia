@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -942,56 +942,19 @@ const FILTROS_STATUS = [
   ['negado', '❌ Negado'],
   ['enviado_atendimento', '📤 Enviado'],
 ]
-// CEP sugerido por DDD — 08/09.
-// Serve SO pra preencher o campo de CEP da simulacao na Crefaz: e o centro da
-// cidade principal daquele DDD, nao o endereco do cliente. Fica no arquivo (e
-// nao no banco) por decisao do Bruno em 08/09.
+// CEP sugerido por DDD — 09/09.
+// O mapa DDD->CEP saiu daqui e foi pro banco: colunas cep_sugerido, cep_cidade
+// e cep_aproximado em crefaz_cobertura_ddd. Motivo: e dado de negocio, ficava
+// invisivel pra quem abre o Supabase e so mudava com deploy. Agora corrigir um
+// CEP e um UPDATE.
 //
-// ATENCAO aos DDDs marcados `varias: true`. Neles a tabela crefaz_cobertura_ddd
-// lista MAIS DE UMA distribuidora (11 = Enel SP / CPFL / Elektro; 12, 13, 17 e
-// 18 = CPFL / Elektro), e e o CEP que decide qual delas atende — o que muda o
-// teto: CPFL vai a R$ 4.000, Elektro para em R$ 2.000. Sao 62 dos 221 da fila
-// (28%). Nesses a tela avisa que o CEP e aproximado; nos outros 22 a
-// concessionaria e unica e qualquer CEP da regiao serve.
-const CEP_POR_DDD = {
-  // BA — Coelba (unica)
-  '71': { cep: '40020-000', cidade: 'Salvador' },
-  '73': { cep: '45600-000', cidade: 'Itabuna' },
-  '74': { cep: '48900-000', cidade: 'Juazeiro' },
-  '75': { cep: '44001-000', cidade: 'Feira de Santana' },
-  '77': { cep: '45000-000', cidade: 'Vitória da Conquista' },
-  // CE — Enel CE (unica)
-  '85': { cep: '60060-000', cidade: 'Fortaleza' },
-  '88': { cep: '62010-000', cidade: 'Sobral' },
-  // MS — Elektro (unica)
-  '67': { cep: '79002-000', cidade: 'Campo Grande' },
-  // PE — Celpe (unica)
-  '81': { cep: '50010-000', cidade: 'Recife' },
-  '87': { cep: '56302-000', cidade: 'Petrolina' },
-  // RJ — Enel RJ (unica)
-  '21': { cep: '20031-000', cidade: 'Rio de Janeiro' },
-  '22': { cep: '28010-000', cidade: 'Campos dos Goytacazes' },
-  '24': { cep: '27210-000', cidade: 'Volta Redonda' },
-  // RN — Cosern (unica)
-  '84': { cep: '59012-000', cidade: 'Natal' },
-  // RS — RGE (unica)
-  '51': { cep: '90010-000', cidade: 'Porto Alegre' },
-  '53': { cep: '96010-000', cidade: 'Pelotas' },
-  '54': { cep: '95010-000', cidade: 'Caxias do Sul' },
-  '55': { cep: '97010-000', cidade: 'Santa Maria' },
-  // SP — CPFL sozinha nesses quatro
-  '14': { cep: '17010-000', cidade: 'Bauru' },
-  '15': { cep: '18010-000', cidade: 'Sorocaba' },
-  '16': { cep: '14010-000', cidade: 'Ribeirão Preto' },
-  '19': { cep: '13010-000', cidade: 'Campinas' },
-  // SP — mais de uma distribuidora no mesmo DDD: o CEP decide qual
-  '11': { cep: '01001-000', cidade: 'São Paulo', varias: true },
-  '12': { cep: '12210-000', cidade: 'São José dos Campos', varias: true },
-  '13': { cep: '11010-000', cidade: 'Santos', varias: true },
-  '17': { cep: '15010-000', cidade: 'São José do Rio Preto', varias: true },
-  '18': { cep: '19010-000', cidade: 'Presidente Prudente', varias: true },
-}
-const cepDoDdd = (ddd) => CEP_POR_DDD[String(ddd || '').trim()] || null
+// A tela le a view crefaz_fila_painel, que e a fila com o CEP do DDD ao lado
+// (a planilha_consulta nao serve: nao tem id e so mostra aguardando_consulta).
+// A view tem security_invoker = on, entao respeita a mesma RLS da tabela.
+//
+// cep_aproximado vem GERADO do banco: e true quando o DDD tem mais de uma
+// distribuidora (concessionaria com "/"), caso em que o CEP e que decide qual
+// atende — e o teto muda junto (CPFL 4.000 x Elektro 2.000).
 
 const soDigitos = (v) => String(v || '').replace(/\D/g, '')
 const cpfBonito = (v) => {
@@ -1025,10 +988,28 @@ function Crefaz() {
   const [busca, setBusca] = useState('')
   const [limite, setLimite] = useState(60)
 
+  // 27 linhas, lidas uma vez: o evento do Realtime vem da TABELA crefaz_fila,
+  // que nao tem as colunas de CEP (elas moram na cobertura). Num UPDATE o CEP
+  // da linha sobrevive pelo spread, mas num INSERT a linha nasceria sem — e
+  // este mapa que preenche. Continua sendo dado do banco, so cruzado aqui.
+  // em ref, nao em estado: o canal do Realtime e montado uma vez so, e um estado
+  // aqui entraria nas dependencias do efeito e derrubaria o websocket a cada
+  // carga. Com ref o callback sempre le o valor atual sem recriar a conexao.
+  const coberturaRef = useRef({})
+  useEffect(() => {
+    supabase.from('crefaz_cobertura_ddd').select('ddd, cep_sugerido, cep_cidade, cep_aproximado')
+      .then(({ data }) => {
+        if (!data) return
+        const m = {}
+        data.forEach(c => { m[c.ddd] = c })
+        coberturaRef.current = m
+      })
+  }, [])
+
   const carregar = useCallback(async () => {
     const [f, m] = await Promise.all([
-      supabase.from('crefaz_fila')
-        .select('id, nome, cpf, telefone, ddd, uf, concessionaria, valor_max, status, valor_pre_aprovado, consultado_em, consultado_por, enviado_atendimento_em, criado_em')
+      supabase.from('crefaz_fila_painel')
+        .select('id, nome, cpf, telefone, ddd, uf, concessionaria, valor_max, status, valor_pre_aprovado, consultado_em, consultado_por, enviado_atendimento_em, criado_em, cep_sugerido, cep_cidade, cep_aproximado')
         .eq('elegivel', true).order('criado_em', { ascending: true }),
       supabase.from('crefaz_metricas').select('*').maybeSingle(),
     ])
@@ -1055,7 +1036,13 @@ function Crefaz() {
           if (ev.eventType === 'DELETE') return prev.filter(l => l.id !== velha?.id)
           if (!nova?.elegivel) return prev.filter(l => l.id !== nova?.id)  // saiu da fila
           const achou = prev.some(l => l.id === nova.id)
-          if (!achou) return [...prev, nova].sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em))
+          if (!achou) {
+            // linha nova: o payload nao traz o CEP, entao completa pela cobertura
+            const c = coberturaRef.current[nova.ddd] || {}
+            const comCep = { ...nova, cep_sugerido: c.cep_sugerido || null, cep_cidade: c.cep_cidade || null, cep_aproximado: !!c.cep_aproximado }
+            return [...prev, comCep].sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em))
+          }
+          // update: o spread preserva o CEP que a linha ja tinha
           return prev.map(l => (l.id === nova.id ? { ...l, ...nova } : l))
         })
         if (nova?.id) { setPulso(nova.id); setTimeout(() => setPulso(p => (p === nova.id ? null : p)), 1800) }
@@ -1216,7 +1203,6 @@ function Crefaz() {
                   const st = STATUS_CREFAZ[l.status] || { label: l.status, cor: NEUTRO, bg: 'rgba(15,23,42,.06)' }
                   const pendente = l.status === 'aguardando_consulta'
                   const ocupado = salvando === l.id
-                  const cep = cepDoDdd(l.ddd)
                   return (
                     <tr key={l.id} style={pulso === l.id ? { background: 'rgba(219,39,119,.07)' } : undefined}>
                       <td style={s.td}>{dataBR(l.criado_em)}</td>
@@ -1233,16 +1219,16 @@ function Crefaz() {
                       <td style={s.td}>{telBonito(l.telefone)}<span style={{ color: '#5b6b84' }}> · {l.ddd}/{l.uf}</span></td>
                       <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>
                         {l.concessionaria || '—'}
-                        {cep && (
+                        {l.cep_sugerido && (
                           <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 11.5, color: '#5b6b84', fontVariantNumeric: 'tabular-nums' }}>
-                              CEP {cep.cep}
+                              CEP {l.cep_sugerido}
                             </span>
-                            <button onClick={() => copiar(cep.cep, `cep-${l.id}`, 'CEP')} title={`CEP de ${cep.cidade} — para a simulação`}
+                            <button onClick={() => copiar(l.cep_sugerido, `cep-${l.id}`, 'CEP')} title={`CEP de ${l.cep_cidade || 'referência'} — para a simulação`}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: copiado === `cep-${l.id}` ? OK : '#2563eb', padding: 0 }}>
                               {copiado === `cep-${l.id}` ? '✓ copiado' : '⧉ copiar'}
                             </button>
-                            {cep.varias && (
+                            {l.cep_aproximado && (
                               <span title="Neste DDD há mais de uma distribuidora e o CEP é que define qual atende — confira o teto que a simulação devolver."
                                 style={{ fontSize: 10.5, color: ALERTA, fontWeight: 600, cursor: 'help' }}>
                                 ⚠ aprox.
