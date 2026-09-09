@@ -116,6 +116,7 @@ const IDS_ACESSO_CLIENTES = [
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
 // Supervisao Producao por ID: quem supervisiona um setor sem ter o papel
@@ -123,7 +124,20 @@ const IDS_ACESSO_CLIENTES = [
 // essa tela — mas ele cuida do funil gestante e precisa acompanhar a producao.
 const IDS_SUPERVISAO_PRODUCAO = [
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
+
+// Supervisao de SETOR por ID (09/09): quem supervisiona um setor sem largar a
+// venda. Uma lista para as quatro telas, em vez de quatro listas de um nome so —
+// as excecoes por ID ja passam de meia duzia neste arquivo.
+// Jose Carlos Galvao entrou aqui em 09/09: virou supervisor do gestante mas
+// CONTINUA vendendo, entao o papel dele segue vendedor_operador. Trocar para
+// supervisor_producao tiraria dele "Meus clientes" e "Meu desempenho", que sao
+// justamente as telas de quem vende.
+const IDS_SUPERVISAO_SETOR = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+]
+const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -190,8 +204,10 @@ function paginaPermitida(profile, page) {
   if (IDS_VENDAS_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
-  // Supervisao Producao por ID (Leandro): a tela nao faz parte do papel vendedor_operador
+  // Supervisao Producao por ID (Leandro, Jose Carlos): a tela nao faz parte do papel vendedor_operador
   if (IDS_SUPERVISAO_PRODUCAO.includes(profile.id) && page === 'supervisor_producao') return true
+  // Supervisao de setor por ID: fila de digitacao, revisao IA, ranking e contratos
+  if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
   // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
