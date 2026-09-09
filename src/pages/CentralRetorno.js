@@ -1259,13 +1259,13 @@ function Crefaz() {
                             <button disabled={ocupado} onClick={() => marcar(l, 'pre_aprovado')} style={s.btn(OK)}>✅ Pré-aprovado</button>
                             <button disabled={ocupado} onClick={() => marcar(l, 'negado')} style={s.btn(ERRO)}>❌ Negado</button>
                           </div>
-                        ) : l.status === 'pre_aprovado' ? (
-                          <button disabled={ocupado} onClick={() => marcar(l, 'enviado_atendimento')} style={s.btn('#2563eb')}>
-                            📤 Enviado ao atendimento
-                          </button>
-                        ) : l.status === 'enviado_atendimento' ? (
-                          <span style={{ fontSize: 11.5, color: '#5b6b84' }}>
-                            {l.enviado_atendimento_em ? `em ${fmtBR(l.enviado_atendimento_em)}` : 'enviado'}
+                        ) : (l.status === 'pre_aprovado' || l.status === 'enviado_atendimento') ? (
+                          // 09/09: o botao "Enviado ao atendimento" SAIU. Todo pre-aprovado
+                          // sobe sozinho pra tela Revisao Crefaz, onde a Duda trabalha —
+                          // nao existe mais portao de entrega. O botao virava armadilha:
+                          // quem clicasse mudaria o status do cliente a toa.
+                          <span style={{ fontSize: 11.5, color: '#047857', fontWeight: 600 }}>
+                            💡 na Revisão Crefaz
                           </span>
                         ) : (
                           <span style={{ fontSize: 11.5, color: '#5b6b84' }}>—</span>
