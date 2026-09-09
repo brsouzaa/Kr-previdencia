@@ -23,6 +23,10 @@ const TIME_GESTANTE = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 03/09
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: passa a ser o unico da fila de distribuicao
+  // Brenda Ribeiro — 09/09: NAO esta na fila automatica (bf_agentes), so trabalha
+  // o que o Jose repassar. Sem ela aqui o nome nao aparece no seletor de
+  // distribuir e ela ficaria com ZERO lead.
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f',
 ]
 
 // SOMENTE Chatwoot novo (grupookr) — o board já filtra no banco; nada da VendeAI aqui.
