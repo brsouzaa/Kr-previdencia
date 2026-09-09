@@ -12,6 +12,7 @@ import { useAuth } from '../lib/AuthContext'
 const IDS_SUPERVISOR_GESTANTE = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 03/09: cuidando do setor
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante E segue vendendo
 ]
 
 // Quem aparece no filtro por atendente. Leticia e Gislaine seguem aqui porque
@@ -21,6 +22,7 @@ const TIME_GESTANTE = [
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 03/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: passa a ser o unico da fila de distribuicao
 ]
 
 // SOMENTE Chatwoot novo (grupookr) — o board já filtra no banco; nada da VendeAI aqui.
