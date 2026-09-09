@@ -31,6 +31,7 @@ const IDS_SUPERVISOR_BOARD = [
 // que o time da Maryana recebe (IDS_TIME_MARYANA)
 const IDS_REVISAO_GESTANTE = [
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro — 03/09
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 09/09: vendedora do gestante, responde ao Jose
 ]
 
 // Fila de entregas: item por ID, sem mexer no menu do papel (coordenador_b2c
@@ -347,7 +348,7 @@ export default function Layout({ children, page, setPage }) {
   // Operações LICENCIADAS (Ronaldo/Leandro): menu EXCLUSIVO — só as revisões, nada do sistema KR
   const IDS_OPERACAO_LICENCIADA = [
     '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
-    '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda
+    '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda Bettini (Ronaldo) — NAO e a Brenda Ribeiro do gestante
     '3a9c1779-2008-4aaa-9cfb-e64336b9207a', // Tamy
     'ed181784-484b-4ad9-9e8c-4f35b1279940', // Kisse
     '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6', // Kayllaine
