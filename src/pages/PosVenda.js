@@ -56,14 +56,32 @@ function corPrazo(nivel) {
   return { bg: 'rgba(52,211,153,.14)', cor: '#059669', borda: '#059669' }
 }
 
+// 10/09: recorte de produto do Jose Carlos no pos-venda (so as gravidas).
+// Constantes de modulo de proposito: dentro do componente elas entrariam nas
+// dependencias dos hooks e recriariam a consulta a cada render.
+const JOSE_ID = 'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85'
+const PRODUTOS_GRAVIDAS = ['Maternidade', 'Gestante até 5 meses']
+const ehGravida = (c) => PRODUTOS_GRAVIDAS.includes(c.produto)
+
 export default function PosVenda() {
   const { profile } = useAuth()
 
   // Maternidade Mae: produto separado, so a Karol (resgate) valida/barra.
   const KAROL_ID = '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9'
   const ehMaternidadeMae = (c) => c.produto === 'Maternidade Mãe'
+
+  // 10/09 (Bruno): o Jose Carlos passa a analisar pos-venda TAMBEM, mas so das
+  // gravidas — Maternidade e Gestante ate 5 meses (as duas, nao so o produto que
+  // tem "gestante" no nome: no pos-venda dos ultimos 30 dias foram 122 Maternidade
+  // e 127 Gestante ate 5 meses). O recorte vale SO nestas telas de pos-venda; o
+  // resto do acesso dele nao muda.
+  // Isto e filtro de TELA, nao trava de seguranca: ele segue com permissao de ler
+  // todos os clientes no banco por causa da aba Clientes e da Supervisao Producao.
+  const soGravidas = profile?.id === JOSE_ID
+
   // pode agir num card: se for Mat. Mae, so a Karol (ou admin); se for outro produto, so quem NAO e a Karol
   const podeAgir = (c) => {
+    if (soGravidas) return ehGravida(c)
     if (ehMaternidadeMae(c)) return profile?.id === KAROL_ID || profile?.role === 'admin'
     return profile?.id !== KAROL_ID // Karol so cuida dos Mat. Mae
   }
@@ -93,9 +111,11 @@ export default function PosVenda() {
       `)
       .in('status', ['aguardando_pos_venda', 'em_contato_pos_venda'])
       .order('pos_venda_prazo', { ascending: true, nullsFirst: false })
-    setClientes(data || [])
+    // o Jose so enxerga as gravidas nesta tela (contadores e filtros ja saem certos)
+    const lista = (data || []).filter(c => !soGravidas || ehGravida(c))
+    setClientes(lista)
     setLoading(false)
-  }, [])
+  }, [soGravidas])
 
   useEffect(() => {
     fetchDados()
