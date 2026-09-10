@@ -15,6 +15,12 @@ const IDS_SUPERVISOR_GESTANTE = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante E segue vendendo
 ]
 
+// Ve o funil gestante inteiro e pode PUXAR cliente pra si, mas NAO distribui pros
+// outros (isso segue so com quem esta em IDS_SUPERVISOR_GESTANTE).
+const IDS_VE_TUDO_GESTANTE = [
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 10/09
+]
+
 // Quem aparece no filtro por atendente. Leticia e Gislaine seguem aqui porque
 // ainda sao donas de 279 e 278 leads, mesmo tendo saido da fila de distribuicao
 // em 03/09 (so o Leandro recebe lead novo).
@@ -244,13 +250,20 @@ function seloApp(min) {
 
 export default function RevisaoIAGestante() {
   const { profile } = useAuth()
+  // 10/09 (Bruno): "ver o funil inteiro" e "mandar lead pros outros" deixaram de ser a
+  // mesma coisa. A Brenda precisa ENXERGAR todas as gestantes e conseguir puxar cliente
+  // pra si — hoje ela nao esta na fila automatica e depende 100% do Jose repassar na mao,
+  // entao sem ele ela fica sem trabalho. Distribuir pra terceiros segue so com a supervisao.
   const ehSupervisor = profile?.role === 'admin' || IDS_SUPERVISOR_GESTANTE.includes(profile?.id)
+  const veTudo = ehSupervisor || IDS_VE_TUDO_GESTANTE.includes(profile?.id)
   const [board, setBoard] = useState([])
   const [soVermelhos, setSoVermelhos] = useState(false)
   const [so5mais, setSo5mais] = useState(false)
   const [soVivas, setSoVivas] = useState(false)
   const [filtroEntrada, setFiltroEntrada] = useState('tudo')
-  const [filtroAtividade, setFiltroAtividade] = useState('mes')
+  // 10/09 (Bruno): a tela abre no que esta quente AGORA. Com 'mes' o board abria com
+  // 1.126 leads; com 'hoje', 21. O filtro continua na tela — muda so o valor inicial.
+  const [filtroAtividade, setFiltroAtividade] = useState('hoje')
   const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
   const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
   const [filtroAgente, setFiltroAgente] = useState('')
@@ -279,21 +292,21 @@ export default function RevisaoIAGestante() {
     // gestante_board2: mesma funcao de antes + o campo `coluna2` (funil redesenhado).
     // A gestante_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
     const { data } = await supabase.rpc('gestante_board2', {
-      p_agente: ehSupervisor ? (filtroAgente || null) : profile.id,
+      p_agente: veTudo ? (filtroAgente || null) : profile.id,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
     })
     setBoard(data || [])
-  }, [profile, ehSupervisor, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
+  }, [profile, veTudo, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
   useEffect(() => { carregar(); const t = setInterval(carregar, 45000); return () => clearInterval(t) }, [carregar])
   useEffect(() => {
-    if (!ehSupervisor) return
+    if (!veTudo) return
     supabase.from('profiles').select('id, nome').in('id', TIME_GESTANTE).order('nome')
       .then(({ data }) => setAgentes(data || []))
-  }, [ehSupervisor])
+  }, [veTudo])
 
   // 03/09 — a conversa vinha cortada em 12 mensagens porque era o que a tela pedia,
   // e o Chatwoot so devolve ~20 por requisicao. A edge ganhou dois parametros
@@ -453,7 +466,7 @@ export default function RevisaoIAGestante() {
   // 04/09: "viva no app" = mexeu no PWA nas ultimas 3h. E o filtro que responde
   // "quem eu chamo agora": cliente parada no chat mas ativa no app e a mais quente.
   if (soVivas) visiveis = visiveis.filter(c => c.pwa_min != null && c.pwa_min <= APP_VERDE_MIN)
-  if (!ehSupervisor) {
+  if (!veTudo) {
     visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || COLUNAS_CRITICAS.includes(c.coluna2))
   }
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
@@ -492,7 +505,7 @@ export default function RevisaoIAGestante() {
     <div>
       <div style={s.title}>🤰 Revisão IA — Gestante</div>
       <div style={s.sub}>
-        {ehSupervisor
+        {veTudo
           ? 'Funil gestante na ordem real (5+ meses destacadas 🤰). Colunas mudam sozinhas conforme a IA avança. ❄️ Travou na oferta = ainda não aceitou a proposta.'
           : 'Seus atendimentos: quem TRAVOU (🟡 10min · 🔴 20min) e SEMPRE os críticos seus — falha de emissão, link expirado e aguardando assinatura.'}
       </div>
@@ -530,7 +543,7 @@ export default function RevisaoIAGestante() {
             🟢 Online mas paradas: <strong>{vivasEParadas}</strong>
           </span>
         )}
-        {ehSupervisor && (
+        {veTudo && (
           <>
             <select style={{ ...s.chip, cursor: 'pointer' }} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
               <option value="">Todos os agentes</option>
@@ -638,7 +651,7 @@ export default function RevisaoIAGestante() {
                     <span>msg há {fmtParado(c.minutos_parado)}</span>
                   </div>
 
-                  {ehSupervisor && c.agente_nome && <div style={s.cardDono}>👤 {c.agente_nome}</div>}
+                  {veTudo && c.agente_nome && <div style={s.cardDono}>👤 {c.agente_nome}</div>}
                   {key === 'FALHA_EMISSAO' && c.falha_motivo && <div style={s.tagFalha}>🛑 {c.falha_motivo}</div>}
                   {key === 'LINK_EXPIRADO' && <div style={s.tagFalha}>⏰ reemitir/reenviar link</div>}
                 </div>
@@ -678,7 +691,7 @@ export default function RevisaoIAGestante() {
               <span style={s.pill}>📞 {lead.tel || '—'}</span>
               <span style={s.pill}>📄 {lead.status_contrato || 'sem contrato'}</span>
               {lead.emitido_em && <span style={s.pill}>🕐 {new Date(lead.emitido_em).toLocaleString('pt-BR')}</span>}
-              {ehSupervisor && <span style={s.pill}>👤 {lead.agente_nome || 'sem dono'}</span>}
+              {veTudo && <span style={s.pill}>👤 {lead.agente_nome || 'sem dono'}</span>}
               {/* presença no app repetida aqui na ficha, com o dado cru do lado —
                   o rodapé de tempo do cabeçalho some quando a pessoa rola o modal */}
               {(() => { const sa = seloApp(lead.pwa_min); return sa
@@ -825,9 +838,11 @@ export default function RevisaoIAGestante() {
           </div>
 
           <div style={s.mFoot}>
-            {ehSupervisor && lead.bf_agente_id !== profile.id && (
+            {/* puxar pra mim: quem ve o funil inteiro tambem consegue pegar cliente */}
+            {veTudo && lead.bf_agente_id !== profile.id && (
               <button style={{ ...s.btn, background: '#f472b6', marginRight: 0 }} disabled={agindo} onClick={() => puxarPraMim(lead)}>🙋 Puxar pra mim</button>
             )}
+            {/* distribuir pros outros: SO a supervisao (Maryana, Leandro, Jose, admin) */}
             {ehSupervisor && (
               <select style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', background: '#f1f5f9', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                 value="" disabled={agindo} onChange={e => redistribuir(lead, e.target.value)}>
