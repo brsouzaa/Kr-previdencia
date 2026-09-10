@@ -140,6 +140,15 @@ const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
+// Pos-venda por ID (10/09): quem analisa pos-venda sem ter o papel pos_venda.
+// Jose Carlos Galvao entrou aqui pra fazer as analises junto com a Luciane; dentro
+// dessas duas telas ele so ve e so age nas gravidas (Maternidade e Gestante ate 5
+// meses) — o recorte esta em PosVenda.js / PosVendaHistorico.js e vale SO la.
+const IDS_POS_VENDA = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 10/09
+]
+const TELAS_POS_VENDA = ['pos_venda', 'pos_venda_historico']
+
 // Revisao IA (fila dos cadastros que a IA fez e precisam de conferencia humana):
 // acesso por ID, sem mexer nas telas do papel.
 const IDS_REVISAO_IA = [
@@ -228,6 +237,8 @@ function paginaPermitida(profile, page) {
   if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
+  // Pos-venda por ID (Jose Carlos): as duas telas nao fazem parte do papel vendedor_operador
+  if (IDS_POS_VENDA.includes(profile.id) && TELAS_POS_VENDA.includes(page)) return true
   // Revisao IA por ID (Brenda Ribeiro): a fila da IA nao faz parte do papel vendedor_operador
   if (IDS_REVISAO_IA.includes(profile.id) && page === 'revisao_ia') return true
   // Revisao Crefaz por ID (Duda opera, Egle acompanha): a tela nao pertence a papel nenhum
