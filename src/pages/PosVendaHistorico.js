@@ -1,7 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
 const VERDE = '#059669', VERMELHO = '#dc2626', LARANJA = '#b45309', AZUL = '#2563eb'
+
+// 10/09 (Bruno): o Jose Carlos analisa pos-venda so das gravidas — Maternidade e
+// Gestante ate 5 meses. Mesmo recorte da tela Fila de pos-venda (PosVenda.js), e
+// vale SO nas telas de pos-venda; o resto do acesso dele nao muda.
+// Filtro de TELA, nao trava de seguranca: ele segue com permissao de ler todos os
+// clientes no banco por causa da aba Clientes e da Supervisao Producao.
+const JOSE_ID = 'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85'
+const PRODUTOS_GRAVIDAS = ['Maternidade', 'Gestante até 5 meses']
 
 // ---------- helpers de data (YYYY-MM-DD, horário local) ----------
 function ymd(d) {
@@ -39,7 +48,12 @@ function metricas(lista) {
 }
 
 export default function PosVendaHistorico() {
+  const { profile } = useAuth()
+  const soGravidas = profile?.id === JOSE_ID
   const [linhas, setLinhas] = useState([])
+  // 10/09 (Bruno): "tipo de venda" na tela — a view v_pos_venda_historico ja trazia
+  // a coluna produto, quem nao usava era esta tela.
+  const [filtroProduto, setFiltroProduto] = useState('todos')
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('hoje')
   const [custIni, setCustIni] = useState(ymd(hojeLocal()))
@@ -48,7 +62,7 @@ export default function PosVendaHistorico() {
 
   const p = useMemo(() => calcPeriodo(periodo, custIni, custFim), [periodo, custIni, custFim])
 
-  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior])
+  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior, soGravidas])
 
   async function fetchDados() {
     setLoading(true)
@@ -60,7 +74,10 @@ export default function PosVendaHistorico() {
       .lte('data_venda', p.fim)
       .order('data_venda', { ascending: false })
       .limit(5000)
-    setLinhas(data || [])
+    // o Jose so enxerga as gravidas nesta tela — assim os cards de metrica,
+    // o ranking de motivos e a quebra por vendedora ja saem so com o que e dele
+    const lista = (data || []).filter(c => !soGravidas || PRODUTOS_GRAVIDAS.includes(c.produto))
+    setLinhas(lista)
     setLoading(false)
   }
 
@@ -95,11 +112,17 @@ export default function PosVendaHistorico() {
       .sort((a, b) => b.barrados - a.barrados)
   }, [atuais])
 
+  // produtos presentes no periodo (sem hardcode, igual a Fila de pos-venda faz)
+  const produtos = useMemo(
+    () => [...new Set(atuais.map(c => c.produto).filter(Boolean))].sort(), [atuais])
+
   const listaFiltrada = useMemo(() => {
-    if (filtro === 'validados') return atuais.filter(c => c.resultado === 'validado')
-    if (filtro === 'barrados') return atuais.filter(c => c.resultado === 'barrado')
-    return atuais
-  }, [atuais, filtro])
+    let l = atuais
+    if (filtroProduto !== 'todos') l = l.filter(c => c.produto === filtroProduto)
+    if (filtro === 'validados') return l.filter(c => c.resultado === 'validado')
+    if (filtro === 'barrados') return l.filter(c => c.resultado === 'barrado')
+    return l
+  }, [atuais, filtro, filtroProduto])
 
   const deltaTaxa = mAtual.taxa - mAnt.taxa
 
@@ -123,6 +146,26 @@ export default function PosVendaHistorico() {
           </span>
         )}
       </div>
+
+      {/* Filtro por tipo de venda (produto) — 10/09 */}
+      {produtos.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#5b6b84' }}>Tipo de venda:</span>
+          <select
+            value={filtroProduto}
+            onChange={e => setFiltroProduto(e.target.value)}
+            style={{ padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', background: '#ffffff', color: '#0f172a' }}
+          >
+            <option value="todos">📦 Todos os tipos</option>
+            {produtos.map(pr => <option key={pr} value={pr}>{pr}</option>)}
+          </select>
+          {filtroProduto !== 'todos' && (
+            <span style={{ fontSize: 11.5, color: '#5b6b84' }}>
+              {listaFiltrada.length} de {atuais.length} no período
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Cards de métrica do período */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
@@ -196,6 +239,12 @@ export default function PosVendaHistorico() {
                       <span style={{ fontSize: 10, padding: '2px 6px', background: barrado ? 'rgba(248,113,113,.14)' : 'rgba(52,211,153,.14)', color: barrado ? VERMELHO : VERDE, borderRadius: 6, fontWeight: 500 }}>
                         {barrado ? '❌ Barrado' : '✅ Validado'}
                       </span>
+                      {/* tipo de venda: era o que faltava pra diferenciar os produtos aqui */}
+                      {c.produto && (
+                        <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(96,165,250,.12)', color: AZUL, borderRadius: 6, fontWeight: 600 }}>
+                          {c.produto}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 11, color: '#5b6b84' }}>
                       {c.cpf} · {c.telefone || '—'} · Vendedora: {c.vendedora || '—'}
