@@ -69,6 +69,13 @@ const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
+// Revisao IA (fila dos cadastros que a IA fez e precisam de conferencia humana):
+// item no menu por ID, sem mexer nas telas do papel. Mesma lista do App.js — se as
+// duas nao baterem, o item aparece no menu e a pagina nega (bug de 02/09).
+const IDS_REVISAO_IA = [
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 10/09
+]
+
 // Revisao Crefaz (09/09): mesma lista do App.js — se as duas nao baterem, o item
 // aparece no menu e a pagina nega (bug de 02/09).
 const IDS_REVISAO_CREFAZ = [
@@ -432,6 +439,11 @@ export default function Layout({ children, page, setPage }) {
     TELAS_SUPERVISAO_SETOR.forEach(k => {
       if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rotulos[k] }]
     })
+  }
+
+  // Revisao IA por ID: a fila da IA nao faz parte do papel vendedor_operador
+  if (IDS_REVISAO_IA.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia')) {
+    nav = [...nav, { key: 'revisao_ia', label: '🤖 Revisão IA' }]
   }
 
   // Revisao Crefaz por ID: a tela nao pertence a papel nenhum (a Duda e simulador_emprestimo)
