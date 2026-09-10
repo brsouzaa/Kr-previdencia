@@ -140,6 +140,12 @@ const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
+// Revisao IA (fila dos cadastros que a IA fez e precisam de conferencia humana):
+// acesso por ID, sem mexer nas telas do papel.
+const IDS_REVISAO_IA = [
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 10/09
+]
+
 // Revisao Crefaz (09/09): quem trabalha os clientes que o robo pre-aprovou no
 // Credito Conta de Luz. A Duda opera; Bruno e Egle acompanham. Nao existe mais
 // botao de "entregar" na Central — todo pre-aprovado sobe pra tela sozinho.
@@ -222,6 +228,8 @@ function paginaPermitida(profile, page) {
   if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
   // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
+  // Revisao IA por ID (Brenda Ribeiro): a fila da IA nao faz parte do papel vendedor_operador
+  if (IDS_REVISAO_IA.includes(profile.id) && page === 'revisao_ia') return true
   // Revisao Crefaz por ID (Duda opera, Egle acompanha): a tela nao pertence a papel nenhum
   if (IDS_REVISAO_CREFAZ.includes(profile.id) && page === 'revisao_crefaz') return true
   // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
