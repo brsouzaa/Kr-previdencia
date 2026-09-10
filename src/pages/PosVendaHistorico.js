@@ -12,6 +12,13 @@ const VERDE = '#059669', VERMELHO = '#dc2626', LARANJA = '#b45309', AZUL = '#256
 const JOSE_ID = 'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85'
 const PRODUTOS_GRAVIDAS = ['Maternidade', 'Gestante até 5 meses']
 
+// 10/09 (Bruno): a Luciane saiu do pos-venda das gravidas, mas "o que ja estava com
+// ela pode manter" — no historico ela segue vendo as analises DELA (1.261 em 90 dias
+// quando isso entrou), e nao o que o Jose passar a analisar.
+// A view so devolve o NOME do analista (nao o id), por isso a comparacao e por nome,
+// sem diferenciar maiuscula. Se o nome do perfil mudar, esta linha para de casar.
+const LUCIANE_ID = '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f'
+
 // ---------- helpers de data (YYYY-MM-DD, horário local) ----------
 function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -50,6 +57,7 @@ function metricas(lista) {
 export default function PosVendaHistorico() {
   const { profile } = useAuth()
   const soGravidas = profile?.id === JOSE_ID
+  const soMinhasAnalises = profile?.id === LUCIANE_ID
   const [linhas, setLinhas] = useState([])
   // 10/09 (Bruno): "tipo de venda" na tela — a view v_pos_venda_historico ja trazia
   // a coluna produto, quem nao usava era esta tela.
@@ -62,7 +70,7 @@ export default function PosVendaHistorico() {
 
   const p = useMemo(() => calcPeriodo(periodo, custIni, custFim), [periodo, custIni, custFim])
 
-  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior, soGravidas])
+  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior, soGravidas, soMinhasAnalises, profile?.nome])
 
   async function fetchDados() {
     setLoading(true)
@@ -76,7 +84,12 @@ export default function PosVendaHistorico() {
       .limit(5000)
     // o Jose so enxerga as gravidas nesta tela — assim os cards de metrica,
     // o ranking de motivos e a quebra por vendedora ja saem so com o que e dele
-    const lista = (data || []).filter(c => !soGravidas || PRODUTOS_GRAVIDAS.includes(c.produto))
+    const meuNome = (profile?.nome || '').trim().toLowerCase()
+    const lista = (data || []).filter(c => {
+      if (soGravidas) return PRODUTOS_GRAVIDAS.includes(c.produto)
+      if (soMinhasAnalises) return (c.analista || '').trim().toLowerCase() === meuNome
+      return true
+    })
     setLinhas(lista)
     setLoading(false)
   }
