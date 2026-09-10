@@ -63,6 +63,13 @@ const JOSE_ID = 'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85'
 const PRODUTOS_GRAVIDAS = ['Maternidade', 'Gestante até 5 meses']
 const ehGravida = (c) => PRODUTOS_GRAVIDAS.includes(c.produto)
 
+// 10/09 (Bruno): a Luciane SAI do pos-venda das gravidas — quem analisa passa a ser
+// o Jose. Mas "o que ja estava com ela pode manter": ela segue vendo os casos que
+// ela mesma ja pegou (pos_venda_atribuido_a = ela), so nao recebe nada novo.
+// Na pratica a fila aberta estava vazia quando isso entrou; a regra existe pra nao
+// arrancar da mao dela um caso que ela ja tivesse comecado.
+const LUCIANE_ID = '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f'
+
 export default function PosVenda() {
   const { profile } = useAuth()
 
@@ -78,10 +85,13 @@ export default function PosVenda() {
   // Isto e filtro de TELA, nao trava de seguranca: ele segue com permissao de ler
   // todos os clientes no banco por causa da aba Clientes e da Supervisao Producao.
   const soGravidas = profile?.id === JOSE_ID
+  const soOsMeus = profile?.id === LUCIANE_ID   // Luciane: so o que ela ja tinha pegado
 
   // pode agir num card: se for Mat. Mae, so a Karol (ou admin); se for outro produto, so quem NAO e a Karol
   const podeAgir = (c) => {
-    if (soGravidas) return ehGravida(c)
+    // caso que a Luciane ja tinha pegado continua com ela, mesmo sendo gravida
+    if (soGravidas) return ehGravida(c) && c.pos_venda_atribuido_a !== LUCIANE_ID
+    if (soOsMeus) return c.pos_venda_atribuido_a === LUCIANE_ID
     if (ehMaternidadeMae(c)) return profile?.id === KAROL_ID || profile?.role === 'admin'
     return profile?.id !== KAROL_ID // Karol so cuida dos Mat. Mae
   }
@@ -111,11 +121,16 @@ export default function PosVenda() {
       `)
       .in('status', ['aguardando_pos_venda', 'em_contato_pos_venda'])
       .order('pos_venda_prazo', { ascending: true, nullsFirst: false })
-    // o Jose so enxerga as gravidas nesta tela (contadores e filtros ja saem certos)
-    const lista = (data || []).filter(c => !soGravidas || ehGravida(c))
+    // recorte por pessoa: o Jose so enxerga as gravidas; a Luciane so o que ja era dela.
+    // Filtrar aqui (e nao so no render) faz os contadores do cabecalho saírem certos.
+    const lista = (data || []).filter(c => {
+      if (soGravidas) return ehGravida(c)
+      if (soOsMeus) return c.pos_venda_atribuido_a === LUCIANE_ID
+      return true
+    })
     setClientes(lista)
     setLoading(false)
-  }, [soGravidas])
+  }, [soGravidas, soOsMeus])
 
   useEffect(() => {
     fetchDados()
@@ -401,7 +416,9 @@ export default function PosVenda() {
               </button>
               {!podeAgir(c) && (
                 <div style={{ fontSize: 11, color: ehMaternidadeMae(c) ? '#7c3aed' : '#5b6b84', fontWeight: 500, alignSelf: 'center', paddingLeft: 4 }}>
-                  {ehMaternidadeMae(c) ? '👶 Só a Karol valida Maternidade Mãe' : 'Cliente de outro produto'}
+                  {ehMaternidadeMae(c) ? '👶 Só a Karol valida Maternidade Mãe'
+                    : c.pos_venda_atribuido_a === LUCIANE_ID ? '📌 Já está com a Luciane'
+                    : 'Cliente de outro produto'}
                 </div>
               )}
             </div>
