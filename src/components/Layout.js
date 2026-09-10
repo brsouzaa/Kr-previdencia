@@ -69,6 +69,16 @@ const IDS_SUPERVISAO_SETOR = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
 ]
 
+// Pos-venda por ID (10/09) — mesma lista do App.js (se as duas nao baterem, o item
+// aparece no menu e a pagina nega, bug de 02/09). Quem analisa pos-venda sem ter o papel pos_venda.
+// Jose Carlos Galvao entrou aqui pra fazer as analises junto com a Luciane; dentro
+// dessas duas telas ele so ve e so age nas gravidas (Maternidade e Gestante ate 5
+// meses) — o recorte esta em PosVenda.js / PosVendaHistorico.js e vale SO la.
+const IDS_POS_VENDA = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 10/09
+]
+const TELAS_POS_VENDA = ['pos_venda', 'pos_venda_historico']
+
 // Revisao IA (fila dos cadastros que a IA fez e precisam de conferencia humana):
 // item no menu por ID, sem mexer nas telas do papel. Mesma lista do App.js — se as
 // duas nao baterem, o item aparece no menu e a pagina nega (bug de 02/09).
@@ -437,6 +447,14 @@ export default function Layout({ children, page, setPage }) {
       ranking: '🏆 Ranking vendedoras', contratos: '📄 Gerar contratos (manual)',
     }
     TELAS_SUPERVISAO_SETOR.forEach(k => {
+      if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rotulos[k] }]
+    })
+  }
+
+  // Pos-venda por ID: as duas telas nao fazem parte do papel vendedor_operador
+  if (IDS_POS_VENDA.includes(profile?.id)) {
+    const rotulos = { pos_venda: '📞 Fila de pós-venda', pos_venda_historico: '📚 Histórico pós-venda' }
+    TELAS_POS_VENDA.forEach(k => {
       if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rotulos[k] }]
     })
   }
