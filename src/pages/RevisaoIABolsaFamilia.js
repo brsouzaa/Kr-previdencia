@@ -285,6 +285,13 @@ const CHATWOOT_ACC = '1'
 // desde 14/09. Só serve pra pintar o botão de roxo — o nome e o link vêm da API,
 // então se criarem outra inbox ela aparece sozinha, sem mexer no código.
 const INBOX_WHATS_API = 59
+
+// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
+// sem erro e sem aviso. Na visão de supervisão o board tem 4.224 leads, então 3.224
+// sumiam e TODOS os KPIs do topo (Total, No funil, 📲 No WhatsApp) saíam errados.
+// A atendente não era afetada: a chamada dela já manda p_agente = profile.id.
+// Não é custo de banco — a função já calcula tudo; o limite só descartava o resultado.
+const LIMITE_BOARD = 20000
 function linkChatwoot(c) {
   return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 }
@@ -416,7 +423,7 @@ export default function RevisaoIABolsaFamilia() {
         p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
         p_ativ_de: fa.de ? fa.de.toISOString() : null,
         p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-      }),
+      }).limit(LIMITE_BOARD),
       supabase.from('digitador_control').select('ligado').eq('id', 1).single(),
       supabase.from('digitador_heartbeat').select('ultimo_ping').order('ultimo_ping', { ascending: false }).limit(1),
     ])
