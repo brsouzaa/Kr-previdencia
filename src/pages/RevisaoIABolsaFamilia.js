@@ -227,6 +227,10 @@ function sugestaoPara(lead, linkCrefisa) {
 // Deep-link pro Chatwoot (responder é lá, não pelo CRM) — mesmo padrão do Confere CNIS/CLT
 const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
 const CHATWOOT_ACC = '1'
+// Inbox do WhatsApp API ("WhatsApp API - 2412"), pra onde o link redireciona a cliente
+// desde 14/09. Só serve pra pintar o botão de roxo — o nome e o link vêm da API,
+// então se criarem outra inbox ela aparece sozinha, sem mexer no código.
+const INBOX_WHATS_API = 59
 function linkChatwoot(c) {
   return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 }
@@ -315,6 +319,8 @@ export default function RevisaoIABolsaFamilia() {
   const [carregandoAnexos, setCarregandoAnexos] = useState(false)
   const [atualizandoConversa, setAtualizandoConversa] = useState(false)
   const [mostrarMotivos, setMostrarMotivos] = useState(false)
+  // conversas do cliente no Chatwoot, por inbox (14/09) — preenchido ao abrir o card
+  const [conversasCw, setConversasCw] = useState({ carregando: false, lista: [], erro: null })
   const [texto, setTexto] = useState('')
   const [sugestao, setSugestao] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -416,6 +422,25 @@ export default function RevisaoIABolsaFamilia() {
 
   function limparBusca() { setBusca(''); setAchados(null) }
 
+  // 14/09: a mesma cliente pode ter conversa em MAIS DE UMA inbox do Chatwoot
+  // (KR CHAT = 4 e WhatsApp API - 2412 = 59, pra onde o link redireciona agora).
+  // O lead guarda um chatwoot_conversation_id só, então perguntamos ao Chatwoot
+  // na hora quais conversas existem, em vez de chutar link que pode não existir.
+  const buscarConversasChatwoot = useCallback(async (l) => {
+    if (!l?.tel) { setConversasCw({ carregando: false, lista: [], erro: null }); return }
+    setConversasCw({ carregando: true, lista: [], erro: null })
+    try {
+      const { data, error } = await supabase.functions.invoke('chatwoot-conversas', {
+        body: { tel: l.tel, account_id: l.chatwoot_account_id || 1 },
+      })
+      if (error || !data?.ok) throw new Error(error?.message || data?.erro || 'falhou')
+      setConversasCw({ carregando: false, lista: data.conversas || [], erro: null })
+    } catch (e) {
+      // Chatwoot fora do ar / token vencido: cai no botão de sempre, sem travar a atendente
+      setConversasCw({ carregando: false, lista: [], erro: String(e?.message || e) })
+    }
+  }, [])
+
   async function abrirCard(l) {
     setLead(l)
     setMostrarMotivos(false)
@@ -424,6 +449,7 @@ export default function RevisaoIABolsaFamilia() {
     setMensagens([])
     setAnexos([])
     setCarregandoAnexos(true)
+    buscarConversasChatwoot(l)   // em paralelo: não segura a abertura do card
     try { await recarregarConversa(l, false) } finally { setCarregandoAnexos(false) }
   }
 
@@ -1183,14 +1209,69 @@ export default function RevisaoIABolsaFamilia() {
               {mensagens.length === 0 && <div style={{ fontSize: 12, color: '#64748b' }}>Sem mensagens.</div>}
             </div>
 
-            {linkChatwoot(lead) ? (
-              <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
-                style={{ display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' }}>
-                💬 Abrir conversa no Chatwoot
-              </a>
-            ) : (
-              <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
-            )}
+            {/* 14/09: um botão por INBOX onde a conversa existe de verdade.
+                Enquanto o Chatwoot não responde — ou se der erro — vale o botão de sempre,
+                montado com o chatwoot_conversation_id do lead. A atendente nunca fica sem botão. */}
+            {(() => {
+              const porInbox = []
+              for (const c of (conversasCw.lista || [])) {
+                const j = porInbox.find(x => x.inbox_id === c.inbox_id)
+                if (j) { j.extras++; continue }           // já tem uma dessa inbox: fica a mais recente
+                porInbox.push({ ...c, extras: 0 })
+              }
+              if (porInbox.length > 0) {
+                return (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {porInbox.map(c => {
+                        const ehApi = c.inbox_id === INBOX_WHATS_API
+                        return (
+                          <a key={c.conversation_id} href={c.link} target="_blank" rel="noreferrer"
+                            title={`conversa ${c.conversation_id} · contato ${c.contato_tel || '—'}`}
+                            style={{
+                              display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%',
+                              padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 700, boxSizing: 'border-box',
+                              background: ehApi ? '#7c3aed' : '#34d399', color: ehApi ? '#ffffff' : '#232a37',
+                            }}>
+                            {ehApi ? '📲' : '💬'} Abrir no {c.inbox_nome}
+                            {c.extras > 0 ? ` (+${c.extras} antiga${c.extras > 1 ? 's' : ''})` : ''}
+                          </a>
+                        )
+                      })}
+                    </div>
+                    {porInbox.length > 1 && (
+                      <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
+                        Esta cliente tem conversa em {porInbox.length} lugares. A ordem é da mais recente pra mais antiga.
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              if (conversasCw.carregando && linkChatwoot(lead)) {
+                return (
+                  <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
+                    style={{ display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, marginBottom: 10, boxSizing: 'border-box' }}>
+                    💬 Abrir conversa no Chatwoot <span style={{ fontWeight: 500, fontSize: 12 }}>· procurando as outras…</span>
+                  </a>
+                )
+              }
+              if (linkChatwoot(lead)) {
+                return (
+                  <div style={{ marginBottom: 10 }}>
+                    <a href={linkChatwoot(lead)} target="_blank" rel="noreferrer"
+                      style={{ display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%', padding: 12, background: '#34d399', color: '#232a37', borderRadius: 10, fontSize: 14, fontWeight: 700, boxSizing: 'border-box' }}>
+                      💬 Abrir conversa no Chatwoot
+                    </a>
+                    {conversasCw.erro && (
+                      <div style={{ fontSize: 11, color: '#b45309', marginTop: 5 }}>
+                        Não consegui listar as outras inboxes agora ({conversasCw.erro}). Este é o link gravado no lead.
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              return <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
+            })()}
 
             <div style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84', marginBottom: 6 }}>Ações de etapa:</div>
             <div style={s.acoes}>
