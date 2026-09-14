@@ -208,6 +208,12 @@ function fmtParado(min) {
 // Isso NAO e a conversa do Chatwoot. A cliente pode estar parada no chat ha 6h
 // e com o app aberto agora — e exatamente essa a hora de chamar. Os dois tempos
 // aparecem lado a lado no card e na ficha, cada um com seu rotulo.
+// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
+// sem erro e sem aviso. Na visão de supervisão o board tem 5.602 leads: 4.602 sumiam,
+// e as colunas do fim do funil (assinado/finalizado) eram as primeiras a esvaziar.
+// Quem vê só a própria carteira não era afetada — a chamada dela já manda p_agente.
+const LIMITE_BOARD = 20000
+
 const APP_ONLINE_MIN = 2      // ate 2 min = app aberto agora
 const APP_VERDE_MIN = 60      // ate 1h = 🟢
 const APP_AMARELO_MIN = 1200  // ate 20h = 🟡, acima disso 🔴
@@ -297,7 +303,7 @@ export default function RevisaoIAGestante() {
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-    })
+    }).limit(LIMITE_BOARD)
     setBoard(data || [])
   }, [profile, veTudo, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
