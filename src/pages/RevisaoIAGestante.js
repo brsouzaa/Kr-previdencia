@@ -208,11 +208,27 @@ function fmtParado(min) {
 // Isso NAO e a conversa do Chatwoot. A cliente pode estar parada no chat ha 6h
 // e com o app aberto agora — e exatamente essa a hora de chamar. Os dois tempos
 // aparecem lado a lado no card e na ficha, cada um com seu rotulo.
-// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
-// sem erro e sem aviso. Na visão de supervisão o board tem 5.602 leads: 4.602 sumiam,
-// e as colunas do fim do funil (assinado/finalizado) eram as primeiras a esvaziar.
-// Quem vê só a própria carteira não era afetada — a chamada dela já manda p_agente.
-const LIMITE_BOARD = 20000
+// 14/09 — o PostgREST deste projeto corta QUALQUER resposta em 1.000 linhas, sem erro
+// e sem aviso. Na visão de supervisão o board passa disso e some gente silenciosamente.
+//
+// ATENÇÃO: o limite é do SERVIDOR, não do cliente. Passar .limit(20000) NÃO resolve —
+// testado em 14/09, volta "content-range: 0-999/5440" do mesmo jeito. Header Range
+// também não pagina em RPC. O que funciona é OFFSET, via .range(de, ate).
+const PAGINA_BOARD = 1000
+const MAX_PAGINAS = 12   // trava de segurança: 12 mil leads
+
+// Para assim que uma página vier incompleta — quem filtra por agente continua com 1 requisição.
+async function buscarBoardCompleto(rpc, params) {
+  let todos = []
+  for (let i = 0; i < MAX_PAGINAS; i++) {
+    const de = i * PAGINA_BOARD
+    const { data, error } = await supabase.rpc(rpc, params).range(de, de + PAGINA_BOARD - 1)
+    if (error || !data || data.length === 0) break
+    todos = todos.concat(data)
+    if (data.length < PAGINA_BOARD) break
+  }
+  return todos
+}
 
 const APP_ONLINE_MIN = 2      // ate 2 min = app aberto agora
 const APP_VERDE_MIN = 60      // ate 1h = 🟢
@@ -297,13 +313,13 @@ export default function RevisaoIAGestante() {
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
     // gestante_board2: mesma funcao de antes + o campo `coluna2` (funil redesenhado).
     // A gestante_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
-    const { data } = await supabase.rpc('gestante_board2', {
+    const data = await buscarBoardCompleto('gestante_board2', {
       p_agente: veTudo ? (filtroAgente || null) : profile.id,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-    }).limit(LIMITE_BOARD)
+    })
     setBoard(data || [])
   }, [profile, veTudo, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
 
