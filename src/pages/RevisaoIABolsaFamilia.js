@@ -322,6 +322,8 @@ const s = {
   tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#dc2626', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
+  // lead que ainda não amarelou — passou a aparecer no funil da atendente em 14/09
+  tagNovo: { fontSize: 10, background: 'rgba(96,165,250,.16)', color: '#1d4ed8', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 700 },
   tagRespondeu: { fontSize: 10, background: 'rgba(251,191,36,.12)', color: '#b45309', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, marginRight: 4, fontWeight: 700 },
   tagMotivo: { fontSize: 10, background: '#e2e8f0', color: '#5b6b84', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   badgeIA: { fontSize: 10, background: 'rgba(96,165,250,.14)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', fontWeight: 700, display: 'inline-block' },
@@ -361,6 +363,7 @@ export default function RevisaoIABolsaFamilia() {
   const [board, setBoard] = useState([])
   const [robo, setRobo] = useState({ ligado: true, vivo: true })   // contexto do robô digitador (pra coluna A digitar)
   const [limiarManual, setLimiarManual] = useState(30)             // min na fila sem robô digitar -> pode digitar manual
+  const [limiarAmarelo, setLimiarAmarelo] = useState(10)           // app_config.bf_amarelo_min — abaixo disso o card ainda é "novo"
   const [soVermelhos, setSoVermelhos] = useState(false)
   // 14/09 (Bruno): filtro "📲 No WhatsApp" — mostra SÓ quem já recebeu o link (card roxo).
   // Fica gravado no navegador pra atendente não ter que reclicar a cada refresh (45s).
@@ -444,6 +447,10 @@ export default function RevisaoIABolsaFamilia() {
       .then(({ data }) => setLinkCrefisa(data?.valor || ''))
     supabase.from('app_config').select('valor').eq('chave', 'bf_digitar_manual_min').single()
       .then(({ data }) => { const v = parseInt(data?.valor, 10); if (v > 0) setLimiarManual(v) })
+    // 14/09: mesma chave que a bf_board2 usa pra pintar o card de amarelo. Lida aqui
+    // porque o funil da atendente passou a mostrar também o lead que ainda não amarelou.
+    supabase.from('app_config').select('valor').eq('chave', 'bf_amarelo_min').single()
+      .then(({ data }) => { const v = parseInt(data?.valor, 10); if (v > 0) setLimiarAmarelo(v) })
     const idsAgentes = ehAdmin ? IDS_AGENTES_BF : (ehSupervisorOp ? (OPERACAO_VENDEDORAS[minhaOp] || []) : (meuTime || []))
     if (idsAgentes.length) {
       supabase.from('profiles').select('id, nome').in('id', idsAgentes).order('nome')
@@ -699,6 +706,16 @@ export default function RevisaoIABolsaFamilia() {
 
   // Selo de tratamento no card, respeitando quem está olhando
   function seloTratamento(c) {
+    // 14/09: lead novo agora aparece no funil da atendente. O selo avisa que a
+    // conversa é recente e a Ana pode estar respondendo — não é pra atropelar.
+    if (!c.bf_em_tratamento && ehRecente(c) && c.sub_estado !== 'BF_CONCLUIDO' && !SUB_ESTADOS_NEGADO.includes(c.sub_estado)) {
+      return (
+        <span style={s.tagNovo}>
+          🆕 {c.minutos_parado <= 1 ? 'chegou agora' : `há ${c.minutos_parado} min`}
+          {!c.ana_pausada ? ' · Ana atendendo' : ''}
+        </span>
+      )
+    }
     if (c.bf_em_tratamento) {
       const aviso = c.cliente_respondeu ? <span style={s.tagRespondeu}>💬 cliente respondeu</span> : null
       if (ehSupervisor) {
@@ -711,6 +728,11 @@ export default function RevisaoIABolsaFamilia() {
     }
     return null
   }
+
+  // Lead que ainda não amarelou: acabou de chegar ou a cliente acabou de responder.
+  // A Ana provavelmente ainda está na conversa — daí o selo 🆕 no card, pra atendente
+  // não atropelar a IA no meio do atendimento.
+  const ehRecente = (c) => c.minutos_parado != null && c.minutos_parado < limiarAmarelo
 
   // Todo mundo (vendedora e admin) ve o funil inteiro
   const colunasVisiveis = COLUNAS
@@ -750,7 +772,16 @@ export default function RevisaoIABolsaFamilia() {
   // 14/09: com o filtro 📲 No WhatsApp LIGADO, a atendente vê TODOS os roxos dela — inclusive
   // os que não estão travados (verde/normal). Sem isso ela perderia ~25% dos roxos pro recorte de cor.
   if (soWhats) visiveis = visiveis.filter(c => c.redirecionado_em)
-  else if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
+  // 14/09 — o "delay de 10 minutos" que as atendentes reportaram era ISTO.
+  // O lead recém-chegado tem cor NORMAL e só vira amarelo depois de bf_amarelo_min
+  // (=10). Como o filtro abaixo só deixava passar vermelho/amarelo/em tratamento/
+  // docs completos, ele ficava invisível no funil pelos primeiros 10 minutos de vida.
+  // Medido em 14/09: os 8 cards invisíveis eram exatamente os 8 com atividade < 10 min.
+  // Agora o lead novo entra também. Concluído e negado seguem de fora — essas colunas
+  // nunca apareceram pra atendente e não é hora de mudar isso.
+  else if (!ehSupervisor) visiveis = visiveis.filter(c =>
+    c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos
+    || (ehRecente(c) && c.sub_estado !== 'BF_CONCLUIDO' && !SUB_ESTADOS_NEGADO.includes(c.sub_estado)))
   if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
   else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
