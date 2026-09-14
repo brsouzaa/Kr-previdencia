@@ -224,6 +224,60 @@ function sugestaoPara(lead, linkCrefisa) {
   return map[lead.sub_estado] || `Oi ${nome}! 💗 Tudo bem? Vi que a gente parou no meio — posso te ajudar a continuar?`
 }
 
+// 14/09 — PRESENÇA da cliente no PWA. Mesmas regras e mesmos cortes do Revisão IA
+// Gestante (04/09), pra quem usa as duas telas não ter que aprender dois semáforos.
+// Vem de public.pwa_visto via bf_board2; NULL = nunca apareceu no app.
+//
+// Isso NÃO é a conversa do Chatwoot. A cliente pode estar parada no chat há 6h e
+// com o app aberto agora — é exatamente essa a hora de chamar. Por isso os dois
+// tempos aparecem lado a lado no card, cada um com seu rótulo.
+const APP_ONLINE_MIN = 2      // até 2 min = app aberto agora
+const APP_VERDE_MIN = 60      // até 1h = 🟢
+const APP_AMARELO_MIN = 1200  // até 20h = 🟡, acima disso 🔴
+
+const CORES_APP = { online: '#10b981', verde: '#34d399', amarelo: '#fbbf24', vermelho: '#f87171' }
+const CORES_APP_TEXTO = { online: '#047857', verde: '#059669', amarelo: '#b45309', vermelho: '#dc2626' }
+
+function nivelApp(min) {
+  if (min == null) return null
+  if (min <= APP_ONLINE_MIN) return 'online'
+  if (min <= APP_VERDE_MIN) return 'verde'
+  if (min <= APP_AMARELO_MIN) return 'amarelo'
+  return 'vermelho'
+}
+
+// Hora do evento. Só HH:MM quando é de hoje; de ontem pra trás entra a data,
+// senão "14:32" numa conversa de 3 dias atrás engana quem está lendo.
+function fmtHora(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const hoje = new Date()
+  const mesmoDia = d.getDate() === hoje.getDate() && d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()
+  if (mesmoDia) return hora
+  const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1)
+  const ehOntem = d.getDate() === ontem.getDate() && d.getMonth() === ontem.getMonth() && d.getFullYear() === ontem.getFullYear()
+  if (ehOntem) return `ontem ${hora}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`
+}
+
+// 40403 min vira "28d". O card mostrava o número cru e ninguém conseguia ler.
+// Mesmos cortes do fmtParado do Revisão IA Gestante.
+function fmtHa(min) {
+  if (min == null) return '—'
+  if (min < 60) return `${min} min`
+  if (min < 1440) return `${Math.floor(min / 60)}h`
+  return `${Math.floor(min / 1440)}d`
+}
+
+// minutos desde um timestamp — pro "link há Xh", que não vem pronto do banco
+function minsDesde(iso) {
+  if (!iso) return null
+  const ms = Date.now() - new Date(iso).getTime()
+  return isNaN(ms) ? null : Math.max(0, Math.floor(ms / 60000))
+}
+
 // Deep-link pro Chatwoot (responder é lá, não pelo CRM) — mesmo padrão do Confere CNIS/CLT
 const CHATWOOT_BASE = 'https://chat.grupookr.com.br' // migracao Chatwoot: instancia propria
 const CHATWOOT_ACC = '1'
@@ -255,6 +309,16 @@ const s = {
   card: { borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'pointer' },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a' },
   cardMeta: { fontSize: 11, color: '#5b6b84', marginTop: 2 },
+  // 14/09 — card redesenhado: nome + ponto de presença na primeira linha,
+  // os dois horários (app e última resposta) na segunda.
+  cardTopo: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  cardDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  cardTempos: { display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: 11, color: '#5b6b84', marginTop: 3 },
+  // a tarja do WhatsApp mostrava "672H53"; agora mostra a hora em que a cliente foi redirecionada
+  tarjaWhats: {
+    background: '#7c3aed', color: '#ffffff', fontSize: 10, fontWeight: 700,
+    borderRadius: 6, padding: '2px 7px', marginBottom: 5, textAlign: 'center',
+  },
   tagTrat: { fontSize: 10, background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagTratSup: { fontSize: 10, background: 'rgba(96,165,250,.10)', color: '#2563eb', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
   tagNinguem: { fontSize: 10, background: 'rgba(248,113,113,.14)', color: '#dc2626', borderRadius: 6, padding: '2px 7px', display: 'inline-block', marginTop: 4, fontWeight: 600 },
@@ -341,7 +405,9 @@ export default function RevisaoIABolsaFamilia() {
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
     const [{ data }, ctl, hb] = await Promise.all([
-      supabase.rpc('bf_board', {
+      // 14/09: bf_board2 = a bf_board de sempre + pwa_visto_em/pwa_min (presença no app).
+      // A bf_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
+      supabase.rpc('bf_board2', {
         p_agente,
         p_entrada_de: fe.de ? fe.de.toISOString() : null,
         p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
@@ -893,7 +959,33 @@ export default function RevisaoIABolsaFamilia() {
                     {c.valor && <span style={{ fontSize: 12, color: '#b45309', fontWeight: 700 }}>R$ {c.valor}</span>}
                     <span style={{ fontSize: 10, fontWeight: 700, color: '#5b6b84', background: '#f1f5f9', borderRadius: 6, padding: '2px 7px' }}>{(COLUNAS.find(x => x[0] === c.sub_estado) || [])[1] || c.sub_estado}</span>
                     {ehSupervisor && c.agente_nome && <span style={{ fontSize: 10, color: '#5b6b84' }}>👤 {c.agente_nome}</span>}
-                    <span style={{ fontSize: 10, fontWeight: 700, color: corSla, background: bgSla, borderRadius: 6, padding: '2px 7px' }}>{emoji} {c.minutos_parado} min (SLA {sla})</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: corSla, background: bgSla, borderRadius: 6, padding: '2px 7px' }}
+                      title={`Parada há ${fmtHa(c.minutos_parado)}`}>{emoji} {fmtHa(c.minutos_parado)} (SLA {sla} min)</span>
+                  </div>
+                  {/* 14/09: os dois horários também na esteira — é a tela onde a atendente
+                      decide quem chamar, então o "está no app agora" precisa estar aqui. */}
+                  <div style={s.cardTempos}>
+                    {(() => {
+                      const n = nivelApp(c.pwa_min)
+                      if (!n) return <span style={{ color: '#94a3b8' }}>sem app</span>
+                      return (
+                        <strong style={{ color: CORES_APP_TEXTO[n] }}
+                          title={`Última vez no app: ${fmtHora(c.pwa_visto_em)}`}>
+                          {n === 'online' ? 'online agora' : `online há ${fmtHa(c.pwa_min)}`}
+                        </strong>
+                      )
+                    })()}
+                    <span style={{ color: '#cbd5e1' }}>·</span>
+                    <span title={`Última resposta da cliente: ${fmtHora(c.ultima_interacao)}`}>msg há {fmtHa(c.minutos_parado)}</span>
+                    {c.redirecionado_em && (
+                      <>
+                        <span style={{ color: '#cbd5e1' }}>·</span>
+                        <span style={{ color: '#7c3aed', fontWeight: 700 }}
+                          title={`Recebeu o link em ${fmtHora(c.redirecionado_em)}`}>
+                          📲 link há {fmtHa(minsDesde(c.redirecionado_em))}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#db2777' : '#334155', marginTop: 4 }}>{acaoSugerida(c)}</div>
                 </div>
@@ -1070,21 +1162,40 @@ export default function RevisaoIABolsaFamilia() {
                   }}
                   onClick={() => abrirCard(c)}>
                   {c.redirecionado_em && (
-                    <div style={{
-                      background: '#7c3aed', color: '#ffffff', fontSize: 10.5, fontWeight: 800,
-                      borderRadius: 6, padding: '3px 7px', marginBottom: 5,
-                      letterSpacing: '.02em', textTransform: 'uppercase', textAlign: 'center',
-                    }}>
-                      📲 no WhatsApp · {(() => {
-                        const min = Math.max(0, Math.floor((Date.now() - new Date(c.redirecionado_em).getTime()) / 60000))
-                        return min >= 60 ? Math.floor(min / 60) + 'h' + String(min % 60).padStart(2, '0') : min + 'min'
-                      })()}
+                    <div style={s.tarjaWhats} title={`Recebeu o link em ${fmtHora(c.redirecionado_em)}`}>
+                      📲 no WhatsApp há {fmtHa(minsDesde(c.redirecionado_em))}
                     </div>
                   )}
-                  <div style={s.cardNome}>{c.nome || 'Sem nome'}</div>
-                  <div style={s.cardMeta}>
-                    {c.valor ? `R$ ${c.valor} · ` : ''}{c.cor === 'vermelho' ? `🔴 parado há ${c.minutos_parado} min` : c.cor === 'amarelo' ? `🟡 ${c.minutos_parado} min` : `${c.minutos_parado} min`}
+
+                  {/* linha 1 — o nome primeiro, e o ponto de presença alinhado à direita */}
+                  <div style={s.cardTopo}>
+                    <span style={s.cardNome}>{c.nome || 'Sem nome'}</span>
+                    <span style={{ ...s.cardDot, background: CORES_APP[nivelApp(c.pwa_min)] || '#cbd5e1' }}
+                      title={c.pwa_min == null ? 'Nunca apareceu no app'
+                        : c.pwa_min <= APP_ONLINE_MIN ? 'No app agora' : `No app há ${fmtHa(c.pwa_min)}`} />
                   </div>
+
+                  {/* linha 2 — os DOIS horários, que é o que decide chamar ou não.
+                      O do app leva a cor; o da resposta fica neutro, porque a borda
+                      do card já diz se estourou o SLA. Tooltip traz o "há quanto tempo". */}
+                  <div style={s.cardTempos}>
+                    {(() => {
+                      const n = nivelApp(c.pwa_min)
+                      if (!n) return <span style={{ color: '#94a3b8' }}>sem app</span>
+                      return (
+                        <strong style={{ color: CORES_APP_TEXTO[n] }}
+                          title={`Última vez no app: ${fmtHora(c.pwa_visto_em)}`}>
+                          {n === 'online' ? 'online agora' : `online há ${fmtHa(c.pwa_min)}`}
+                        </strong>
+                      )
+                    })()}
+                    <span style={{ color: '#cbd5e1' }}>·</span>
+                    <span title={`Última resposta da cliente: ${fmtHora(c.ultima_interacao)}`}>
+                      msg há {fmtHa(c.minutos_parado)}
+                    </span>
+                  </div>
+
+                  {c.valor && <div style={s.cardMeta}>R$ {c.valor}</div>}
                   {ehSupervisor && c.agente_nome && <div style={s.cardMeta}>👤 {c.agente_nome}</div>}
                   {key === 'NEGADO' && <div style={s.tagMotivo}>❌ {labelMotivo(c)}</div>}
                   {key === 'DOCS_COMPLETOS' && statusDigitacao(c)}
@@ -1112,7 +1223,35 @@ export default function RevisaoIABolsaFamilia() {
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{lead.nome}</div>
             <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 10 }}>
-              {(COLUNAS.find(c => c[0] === lead.sub_estado) || [])[1] || lead.sub_estado} · parado há {lead.minutos_parado} min
+              {(COLUNAS.find(c => c[0] === lead.sub_estado) || [])[1] || lead.sub_estado}
+            </div>
+            {/* 14/09: os dois tempos em cima, antes de qualquer outra coisa — é o que
+                decide se vale chamar agora ou não. */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {(() => {
+                const n = nivelApp(lead.pwa_min)
+                return (
+                  <span style={{
+                    fontSize: 11.5, fontWeight: 700, borderRadius: 8, padding: '4px 9px',
+                    background: n ? `${CORES_APP[n]}22` : '#f1f5f9',
+                    color: n ? CORES_APP_TEXTO[n] : '#94a3b8',
+                  }}>
+                    {n == null ? '📱 nunca apareceu no app'
+                      : n === 'online' ? '🟢 online agora'
+                      : `📱 online há ${fmtHa(lead.pwa_min)}`}
+                  </span>
+                )
+              })()}
+              <span style={{ fontSize: 11.5, fontWeight: 700, borderRadius: 8, padding: '4px 9px', background: '#f1f5f9', color: '#5b6b84' }}
+                title={`Última resposta da cliente: ${fmtHora(lead.ultima_interacao)}`}>
+                💬 última msg há {fmtHa(lead.minutos_parado)}
+              </span>
+              {lead.redirecionado_em && (
+                <span style={{ fontSize: 11.5, fontWeight: 700, borderRadius: 8, padding: '4px 9px', background: 'rgba(167,139,250,.20)', color: '#5b21b6' }}
+                  title={`Recebeu o link em ${fmtHora(lead.redirecionado_em)}`}>
+                  📲 recebeu o link há {fmtHa(minsDesde(lead.redirecionado_em))}
+                </span>
+              )}
             </div>
 
             <div style={s.ficha}>
