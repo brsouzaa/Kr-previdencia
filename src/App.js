@@ -146,6 +146,12 @@ const IDS_SUPERVISAO_SETOR = [
 // meses) — o recorte esta em PosVenda.js / PosVendaHistorico.js e vale SO la.
 const IDS_POS_VENDA = [
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 10/09
+  // 14/09 (Bruno): time do pós-venda de Maternidade Mãe (o retroativo).
+  // Elas entram nas duas telas, mas só enxergam/agem no produto Maternidade Mãe —
+  // o recorte está no PosVenda.js e no PosVendaHistorico.js (IDS_MATERNIDADE_MAE).
+  '1eaeb4ad-75c0-44a7-ab3f-ad13be47309b', // Mariana Marques
+  '8922cbe6-854c-4f40-8db5-76197620eef8', // Larissa Lara
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
 ]
 const TELAS_POS_VENDA = ['pos_venda', 'pos_venda_historico']
 
