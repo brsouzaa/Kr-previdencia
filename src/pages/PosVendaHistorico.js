@@ -19,6 +19,15 @@ const PRODUTOS_GRAVIDAS = ['Maternidade', 'Gestante até 5 meses']
 // sem diferenciar maiuscula. Se o nome do perfil mudar, esta linha para de casar.
 const LUCIANE_ID = '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f'
 
+// 14/09 (Bruno): time do pós-venda de MATERNIDADE MÃE (o retroativo).
+// Mesma lista do PosVenda.js — se as duas não baterem, uma tela mostra e a outra
+// esconde, e ninguém entende por quê.
+const IDS_MATERNIDADE_MAE = [
+  '1eaeb4ad-75c0-44a7-ab3f-ad13be47309b', // Mariana Marques
+  '8922cbe6-854c-4f40-8db5-76197620eef8', // Larissa Lara
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+]
+
 // ---------- helpers de data (YYYY-MM-DD, horário local) ----------
 function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -58,6 +67,7 @@ export default function PosVendaHistorico() {
   const { profile } = useAuth()
   const soGravidas = profile?.id === JOSE_ID
   const soMinhasAnalises = profile?.id === LUCIANE_ID
+  const soMatMae = IDS_MATERNIDADE_MAE.includes(profile?.id)   // 14/09: Mariana, Larissa, Sthefany
   const [linhas, setLinhas] = useState([])
   // 10/09 (Bruno): "tipo de venda" na tela — a view v_pos_venda_historico ja trazia
   // a coluna produto, quem nao usava era esta tela.
@@ -70,7 +80,7 @@ export default function PosVendaHistorico() {
 
   const p = useMemo(() => calcPeriodo(periodo, custIni, custFim), [periodo, custIni, custFim])
 
-  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior, soGravidas, soMinhasAnalises, profile?.nome])
+  useEffect(() => { fetchDados() }, [p.inicio, p.fim, p.inicioAnterior, soGravidas, soMinhasAnalises, soMatMae, profile?.nome])
 
   async function fetchDados() {
     setLoading(true)
@@ -88,6 +98,10 @@ export default function PosVendaHistorico() {
     const lista = (data || []).filter(c => {
       if (soGravidas) return PRODUTOS_GRAVIDAS.includes(c.produto)
       if (soMinhasAnalises) return (c.analista || '').trim().toLowerCase() === meuNome
+      // 14/09: time de Maternidade Mãe vê o histórico do produto INTEIRO (não só o
+      // que cada uma analisou) — são três pessoas na mesma fila, precisam enxergar
+      // o que as outras já trataram pra não ligar duas vezes pra mesma cliente.
+      if (soMatMae) return c.produto === 'Maternidade Mãe'
       return true
     })
     setLinhas(lista)
