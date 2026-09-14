@@ -286,12 +286,27 @@ const CHATWOOT_ACC = '1'
 // então se criarem outra inbox ela aparece sozinha, sem mexer no código.
 const INBOX_WHATS_API = 59
 
-// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
-// sem erro e sem aviso. Na visão de supervisão o board tem 4.224 leads, então 3.224
-// sumiam e TODOS os KPIs do topo (Total, No funil, 📲 No WhatsApp) saíam errados.
-// A atendente não era afetada: a chamada dela já manda p_agente = profile.id.
-// Não é custo de banco — a função já calcula tudo; o limite só descartava o resultado.
-const LIMITE_BOARD = 20000
+// 14/09 — o PostgREST deste projeto corta QUALQUER resposta em 1.000 linhas, sem erro
+// e sem aviso. Na visão de supervisão o board passa disso e some gente silenciosamente.
+//
+// ATENÇÃO: o limite é do SERVIDOR, não do cliente. Passar .limit(20000) NÃO resolve —
+// testado em 14/09, volta "content-range: 0-999/5440" do mesmo jeito. Header Range
+// também não pagina em RPC. O que funciona é OFFSET, via .range(de, ate).
+const PAGINA_BOARD = 1000
+const MAX_PAGINAS = 12   // trava de segurança: 12 mil leads
+
+// Para assim que uma página vier incompleta — quem filtra por agente continua com 1 requisição.
+async function buscarBoardCompleto(rpc, params) {
+  let todos = []
+  for (let i = 0; i < MAX_PAGINAS; i++) {
+    const de = i * PAGINA_BOARD
+    const { data, error } = await supabase.rpc(rpc, params).range(de, de + PAGINA_BOARD - 1)
+    if (error || !data || data.length === 0) break
+    todos = todos.concat(data)
+    if (data.length < PAGINA_BOARD) break
+  }
+  return todos
+}
 function linkChatwoot(c) {
   return c?.chatwoot_conversation_id ? `${CHATWOOT_BASE}/app/accounts/${CHATWOOT_ACC}/conversations/${c.chatwoot_conversation_id}` : null
 }
@@ -414,16 +429,16 @@ export default function RevisaoIABolsaFamilia() {
     const p_agente = ehSupervisor ? (filtroAgente || null) : profile.id
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const [{ data }, ctl, hb] = await Promise.all([
+    const [data, ctl, hb] = await Promise.all([
       // 14/09: bf_board2 = a bf_board de sempre + pwa_visto_em/pwa_min (presença no app).
       // A bf_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
-      supabase.rpc('bf_board2', {
+      buscarBoardCompleto('bf_board2', {
         p_agente,
         p_entrada_de: fe.de ? fe.de.toISOString() : null,
         p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
         p_ativ_de: fa.de ? fa.de.toISOString() : null,
         p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-      }).limit(LIMITE_BOARD),
+      }),
       supabase.from('digitador_control').select('ligado').eq('id', 1).single(),
       supabase.from('digitador_heartbeat').select('ultimo_ping').order('ultimo_ping', { ascending: false }).limit(1),
     ])
