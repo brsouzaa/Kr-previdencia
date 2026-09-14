@@ -70,6 +70,16 @@ const ehGravida = (c) => PRODUTOS_GRAVIDAS.includes(c.produto)
 // arrancar da mao dela um caso que ela ja tivesse comecado.
 const LUCIANE_ID = '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f'
 
+// 14/09 (Bruno): time do pós-venda de MATERNIDADE MÃE (o retroativo). Elas só
+// enxergam e só agem nesse produto — mesmo padrão do recorte do José com as grávidas.
+// A Karol CONTINUA podendo agir em Maternidade Mãe (decisão do Bruno: somar, não trocar),
+// mesmo ela não tendo analisado nenhum nos últimos 90 dias enquanto 48 estavam na fila.
+const IDS_MATERNIDADE_MAE = [
+  '1eaeb4ad-75c0-44a7-ab3f-ad13be47309b', // Mariana Marques
+  '8922cbe6-854c-4f40-8db5-76197620eef8', // Larissa Lara
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+]
+
 export default function PosVenda() {
   const { profile } = useAuth()
 
@@ -86,12 +96,15 @@ export default function PosVenda() {
   // todos os clientes no banco por causa da aba Clientes e da Supervisao Producao.
   const soGravidas = profile?.id === JOSE_ID
   const soOsMeus = profile?.id === LUCIANE_ID   // Luciane: so o que ela ja tinha pegado
+  const soMatMae = IDS_MATERNIDADE_MAE.includes(profile?.id)   // 14/09: Mariana, Larissa, Sthefany
 
-  // pode agir num card: se for Mat. Mae, so a Karol (ou admin); se for outro produto, so quem NAO e a Karol
+  // pode agir num card: se for Mat. Mae, a Karol, o time de Mat. Mae ou admin;
+  // se for outro produto, so quem NAO e da Karol nem do time de Mat. Mae
   const podeAgir = (c) => {
     // caso que a Luciane ja tinha pegado continua com ela, mesmo sendo gravida
     if (soGravidas) return ehGravida(c) && c.pos_venda_atribuido_a !== LUCIANE_ID
     if (soOsMeus) return c.pos_venda_atribuido_a === LUCIANE_ID
+    if (soMatMae) return ehMaternidadeMae(c)
     if (ehMaternidadeMae(c)) return profile?.id === KAROL_ID || profile?.role === 'admin'
     return profile?.id !== KAROL_ID // Karol so cuida dos Mat. Mae
   }
@@ -126,11 +139,12 @@ export default function PosVenda() {
     const lista = (data || []).filter(c => {
       if (soGravidas) return ehGravida(c)
       if (soOsMeus) return c.pos_venda_atribuido_a === LUCIANE_ID
+      if (soMatMae) return c.produto === 'Maternidade Mãe'   // 14/09: time do retroativo
       return true
     })
     setClientes(lista)
     setLoading(false)
-  }, [soGravidas, soOsMeus])
+  }, [soGravidas, soOsMeus, soMatMae])
 
   useEffect(() => {
     fetchDados()
