@@ -105,6 +105,15 @@ function faixaData(preset, cDe, cAte) {
 }
 const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
 
+// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
+// sem erro e sem aviso. O board inteiro tem 5.435 leads, então a tela montava com as
+// 1.000 primeiras. Como a ordenação é por urgência (vermelho/amarelo antes), as colunas
+// do FIM do funil — que são verdes e antigas — eram as primeiras a sumir:
+//   Finalizado 87 -> 4 · Pré-aprovado real 214 -> 16 · Cad. final 7 -> 0 (sumia inteira)
+// Não é custo de banco: a função já calcula as 5.435 linhas hoje (128 ms), o limite só
+// jogava fora o que já tinha sido computado. O que cresce é o JSON: 234 kB -> 1,2 MB.
+const LIMITE_BOARD = 20000
+
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
 function fmtParado(min) {
@@ -327,7 +336,16 @@ export default function RevisaoIARetroativo() {
     // pelo próprio id, ela só enxerga A analisar/Pitch (sempre visíveis) e perde cadastro/
     // assinatura/finalizado (que são gated por dono). Ela vê o funil compartilhado inteiro,
     // já fatiado nas colunas dela pelo COLUNAS_VENDEDOR. Corte continua valendo.
-    const p_agente = ehAdmin ? (filtroAgente || null) : null
+    // 14/09 — a vendedora passou a filtrar NA RPC, não só no front.
+    // Antes: p_agente = null pra todo mundo que não é admin, e o recorte dela era
+    // feito no .filter() abaixo. Como o PostgREST corta a resposta em 1.000 linhas,
+    // ela recebia as 1.000 primeiras de um board de 5.435 (que nem era dela) e só
+    // então filtrava — sobravam 9 leads dos 130 dela, e 1 finalizado dos 28.
+    // Medido em 14/09: mae_board(id) devolve EXATAMENTE o mesmo que
+    // mae_board(null) + filtro no front (130 linhas, 28 finalizado, 68 pitch).
+    // O comentário antigo dizia que filtrar pelo id fazia ela perder colunas —
+    // não é mais verdade. O .filter() do front continua abaixo como rede de segurança.
+    const p_agente = ehAdmin ? (filtroAgente || null) : (soMeusLeads ? profile.id : null)
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
     const { data } = await supabase.rpc('mae_board', {
@@ -336,7 +354,7 @@ export default function RevisaoIARetroativo() {
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-    })
+    }).limit(LIMITE_BOARD)
     // Operação licenciada só enxerga os leads da própria operação
     setBoard((data || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
