@@ -105,14 +105,32 @@ function faixaData(preset, cDe, cAte) {
 }
 const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7d', '7 dias'], ['mes', 'mês'], ['custom', 'personalizado']]
 
-// 14/09 — o supabase-js/PostgREST corta QUALQUER resposta em 1.000 linhas por padrão,
-// sem erro e sem aviso. O board inteiro tem 5.435 leads, então a tela montava com as
-// 1.000 primeiras. Como a ordenação é por urgência (vermelho/amarelo antes), as colunas
-// do FIM do funil — que são verdes e antigas — eram as primeiras a sumir:
-//   Finalizado 87 -> 4 · Pré-aprovado real 214 -> 16 · Cad. final 7 -> 0 (sumia inteira)
-// Não é custo de banco: a função já calcula as 5.435 linhas hoje (128 ms), o limite só
-// jogava fora o que já tinha sido computado. O que cresce é o JSON: 234 kB -> 1,2 MB.
-const LIMITE_BOARD = 20000
+// 14/09 — o PostgREST deste projeto corta QUALQUER resposta em 1.000 linhas, sem erro
+// e sem aviso. O board inteiro tem 5.440 leads, então a tela montava com as 1.000
+// primeiras. Como a ordenação é por urgência (vermelho/amarelo antes), as colunas do
+// FIM do funil — verdes e antigas — eram as primeiras a sumir:
+//   Finalizado 87 -> 5 · Pré-aprovado real 214 -> 16 · Cad. final 7 -> 0 (sumia inteira)
+//
+// ATENÇÃO, ISSO JÁ ME PEGOU UMA VEZ: o limite é do SERVIDOR, não do cliente.
+// Passar .limit(20000) NÃO resolve — testado em 14/09, a resposta volta
+// "content-range: 0-999/5440" do mesmo jeito. Header Range também não pagina em RPC.
+// O que funciona é OFFSET, que o supabase-js gera com .range(de, ate).
+const PAGINA_BOARD = 1000
+const MAX_PAGINAS = 12   // trava de segurança: 12 mil leads
+
+// Busca a RPC do board inteira, em páginas. Para assim que uma página vier incompleta,
+// então quem filtra por agente (vendedora, ~130 leads) continua fazendo 1 requisição só.
+async function buscarBoardCompleto(rpc, params) {
+  let todos = []
+  for (let i = 0; i < MAX_PAGINAS; i++) {
+    const de = i * PAGINA_BOARD
+    const { data, error } = await supabase.rpc(rpc, params).range(de, de + PAGINA_BOARD - 1)
+    if (error || !data || data.length === 0) break
+    todos = todos.concat(data)
+    if (data.length < PAGINA_BOARD) break
+  }
+  return todos
+}
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
@@ -348,13 +366,13 @@ export default function RevisaoIARetroativo() {
     const p_agente = ehAdmin ? (filtroAgente || null) : (soMeusLeads ? profile.id : null)
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const { data } = await supabase.rpc('mae_board', {
+    const data = await buscarBoardCompleto('mae_board', {
       p_agente,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
-    }).limit(LIMITE_BOARD)
+    })
     // Operação licenciada só enxerga os leads da própria operação
     setBoard((data || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
