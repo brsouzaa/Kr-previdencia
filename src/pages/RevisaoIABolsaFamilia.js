@@ -662,9 +662,22 @@ export default function RevisaoIABolsaFamilia() {
   if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
   else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
-  // contador do chip 📲 No WhatsApp: roxos ainda em aberto (fora os concluídos e os do Whats pessoal)
-  const totalNoWhats = board.filter(c => c.redirecionado_em && c.sub_estado !== 'BF_CONCLUIDO' && !c.whats_pessoal).length
-  const chipWhats = { background: '#7c3aed', color: '#ffffff', borderColor: '#7c3aed', fontWeight: 700 }
+  // 14/09: UM número só. É exatamente a mesma conta do KPI roxo que já existia no topo do funil —
+  // aquele KPI virou este botão. Não criar uma segunda contagem de "No WhatsApp": dois números com
+  // o mesmo nome e critérios diferentes foi o que deu 0 de um lado e 248 do outro.
+  const totalNoWhats = board.filter(c => c.redirecionado_em).length
+  // O botão 📲 No WhatsApp — mesmo componente nas duas barras (Funil e Fila/Cockpit).
+  const BotaoNoWhats = () => (
+    <button onClick={alternarSoWhats}
+      title={soWhats ? 'Desligar: voltar a ver todos' : 'Mostrar só quem já recebeu o link do WhatsApp (card roxo)'}
+      style={{
+        ...s.kpi, border: '1px solid #7c3aed', cursor: 'pointer', fontWeight: 700,
+        background: soWhats ? '#7c3aed' : 'rgba(167,139,250,.18)',
+        color: soWhats ? '#ffffff' : '#5b21b6',
+      }}>
+      📲 No WhatsApp: <strong>{totalNoWhats}</strong>{soWhats ? ' ✓' : ''}
+    </button>
+  )
   const semDono = board.filter(c => !c.bf_em_tratamento && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO').length
 
   return (
@@ -681,7 +694,7 @@ export default function RevisaoIABolsaFamilia() {
           background: 'rgba(167,139,250,.18)', border: '1px solid #7c3aed', color: '#5b21b6',
           borderRadius: 10, padding: '8px 12px', fontSize: 12.5, fontWeight: 600, marginBottom: 12,
         }}>
-          <span>📲 Filtro ligado: mostrando só os <b>{totalNoWhats}</b> clientes que já receberam o link do WhatsApp. O resto está escondido, não sumiu.</span>
+          <span>📲 Filtro ligado: só aparecem os clientes que já receberam o link do WhatsApp (card roxo) — <b>{totalNoWhats}</b> no total. O resto está escondido, não sumiu.</span>
           <button onClick={alternarSoWhats}
             style={{ padding: '5px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: '1px solid #7c3aed', background: '#ffffff', color: '#7c3aed' }}>
             ✕ mostrar todos
@@ -801,10 +814,7 @@ export default function RevisaoIABolsaFamilia() {
           <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
             {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
           </select>
-          <button style={{ ...s.chip, ...(soWhats ? chipWhats : {}) }} onClick={alternarSoWhats}
-            title="Mostrar só quem já recebeu o link do WhatsApp (card roxo)">
-            📲 No WhatsApp ({totalNoWhats})
-          </button>
+          <BotaoNoWhats />
           <span style={{ fontSize: 11, color: '#64748b' }}>fila, metas e cockpit respeitam esse filtro — estoque antigo fica de fora</span>
         </div>
       )}
@@ -876,10 +886,6 @@ export default function RevisaoIABolsaFamilia() {
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
-        <button style={{ ...s.chip, ...(soWhats ? chipWhats : {}) }} onClick={alternarSoWhats}
-          title="Mostrar só quem já recebeu o link do WhatsApp (card roxo)">
-          📲 No WhatsApp ({totalNoWhats})
-        </button>
         <select style={s.chip} value={filtroEntrada} onChange={e => mudarEntrada(e.target.value)} title="Data de entrada do lead">
           {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
         </select>
@@ -900,9 +906,7 @@ export default function RevisaoIABolsaFamilia() {
           <option value="sem">⚠️ Sem resposta</option>
         </select>
         <span style={s.kpi}>No funil: <strong>{board.length - noWhats.length}</strong></span>
-        <span style={{ ...s.kpi, background: '#7c3aed', color: '#ffffff', fontWeight: 700 }}>
-          📲 No WhatsApp: <strong>{board.filter(c => c.redirecionado_em).length}</strong>
-        </span>
+        <BotaoNoWhats />
         <span style={s.kpi}>Total que entrou: <strong>{board.length}</strong></span>
         {ehSupervisor && conferencia && (
           <button
