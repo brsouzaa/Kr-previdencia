@@ -12,13 +12,8 @@ export const IDS_AGENTES_BF = [
 ]
 
 // Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
-// Esta lista e LOCAL desta tela de proposito. As copias no App.js e no Layout.js
-// controlam menu e acesso a outras telas; quem entra aqui ganha o modo supervisao
-// SOMENTE no board do Bolsa Familia.
 const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
-  '9c02285d-6947-45e9-a4c3-d0c23815dc06', // Jose Carlos Iha — 02/09: supervisao igual a Egle,
-                                          // sem entrar em bf_agentes (nao recebe lead no rateio)
 ]
 
 // ===== OPERAÇÕES LICENCIADAS (Ronaldo / Leandro) =====
@@ -299,6 +294,10 @@ export default function RevisaoIABolsaFamilia() {
   const [robo, setRobo] = useState({ ligado: true, vivo: true })   // contexto do robô digitador (pra coluna A digitar)
   const [limiarManual, setLimiarManual] = useState(30)             // min na fila sem robô digitar -> pode digitar manual
   const [soVermelhos, setSoVermelhos] = useState(false)
+  // 14/09 (Bruno): filtro "📲 No WhatsApp" — mostra SÓ quem já recebeu o link (card roxo).
+  // Fica gravado no navegador pra atendente não ter que reclicar a cada refresh (45s).
+  const [soWhats, setSoWhats] = useState(() => { try { return localStorage.getItem('bf_so_whats') === '1' } catch (_) { return false } })
+  const alternarSoWhats = () => setSoWhats(v => { const n = !v; try { localStorage.setItem('bf_so_whats', n ? '1' : '0') } catch (_) {} return n })
   const [vista, setVista] = useState(null)                         // null = padrão do papel: vendedora abre na FILA, supervisão no funil
   const [vendasMinhas, setVendasMinhas] = useState([])             // vendas p/ o placar do dia (35d)
   const [arrastando, setArrastando] = useState(null)
@@ -640,6 +639,7 @@ export default function RevisaoIABolsaFamilia() {
   // ===== MINHA FILA (modo esteira): lista única priorizada, cada item com a AÇÃO =====
   const fila = board
     .filter(c => c.sub_estado !== 'BF_CONCLUIDO' && !SUB_ESTADOS_NEGADO.includes(c.sub_estado) && !c.whats_pessoal)
+    .filter(c => !soWhats || c.redirecionado_em)   // 14/09: filtro 📲 No WhatsApp
     .map(c => ({ ...c, _score: scoreFila(c) }))
     .sort((a, b) => b._score - a._score)
 
@@ -655,10 +655,16 @@ export default function RevisaoIABolsaFamilia() {
   // Antes sumia daqui e só aparecia na aba do Whats — não dava pra monitorar no mapa.
   // VENDEDORA vê: quem TRAVOU (🟡 10min / 🔴 20min), quem ELA está tratando,
   // e SEMPRE quem já mandou TODA a documentação (docs_completos) — parado ou não, em qualquer etapa.
-  if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
+  // 14/09: com o filtro 📲 No WhatsApp LIGADO, a atendente vê TODOS os roxos dela — inclusive
+  // os que não estão travados (verde/normal). Sem isso ela perderia ~25% dos roxos pro recorte de cor.
+  if (soWhats) visiveis = visiveis.filter(c => c.redirecionado_em)
+  else if (!ehSupervisor) visiveis = visiveis.filter(c => c.cor === 'vermelho' || c.cor === 'amarelo' || c.bf_em_tratamento || c.docs_completos)
   if (filtroAtendimento === 'respondido') visiveis = visiveis.filter(c => c.humano_respondeu)
   else if (filtroAtendimento === 'sem') visiveis = visiveis.filter(c => !c.humano_respondeu)
   const totalVermelhos = board.filter(c => c.cor === 'vermelho').length
+  // contador do chip 📲 No WhatsApp: roxos ainda em aberto (fora os concluídos e os do Whats pessoal)
+  const totalNoWhats = board.filter(c => c.redirecionado_em && c.sub_estado !== 'BF_CONCLUIDO' && !c.whats_pessoal).length
+  const chipWhats = { background: '#7c3aed', color: '#ffffff', borderColor: '#7c3aed', fontWeight: 700 }
   const semDono = board.filter(c => !c.bf_em_tratamento && (c.cor === 'vermelho' || c.cor === 'amarelo') && c.sub_estado !== 'BF_CONCLUIDO').length
 
   return (
@@ -667,6 +673,21 @@ export default function RevisaoIABolsaFamilia() {
       <div style={s.sub}>
         {ehSupervisor ? 'Quadro geral do funil BF. Vermelho = travado, agente precisa destravar.' : 'Aparece quem TRAVOU (🟡 10min · 🔴 20min) e TODO cliente com documentação completa — esses ficam até concluir.'}
       </div>
+
+      {/* 14/09: o filtro fica gravado no navegador — deixa na cara que está ligado, senão parece que sumiu cliente */}
+      {soWhats && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          background: 'rgba(167,139,250,.18)', border: '1px solid #7c3aed', color: '#5b21b6',
+          borderRadius: 10, padding: '8px 12px', fontSize: 12.5, fontWeight: 600, marginBottom: 12,
+        }}>
+          <span>📲 Filtro ligado: mostrando só os <b>{totalNoWhats}</b> clientes que já receberam o link do WhatsApp. O resto está escondido, não sumiu.</span>
+          <button onClick={alternarSoWhats}
+            style={{ padding: '5px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: '1px solid #7c3aed', background: '#ffffff', color: '#7c3aed' }}>
+            ✕ mostrar todos
+          </button>
+        </div>
+      )}
 
       {/* 🔎 BUSCA POR CPF OU TELEFONE — a cliente chamou no seu WhatsApp? cola aqui. */}
       <div style={{ background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.1)', borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
@@ -780,6 +801,10 @@ export default function RevisaoIABolsaFamilia() {
           <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
             {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
           </select>
+          <button style={{ ...s.chip, ...(soWhats ? chipWhats : {}) }} onClick={alternarSoWhats}
+            title="Mostrar só quem já recebeu o link do WhatsApp (card roxo)">
+            📲 No WhatsApp ({totalNoWhats})
+          </button>
           <span style={{ fontSize: 11, color: '#64748b' }}>fila, metas e cockpit respeitam esse filtro — estoque antigo fica de fora</span>
         </div>
       )}
@@ -850,6 +875,10 @@ export default function RevisaoIABolsaFamilia() {
       <div style={s.topo}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
+        </button>
+        <button style={{ ...s.chip, ...(soWhats ? chipWhats : {}) }} onClick={alternarSoWhats}
+          title="Mostrar só quem já recebeu o link do WhatsApp (card roxo)">
+          📲 No WhatsApp ({totalNoWhats})
         </button>
         <select style={s.chip} value={filtroEntrada} onChange={e => mudarEntrada(e.target.value)} title="Data de entrada do lead">
           {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
