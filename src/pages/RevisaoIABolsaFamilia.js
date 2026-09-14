@@ -504,7 +504,16 @@ export default function RevisaoIABolsaFamilia() {
     setConversasCw({ carregando: true, lista: [], erro: null })
     try {
       const { data, error } = await supabase.functions.invoke('chatwoot-conversas', {
-        body: { tel: l.tel, account_id: l.chatwoot_account_id || 1 },
+        // 14/09 — lead_id + inbox_alvo: se a busca por TELEFONE não achar a conversa da
+        // inbox da API, a função tenta de novo pelo CPF da cliente. Caso Marcella: o
+        // telefone do CRM é o que ela digitou na landing, o da inbox 59 é o real de onde
+        // ela mandou a mensagem — quando ela digita errado, os dois nunca casam.
+        body: {
+          tel: l.tel,
+          account_id: l.chatwoot_account_id || 1,
+          lead_id: l.id,
+          inbox_alvo: INBOX_WHATS_API,
+        },
       })
       if (error || !data?.ok) throw new Error(error?.message || data?.erro || 'falhou')
       setConversasCw({ carregando: false, lista: data.conversas || [], erro: null })
@@ -1397,7 +1406,8 @@ export default function RevisaoIABolsaFamilia() {
                         const ehApi = c.inbox_id === INBOX_WHATS_API
                         return (
                           <a key={c.conversation_id} href={c.link} target="_blank" rel="noreferrer"
-                            title={`conversa ${c.conversation_id} · contato ${c.contato_tel || '—'}`}
+                            title={`conversa ${c.conversation_id} · contato ${c.contato_tel || '—'}`
+                              + (c.via === 'cpf' ? ' · achada pelo CPF (o telefone do WhatsApp é diferente do cadastrado)' : '')}
                             style={{
                               display: 'block', textAlign: 'center', textDecoration: 'none', width: '100%',
                               padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 700, boxSizing: 'border-box',
@@ -1412,6 +1422,11 @@ export default function RevisaoIABolsaFamilia() {
                     {porInbox.length > 1 && (
                       <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
                         Esta cliente tem conversa em {porInbox.length} lugares. A ordem é da mais recente pra mais antiga.
+                      </div>
+                    )}
+                    {porInbox.some(c => c.via === 'cpf') && (
+                      <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>
+                        ⚠ O telefone que ela usa no WhatsApp é diferente do cadastrado — achei pelo CPF.
                       </div>
                     )}
                   </div>
