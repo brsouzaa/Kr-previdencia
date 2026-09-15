@@ -64,6 +64,7 @@ const IDS_VENDAS_RETROATIVO = [
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
+  '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
 ]
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
