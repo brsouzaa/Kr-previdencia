@@ -99,6 +99,10 @@ const s = {
   cardTopo: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   cardNome: { fontSize: 13, fontWeight: 600, color: '#0f172a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   cardDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0, display: 'inline-block' },
+  // 16/09 (Bruno): flag "já chamei no WhatsApp" — canto superior direito do card,
+  // do lado do ponto de presença. Só marca que o atendimento já foi iniciado por
+  // fora; NÃO mexe na Ana nem no "estou tratando" (são três coisas diferentes).
+  cardFlagWhats: { fontSize: 11, lineHeight: 1, flexShrink: 0, cursor: 'default' },
   cardTags: { display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, flexWrap: 'wrap' },
   cardTempos: { display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: '#64748b', flexWrap: 'wrap' },
   cardDono: { fontSize: 10.5, color: '#94a3b8', marginTop: 4 },
@@ -470,6 +474,20 @@ export default function RevisaoIAGestante() {
   }
 
   // Handoff IA<->humano — mesmos 2 gates do BF (flag + label), via edge bf-handoff
+  // 16/09 (Bruno): marca que o atendimento JÁ foi iniciado por WhatsApp.
+  // É só um carimbo pra atendente não chamar a mesma cliente duas vezes —
+  // NÃO pausa a Ana e NÃO mexe no "estou tratando". Toggle: clicar de novo desmarca.
+  const marcarWhats = async (l) => {
+    if (!l) return
+    setAgindo(true)
+    const { data, error } = await supabase.rpc('gestante_marcar_whats', { p_lead_id: l.id, p_agente_id: profile?.id })
+    setAgindo(false)
+    if (error || !data?.ok) { alert('Não marcou: ' + (error?.message || data?.erro || 'erro')); return }
+    // atualiza a ficha na hora; o board se ajeita no carregar()
+    setLead(x => (x ? { ...x, whats_iniciado_em: data.marcado ? new Date().toISOString() : null } : x))
+    carregar()
+  }
+
   const handoff = async (l, acao) => {
     if (!l) return
     setAgindo(true)
@@ -606,6 +624,7 @@ export default function RevisaoIAGestante() {
                   {(() => { const sa = seloApp(c.pwa_min)
                     return <span style={{ ...s.cardDot, background: sa ? CORES_APP[sa.nivel] : '#cbd5e1' }} /> })()}
                   <strong style={{ fontSize: 13, color: '#0f172a' }}>{c.nome || 'Sem nome'}</strong>
+                  {c.whats_iniciado_em && <span style={s.cardFlagWhats} title="Atendimento já iniciado no WhatsApp">📲</span>}
                 </span>
                 <span style={s.buscaTag}>{(COLUNAS.find(x => x[0] === c.coluna2) || [])[1] || c.coluna2}</span>
               </div>
@@ -646,9 +665,14 @@ export default function RevisaoIAGestante() {
                   {/* linha 1 — quem é, e o ponto de presença alinhado à direita */}
                   <div style={s.cardTopo}>
                     <span style={s.cardNome}>{c.nome || 'Sem nome'}</span>
-                    {(() => { const sa = seloApp(c.pwa_min)
-                      return <span style={{ ...s.cardDot, background: sa ? CORES_APP[sa.nivel] : '#cbd5e1' }}
-                        title={sa ? sa.texto : 'Nunca abriu o app'} /> })()}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                      {c.whats_iniciado_em && (
+                        <span style={s.cardFlagWhats} title={`Atendimento já iniciado no WhatsApp · ${fmtHora(c.whats_iniciado_em)}`}>📲</span>
+                      )}
+                      {(() => { const sa = seloApp(c.pwa_min)
+                        return <span style={{ ...s.cardDot, background: sa ? CORES_APP[sa.nivel] : '#cbd5e1' }}
+                          title={sa ? sa.texto : 'Nunca abriu o app'} /> })()}
+                    </span>
                   </div>
 
                   {/* linha 2 — atributos que não mudam a toda hora */}
@@ -747,6 +771,24 @@ export default function RevisaoIAGestante() {
                 ) : (
                   <button style={{ ...s.btn, background: '#a78bfa' }} disabled={agindo} onClick={() => handoff(lead, 'assumir')}>✋ Assumir (pausar IA)</button>
                 )}
+              </div>
+            </div>
+
+            {/* 16/09 (Bruno): carimbo de contato iniciado por fora. Fica SEPARADO do
+                bloco da IA acima de propósito — marcar que chamou não pode pausar a Ana. */}
+            <div style={{ background: lead.whats_iniciado_em ? 'rgba(52,211,153,.12)' : 'rgba(15,23,42,.03)', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: lead.whats_iniciado_em ? '#059669' : '#5b6b84' }}>
+                  {lead.whats_iniciado_em
+                    ? `📲 Atendimento iniciado no WhatsApp · ${fmtHora(lead.whats_iniciado_em)}`
+                    : '📲 Ainda não chamada no WhatsApp'}
+                </span>
+                <button
+                  style={{ ...s.btn, background: lead.whats_iniciado_em ? '#94a3b8' : '#059669' }}
+                  disabled={agindo}
+                  onClick={() => marcarWhats(lead)}>
+                  {lead.whats_iniciado_em ? '↩️ Desmarcar' : '📲 Chamei no WhatsApp'}
+                </button>
               </div>
             </div>
 
