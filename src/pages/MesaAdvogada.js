@@ -41,7 +41,8 @@ const MOTIVOS_NEGA = [
 ]
 
 const s = {
-  wrap: { maxWidth: 1100 },
+  // 16/09 — a pagina ficava colada na esquerda em tela larga. margin auto centraliza.
+  wrap: { maxWidth: 1100, margin: '0 auto', padding: '0 16px', width: '100%', boxSizing: 'border-box' },
   h1: { fontSize: 22, fontWeight: 600, color: '#0f172a', margin: 0 },
   sub: { fontSize: 13, color: '#5b6b84', marginTop: 4, marginBottom: 18, lineHeight: 1.5 },
   chips: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 },
@@ -75,8 +76,10 @@ const s = {
   btnChat: { padding: '10px 14px', background: 'rgba(96,165,250,.12)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 9, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' },
   motivos: { marginTop: 12, padding: 12, borderRadius: 10, background: '#f2f5fa', border: '0.5px solid rgba(15,23,42,0.08)' },
   // 16/09 — faixa da linha pronta pro grupo do WhatsApp, depois de pré-aprovar
-  avisoWrap: { position: 'sticky', top: 0, zIndex: 20, marginBottom: 14, padding: 14, borderRadius: 12, background: 'rgba(52,211,153,.14)', border: '1px solid #34d399' },
-  avisoTitulo: { fontSize: 12, fontWeight: 600, color: '#065f46', marginBottom: 8 },
+  avisoWrap: (ok) => ({ position: 'sticky', top: 0, zIndex: 20, marginBottom: 14, padding: 14, borderRadius: 12,
+    background: ok ? 'rgba(52,211,153,.14)' : 'rgba(248,113,113,.14)',
+    border: '1px solid ' + (ok ? '#34d399' : '#f87171') }),
+  avisoTitulo: (ok) => ({ fontSize: 12, fontWeight: 600, color: ok ? '#065f46' : '#991b1b', marginBottom: 8 }),
   avisoLinha: { fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', wordBreak: 'break-word', lineHeight: 1.45 },
   avisoBotoes: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   avisoAlerta: { marginTop: 8, fontSize: 12, fontWeight: 600, color: '#b45309' },
@@ -257,9 +260,24 @@ export default function MesaAdvogada() {
       const dataTxt = lead.nasc_br || 'sem data'
       const vend = (r.data && r.data.vendedora) || null
       setAviso({
+        tipo: 'ok',
         cliente: lead.nome || 'cliente',
         semVendedora: !vend,
         texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}`,
+      })
+    }
+
+    // 16/09 (Bruno): negativa por salário maternidade já recebido também vai pro
+    // grupo — é o caso em que o time precisa saber pra tirar a cliente da lista.
+    // Os outros motivos de negativa encerram na mesa e não geram linha.
+    if (!aprovado && motivo.trim() === 'Recebeu salário maternidade') {
+      const cpfTxt = lead.cpf || lead.cpf_limpo || 'SEM CPF'
+      const dataTxt = lead.nasc_br || 'sem data'
+      setAviso({
+        tipo: 'nao',
+        cliente: lead.nome || 'cliente',
+        semVendedora: false,
+        texto: `${cpfTxt} - ${dataTxt} - Já recebeu o salário maternidade`,
       })
     }
   }
@@ -296,8 +314,12 @@ export default function MesaAdvogada() {
       </div>
 
       {aviso && (
-        <div style={s.avisoWrap}>
-          <div style={s.avisoTitulo}>✅ Pré-aprovado · {aviso.cliente} — manda essa linha no grupo:</div>
+        <div style={s.avisoWrap(aviso.tipo === 'ok')}>
+          <div style={s.avisoTitulo(aviso.tipo === 'ok')}>
+            {aviso.tipo === 'ok'
+              ? `✅ Pré-aprovado · ${aviso.cliente} — manda essa linha no grupo:`
+              : `⛔ Negado · já recebeu SM · ${aviso.cliente} — manda essa linha no grupo:`}
+          </div>
           <div style={s.avisoLinha}>{aviso.texto}</div>
           {aviso.semVendedora && (
             <div style={s.avisoAlerta}>
