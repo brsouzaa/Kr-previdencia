@@ -19,8 +19,13 @@ const FILAS = {
   GERID:          { label: '🗂️ Fila GERID', cor: '#7c3aed', bg: 'rgba(167,139,250,.14)' },
   PEDIU_HUMANO:   { label: '🙋 Pediu humano', cor: '#b45309', bg: 'rgba(251,191,36,.12)' },
   SEM_CNIS_20MIN: { label: '⏰ Sem CNIS há 20min+', cor: '#5b6b84', bg: 'rgba(15,23,42,.04)' },
+  // 16/09: a RPC mesa_advogada devolve esta fila desde 25/08 e o front nunca soube dela.
+  // Resultado: os cards caiam no fallback e apareciam rotulados como '⏰ Sem CNIS há 20min+',
+  // e o chip dela nao existia (contagem sumia). Hoje 191 dos 191 da mesa sao desta fila —
+  // 87 deles sem conversa no Chatwoot (vieram do site).
+  QUALIFICADO_SEM_CNIS: { label: '🌐 Qualificada, sem CNIS', cor: '#0891b2', bg: 'rgba(34,211,238,.12)' },
 }
-const ORDEM_FILAS = ['PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', 'SEM_CNIS_20MIN']
+const ORDEM_FILAS = ['PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', 'QUALIFICADO_SEM_CNIS', 'SEM_CNIS_20MIN']
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -69,6 +74,12 @@ const s = {
   btnNao: { padding: '10px 16px', background: '#dc2626', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   btnChat: { padding: '10px 14px', background: 'rgba(96,165,250,.12)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 9, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' },
   motivos: { marginTop: 12, padding: 12, borderRadius: 10, background: '#f2f5fa', border: '0.5px solid rgba(15,23,42,0.08)' },
+  // 16/09 — faixa da linha pronta pro grupo do WhatsApp, depois de pré-aprovar
+  avisoWrap: { position: 'sticky', top: 0, zIndex: 20, marginBottom: 14, padding: 14, borderRadius: 12, background: 'rgba(52,211,153,.14)', border: '1px solid #34d399' },
+  avisoTitulo: { fontSize: 12, fontWeight: 600, color: '#065f46', marginBottom: 8 },
+  avisoLinha: { fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', wordBreak: 'break-word', lineHeight: 1.45 },
+  avisoBotoes: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  avisoAlerta: { marginTop: 8, fontSize: 12, fontWeight: 600, color: '#b45309' },
   motivoBtn: (cor) => ({
     display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', marginBottom: 6,
     background: '#ffffff', color: '#0f172a', border: '1px solid ' + cor + '40',
@@ -126,6 +137,12 @@ export default function MesaAdvogada() {
   // Print do GERID — obrigatorio SO na pre-aprovacao. Negar nao precisa.
   const [print, setPrint] = useState(null)          // { file, preview }
   const [subindoPrint, setSubindoPrint] = useState(false)
+  // 16/09 (Bruno): depois de PRE-APROVAR, a advogada digitava a linha do grupo
+  // do WhatsApp na mao. Em 16/09 isso ja produziu erro: o CPF 873.146.062-34 foi
+  // gravado no sistema como "Dentro dos 12 meses" e foi pro grupo como "24 meses".
+  // Agora a linha sai pronta daqui, com o CPF, a data e o prazo que FORAM GRAVADOS,
+  // mais a vendedora que o rodizio sorteou (vem no retorno da advogada_decidir).
+  const [aviso, setAviso] = useState(null)   // { texto, cliente }
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
@@ -228,6 +245,23 @@ export default function MesaAdvogada() {
     }
     fecharPainel()
     setFila(f => f.filter(x => x.id !== lead.id))   // sai da fila na hora
+
+    // Só na pré-aprovação: monta a linha do grupo do WhatsApp já pronta.
+    // O prazo sai do PRÓPRIO motivo escolhido ("Dentro dos 12 meses" -> 12),
+    // então o que vai pro grupo é sempre igual ao que ficou gravado no lead.
+    // O \s*meses evita casar com o "120" de "por ter 120 contribuições".
+    if (aprovado) {
+      const m = /(\d+)\s*meses/.exec(motivo)
+      const prazo = m ? `Dentro do prazo de ${m[1]} meses` : motivo.trim()
+      const cpfTxt = lead.cpf || lead.cpf_limpo || 'SEM CPF'
+      const dataTxt = lead.nasc_br || 'sem data'
+      const vend = (r.data && r.data.vendedora) || null
+      setAviso({
+        cliente: lead.nome || 'cliente',
+        semVendedora: !vend,
+        texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}`,
+      })
+    }
   }
 
   const copiarCom = (chave, texto) => {
@@ -260,6 +294,26 @@ export default function MesaAdvogada() {
         quem não mandou o CNIS só entra depois de 20 minutos parada.<br />
         Sua decisão é a oficial: <b>pré-aprovado real</b> vai pro vendedor, <b>negado</b> encerra e a cliente é avisada automaticamente.
       </div>
+
+      {aviso && (
+        <div style={s.avisoWrap}>
+          <div style={s.avisoTitulo}>✅ Pré-aprovado · {aviso.cliente} — manda essa linha no grupo:</div>
+          <div style={s.avisoLinha}>{aviso.texto}</div>
+          {aviso.semVendedora && (
+            <div style={s.avisoAlerta}>
+              ⚠️ O rodízio não achou vendedora disponível — o lead foi aprovado mas ficou sem dono. Avisa a supervisão.
+            </div>
+          )}
+          <div style={s.avisoBotoes}>
+            <button style={s.btnCopia(false)} onClick={() => copiarCom('grupo', aviso.texto)}>
+              {copiado === 'grupo' ? '✅ copiado' : '📋 Copiar pro grupo'}
+            </button>
+            <button style={{ ...s.motivoBtn('#5b6b84'), width: 'auto', padding: '8px 14px' }} onClick={() => setAviso(null)}>
+              fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={s.chips}>
         <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro)} onClick={() => setFiltro('')}>
