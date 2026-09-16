@@ -276,6 +276,12 @@ export default function RevisaoIARetroativo() {
   const [filtroAtendimento, setFiltroAtendimento] = useState('todos')
   const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
   const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
+  // 16/09 (Bruno): filtro por QUANDO A ADVOGADA ENTREGOU o lead pra vendedora.
+  // Nasceu porque lead aprovado hoje com conversa de dias atras so era achado
+  // adivinhando a data da ultima interacao. Padrao 'tudo' de proposito: se abrisse
+  // em 'hoje', a vendedora perderia a carteira inteira ao abrir a tela.
+  const [filtroEntrega, setFiltroEntrega] = useState('tudo')
+  const [entregaDe, setEntregaDe] = useState(''); const [entregaAte, setEntregaAte] = useState('')
   const [lead, setLead] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [mostrarMotivosNegar, setMostrarMotivosNegar] = useState(false)
@@ -367,19 +373,29 @@ export default function RevisaoIARetroativo() {
     const p_agente = ehAdmin ? (filtroAgente || null) : (soMeusLeads ? profile.id : null)
     const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
     const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const data = await buscarBoardCompleto('mae_board', {
+    const fg = faixaData(filtroEntrega, entregaDe, entregaAte)
+    // 16/09 — mae_board2 = a mae_board de sempre com DUAS mudanças:
+    //   1) Atividade voltou a olhar SÓ ultima_interacao (a conversa da cliente).
+    //      O GREATEST que estava lá incluía bf_atribuido_em, que a supervisora move
+    //      a cada transferência: 190 dos 519 aprovados apareciam como "atividade hoje"
+    //      sem ninguém ter falado nada, com defasagem de até 15 dias.
+    //   2) p_entrega_de/ate: quando a ADVOGADA liberou o lead pra vendedora.
+    // A mae_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
+    const data = await buscarBoardCompleto('mae_board2', {
       p_agente,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
       p_ativ_de: fa.de ? fa.de.toISOString() : null,
       p_ativ_ate: fa.ate ? fa.ate.toISOString() : null,
+      p_entrega_de: fg.de ? fg.de.toISOString() : null,
+      p_entrega_ate: fg.ate ? fg.ate.toISOString() : null,
     })
     // Operação licenciada só enxerga os leads da própria operação
     setBoard((data || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
       (!meuTime || meuTime.includes(l.bf_agente_id)) &&
       (!soMeusLeads || l.bf_agente_id === profile?.id)))
-  }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte])
+  }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte, filtroEntrega, entregaDe, entregaAte])
 
   useEffect(() => {
     carregar()
@@ -616,6 +632,13 @@ export default function RevisaoIARetroativo() {
         {filtroAtividade === 'custom' && (<>
           <input type="date" style={s.chip} value={ativDe} onChange={e => setAtivDe(e.target.value)} />
           <input type="date" style={s.chip} value={ativAte} onChange={e => setAtivAte(e.target.value)} />
+        </>)}
+        <select style={s.chip} value={filtroEntrega} onChange={e => setFiltroEntrega(e.target.value)} title="Quando a advogada entregou o lead para a vendedora">
+          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>⚖️ Entregue: {l}</option>)}
+        </select>
+        {filtroEntrega === 'custom' && (<>
+          <input type="date" style={s.chip} value={entregaDe} onChange={e => setEntregaDe(e.target.value)} />
+          <input type="date" style={s.chip} value={entregaAte} onChange={e => setEntregaAte(e.target.value)} />
         </>)}
         <select style={s.chip} value={filtroAtendimento} onChange={e => setFiltroAtendimento(e.target.value)} title="Atendimento humano">
           <option value="todos">Atendimento: todos</option>
