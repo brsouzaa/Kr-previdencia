@@ -405,12 +405,33 @@ export default function DetalheAdvogado({ advogado, onClose, onUpdated }) {
     await fetchTudo()
   }
 
+  // 16/09 (Bruno) — a ordem aqui estava invertida e destruia dado.
+  // Antes: apagava as compras e o comprovante PRIMEIRO e so depois tentava o lote.
+  // O delete do lote nao checava erro, entao quando o banco recusava (FK de
+  // logs_atribuicao/pagamento/resgate/reposicao) as compras e o comprovante ja
+  // tinham ido embora, o lote continuava na tela e ninguem via mensagem nenhuma.
+  // Nao ha transacao no PostgREST, entao a protecao e a ORDEM: o que nao volta
+  // atras so acontece depois que o lote sai de verdade.
   async function excluirLote(lote) {
     if (!window.confirm('Excluir lote de ' + lote.total_contratos + ' contratos do dia ' + lote.data_compra + '?')) return
+
+    // 1) o lote primeiro. Se o banco recusar, nada mais e tocado.
+    const del = await supabase.from('lotes').delete().eq('id', lote.id)
+    if (del.error) {
+      alert(
+        'Não deu pra excluir esse lote e NADA foi apagado.\n\n' +
+        'O banco recusou porque ainda existe registro preso a ele ' +
+        '(pagamento de advogado, resgate ou reposição de venda).\n\n' +
+        'Detalhe técnico: ' + del.error.message
+      )
+      return
+    }
+
+    // 2) o lote saiu. Agora sim limpa o resto.
     const ids = compras.filter(c => c.data_compra === lote.data_compra).map(c => c.id)
     if (ids.length > 0) await supabase.from('compras').delete().in('id', ids)
     if (lote.comprovante_url) await supabase.storage.from('comprovantes').remove([lote.comprovante_url])
-    await supabase.from('lotes').delete().eq('id', lote.id)
+
     const { data: restantes } = await supabase.from('compras').select('data_compra').eq('advogado_id', adv.id).order('data_compra', { ascending: false })
     await supabase.from('advogados').update({ total_compras: restantes?.length || 0, ultima_compra: restantes?.[0]?.data_compra || null }).eq('id', adv.id)
     await fetchTudo()
