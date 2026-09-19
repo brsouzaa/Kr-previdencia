@@ -8,6 +8,9 @@ import { useAuth } from '../lib/AuthContext'
 // Todo acesso a dados passa pela edge central-retorno (admin-only,
 // service role só no backend, segredos sempre mascarados ****ab12).
 // Paleta dos gráficos validada (CVD + contraste) contra o fundo grafite.
+//
+// 19/09: entrou a aba Detetive (fila de consulta de filho menor de 5 anos).
+// Ela NAO passa pela edge: le e grava direto no Supabase, igual o Crefaz.
 // ═══════════════════════════════════════════════════════════════
 
 const ROSA = '#db2777' // acento da marca (UI, nunca série de dado)
@@ -126,7 +129,7 @@ export default function CentralRetorno() {
     return () => clearInterval(t)
   }, [carregarOverview])
 
-  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['crefaz', '💡 Crefaz'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
+  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['crefaz', '💡 Crefaz'], ['detetive', '🕵️ Detetive'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
 
   return (
     <div style={{ maxWidth: 1180 }}>
@@ -153,6 +156,7 @@ export default function CentralRetorno() {
       {ov && tela === 'painel' && <Painel ov={ov} />}
       {tela === 'leads' && <Leads />}
       {tela === 'crefaz' && <Crefaz />}
+      {tela === 'detetive' && <Detetive />}
       {ov && tela === 'conectores' && <Conectores ov={ov} recarregar={carregarOverview} />}
       {tela === 'campanhas' && <Campanhas />}
       {tela === 'email' && <Email />}
@@ -1291,6 +1295,567 @@ function Crefaz() {
           O <b>CEP</b> ao lado da concessionária é o centro da cidade principal daquele DDD, para preencher a
           simulação — não é o endereço do cliente. Onde aparece <b style={{ color: ALERTA }}>⚠ aprox.</b> existe
           mais de uma distribuidora no mesmo DDD e é o CEP que define qual atende, então o teto pode vir diferente.
+        </div>
+      </Secao>
+    </>
+  )
+}
+
+// ═══════════════ DETETIVE — tem filho menor de 5 anos? ═══════════════
+// 19/09. Maquina de consulta em lote: sobe planilha de CPF -> robo externo
+// consulta -> quem tem filho < 5 anos vira lead e cai na fila do Promobank.
+//
+// O PAINEL NUNCA ESCREVE status, classe, filhos, detalhe nem processado_em.
+// Esses campos sao do robo. Daqui so saem INSERT de linha nova e SELECT.
+//
+// POR QUE OS CARDS VEM DA VIEW detetive_resumo E NAO DE UM count() AQUI:
+// a fila vai ter centena de milhar de linha. Contar no navegador significaria
+// baixar tudo. A view agrega no banco e devolve 1 linha por lote.
+//
+// POR QUE A TABELA USA .range() E NAO .limit():
+// o PostgREST corta em 1.000 linhas no SERVIDOR (max-rows). .limit(5000) nao
+// passa disso e volta 1.000 calado. So .range() pagina de verdade.
+//
+// ENCADEAMENTO: quando o robo grava classe='COM_FILHO_MENOR_5', o trigger
+// trg_detetive_para_promobank cria o lead com o CPF, o telefone e a data de
+// nascimento do filho, e a fila do Promobank sai sozinha. O painel nao
+// participa disso — se esta tela estiver fechada o fluxo roda igual.
+const CLASSES_DET = {
+  COM_FILHO_MENOR_5: { label: '✅ Filho < 5 anos', cor: OK, bg: 'rgba(5,150,105,.10)' },
+  SEM_FILHO_MENOR_5: { label: '👦 Só filho maior', cor: ALERTA, bg: 'rgba(180,83,9,.10)' },
+  SEM_FILHO:         { label: 'Sem filho',        cor: NEUTRO, bg: 'rgba(15,23,42,.06)' },
+  SEM_DADOS:         { label: 'Sem dados',        cor: NEUTRO, bg: 'rgba(15,23,42,.06)' },
+  INDEFINIDO:        { label: 'Indefinido',       cor: '#5b6b84', bg: '#e2e8f0' },
+}
+const STATUS_DET = {
+  aguardando_consulta: { label: '⏳ Na fila',    cor: '#2563eb', bg: 'rgba(37,99,235,.10)' },
+  processando:         { label: '🔄 Consultando', cor: ALERTA,   bg: 'rgba(180,83,9,.10)' },
+  pronto:              { label: '✓ Pronto',      cor: OK,        bg: 'rgba(5,150,105,.10)' },
+  agendado:            { label: 'Agendado',      cor: '#5b6b84', bg: '#e2e8f0' },
+  falhou:              { label: '⚠ Falhou',      cor: ERRO,      bg: 'rgba(220,38,38,.10)' },
+}
+const PAGINA_DET = 100
+const BLOCO_INSERT = 500
+const TETO_EXPORT = 50000
+
+// DV do CPF conferido aqui pra nao gastar consulta do robo com lixo.
+// E a mesma conta que o site_ingest_retroativo faz depois, no banco.
+function cpfTemDvOk(n) {
+  if (n.length !== 11 || /^(\d)\1{10}$/.test(n)) return false
+  let s = 0
+  for (let i = 0; i < 9; i++) s += Number(n[i]) * (10 - i)
+  let d1 = 11 - (s % 11); if (d1 >= 10) d1 = 0
+  if (d1 !== Number(n[9])) return false
+  s = 0
+  for (let i = 0; i < 10; i++) s += Number(n[i]) * (11 - i)
+  let d2 = 11 - (s % 11); if (d2 >= 10) d2 = 0
+  return d2 === Number(n[10])
+}
+
+// CSV na mao: respeita aspas, campo com ; dentro, e descobre o separador
+// pela primeira linha (planilha BR sai com ; e planilha gringa com ,).
+function lerCSV(texto) {
+  const prim = texto.split('\n')[0] || ''
+  const sep = (prim.match(/;/g) || []).length >= (prim.match(/,/g) || []).length ? ';' : ','
+  const linhas = []
+  let campo = '', linha = [], aspas = false
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i]
+    if (aspas) {
+      if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++ } else aspas = false }
+      else campo += c
+    } else if (c === '"') aspas = true
+    else if (c === sep) { linha.push(campo); campo = '' }
+    else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = '' }
+    else if (c !== '\r') campo += c
+  }
+  if (campo !== '' || linha.length) { linha.push(campo); linhas.push(linha) }
+  return linhas.filter(l => l.some(c => String(c).trim() !== ''))
+}
+
+// XLSX: o projeto nao tem SheetJS instalado e nao vale mexer no package.json
+// por causa disso. Carrega do CDN so quando o arquivo escolhido e .xlsx.
+// Se o CDN nao responder, a tela pede CSV em vez de morrer calada.
+async function lerXLSX(file) {
+  if (!window.XLSX) {
+    await new Promise((ok, falha) => {
+      const sc = document.createElement('script')
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+      sc.onload = ok
+      sc.onerror = () => falha(new Error('Não consegui carregar o leitor de XLSX. Salve a planilha como CSV e tente de novo.'))
+      document.head.appendChild(sc)
+    })
+  }
+  const buf = await file.arrayBuffer()
+  const wb = window.XLSX.read(buf, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  return window.XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' })
+}
+
+const semAcento = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+// Acha as colunas pelo CABECALHO, em qualquer ordem. Se nao houver cabecalho
+// de CPF, cai no plano B: a coluna cuja maioria dos valores tem 11 digitos.
+function acharColunas(cab, amostra) {
+  const idx = { cpf: -1, telefone: -1, nome: -1 }
+  cab.forEach((c, i) => {
+    const n = semAcento(c)
+    if (idx.cpf < 0 && n.includes('cpf')) idx.cpf = i
+    if (idx.telefone < 0 && /(telefone|celular|whats|fone|contato|tel)/.test(n)) idx.telefone = i
+    if (idx.nome < 0 && n.includes('nome') && !n.includes('filho')) idx.nome = i
+  })
+  if (idx.cpf < 0 && amostra.length) {
+    const largura = Math.max(...amostra.map(l => l.length))
+    for (let i = 0; i < largura; i++) {
+      const acertos = amostra.filter(l => soDigitos(l[i]).length === 11).length
+      if (acertos >= Math.max(1, Math.floor(amostra.length * 0.6))) { idx.cpf = i; break }
+    }
+  }
+  return idx
+}
+
+function normalizaLinha(l, idx) {
+  const cpf = soDigitos(l[idx.cpf]).padStart(11, '0')
+  if (!cpfTemDvOk(cpf)) return null
+  let tel = soDigitos(idx.telefone >= 0 ? l[idx.telefone] : '')
+  if (tel.startsWith('55') && (tel.length === 12 || tel.length === 13)) tel = tel.slice(2)
+  if (tel.length !== 10 && tel.length !== 11) tel = ''
+  const nome = idx.nome >= 0 ? String(l[idx.nome] || '').trim().slice(0, 120) : ''
+  return { cpf, telefone: tel || null, nome: nome || null }
+}
+
+// Confere a lista inteira contra o que ja existe ANTES de gravar.
+// Em blocos de 1.000 porque a RPC vai por HTTP e uma lista de 200 mil num
+// payload so estoura o limite da requisicao. Medido: ~24ms por bloco no banco.
+const BLOCO_CONFERE = 1000
+
+function Detetive() {
+  // ── subir lista ──
+  const [arquivo, setArquivo] = useState(null)
+  const [lote, setLote] = useState(() => 'lote-' + new Date().toLocaleDateString('en-CA'))
+  const [conferindo, setConferindo] = useState(false)
+  const [subindo, setSubindo] = useState(false)
+  const [progresso, setProgresso] = useState(null)
+  const [previa, setPrevia] = useState(null)
+  const [recibo, setRecibo] = useState(null)
+  const [erro, setErro] = useState('')
+
+  // ── resumo + fila ──
+  const [resumo, setResumo] = useState(null)
+  const [linhas, setLinhas] = useState(null)
+  const [total, setTotal] = useState(0)
+  const [pagina, setPagina] = useState(0)
+  const [fLote, setFLote] = useState('todos')
+  const [fClasse, setFClasse] = useState('todas')
+  const [fStatus, setFStatus] = useState('todos')
+  const [exportando, setExportando] = useState(false)
+
+  const carregarResumo = useCallback(async () => {
+    const { data, error } = await supabase.from('detetive_resumo').select('*').order('lote')
+    if (error) { setErro(error.message); return }
+    setResumo(data || [])
+  }, [])
+
+  const montarQuery = useCallback((selecao, comCount) => {
+    let q = supabase.from('detetive_fila').select(selecao, comCount ? { count: 'exact' } : undefined)
+    if (fLote !== 'todos') q = q.eq('lote', fLote)
+    if (fClasse !== 'todas') q = q.eq('classe', fClasse)
+    if (fStatus !== 'todos') q = q.eq('status', fStatus)
+    return q.order('criado_em', { ascending: false })
+  }, [fLote, fClasse, fStatus])
+
+  const carregarFila = useCallback(async () => {
+    setLinhas(null)
+    const de = pagina * PAGINA_DET
+    // .range() e obrigatorio: o PostgREST corta em 1.000 no servidor e
+    // .limit() maior que isso volta 1.000 sem avisar.
+    const { data, error, count } = await montarQuery(
+      'id,cpf,telefone,nome,lote,status,classe,qtd_filhos,filho_menor_nome,filho_menor_dn,processado_em,detalhe', true
+    ).range(de, de + PAGINA_DET - 1)
+    if (error) { setErro(error.message); setLinhas([]); return }
+    setErro('')
+    setLinhas(data || [])
+    setTotal(count || 0)
+  }, [montarQuery, pagina])
+
+  useEffect(() => { carregarResumo() }, [carregarResumo])
+  useEffect(() => { carregarFila() }, [carregarFila])
+  useEffect(() => { setPagina(0) }, [fLote, fClasse, fStatus])
+
+  function limpar() { setPrevia(null); setRecibo(null); setErro('') }
+
+  // ── PASSO 1: ler o arquivo e cruzar com o que ja existe ──
+  async function conferir() {
+    if (!arquivo) { setErro('Escolha a planilha.'); return }
+    if (!lote.trim()) { setErro('Dê um nome ao lote.'); return }
+    setConferindo(true); limpar(); setProgresso({ feito: 0, de: 0, o_que: 'lendo a planilha' })
+    try {
+      let grade
+      if (/\.xlsx?$/i.test(arquivo.name)) grade = await lerXLSX(arquivo)
+      else grade = lerCSV(await arquivo.text())
+      if (!grade.length) throw new Error('A planilha está vazia.')
+
+      // primeira linha e cabecalho se nao parecer um CPF
+      const primeiraTemCpf = grade[0].some(c => soDigitos(c).length === 11)
+      const cab = primeiraTemCpf ? [] : grade[0]
+      const corpo = primeiraTemCpf ? grade : grade.slice(1)
+      const idx = acharColunas(cab, corpo.slice(0, 40))
+      if (idx.cpf < 0) throw new Error('Não achei a coluna de CPF. Coloque um cabeçalho chamado "cpf" na planilha.')
+
+      const lidos = corpo.length
+      const vistos = new Map()
+      let invalidos = 0, repetidosNoArquivo = 0
+      for (const l of corpo) {
+        const r = normalizaLinha(l, idx)
+        if (!r) { invalidos++; continue }
+        if (vistos.has(r.cpf)) { repetidosNoArquivo++; continue }
+        vistos.set(r.cpf, { ...r, lote: lote.trim() })
+      }
+
+      const cpfs = [...vistos.keys()]
+      setProgresso({ feito: 0, de: cpfs.length, o_que: 'conferindo contra a base' })
+
+      const naFilaPorLote = {}
+      let jaEhLead = 0
+      const novos = []
+      for (let i = 0; i < cpfs.length; i += BLOCO_CONFERE) {
+        const bloco = cpfs.slice(i, i + BLOCO_CONFERE)
+        const { data, error } = await supabase.rpc('detetive_prevalidar', { p_cpfs: bloco })
+        if (error) throw new Error(error.message)
+        for (const r of (data || [])) {
+          if (r.situacao === 'na_fila') {
+            const k = r.detalhe || '(sem lote)'
+            naFilaPorLote[k] = (naFilaPorLote[k] || 0) + 1
+          } else if (r.situacao === 'lead_com_data') {
+            jaEhLead++
+          } else {
+            const linha = vistos.get(r.cpf)
+            if (linha) novos.push(linha)
+          }
+        }
+        setProgresso({ feito: Math.min(i + BLOCO_CONFERE, cpfs.length), de: cpfs.length, o_que: 'conferindo contra a base' })
+      }
+
+      const naFila = Object.values(naFilaPorLote).reduce((a, n) => a + n, 0)
+      setPrevia({ lidos, invalidos, repetidosNoArquivo, naFila, naFilaPorLote, jaEhLead, novos, lote: lote.trim() })
+    } catch (e) { setErro(String(e.message || e)) }
+    setConferindo(false); setProgresso(null)
+  }
+
+  // ── PASSO 2: gravar so o que a previa marcou como novo ──
+  async function gravar() {
+    if (!previa || !previa.novos.length) return
+    setSubindo(true); setErro(''); setProgresso({ feito: 0, de: previa.novos.length, o_que: 'gravando' })
+    try {
+      let inseridos = 0
+      for (let i = 0; i < previa.novos.length; i += BLOCO_INSERT) {
+        const bloco = previa.novos.slice(i, i + BLOCO_INSERT)
+        // ON CONFLICT (cpf) DO NOTHING. So as 4 colunas do painel: cpf,
+        // telefone, nome e lote. status/classe/filhos sao do robo.
+        // A previa ja tirou os repetidos, mas o upsert fica como rede: entre
+        // conferir e gravar alguem pode ter subido o mesmo CPF.
+        const { data, error } = await supabase
+          .from('detetive_fila')
+          .upsert(bloco, { onConflict: 'cpf', ignoreDuplicates: true })
+          .select('id')
+        if (error) throw new Error(error.message)
+        inseridos += (data || []).length
+        setProgresso({ feito: Math.min(i + BLOCO_INSERT, previa.novos.length), de: previa.novos.length, o_que: 'gravando' })
+      }
+
+      // Sem policy de INSERT o PostgREST devolve 0 linhas SEM erro — o mesmo
+      // buraco que a tela do Crefaz ja tratava no UPDATE. Sem esta checagem
+      // a tela diria "0 inseridos" pra uma lista nova inteira.
+      if (inseridos === 0 && previa.novos.length > 0) {
+        throw new Error('Nada foi gravado e o banco não acusou erro — isso costuma ser falta de permissão de escrita nesta fila. Nenhuma linha entrou.')
+      }
+
+      setRecibo({ ...previa, inseridos, corrida: previa.novos.length - inseridos })
+      setPrevia(null); setArquivo(null)
+      carregarResumo(); carregarFila()
+    } catch (e) { setErro(String(e.message || e)) }
+    setSubindo(false); setProgresso(null)
+  }
+
+  // Exporta respeitando os filtros. Pagina de 1.000 em 1.000 porque o
+  // PostgREST nao devolve mais que isso por requisicao.
+  async function exportar() {
+    setExportando(true); setErro('')
+    try {
+      const linhasCsv = []
+      let de = 0
+      for (;;) {
+        const { data, error } = await montarQuery(
+          'cpf,telefone,nome,lote,classe,status,qtd_filhos,filho_menor_nome,filho_menor_dn,processado_em', false
+        ).range(de, de + 999)
+        if (error) throw new Error(error.message)
+        if (!data || !data.length) break
+        linhasCsv.push(...data)
+        de += 1000
+        if (data.length < 1000 || linhasCsv.length >= TETO_EXPORT) break
+      }
+      if (!linhasCsv.length) throw new Error('Nada pra exportar nesse filtro.')
+      const cab = ['cpf', 'telefone', 'nome', 'lote', 'classe', 'status', 'qtd_filhos', 'nome_filho', 'dn_filho_mais_novo', 'consultado_em']
+      const corpo = linhasCsv.map(r => [
+        r.cpf, r.telefone || '', r.nome || '', r.lote || '', r.classe || '', r.status || '',
+        r.qtd_filhos ?? '', r.filho_menor_nome || '',
+        r.filho_menor_dn ? dataBR(r.filho_menor_dn) : '',
+        r.processado_em ? new Date(r.processado_em).toLocaleString('pt-BR') : '',
+      ])
+      const esc = (v) => '"' + String(v).replace(/"/g, '""') + '"'
+      // BOM na frente: sem ele o Excel abre acento quebrado.
+      const csv = '﻿' + [cab, ...corpo].map(r => r.map(esc).join(';')).join('\r\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `detetive_${fLote === 'todos' ? 'todos' : fLote}_${fClasse}_${new Date().toLocaleDateString('en-CA')}.csv`
+      a.click()
+      URL.revokeObjectURL(a.href)
+      if (linhasCsv.length >= TETO_EXPORT) {
+        setErro(`Exportei as primeiras ${TETO_EXPORT.toLocaleString('pt-BR')} linhas do filtro. Filtre por lote pra pegar o resto.`)
+      }
+    } catch (e) { setErro(String(e.message || e)) }
+    setExportando(false)
+  }
+
+  const lotes = useMemo(() => (resumo || []).map(r => r.lote).filter(Boolean), [resumo])
+  const geral = useMemo(() => {
+    const z = { total: 0, na_fila: 0, prontos: 0, com_filho_menor_5: 0, filho_so_maior: 0, sem_filho: 0, sem_dados: 0, travados: 0 }
+    ;(resumo || []).forEach(r => { Object.keys(z).forEach(k => { z[k] += Number(r[k] || 0) }) })
+    return z
+  }, [resumo])
+  const pctGeral = geral.prontos > 0 ? Math.round((geral.com_filho_menor_5 / geral.prontos) * 1000) / 10 : null
+  const ultimaPagina = Math.max(0, Math.ceil(total / PAGINA_DET) - 1)
+  const ocupado = conferindo || subindo
+  const n = (v) => Number(v || 0).toLocaleString('pt-BR')
+
+  return (
+    <>
+      <Secao icone="🕵️" titulo="Subir lista pro Detetive"
+        sub="O robô consulta cada CPF e devolve se a pessoa tem filho com menos de 5 anos.">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10, alignItems: 'end' }}>
+          <div>
+            <label style={s.label}>Planilha (CSV ou XLSX)</label>
+            <input type="file" accept=".csv,.xlsx,.xls,text/csv" disabled={ocupado}
+              onChange={e => { setArquivo(e.target.files?.[0] || null); limpar() }}
+              style={{ ...s.input, padding: '6px 8px' }} />
+          </div>
+          <div>
+            <label style={s.label}>Nome do lote</label>
+            <input style={s.input} value={lote} disabled={ocupado}
+              onChange={e => { setLote(e.target.value); limpar() }} placeholder="lote-2026-09-19" />
+          </div>
+          <div>
+            <button style={{ ...s.btn('#2563eb', true), width: '100%' }} disabled={ocupado || !arquivo} onClick={conferir}>
+              {conferindo ? 'Conferindo…' : '🔍 Conferir lista'}
+            </button>
+          </div>
+        </div>
+
+        {progresso && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: progresso.de ? `${Math.round((progresso.feito / progresso.de) * 100)}%` : '12%', background: ROSA, transition: 'width .2s' }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
+              {progresso.o_que}{progresso.de ? ` — ${n(progresso.feito)} de ${n(progresso.de)}` : ''} · não feche a aba
+            </div>
+          </div>
+        )}
+
+        {previa && (
+          <div style={{ marginTop: 14, border: `1px solid ${ROSA}44`, borderRadius: 12, padding: 14, background: 'rgba(219,39,119,.03)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 10 }}>
+              Conferido — nada foi gravado ainda
+            </div>
+            <div style={s.grid(130)}>
+              <Kpi label="Lidos" valor={n(previa.lidos)} sub={`lote ${previa.lote}`} />
+              <Kpi label="✅ Vão entrar" valor={n(previa.novos.length)} cor={OK} borda={OK} sub="CPF que nunca passou por aqui" />
+              <Kpi label="Já na fila" valor={n(previa.naFila)} cor="#5b6b84"
+                sub={Object.entries(previa.naFilaPorLote).sort((a, b) => b[1] - a[1]).slice(0, 4)
+                  .map(([l, q]) => `${l}: ${n(q)}`).join(' · ') || null} />
+              <Kpi label="Já é cliente com data" valor={n(previa.jaEhLead)} cor="#5b6b84"
+                sub="já sabemos o nascimento do filho — não gasta consulta" />
+              <Kpi label="Repetidos no arquivo" valor={n(previa.repetidosNoArquivo)} cor="#5b6b84" />
+              <Kpi label="Inválidos" valor={n(previa.invalidos)} cor={previa.invalidos ? ALERTA : '#0f172a'}
+                borda={previa.invalidos ? ALERTA : null} sub="CPF fora do padrão ou dígito errado" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+              <button style={s.btn(ROSA, true)} disabled={ocupado || !previa.novos.length} onClick={gravar}>
+                {subindo ? 'Gravando…' : `⬆️ Subir só os ${n(previa.novos.length)} novos`}
+              </button>
+              <button style={s.btn('#5b6b84')} disabled={ocupado} onClick={limpar}>Cancelar</button>
+            </div>
+            {!previa.novos.length && (
+              <div style={{ ...s.aviso, marginTop: 10 }}>
+                Essa lista inteira já passou por aqui — não tem nada novo pra consultar.
+              </div>
+            )}
+          </div>
+        )}
+
+        {recibo && (
+          <div style={{ ...s.grid(120), marginTop: 14 }}>
+            <Kpi label="Lidos" valor={n(recibo.lidos)} sub={`lote ${recibo.lote}`} />
+            <Kpi label="Inseridos" valor={n(recibo.inseridos)} cor={OK} borda={OK} sub="entraram na fila agora" />
+            <Kpi label="Já na fila" valor={n(recibo.naFila)} cor="#5b6b84" sub="de lote anterior" />
+            <Kpi label="Já é cliente com data" valor={n(recibo.jaEhLead)} cor="#5b6b84" />
+            <Kpi label="Repetidos no arquivo" valor={n(recibo.repetidosNoArquivo)} cor="#5b6b84" />
+            <Kpi label="Inválidos" valor={n(recibo.invalidos)} cor={recibo.invalidos ? ALERTA : '#0f172a'} />
+          </div>
+        )}
+        {recibo && recibo.corrida > 0 && (
+          <div style={{ ...s.aviso, marginTop: 10 }}>
+            {n(recibo.corrida)} CPF(s) entraram na fila por outro caminho entre a conferência e a gravação — foram barrados pelo banco, nada duplicou.
+          </div>
+        )}
+
+        {erro && <div style={{ ...s.erroBox, marginTop: 12 }}>⚠ {erro}</div>}
+
+        <div style={s.nota}>
+          As colunas são achadas pelo cabeçalho, em qualquer ordem: <b>cpf</b> (obrigatório),
+          <b> telefone</b> (ou celular/whats/fone) e <b>nome</b>.
+          <br />
+          A conferência cruza a planilha com <b>todos os lotes anteriores</b> e com quem já é cliente
+          nosso <b>com a data do filho confirmada</b> — desses o robô não precisa consultar de novo.
+          Quem já é cliente mas está <b>sem</b> a data continua entrando, porque é justamente dele que
+          o Detetive traz a data real.
+          <br />
+          Esta tela só grava CPF, telefone, nome e lote. O resultado da consulta é do robô.
+        </div>
+      </Secao>
+
+      <Secao icone="🎯" titulo="Acerto" sub="quanto de cada lote virou cliente com filho menor de 5 anos"
+        acao={<button style={s.btn(NEUTRO)} onClick={() => { carregarResumo(); carregarFila() }}>↻ Recarregar</button>}>
+        <div style={{ ...s.grid(140), marginBottom: 14 }}>
+          <Kpi label="Total na base" valor={n(geral.total)} />
+          <Kpi label="Ainda na fila" valor={n(geral.na_fila)} cor="#2563eb" />
+          <Kpi label="Consultados" valor={n(geral.prontos)} />
+          <Kpi label="✅ Filho < 5 anos" valor={n(geral.com_filho_menor_5)} cor={OK} borda={OK}
+            sub="viraram lead e foram pro Promobank" />
+          <Kpi label="% de acerto" valor={pctGeral == null ? '—' : `${pctGeral}%`} cor={ROSA} borda={ROSA}
+            sub="sobre os já consultados" />
+          <Kpi label="Travados" valor={n(geral.travados)}
+            cor={geral.travados > 0 ? ERRO : '#0f172a'} borda={geral.travados > 0 ? ERRO : null}
+            sub="o robô tentou e não conseguiu" />
+        </div>
+
+        {resumo === null ? <div style={s.vazio}>Carregando...</div>
+          : resumo.length === 0 ? <div style={s.vazio}>Nenhum lote ainda. Suba a primeira planilha acima.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={s.tabela}>
+                <thead><tr>
+                  <th style={s.th}>Lote</th><th style={s.th}>Total</th><th style={s.th}>Na fila</th>
+                  <th style={s.th}>Consultados</th><th style={s.th}>Filho &lt; 5</th><th style={s.th}>% acerto</th>
+                  <th style={s.th}>Só maior</th><th style={s.th}>Sem filho</th><th style={s.th}>Sem dados</th><th style={s.th}>Travados</th>
+                </tr></thead>
+                <tbody>
+                  {resumo.map(r => (
+                    <tr key={r.lote} style={fLote === r.lote ? { background: 'rgba(219,39,119,.06)' } : undefined}>
+                      <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>
+                        <button onClick={() => setFLote(fLote === r.lote ? 'todos' : r.lote)}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#2563eb', fontSize: 13, fontWeight: 600 }}
+                          title="filtrar a fila por este lote">
+                          {r.lote || '(sem lote)'}
+                        </button>
+                      </td>
+                      <td style={s.td}>{n(r.total)}</td>
+                      <td style={{ ...s.td, color: '#2563eb' }}>{n(r.na_fila)}</td>
+                      <td style={s.td}>{n(r.prontos)}</td>
+                      <td style={{ ...s.td, color: OK, fontWeight: 600 }}>{n(r.com_filho_menor_5)}</td>
+                      <td style={{ ...s.td, color: ROSA, fontWeight: 600 }}>{r.pct_menor_5 == null ? '—' : `${r.pct_menor_5}%`}</td>
+                      <td style={s.td}>{n(r.filho_so_maior)}</td>
+                      <td style={s.td}>{n(r.sem_filho)}</td>
+                      <td style={s.td}>{n(r.sem_dados)}</td>
+                      <td style={{ ...s.td, color: Number(r.travados || 0) > 0 ? ERRO : '#5b6b84' }}>{n(r.travados)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={s.nota}>Clique no nome do lote pra filtrar a fila abaixo por ele.</div>
+            </div>
+          )}
+      </Secao>
+
+      <Secao icone="📋" titulo="Fila" sub={`${n(total)} no filtro atual`}
+        acao={<button style={s.btn(OK, true)} disabled={exportando || !total} onClick={exportar}>
+          {exportando ? 'Montando…' : '⬇️ Exportar CSV'}
+        </button>}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
+          <div>
+            <label style={s.label}>Lote</label>
+            <select style={s.input} value={fLote} onChange={e => setFLote(e.target.value)}>
+              <option value="todos">Todos</option>
+              {lotes.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={s.label}>Resultado</label>
+            <select style={s.input} value={fClasse} onChange={e => setFClasse(e.target.value)}>
+              <option value="todas">Todos</option>
+              {Object.entries(CLASSES_DET).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={s.label}>Status</label>
+            <select style={s.input} value={fStatus} onChange={e => setFStatus(e.target.value)}>
+              <option value="todos">Todos</option>
+              {Object.entries(STATUS_DET).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {linhas === null ? <div style={s.vazio}>Carregando...</div>
+          : linhas.length === 0 ? <div style={s.vazio}>Nada nesse filtro.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={s.tabela}>
+                <thead><tr>
+                  <th style={s.th}>CPF</th><th style={s.th}>Telefone</th><th style={s.th}>Nome</th>
+                  <th style={s.th}>Lote</th><th style={s.th}>Resultado</th><th style={s.th}>Nasc. filho</th>
+                  <th style={s.th}>Filhos</th><th style={s.th}>Status</th><th style={s.th}>Consultado</th><th style={s.th}>Detalhe</th>
+                </tr></thead>
+                <tbody>
+                  {linhas.map(l => {
+                    const cl = CLASSES_DET[l.classe] || { label: l.classe || '—', cor: '#5b6b84', bg: '#e2e8f0' }
+                    const st = STATUS_DET[l.status] || { label: l.status, cor: NEUTRO, bg: 'rgba(15,23,42,.06)' }
+                    return (
+                      <tr key={l.id}>
+                        <td style={s.td}>{cpfBonito(l.cpf)}</td>
+                        <td style={s.td}>{telBonito(l.telefone)}</td>
+                        <td style={{ ...s.td, fontVariantNumeric: 'normal' }}>{l.nome || '—'}</td>
+                        <td style={{ ...s.td, fontVariantNumeric: 'normal', fontSize: 11.5, color: '#5b6b84' }}>{l.lote || '—'}</td>
+                        <td style={s.td}>{l.classe ? <span style={s.badge(cl.cor, cl.bg)}>{cl.label}</span> : <span style={{ color: '#64748b' }}>—</span>}</td>
+                        <td style={{ ...s.td, fontWeight: l.filho_menor_dn ? 600 : 400 }}>
+                          {l.filho_menor_dn ? dataBR(l.filho_menor_dn) : '—'}
+                          {l.filho_menor_nome && <div style={{ fontSize: 10.5, color: '#5b6b84', fontVariantNumeric: 'normal' }}>{l.filho_menor_nome}</div>}
+                        </td>
+                        <td style={s.td}>{l.qtd_filhos ?? '—'}</td>
+                        <td style={s.td}><span style={s.badge(st.cor, st.bg)}>{st.label}</span></td>
+                        <td style={s.td}>{fmtBR(l.processado_em)}</td>
+                        <td style={{ ...s.td, fontSize: 11, color: '#5b6b84', maxWidth: 220, fontVariantNumeric: 'normal' }}>{l.detalhe || '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {total > PAGINA_DET && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                  <button style={s.btn(NEUTRO)} disabled={pagina === 0} onClick={() => setPagina(p => Math.max(0, p - 1))}>← anterior</button>
+                  <span style={{ fontSize: 12, color: '#5b6b84', fontVariantNumeric: 'tabular-nums' }}>
+                    página {pagina + 1} de {n(ultimaPagina + 1)}
+                  </span>
+                  <button style={s.btn(NEUTRO)} disabled={pagina >= ultimaPagina} onClick={() => setPagina(p => p + 1)}>próxima →</button>
+                </div>
+              )}
+            </div>
+          )}
+
+        <div style={s.nota}>
+          Tela de leitura. Quem escreve o resultado é o robô — daqui não dá pra mudar status nem classe.
+          <br />
+          Quem sai como <b style={{ color: OK }}>filho &lt; 5 anos</b> vira lead sozinho e entra na fila do
+          Promobank com o CPF, o telefone e a data de nascimento do filho. Não precisa clicar em nada.
         </div>
       </Secao>
     </>
