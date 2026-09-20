@@ -7,6 +7,14 @@ import { useAuth } from '../lib/AuthContext'
 // A fila vem priorizada do banco (rpc mesa_advogada): pre-aprovado primeiro, e quem nao
 // mandou CNIS so aparece depois de 20 min parada. A decisao dela e a oficial:
 // PRE-APROVADO REAL vai pro vendedor; NEGADO encerra e a cliente e avisada no Chatwoot.
+//
+// 20/09 — DETETIVE. A rpc passou a devolver duas colunas novas:
+//   do_detetive      : o lead nasceu de uma consulta do robo Detetive
+//   filhos_elegiveis : datas dos filhos com MENOS de 5 anos (grau Filho; enteado fora),
+//                      no formato "13/09/2024, 20/04/2022", do mais novo pro mais velho.
+// Quem vem do Detetive tem a data de nascimento LIDA no orgao; o resto da mesa hoje veio
+// de lista com data estimada. Por isso eles sobem no topo (a ordenacao e feita no banco)
+// e ganham etiqueta e filtro proprios aqui.
 
 const CHATWOOT_BASE = 'https://chat.grupookr.com.br'
 const linkChat = (c) => c && c.chatwoot_conversation_id
@@ -26,6 +34,9 @@ const FILAS = {
   QUALIFICADO_SEM_CNIS: { label: '🌐 Qualificada, sem CNIS', cor: '#0891b2', bg: 'rgba(34,211,238,.12)' },
 }
 const ORDEM_FILAS = ['PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', 'QUALIFICADO_SEM_CNIS', 'SEM_CNIS_20MIN']
+
+const DETETIVE_COR = '#4f46e5'
+const DETETIVE_BG  = 'rgba(99,102,241,.12)'
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -60,6 +71,7 @@ const s = {
   nome: { fontSize: 15, fontWeight: 600, color: '#0f172a' },
   dado: { fontSize: 12, color: '#5b6b84', marginTop: 3 },
   badge: (cor, bg) => ({ padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color: cor, whiteSpace: 'nowrap' }),
+  badges: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' },
   barraLote: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 },
   btnLote: { padding: '9px 14px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
   loteDica: { fontSize: 12, color: '#5b6b84' },
@@ -69,6 +81,18 @@ const s = {
   btnCopia: (off) => ({ padding: '5px 10px', background: off ? '#e2e8f0' : '#ffffff', color: off ? '#94a3b8' : '#2563eb', border: '0.5px solid rgba(15,23,42,0.14)', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: off ? 'not-allowed' : 'pointer', fontFamily: 'inherit', minWidth: 78 }),
   valor: { fontSize: 14, fontWeight: 600, color: '#0f172a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '0.3px' },
   alertaMini: { fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'rgba(251,191,36,.18)', borderRadius: 6, padding: '2px 7px' },
+  // --- filhos elegiveis (20/09) ---
+  // Bloco proprio logo abaixo do nascimento. Quando ha MAIS DE UM filho dentro
+  // do prazo de 5 anos, ganha fundo amarelo: cada filho e um pedido a mais, e
+  // hoje isso passava batido. Enteado nao entra (nao gera direito).
+  filhosBox: (varios) => ({
+    marginTop: 8, padding: varios ? '9px 10px' : '6px 0 0', borderRadius: 8,
+    background: varios ? 'rgba(251,191,36,.16)' : 'transparent',
+    border: varios ? '1px solid rgba(180,83,9,.35)' : 'none',
+  }),
+  filhosTit: { fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#5b6b84', marginBottom: 4 },
+  filhosDatas: { fontSize: 13.5, fontWeight: 600, color: '#0f172a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '0.3px', lineHeight: 1.5 },
+  filhosNota: { fontSize: 11.5, fontWeight: 700, color: '#92400e', marginTop: 5, lineHeight: 1.4 },
   maquina: { marginTop: 10, padding: 10, borderRadius: 9, background: '#f2f5fa', fontSize: 12, color: '#334155', lineHeight: 1.45 },
   acoes: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   btnOk: { padding: '10px 16px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
@@ -128,12 +152,16 @@ function copiar(texto) {
   } catch (e) { return false }
 }
 
+// "13/09/2024, 20/04/2022" -> ['13/09/2024','20/04/2022']
+const listaFilhos = (txt) => String(txt || '').split(',').map(x => x.trim()).filter(Boolean)
+
 export default function MesaAdvogada() {
   const { profile } = useAuth()
   const [copiado, setCopiado] = useState('')
   const [fila, setFila] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
+  const [soDetetive, setSoDetetive] = useState(false)   // 20/09 — filtro de origem
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -259,11 +287,20 @@ export default function MesaAdvogada() {
       const cpfTxt = lead.cpf || lead.cpf_limpo || 'SEM CPF'
       const dataTxt = lead.nasc_br || 'sem data'
       const vend = (r.data && r.data.vendedora) || null
+      // 20/09 (Bruno): a linha do grupo e o UNICO caminho pelo qual a vendedora
+      // fica sabendo dos filhos. Entao os filhos no prazo vao DENTRO dela, com
+      // data e nome — nao adianta so avisar na tela, que a vendedora nao ve.
+      const filhos = listaFilhos(lead.filhos_elegiveis)
+      const rotulo = filhos.length > 1 ? 'Filhos no prazo' : 'Filho no prazo'
+      const trechoFilhos = filhos.length ? ` - ${rotulo}: ${lead.filhos_elegiveis}` : ''
       setAviso({
         tipo: 'ok',
         cliente: lead.nome || 'cliente',
         semVendedora: !vend,
-        texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}`,
+        texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}${trechoFilhos}`,
+        // aviso extra na tela so quando ha mais de um: a linha ja leva a lista,
+        // isto aqui e pra advogada nao passar batido no caso que rende mais.
+        extraFilhos: filhos.length > 1 ? lead.filhos_elegiveis : null,
       })
     }
 
@@ -278,6 +315,7 @@ export default function MesaAdvogada() {
         cliente: lead.nome || 'cliente',
         semVendedora: false,
         texto: `${cpfTxt} - ${dataTxt} - Já recebeu o salário maternidade`,
+        extraFilhos: null,
       })
     }
   }
@@ -292,13 +330,18 @@ export default function MesaAdvogada() {
   const copiarLote = (lista) => {
     const linhas = lista
       .filter(c => c.cpf_ok)
-      .map(c => `${c.cpf_limpo}\t${c.nasc_br || 'sem data'}\t${c.nome || ''}`)
+      .map(c => `${c.cpf_limpo}\t${c.nasc_br || 'sem data'}\t${c.nome || ''}\t${c.filhos_elegiveis || ''}`)
     if (!linhas.length) { alert('Nenhum CPF válido nessa fila.'); return }
-    copiarCom('lote', 'CPF\tNascimento\tNome\n' + linhas.join('\n'))
+    copiarCom('lote', 'CPF\tNascimento\tNome\tFilhos elegíveis\n' + linhas.join('\n'))
   }
 
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
-  const visiveis = filtro ? fila.filter(c => c.fila === filtro) : fila
+  const nDetetive = fila.filter(c => c.do_detetive).length
+  const visiveis = fila.filter(c => {
+    if (filtro && c.fila !== filtro) return false
+    if (soDetetive && !c.do_detetive) return false
+    return true
+  })
   const fmtTempo = (m) => {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
@@ -311,6 +354,9 @@ export default function MesaAdvogada() {
         Só chega aqui quem já passou pela conferência PromoBank. Pré-aprovadas vêm primeiro;
         quem não mandou o CNIS só entra depois de 20 minutos parada.<br />
         Sua decisão é a oficial: <b>pré-aprovado real</b> vai pro vendedor, <b>negado</b> encerra e a cliente é avisada automaticamente.
+        {nDetetive > 0 && (
+          <><br />🕵️ As <b>{nDetetive}</b> do Detetive vêm no topo: a data de nascimento delas foi lida no órgão, não estimada.</>
+        )}
       </div>
 
       {aviso && (
@@ -321,6 +367,11 @@ export default function MesaAdvogada() {
               : `⛔ Negado · já recebeu SM · ${aviso.cliente} — manda essa linha no grupo:`}
           </div>
           <div style={s.avisoLinha}>{aviso.texto}</div>
+          {aviso.extraFilhos && (
+            <div style={s.avisoAlerta}>
+              👶 Mais de um filho no prazo — cada um é um pedido separado. Já vai na linha acima.
+            </div>
+          )}
           {aviso.semVendedora && (
             <div style={s.avisoAlerta}>
               ⚠️ O rodízio não achou vendedora disponível — o lead foi aprovado mas ficou sem dono. Avisa a supervisão.
@@ -338,9 +389,17 @@ export default function MesaAdvogada() {
       )}
 
       <div style={s.chips}>
-        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro)} onClick={() => setFiltro('')}>
+        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro && !soDetetive)}
+          onClick={() => { setFiltro(''); setSoDetetive(false) }}>
           Todas · {fila.length}
         </button>
+        {nDetetive > 0 && (
+          <button style={s.chip(DETETIVE_COR, DETETIVE_BG, soDetetive)}
+            onClick={() => setSoDetetive(v => !v)}
+            title="Leads que nasceram de uma consulta do robô Detetive — data lida no órgão">
+            🕵️ Detetive · {nDetetive}
+          </button>
+        )}
         {ORDEM_FILAS.map(k => (
           contagem[k] ? (
             <button key={k} style={s.chip(FILAS[k].cor, FILAS[k].bg, filtro === k)} onClick={() => setFiltro(filtro === k ? '' : k)}>
@@ -355,7 +414,7 @@ export default function MesaAdvogada() {
           <button style={s.btnLote} onClick={() => copiarLote(visiveis)}>
             {copiado === 'lote' ? '✅ copiado!' : `📋 Copiar CPF + nascimento dos ${visiveis.length} (colar no Excel)`}
           </button>
-          <span style={s.loteDica}>vem em 3 colunas: CPF · nascimento · nome</span>
+          <span style={s.loteDica}>vem em 4 colunas: CPF · nascimento · nome · filhos elegíveis</span>
         </div>
       )}
 
@@ -368,6 +427,8 @@ export default function MesaAdvogada() {
         const ehPre = c.fila === 'PRE_APROVADO'
         const aberto = abrindo && abrindo.id === c.id
         const href = linkChat(c)
+        const filhos = listaFilhos(c.filhos_elegiveis)
+        const variosFilhos = filhos.length > 1
         return (
           <div key={c.id} style={s.card(ehPre)}>
             <div style={s.linha}>
@@ -396,9 +457,31 @@ export default function MesaAdvogada() {
                     )}
                     {c.nasc_precisao === 'sem data' && <span style={s.alertaMini}>pedir a data</span>}
                   </div>
+
+                  {/* 20/09 — filhos dentro do prazo de 5 anos. Só aparece quando existe. */}
+                  {filhos.length > 0 && (
+                    <div style={s.filhosBox(variosFilhos)}>
+                      <div style={s.filhosTit}>
+                        {variosFilhos ? `Filhos elegíveis · ${filhos.length}` : 'Filho elegível'}
+                      </div>
+                      <div style={s.filhosDatas}>{filhos.join(', ')}</div>
+                      {variosFilhos && (
+                        <div style={s.filhosNota}>
+                          ⚠️ Mãe com mais de um filho elegível — conferir cada um.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              <span style={s.badge(f.cor, f.bg)}>{f.label}</span>
+              <div style={s.badges}>
+                {c.do_detetive && (
+                  <span style={s.badge(DETETIVE_COR, DETETIVE_BG)} title="data de nascimento lida no órgão">
+                    🕵️ Detetive
+                  </span>
+                )}
+                <span style={s.badge(f.cor, f.bg)}>{f.label}</span>
+              </div>
             </div>
 
             {(c.veredito_maquina || c.motivo_maquina) && (
