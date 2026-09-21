@@ -135,6 +135,15 @@ async function buscarBoardCompleto(rpc, params) {
 
 function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
+// 21/09 — "16/09 13:03" pro carimbo de WhatsApp. Valor ruim no banco vira ''
+// em vez de "Invalid Date" no meio do card.
+function fmtCarimbo(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 function fmtParado(min) {
   if (min < 60) return `${min} min`
   if (min < 1440) return `${Math.floor(min / 60)}h`
@@ -255,6 +264,14 @@ const s = {
   seloSemWhats: { marginTop: 4, display: 'block', padding: '3px 8px', background: 'rgba(220,38,38,.12)', color: '#991b1b', border: '0.5px solid rgba(220,38,38,.32)', borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 },
   seloTemWhats: { marginTop: 4, display: 'inline-block', padding: '1px 7px', background: 'rgba(5,150,105,.12)', color: '#059669', borderRadius: 7, fontSize: 10.5, fontWeight: 700 },
   fichaWhats: (cor, bg) => ({ display: 'inline-block', marginLeft: 6, padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg }),
+  // 21/09 — CARIMBO HUMANO. Dado diferente do selo do robo acima, de proposito:
+  // um e o validador automatico, o outro e o que a atendente constatou na pratica.
+  // Ficam lado a lado porque o valor esta em poder comparar os dois.
+  seloCarimbo: (cor, bg, borda) => ({ marginTop: 4, display: 'block', padding: '3px 8px', background: bg, color: cor, border: '0.5px solid ' + borda, borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 }),
+  carimboBox: { marginBottom: 10, padding: '10px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
+  carimboLabel: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 7 },
+  carimboBtn: (ativo, cor, bg, borda) => ({ fontSize: 12, padding: '6px 12px', background: ativo ? bg : '#ffffff', color: ativo ? cor : '#5b6b84', border: '0.5px solid ' + (ativo ? borda : 'rgba(15,23,42,0.14)'), borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }),
+  carimboPe: { marginTop: 7, fontSize: 11, color: '#64748b', lineHeight: 1.45 },
   painelMotivos: { marginTop: 8, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
@@ -522,6 +539,27 @@ export default function RevisaoIARetroativo() {
 
 
   // Pega o card (marca selo) sem mandar mensagem
+  // 21/09 — carimbo do atendimento por WhatsApp. TRES estados: nada, 'iniciado'
+  // e 'sem_whats'. Clicar no botao que ja esta aceso DESMARCA; clicar no outro
+  // TROCA. A RPC e toggle, entao a tela so manda o status desejado.
+  // Isto NAO encosta na IA nem no "estou nesse" — sao carimbos independentes.
+  const [carimbando, setCarimbando] = useState(false)
+  const marcarWhats = async (l, status) => {
+    if (carimbando) return
+    setCarimbando(true)
+    try {
+      const { data, error } = await supabase.rpc('retroativo_marcar_whats', {
+        p_lead_id: l.id, p_status: status, p_agente_id: profile?.id || null,
+      })
+      if (error) { alert('Não deu pra marcar: ' + error.message); return }
+      if (data && data.ok === false) { alert(data.erro || 'Não deu pra marcar.'); return }
+      const novo = (data && data.status) || null
+      const quando = novo ? new Date().toISOString() : null
+      setLead(x => (x ? { ...x, whats_marcado: novo, whats_iniciado_em: quando } : x))
+      setBoard(b => b.map(x => (x.id === l.id ? { ...x, whats_marcado: novo, whats_iniciado_em: quando } : x)))
+    } finally { setCarimbando(false) }
+  }
+
   const marcarTratando = async (l) => {
     if (!l) return
     await supabase.rpc('bf_marcar_tratando', { p_lead_id: l.id, p_agente_id: profile.id })
@@ -890,12 +928,32 @@ export default function RevisaoIARetroativo() {
                   {l.coluna === 'PITCH_LIBERADO' && (l.advogada_motivo || '').indexOf('seguro-desemprego') >= 0 && (
                     <div style={s.seloSeguro}>⚠️ perguntar do seguro-desemprego</div>
                   )}
-                  {/* 21/09 — resultado do validador de WhatsApp. So aparece quem
-                      TEM resposta; quem nunca foi verificado nao mostra nada. */}
-                  {l.whats_tem === 'false' && (
+                  {/* 21/09 — DOIS dados distintos, nessa ordem:
+                      1) o carimbo da ATENDENTE (o que uma pessoa constatou)
+                      2) o selo do ROBO validador (o que a Evolution respondeu)
+                      O carimbo vem primeiro porque vale mais: é observação direta.
+                      Quem nao tem nem um nem outro nao mostra nada — sao 7 mil
+                      leads sem validacao e o card viraria um mar de cinza. */}
+                  {l.whats_marcado === 'iniciado' && (
+                    <div style={s.seloCarimbo('#065f46', 'rgba(52,211,153,.14)', 'rgba(5,150,105,.25)')}
+                      title="alguém da equipe já iniciou o atendimento por WhatsApp">
+                      📲 Atendimento iniciado no WhatsApp{fmtCarimbo(l.whats_iniciado_em) ? ' · ' + fmtCarimbo(l.whats_iniciado_em) : ''}
+                    </div>
+                  )}
+                  {l.whats_marcado === 'sem_whats' && (
+                    <div style={s.seloCarimbo('#991b1b', 'rgba(220,38,38,.12)', 'rgba(220,38,38,.32)')}
+                      title="a equipe constatou que esse número não tem WhatsApp — ligar">
+                      📵 Não tem WhatsApp (conferido){fmtCarimbo(l.whats_iniciado_em) ? ' · ' + fmtCarimbo(l.whats_iniciado_em) : ''}
+                    </div>
+                  )}
+                  {/* selo do robo. So aparece quando a pessoa NAO carimbou — se
+                      carimbou, quem manda e ela, e dois selos dizendo a mesma
+                      coisa so ocupam espaco. A comparacao entre os dois fica na
+                      ficha, onde ha lugar pra mostrar os dois lado a lado. */}
+                  {!l.whats_marcado && l.whats_tem === 'false' && (
                     <div style={s.seloSemWhats}>📵 Sem WhatsApp — ligar, não mandar mensagem</div>
                   )}
-                  {l.whats_tem === 'true' && (
+                  {!l.whats_marcado && l.whats_tem === 'true' && (
                     <div><span style={s.seloTemWhats}>✅ WhatsApp</span></div>
                   )}
                   <div style={s.cardMeta}>
@@ -993,6 +1051,48 @@ export default function RevisaoIARetroativo() {
                   )
                 ))}
               </div>
+            </div>
+
+            {/* 21/09 — CARIMBO DE WHATSAPP. Bloco proprio, separado do "estou
+                nesse" e da IA. Dois botoes, um carimbo de cada vez: clicar no que
+                ja esta aceso desmarca, clicar no outro troca. */}
+            <div style={s.carimboBox}>
+              <div style={s.carimboLabel}>📲 Atendimento por WhatsApp</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  style={s.carimboBtn(lead.whats_marcado === 'iniciado', '#065f46', 'rgba(52,211,153,.16)', 'rgba(5,150,105,.3)')}
+                  disabled={carimbando}
+                  onClick={() => marcarWhats(lead, 'iniciado')}
+                  title="marca que você já chamou essa cliente no WhatsApp — clicar de novo desmarca">
+                  {lead.whats_marcado === 'iniciado' ? '✅ Chamei no WhatsApp' : '📲 Chamei no WhatsApp'}
+                </button>
+                <button
+                  style={s.carimboBtn(lead.whats_marcado === 'sem_whats', '#991b1b', 'rgba(220,38,38,.14)', 'rgba(220,38,38,.34)')}
+                  disabled={carimbando}
+                  onClick={() => marcarWhats(lead, 'sem_whats')}
+                  title="marca que esse número NÃO tem WhatsApp — clicar de novo desmarca">
+                  {lead.whats_marcado === 'sem_whats' ? '✅ Não tem WhatsApp' : '📵 Não tem WhatsApp'}
+                </button>
+                {lead.whats_marcado && fmtCarimbo(lead.whats_iniciado_em) && (
+                  <span style={{ fontSize: 11.5, color: '#5b6b84' }}>marcado em {fmtCarimbo(lead.whats_iniciado_em)}</span>
+                )}
+              </div>
+              {/* o robo e a pessoa discordaram: vale mostrar, e o caso que interessa */}
+              {lead.whats_marcado === 'sem_whats' && lead.whats_tem === 'true' && (
+                <div style={s.carimboPe}>
+                  ⚠️ O validador automático tinha dito que <b>tem</b> WhatsApp. Sua marcação vale mais — mas avisa o time, é um erro do robô pra investigar.
+                </div>
+              )}
+              {lead.whats_marcado === 'iniciado' && lead.whats_tem === 'false' && (
+                <div style={s.carimboPe}>
+                  ⚠️ O validador automático tinha dito que <b>não tem</b> WhatsApp. Se você conseguiu falar por lá, avisa o time — é um erro do robô pra investigar.
+                </div>
+              )}
+              {!lead.whats_marcado && (
+                <div style={s.carimboPe}>
+                  Serve pra ninguém chamar a mesma cliente duas vezes — e pra conferir se o validador automático está acertando.
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
