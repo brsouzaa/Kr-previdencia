@@ -45,11 +45,10 @@ const DETETIVE_BG  = 'rgba(99,102,241,.12)'
 //   null    -> NAO FOI VERIFICADO — que e coisa diferente de "nao tem".
 //              Uma e resposta, a outra e falta de resposta. Nunca tratar igual.
 //
-// HOJE ESTA TELA MOSTRA 100% "nao verificado", e isso NAO e bug: a mesa lista
-// quem ainda NAO foi decidido, e o validador so enfileira quando a advogada
-// aprova (cnis_aprovado vira 'true'). Os dois conjuntos nao se cruzam. O filtro
-// existe pronto pra quando a validacao sob demanda entrar. Por isso o padrao
-// e 'tudo' — assim ele nao esconde ninguem enquanto nao houver dado.
+// A mesa lista quem ainda NAO foi decidido, e o robo do validador so enfileira
+// quando a advogada aprova (cnis_aprovado vira 'true'). Os dois conjuntos nao se
+// cruzam — por isso a fila chega aqui 100% "nao verificado", e isso NAO e bug.
+// Quem preenche esse buraco e o botao "Verificar" de cada card (ver abaixo).
 const WHATS = {
   tem:  { chave: 'tem',  label: '✅ Tem WhatsApp',   cor: '#059669', bg: 'rgba(5,150,105,.12)' },
   nao:  { chave: 'nao',  label: '❌ Sem WhatsApp',   cor: '#dc2626', bg: 'rgba(220,38,38,.10)' },
@@ -57,6 +56,22 @@ const WHATS = {
 }
 // normaliza o que vem do banco pra uma das 3 chaves acima
 const chaveWhats = (v) => (v === 'true' ? 'tem' : v === 'false' ? 'nao' : 'nver')
+
+// 21/09 — VERIFICACAO SOB DEMANDA. Botao MANUAL, nunca automatico.
+// Medido em 21/09: o chip haru4 e UNICO, teto 120 consultas/dia, e as 11h ja
+// tinham 76 gastas. A advogada abre ~180 leads/dia. Se isso disparasse sozinho
+// ao abrir o card, a mesa comia o teto antes do meio-dia E furava a fila do lead
+// que esta indo pra vendedora agora (o sob-demanda entra com prioridade +1).
+// Por isso quem decide gastar a consulta e a advogada, clicando.
+// Cache: lead ja validado responde em ~1s sem gastar chip.
+const MOTIVO_WHATS = {
+  sem_chip_disponivel: 'chip fora do ar, fora da janela 8h-20h ou teto do dia estourado',
+  timeout: 'a Evolution não respondeu a tempo',
+  sem_telefone: 'o lead não tem telefone gravado',
+  lead_nao_encontrado: 'lead não encontrado',
+}
+const textoMotivoWhats = (m) =>
+  MOTIVO_WHATS[m] || (/^http/.test(String(m || '')) ? 'a Evolution recusou a conexão (' + m + ')' : String(m || 'motivo não informado'))
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -117,6 +132,8 @@ const s = {
   chipsLinha: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 },
   chipsRotulo: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 2 },
   seloWhats: (cor, bg) => ({ display: 'inline-block', padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg, marginLeft: 6 }),
+  btnWhats: (off) => ({ marginLeft: 6, padding: '1px 8px', background: '#ffffff', color: off ? '#94a3b8' : '#2563eb', border: '0.5px solid rgba(15,23,42,0.16)', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: off ? 'wait' : 'pointer', fontFamily: 'inherit' }),
+  whatsErro: { display: 'inline-block', marginLeft: 6, fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'rgba(251,191,36,.18)', borderRadius: 6, padding: '2px 7px' },
   // --- escolher quais filhos entram (20/09) ---
   escolhaBox: { marginBottom: 10, padding: 11, borderRadius: 9, background: '#fffdf7', border: '1px solid rgba(180,83,9,.35)' },
   escolhaTit: { fontSize: 12.5, fontWeight: 700, color: '#92400e', marginBottom: 7 },
@@ -201,6 +218,12 @@ export default function MesaAdvogada() {
   const [filtro, setFiltro] = useState('')
   const [soDetetive, setSoDetetive] = useState(false)   // 20/09 — filtro de origem
   const [fWhats, setFWhats] = useState('tudo')          // 21/09 — tudo | tem | nao | nver
+  // 21/09 — resultado das verificacoes feitas AQUI, no clique da advogada.
+  // Fica so na memoria da tela: o banco ja foi gravado pela edge function, e a
+  // fila recarrega sozinha de minuto em minuto. Isso aqui e pra resposta na hora.
+  const [whatsLocal, setWhatsLocal] = useState({})      // { [leadId]: 'true' | 'false' }
+  const [whatsErro, setWhatsErro] = useState({})        // { [leadId]: 'texto do motivo' }
+  const [verifWhats, setVerifWhats] = useState(null)    // leadId sendo verificado agora
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -287,6 +310,34 @@ export default function MesaAdvogada() {
   }
   const alternarFilho = (f) =>
     setFilhosOk(l => l.includes(f) ? l.filter(x => x !== f) : [...l, f])
+
+  // valor de WhatsApp que vale pra tela: o verificado agora ganha do que veio da rpc
+  const whatsDoLead = (c) => (whatsLocal[c.id] !== undefined ? whatsLocal[c.id] : c.whats_tem)
+
+  // 21/09 — botao MANUAL. So roda no clique. Uma consulta por clique (a menos
+  // que o lead ja tenha cache, ai nao gasta chip).
+  // REGRA DURA: isso NUNCA pode travar a decisao da advogada. Se a Evolution
+  // cair, se o chip for banido ou se o teto do dia estourar, a tela mostra o
+  // motivo e os botoes de aprovar/negar continuam funcionando normalmente.
+  const verificarWhats = async (c) => {
+    if (verifWhats) return
+    setVerifWhats(c.id)
+    setWhatsErro(e => { const n = { ...e }; delete n[c.id]; return n })
+    try {
+      const { data, error } = await supabase.functions.invoke('validar-whatsapp', { body: { lead_id: c.id } })
+      if (error) throw error
+      if (data && data.ok) {
+        setWhatsLocal(m => ({ ...m, [c.id]: data.tem_whatsapp ? 'true' : 'false' }))
+      } else {
+        setWhatsErro(e => ({ ...e, [c.id]: textoMotivoWhats(data && data.motivo) }))
+      }
+    } catch (err) {
+      console.error('validar-whatsapp', err)
+      setWhatsErro(e => ({ ...e, [c.id]: 'não deu pra verificar agora' }))
+    } finally {
+      setVerifWhats(null)
+    }
+  }
 
   const decidir = async (lead, aprovado, motivo) => {
     if (!motivo || !motivo.trim()) { alert('Escolha o motivo.'); return }
@@ -401,12 +452,12 @@ export default function MesaAdvogada() {
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
   // contagem por estado de WhatsApp, calculada sobre a fila inteira (nao sobre
   // o filtro atual) — senao o chip mudaria de numero ao clicar nele mesmo.
-  const contaWhats = fila.reduce((a, c) => { const k = chaveWhats(c.whats_tem); a[k] = (a[k] || 0) + 1; return a }, {})
+  const contaWhats = fila.reduce((a, c) => { const k = chaveWhats(whatsDoLead(c)); a[k] = (a[k] || 0) + 1; return a }, {})
   const nDetetive = fila.filter(c => c.do_detetive).length
   const visiveis = fila.filter(c => {
     if (filtro && c.fila !== filtro) return false
     if (soDetetive && !c.do_detetive) return false
-    if (fWhats !== 'tudo' && chaveWhats(c.whats_tem) !== fWhats) return false
+    if (fWhats !== 'tudo' && chaveWhats(whatsDoLead(c)) !== fWhats) return false
     return true
   })
   const fmtTempo = (m) => {
@@ -490,11 +541,10 @@ export default function MesaAdvogada() {
             {WHATS[k].label} · {contaWhats[k] || 0}
           </button>
         ))}
-        {(contaWhats.tem || 0) + (contaWhats.nao || 0) === 0 && (
-          <span style={{ fontSize: 11.5, color: '#64748b' }}>
-            a checagem roda depois da sua decisão — por isso ainda está tudo sem verificar aqui
-          </span>
-        )}
+        <span style={{ fontSize: 11.5, color: '#64748b' }}>
+          a checagem automática só roda depois da sua decisão — aqui, use o <b>🔍 Verificar</b> do card
+          quando o WhatsApp fizer diferença pro caso
+        </span>
       </div>
 
       {!loading && visiveis.length > 0 && (
@@ -524,12 +574,26 @@ export default function MesaAdvogada() {
                 <div style={s.nome}>{c.nome || 'Cliente +Mais Mãe'}</div>
                 <div style={s.dado}>
                   {c.tel || 'sem telefone'}
-                  {(() => { const w = WHATS[chaveWhats(c.whats_tem)]
-                    return <span style={s.seloWhats(w.cor, w.bg)} title={
-                      c.whats_tem === 'true' ? 'o número tem WhatsApp'
-                      : c.whats_tem === 'false' ? 'o número NÃO tem WhatsApp — ligar, não mandar mensagem'
-                      : 'ainda não foi verificado — não significa que não tenha'
-                    }>{w.label}</span> })()}
+                  {(() => {
+                    const v = whatsDoLead(c)
+                    const w = WHATS[chaveWhats(v)]
+                    return (<>
+                      <span style={s.seloWhats(w.cor, w.bg)} title={
+                        v === 'true' ? 'o número tem WhatsApp'
+                        : v === 'false' ? 'o número NÃO tem WhatsApp — ligar, não mandar mensagem'
+                        : 'ainda não foi verificado — não significa que não tenha'
+                      }>{w.label}</span>
+                      {/* so aparece em quem ainda nao tem resposta. Gasta 1 consulta do chip. */}
+                      {chaveWhats(v) === 'nver' && c.tel && (
+                        <button style={s.btnWhats(verifWhats === c.id)}
+                          disabled={!!verifWhats}
+                          onClick={() => verificarWhats(c)}
+                          title="Consulta agora se esse número tem WhatsApp. Gasta 1 consulta do chip — use quando fizer diferença.">
+                          {verifWhats === c.id ? '⏱️ verificando…' : '🔍 Verificar'}
+                        </button>
+                      )}
+                      {whatsErro[c.id] && <span style={s.whatsErro}>{whatsErro[c.id]} — decida normalmente</span>}
+                    </>) })()}
                   {' · '}parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}
                 </div>
 
