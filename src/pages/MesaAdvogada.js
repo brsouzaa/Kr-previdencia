@@ -38,6 +38,26 @@ const ORDEM_FILAS = ['PRE_APROVADO', 'CNIS_RECEBIDO', 'GERID', 'PEDIU_HUMANO', '
 const DETETIVE_COR = '#4f46e5'
 const DETETIVE_BG  = 'rgba(99,102,241,.12)'
 
+// 21/09 — VALIDADOR DE WHATSAPP.
+// whats_tem vem da rpc como 'true' / 'false' / null.
+//   'true'  -> o numero tem WhatsApp
+//   'false' -> NAO tem
+//   null    -> NAO FOI VERIFICADO — que e coisa diferente de "nao tem".
+//              Uma e resposta, a outra e falta de resposta. Nunca tratar igual.
+//
+// HOJE ESTA TELA MOSTRA 100% "nao verificado", e isso NAO e bug: a mesa lista
+// quem ainda NAO foi decidido, e o validador so enfileira quando a advogada
+// aprova (cnis_aprovado vira 'true'). Os dois conjuntos nao se cruzam. O filtro
+// existe pronto pra quando a validacao sob demanda entrar. Por isso o padrao
+// e 'tudo' — assim ele nao esconde ninguem enquanto nao houver dado.
+const WHATS = {
+  tem:  { chave: 'tem',  label: '✅ Tem WhatsApp',   cor: '#059669', bg: 'rgba(5,150,105,.12)' },
+  nao:  { chave: 'nao',  label: '❌ Sem WhatsApp',   cor: '#dc2626', bg: 'rgba(220,38,38,.10)' },
+  nver: { chave: 'nver', label: '⏳ Não verificado', cor: '#5b6b84', bg: 'rgba(15,23,42,.05)' },
+}
+// normaliza o que vem do banco pra uma das 3 chaves acima
+const chaveWhats = (v) => (v === 'true' ? 'tem' : v === 'false' ? 'nao' : 'nver')
+
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
   'Dentro dos 12 meses',
@@ -93,6 +113,24 @@ const s = {
   filhosTit: { fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#5b6b84', marginBottom: 4 },
   filhosDatas: { fontSize: 13.5, fontWeight: 600, color: '#0f172a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '0.3px', lineHeight: 1.5 },
   filhosNota: { fontSize: 11.5, fontWeight: 700, color: '#92400e', marginTop: 5, lineHeight: 1.4 },
+  // --- filtro de whatsapp (21/09) ---
+  chipsLinha: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 },
+  chipsRotulo: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 2 },
+  seloWhats: (cor, bg) => ({ display: 'inline-block', padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg, marginLeft: 6 }),
+  // --- escolher quais filhos entram (20/09) ---
+  escolhaBox: { marginBottom: 10, padding: 11, borderRadius: 9, background: '#fffdf7', border: '1px solid rgba(180,83,9,.35)' },
+  escolhaTit: { fontSize: 12.5, fontWeight: 700, color: '#92400e', marginBottom: 7 },
+  escolhaItem: (on) => ({
+    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', marginBottom: 5,
+    borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+    background: on ? 'rgba(52,211,153,.14)' : '#ffffff',
+    border: '1px solid ' + (on ? '#05966955' : 'rgba(15,23,42,0.12)'),
+    color: on ? '#0f172a' : '#5b6b84',
+    textDecoration: on ? 'none' : 'line-through',
+  }),
+  escolhaMarca: (on) => ({ fontSize: 14, fontWeight: 700, color: on ? '#059669' : '#94a3b8', minWidth: 16 }),
+  escolhaTexto: { fontSize: 13, fontWeight: 600, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+  escolhaNota: { fontSize: 11, color: '#5b6b84', marginTop: 4, lineHeight: 1.45 },
   maquina: { marginTop: 10, padding: 10, borderRadius: 9, background: '#f2f5fa', fontSize: 12, color: '#334155', lineHeight: 1.45 },
   acoes: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   btnOk: { padding: '10px 16px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
@@ -162,11 +200,16 @@ export default function MesaAdvogada() {
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
   const [soDetetive, setSoDetetive] = useState(false)   // 20/09 — filtro de origem
+  const [fWhats, setFWhats] = useState('tudo')          // 21/09 — tudo | tem | nao | nver
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
   // Print do GERID — obrigatorio SO na pre-aprovacao. Negar nao precisa.
   const [print, setPrint] = useState(null)          // { file, preview }
+  // 20/09 — quais filhos a advogada validou. Comeca com todos marcados; ela
+  // desmarca o que o GERID mostrar que nao serve. So aparece quando ha mais
+  // de um: com um filho so nao ha o que escolher.
+  const [filhosOk, setFilhosOk] = useState([])
   const [subindoPrint, setSubindoPrint] = useState(false)
   // 16/09 (Bruno): depois de PRE-APROVAR, a advogada digitava a linha do grupo
   // do WhatsApp na mao. Em 16/09 isso ja produziu erro: o CPF 873.146.062-34 foi
@@ -234,12 +277,30 @@ export default function MesaAdvogada() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const fecharPainel = () => { setAbrindo(null); setOutroTexto(''); limparPrint() }
+  const fecharPainel = () => { setAbrindo(null); setOutroTexto(''); limparPrint(); setFilhosOk([]) }
+
+  // abre o painel ja com todos os filhos marcados
+  const abrirPainel = (c, tipo) => {
+    setAbrindo({ id: c.id, tipo })
+    setOutroTexto(''); limparPrint()
+    setFilhosOk(tipo === 'ok' ? listaFilhos(c.filhos_elegiveis) : [])
+  }
+  const alternarFilho = (f) =>
+    setFilhosOk(l => l.includes(f) ? l.filter(x => x !== f) : [...l, f])
 
   const decidir = async (lead, aprovado, motivo) => {
     if (!motivo || !motivo.trim()) { alert('Escolha o motivo.'); return }
     // Regra 26/08: pré-aprovar exige o print do GERID. Negar não exige.
     if (aprovado && !print) { alert('Cole (Ctrl+V) ou anexe o print do GERID antes de pré-aprovar.'); return }
+
+    // 20/09: com mais de um filho no prazo, ela escolhe quais entram.
+    // Se desmarcar todos, nao e aprovacao parcial — e negativa da mae, e a
+    // negativa tem fluxo proprio (avisa a cliente no WhatsApp).
+    const filhosDoLead = listaFilhos(lead.filhos_elegiveis)
+    if (aprovado && filhosDoLead.length > 1 && filhosOk.length === 0) {
+      alert('Marque pelo menos um filho. Se nenhum serve, use "Negar" — aí a cliente é avisada.')
+      return
+    }
 
     setSalvando(true)
     let urlPrint = null
@@ -268,6 +329,7 @@ export default function MesaAdvogada() {
       p_lead_id: lead.id, p_aprovado: aprovado, p_motivo: motivo.trim(),
       p_advogada: (profile && profile.id) || null,
       p_print_url: urlPrint,
+      p_filhos: (aprovado && filhosDoLead.length) ? filhosOk.join(', ') : null,
     })
     setSalvando(false)
     if (r.error || !r.data || r.data.ok !== true) {
@@ -290,9 +352,10 @@ export default function MesaAdvogada() {
       // 20/09 (Bruno): a linha do grupo e o UNICO caminho pelo qual a vendedora
       // fica sabendo dos filhos. Entao os filhos no prazo vao DENTRO dela, com
       // data e nome — nao adianta so avisar na tela, que a vendedora nao ve.
-      const filhos = listaFilhos(lead.filhos_elegiveis)
+      // so os filhos que ela marcou — o que ela descartou nao vai pro grupo
+      const filhos = filhosDoLead.length > 1 ? filhosOk : filhosDoLead
       const rotulo = filhos.length > 1 ? 'Filhos no prazo' : 'Filho no prazo'
-      const trechoFilhos = filhos.length ? ` - ${rotulo}: ${lead.filhos_elegiveis}` : ''
+      const trechoFilhos = filhos.length ? ` - ${rotulo}: ${filhos.join(', ')}` : ''
       setAviso({
         tipo: 'ok',
         cliente: lead.nome || 'cliente',
@@ -336,10 +399,14 @@ export default function MesaAdvogada() {
   }
 
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
+  // contagem por estado de WhatsApp, calculada sobre a fila inteira (nao sobre
+  // o filtro atual) — senao o chip mudaria de numero ao clicar nele mesmo.
+  const contaWhats = fila.reduce((a, c) => { const k = chaveWhats(c.whats_tem); a[k] = (a[k] || 0) + 1; return a }, {})
   const nDetetive = fila.filter(c => c.do_detetive).length
   const visiveis = fila.filter(c => {
     if (filtro && c.fila !== filtro) return false
     if (soDetetive && !c.do_detetive) return false
+    if (fWhats !== 'tudo' && chaveWhats(c.whats_tem) !== fWhats) return false
     return true
   })
   const fmtTempo = (m) => {
@@ -389,8 +456,8 @@ export default function MesaAdvogada() {
       )}
 
       <div style={s.chips}>
-        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro && !soDetetive)}
-          onClick={() => { setFiltro(''); setSoDetetive(false) }}>
+        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro && !soDetetive && fWhats === 'tudo')}
+          onClick={() => { setFiltro(''); setSoDetetive(false); setFWhats('tudo') }}>
           Todas · {fila.length}
         </button>
         {nDetetive > 0 && (
@@ -407,6 +474,27 @@ export default function MesaAdvogada() {
             </button>
           ) : null
         ))}
+      </div>
+
+      {/* 21/09 — filtro de WhatsApp. Eixo proprio: cruza com os filtros de fila
+          e de origem acima. Padrao 'tudo' pra nao esconder ninguem. */}
+      <div style={s.chipsLinha}>
+        <span style={s.chipsRotulo}>WhatsApp:</span>
+        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fWhats === 'tudo')}
+          onClick={() => setFWhats('tudo')}>
+          Tudo · {fila.length}
+        </button>
+        {['tem', 'nao', 'nver'].map(k => (
+          <button key={k} style={s.chip(WHATS[k].cor, WHATS[k].bg, fWhats === k)}
+            onClick={() => setFWhats(fWhats === k ? 'tudo' : k)}>
+            {WHATS[k].label} · {contaWhats[k] || 0}
+          </button>
+        ))}
+        {(contaWhats.tem || 0) + (contaWhats.nao || 0) === 0 && (
+          <span style={{ fontSize: 11.5, color: '#64748b' }}>
+            a checagem roda depois da sua decisão — por isso ainda está tudo sem verificar aqui
+          </span>
+        )}
       </div>
 
       {!loading && visiveis.length > 0 && (
@@ -434,7 +522,16 @@ export default function MesaAdvogada() {
             <div style={s.linha}>
               <div>
                 <div style={s.nome}>{c.nome || 'Cliente +Mais Mãe'}</div>
-                <div style={s.dado}>{c.tel || 'sem telefone'} · parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}</div>
+                <div style={s.dado}>
+                  {c.tel || 'sem telefone'}
+                  {(() => { const w = WHATS[chaveWhats(c.whats_tem)]
+                    return <span style={s.seloWhats(w.cor, w.bg)} title={
+                      c.whats_tem === 'true' ? 'o número tem WhatsApp'
+                      : c.whats_tem === 'false' ? 'o número NÃO tem WhatsApp — ligar, não mandar mensagem'
+                      : 'ainda não foi verificado — não significa que não tenha'
+                    }>{w.label}</span> })()}
+                  {' · '}parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}
+                </div>
 
                 <div style={s.gerid}>
                   <div style={s.geridTit}>Pra consultar no GERID</div>
@@ -493,10 +590,10 @@ export default function MesaAdvogada() {
 
             {!aberto && (
               <div style={s.acoes}>
-                <button style={s.btnOk} onClick={() => { setAbrindo({ id: c.id, tipo: 'ok' }); setOutroTexto(''); limparPrint() }}>
+                <button style={s.btnOk} onClick={() => abrirPainel(c, 'ok')}>
                   ✅ Pré-aprovado real
                 </button>
-                <button style={s.btnNao} onClick={() => { setAbrindo({ id: c.id, tipo: 'nao' }); setOutroTexto(''); limparPrint() }}>
+                <button style={s.btnNao} onClick={() => abrirPainel(c, 'nao')}>
                   ⛔ Negar
                 </button>
                 {href && (
@@ -559,6 +656,37 @@ export default function MesaAdvogada() {
                     )}
                   </div>
                 )}
+                {/* 20/09 — mae com mais de um filho no prazo: ela marca quais
+                    entram. Comeca com todos marcados. Desmarcar todos nao e
+                    aprovacao parcial: se nenhum serve, o caminho e "Negar",
+                    que avisa a cliente. Com um filho so, nao aparece nada. */}
+                {abrindo.tipo === 'ok' && filhos.length > 1 && (
+                  <div style={s.escolhaBox}>
+                    <div style={s.escolhaTit}>
+                      Quais filhos entram? ({filhosOk.length} de {filhos.length})
+                    </div>
+                    {filhos.map((fl, i) => {
+                      const on = filhosOk.includes(fl)
+                      return (
+                        <button key={fl + i} type="button" style={s.escolhaItem(on)}
+                          onClick={() => alternarFilho(fl)}>
+                          <span style={s.escolhaMarca(on)}>{on ? '✓' : '✗'}</span>
+                          <span style={s.escolhaTexto}>{fl}</span>
+                        </button>
+                      )
+                    })}
+                    <div style={s.escolhaNota}>
+                      Só os marcados vão pro grupo e ficam gravados no lead. O que você
+                      desmarcar não entra — e não manda mensagem nenhuma pra cliente.
+                    </div>
+                    {filhosOk.length === 0 && (
+                      <div style={{ ...s.escolhaNota, color: '#b45309', fontWeight: 700 }}>
+                        Nenhum filho marcado. Se nenhum serve, use <b>Negar</b> — aí a cliente é avisada.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {(abrindo.tipo === 'ok' ? MOTIVOS_APROVA : MOTIVOS_NEGA).map(m => (
                   m === 'Outro motivo' ? (
                     <div key={m}>
@@ -581,9 +709,11 @@ export default function MesaAdvogada() {
                       key={m}
                       style={{
                         ...s.motivoBtn(abrindo.tipo === 'ok' ? '#059669' : '#dc2626'),
-                        ...(abrindo.tipo === 'ok' && !print ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
+                        ...(abrindo.tipo === 'ok' && (!print || (filhos.length > 1 && filhosOk.length === 0))
+                            ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
                       }}
-                      disabled={salvando || (abrindo.tipo === 'ok' && !print)}
+                      disabled={salvando || (abrindo.tipo === 'ok'
+                        && (!print || (filhos.length > 1 && filhosOk.length === 0)))}
                       onClick={() => decidir(c, abrindo.tipo === 'ok', m)}
                     >
                       {m}
