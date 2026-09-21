@@ -64,14 +64,51 @@ const chaveWhats = (v) => (v === 'true' ? 'tem' : v === 'false' ? 'nao' : 'nver'
 // que esta indo pra vendedora agora (o sob-demanda entra com prioridade +1).
 // Por isso quem decide gastar a consulta e a advogada, clicando.
 // Cache: lead ja validado responde em ~1s sem gastar chip.
+//
+// 21/09 tarde — BLINDAGEM, depois de queimar 7 consultas do chip em 3 leads sem
+// nenhuma resposta. A falha veio como "http 401" e o botao deixou repetir 5x no
+// mesmo numero. Cada repeticao debitou o chip: a funcao RESERVA a consulta antes
+// de chamar a Evolution, entao erro tardio ja saiu do teto do dia.
+// Regra do Bruno: chip com problema NAO desliga o botao — o rodizio troca pro
+// chip seguinte. So desliga quando nao sobrar nenhum chip.
+// Daqui a tela so enxerga 3 desfechos, e trata cada um diferente:
 const MOTIVO_WHATS = {
-  sem_chip_disponivel: 'chip fora do ar, fora da janela 8h-20h ou teto do dia estourado',
+  sem_chip_disponivel: 'nenhum chip disponível agora — fora da janela 8h-20h, teto do dia estourado ou todos os chips fora do ar',
   timeout: 'a Evolution não respondeu a tempo',
+  resposta_inesperada: 'a Evolution respondeu algo que não dá pra ler',
   sem_telefone: 'o lead não tem telefone gravado',
   lead_nao_encontrado: 'lead não encontrado',
+  lead_id_invalido: 'lead inválido',
+  erro_interno: 'erro interno do validador',
 }
 const textoMotivoWhats = (m) =>
-  MOTIVO_WHATS[m] || (/^http/.test(String(m || '')) ? 'a Evolution recusou a conexão (' + m + ')' : String(m || 'motivo não informado'))
+  MOTIVO_WHATS[m] || (/^http/.test(String(m || '')) ? 'a Evolution recusou a chave (' + m + ')' : String(m || 'motivo não informado'))
+
+// DESLIGA O BOTAO DA TELA INTEIRA. So dois casos:
+//   sem_chip_disponivel -> e literalmente "acabaram os chips". Insistir nao acha
+//                          chip nenhum, e cada insistencia ainda custa a reserva.
+//   http 401 / 403      -> a Evolution recusou a CHAVE. A chave e uma so, vale
+//                          pra todos os chips (EVOLUTION_APIKEY, no ambiente da
+//                          edge function). Trocar de chip NAO resolve: e problema
+//                          de configuracao, nao de chip. Insistir queima o teto
+//                          de graca — foi exatamente o que aconteceu as 11h45.
+// Qualquer outro motivo (timeout, resposta estranha) e falha pontual: o botao
+// continua vivo e ela pode tentar de novo.
+const derrubaBotaoGeral = (m) => m === 'sem_chip_disponivel' || m === 'http 401' || m === 'http 403'
+// teto de tentativas no MESMO lead, pra nao repetir 5x como aconteceu
+const MAX_TENTATIVAS_WHATS = 2
+
+// ───────────────────────────────────────────────────────────────────────────
+// 21/09 (Bruno) — FASE DE TESTE DO VALIDADOR. Botao DESLIGADO de proposito.
+//
+// O teste e de ISOLAMENTO: so leads de agosto entram na fila, pra medir se o
+// validador acerta e quanto o chip aguenta, sem contaminar a operacao viva.
+// O botao aqui furaria isso — ele valida lead de HOJE sob demanda, com
+// prioridade +1, e cada clique entra na conta do chip que esta sob medicao.
+//
+// PRA RELIGAR quando o teste acabar: trocar pra true. Nada mais.
+// O codigo do botao continua inteiro embaixo, so nao e renderizado.
+const VERIFICAR_WHATS_LIGADO = false
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -134,6 +171,7 @@ const s = {
   seloWhats: (cor, bg) => ({ display: 'inline-block', padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg, marginLeft: 6 }),
   btnWhats: (off) => ({ marginLeft: 6, padding: '1px 8px', background: '#ffffff', color: off ? '#94a3b8' : '#2563eb', border: '0.5px solid rgba(15,23,42,0.16)', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: off ? 'wait' : 'pointer', fontFamily: 'inherit' }),
   whatsErro: { display: 'inline-block', marginLeft: 6, fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'rgba(251,191,36,.18)', borderRadius: 6, padding: '2px 7px' },
+  whatsParado: { background: 'rgba(251,191,36,.14)', border: '0.5px solid rgba(180,83,9,.35)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, lineHeight: 1.55, color: '#7c2d12' },
   // --- escolher quais filhos entram (20/09) ---
   escolhaBox: { marginBottom: 10, padding: 11, borderRadius: 9, background: '#fffdf7', border: '1px solid rgba(180,83,9,.35)' },
   escolhaTit: { fontSize: 12.5, fontWeight: 700, color: '#92400e', marginBottom: 7 },
@@ -224,6 +262,10 @@ export default function MesaAdvogada() {
   const [whatsLocal, setWhatsLocal] = useState({})      // { [leadId]: 'true' | 'false' }
   const [whatsErro, setWhatsErro] = useState({})        // { [leadId]: 'texto do motivo' }
   const [verifWhats, setVerifWhats] = useState(null)    // leadId sendo verificado agora
+  const [whatsTent, setWhatsTent] = useState({})        // { [leadId]: quantas vezes ja tentou }
+  // quando isso enche, o botao some da tela inteira ate recarregar a pagina.
+  // So acontece em "acabaram os chips" ou "chave recusada" — ver derrubaBotaoGeral.
+  const [whatsParado, setWhatsParado] = useState(null)  // { motivo, texto }
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -320,16 +362,23 @@ export default function MesaAdvogada() {
   // cair, se o chip for banido ou se o teto do dia estourar, a tela mostra o
   // motivo e os botoes de aprovar/negar continuam funcionando normalmente.
   const verificarWhats = async (c) => {
-    if (verifWhats) return
+    if (verifWhats || whatsParado) return
+    if ((whatsTent[c.id] || 0) >= MAX_TENTATIVAS_WHATS) return
     setVerifWhats(c.id)
+    setWhatsTent(t => ({ ...t, [c.id]: (t[c.id] || 0) + 1 }))
     setWhatsErro(e => { const n = { ...e }; delete n[c.id]; return n })
     try {
       const { data, error } = await supabase.functions.invoke('validar-whatsapp', { body: { lead_id: c.id } })
       if (error) throw error
       if (data && data.ok) {
         setWhatsLocal(m => ({ ...m, [c.id]: data.tem_whatsapp ? 'true' : 'false' }))
+        // deu certo: zera o contador daquele lead
+        setWhatsTent(t => { const n = { ...t }; delete n[c.id]; return n })
       } else {
-        setWhatsErro(e => ({ ...e, [c.id]: textoMotivoWhats(data && data.motivo) }))
+        const motivo = (data && data.motivo) || ''
+        setWhatsErro(e => ({ ...e, [c.id]: textoMotivoWhats(motivo) }))
+        // falha que nao adianta repetir: tranca o botao da tela inteira
+        if (derrubaBotaoGeral(motivo)) setWhatsParado({ motivo, texto: textoMotivoWhats(motivo) })
       }
     } catch (err) {
       console.error('validar-whatsapp', err)
@@ -542,10 +591,25 @@ export default function MesaAdvogada() {
           </button>
         ))}
         <span style={{ fontSize: 11.5, color: '#64748b' }}>
-          a checagem automática só roda depois da sua decisão — aqui, use o <b>🔍 Verificar</b> do card
-          quando o WhatsApp fizer diferença pro caso
+          {VERIFICAR_WHATS_LIGADO
+            ? <>a checagem automática só roda depois da sua decisão — aqui, use o <b>🔍 Verificar</b> do card
+                quando o WhatsApp fizer diferença pro caso</>
+            : <>🧪 o validador está em fase de teste, rodando só em leads antigos — por isso a fila daqui
+                aparece toda sem verificar. <b>Decida normalmente</b>, nada mudou pra você.</>}
         </span>
       </div>
+
+      {/* 21/09 — validador fora do ar. Aviso UNICO no topo, e o botao some de todos
+          os cards. Sem isso, cada clique queima uma consulta do chip a troco de nada. */}
+      {whatsParado && (
+        <div style={s.whatsParado}>
+          <b>🔌 Verificação de WhatsApp fora do ar.</b>{' '}
+          {whatsParado.motivo === 'sem_chip_disponivel'
+            ? 'Nenhum chip disponível agora — pode ser o teto do dia, a janela de horário (8h–20h) ou todos os chips fora do ar. Volta sozinho quando houver chip.'
+            : 'A Evolution recusou a chave de acesso. Isso não é problema de chip: a chave é a mesma pra todos, trocar de chip não resolve. Avisa o time técnico.'}
+          {' '}O botão foi desligado pra não gastar consulta à toa. <b>Continue decidindo normalmente</b> — a verificação nunca foi obrigatória pra aprovar ou negar.
+        </div>
+      )}
 
       {!loading && visiveis.length > 0 && (
         <div style={s.barraLote}>
@@ -583,16 +647,23 @@ export default function MesaAdvogada() {
                         : v === 'false' ? 'o número NÃO tem WhatsApp — ligar, não mandar mensagem'
                         : 'ainda não foi verificado — não significa que não tenha'
                       }>{w.label}</span>
-                      {/* so aparece em quem ainda nao tem resposta. Gasta 1 consulta do chip. */}
-                      {chaveWhats(v) === 'nver' && c.tel && (
+                      {/* So aparece em quem ainda nao tem resposta e tem telefone.
+                          Some de vez quando o validador cai (whatsParado) ou quando
+                          esse lead ja gastou as tentativas. Gasta 1 consulta por clique. */}
+                      {VERIFICAR_WHATS_LIGADO && chaveWhats(v) === 'nver' && c.tel && !whatsParado
+                        && (whatsTent[c.id] || 0) < MAX_TENTATIVAS_WHATS && (
                         <button style={s.btnWhats(verifWhats === c.id)}
                           disabled={!!verifWhats}
                           onClick={() => verificarWhats(c)}
                           title="Consulta agora se esse número tem WhatsApp. Gasta 1 consulta do chip — use quando fizer diferença.">
-                          {verifWhats === c.id ? '⏱️ verificando…' : '🔍 Verificar'}
+                          {verifWhats === c.id ? '⏱️ verificando…'
+                            : (whatsTent[c.id] ? '🔁 Tentar de novo' : '🔍 Verificar')}
                         </button>
                       )}
                       {whatsErro[c.id] && <span style={s.whatsErro}>{whatsErro[c.id]} — decida normalmente</span>}
+                      {!whatsParado && (whatsTent[c.id] || 0) >= MAX_TENTATIVAS_WHATS && (
+                        <span style={s.whatsErro}>já tentei 2× nesse número — não insiste, cada tentativa gasta o chip</span>
+                      )}
                     </>) })()}
                   {' · '}parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}
                 </div>
