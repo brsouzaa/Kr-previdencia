@@ -248,6 +248,13 @@ const s = {
   seloMaquina: { marginTop: 6, display: 'inline-block', padding: '2px 8px', background: 'rgba(96,165,250,.10)', color: '#2563eb', border: '0.5px solid rgba(96,165,250,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600 },
   seloAdvogada: { marginTop: 6, display: 'block', padding: '3px 8px', background: 'rgba(52,211,153,.14)', color: '#065f46', border: '0.5px solid rgba(5,150,105,.25)', borderRadius: 7, fontSize: 11, fontWeight: 600, lineHeight: 1.35 },
   seloSeguro: { marginTop: 4, display: 'block', padding: '3px 8px', background: 'rgba(251,191,36,.16)', color: '#92400e', border: '0.5px solid rgba(180,83,9,.28)', borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 },
+  // 21/09 — validacao de WhatsApp. SEM whatsapp e o caso que muda a acao do
+  // vendedor (ligar em vez de mandar mensagem), entao ganha destaque de alerta.
+  // COM whatsapp e confirmacao, fica discreto. Nao verificado nao aparece no
+  // card: sao 7 mil leads sem validacao e o card viraria um mar de cinza.
+  seloSemWhats: { marginTop: 4, display: 'block', padding: '3px 8px', background: 'rgba(220,38,38,.12)', color: '#991b1b', border: '0.5px solid rgba(220,38,38,.32)', borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 },
+  seloTemWhats: { marginTop: 4, display: 'inline-block', padding: '1px 7px', background: 'rgba(5,150,105,.12)', color: '#059669', borderRadius: 7, fontSize: 10.5, fontWeight: 700 },
+  fichaWhats: (cor, bg) => ({ display: 'inline-block', marginLeft: 6, padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg }),
   painelMotivos: { marginTop: 8, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
@@ -883,6 +890,14 @@ export default function RevisaoIARetroativo() {
                   {l.coluna === 'PITCH_LIBERADO' && (l.advogada_motivo || '').indexOf('seguro-desemprego') >= 0 && (
                     <div style={s.seloSeguro}>⚠️ perguntar do seguro-desemprego</div>
                   )}
+                  {/* 21/09 — resultado do validador de WhatsApp. So aparece quem
+                      TEM resposta; quem nunca foi verificado nao mostra nada. */}
+                  {l.whats_tem === 'false' && (
+                    <div style={s.seloSemWhats}>📵 Sem WhatsApp — ligar, não mandar mensagem</div>
+                  )}
+                  {l.whats_tem === 'true' && (
+                    <div><span style={s.seloTemWhats}>✅ WhatsApp</span></div>
+                  )}
                   <div style={s.cardMeta}>
                     {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
                     {ehSupervisor && l.agente_nome ? ` · ${l.agente_nome}` : ''}
@@ -915,7 +930,16 @@ export default function RevisaoIARetroativo() {
               {lead.data_nascimento_filho && (
                 <div style={s.destaque}>👶 Nascimento do filho: {lead.data_nascimento_filho}{lead.idade_bebe ? ` (${lead.idade_bebe})` : ''}</div>
               )}
-              <div>📱 {lead.tel || '—'}</div>
+              <div>
+                📱 {lead.tel || '—'}
+                {/* aqui os TRES estados aparecem: na ficha ha espaco, e "ainda nao
+                    verificado" e informacao util — nao significa que nao tenha. */}
+                {lead.whats_tem === 'true'
+                  ? <span style={s.fichaWhats('#059669', 'rgba(5,150,105,.12)')} title="o número tem WhatsApp">✅ tem WhatsApp</span>
+                  : lead.whats_tem === 'false'
+                    ? <span style={s.fichaWhats('#dc2626', 'rgba(220,38,38,.10)')} title="o número NÃO tem WhatsApp — ligar, não mandar mensagem">📵 sem WhatsApp</span>
+                    : <span style={s.fichaWhats('#5b6b84', 'rgba(15,23,42,.05)')} title="ainda não foi verificado — não significa que não tenha">⏳ não verificado</span>}
+              </div>
               <div>🪪 CPF: {lead.cpf || '—'}</div>
               <div>💼 Trabalhava no nascimento: {lead.trabalhava_no_nascimento || '—'}</div>
               <div>📋 Já trabalhou CLT: {lead.ja_trabalhou_clt || '—'}</div>
