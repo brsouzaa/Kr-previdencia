@@ -231,6 +231,7 @@ const s = {
   vincBox: { marginTop: 10, padding: '9px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.09)', borderRadius: 9 },
   vincTit: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
   vincLinha: { fontSize: 11.5, color: '#334155', padding: '3px 0', borderTop: '0.5px solid rgba(15,23,42,.06)', lineHeight: 1.45 },
+  vincDireito: { marginTop: 6, padding: '6px 9px', background: 'rgba(37,99,235,.07)', border: '0.5px solid rgba(37,99,235,.2)', borderRadius: 7, fontSize: 11.5, color: '#0f172a', lineHeight: 1.5 },
   provaOk: { marginBottom: 10, padding: '10px 12px', background: 'rgba(5,150,105,.09)', border: '0.5px solid rgba(5,150,105,.28)', borderRadius: 9, fontSize: 12.5, fontWeight: 600, color: '#065f46', lineHeight: 1.55 },
   provaLink: { display: 'block', marginTop: 5, padding: 0, background: 'none', border: 0, color: '#5b6b84', fontSize: 11.5, fontWeight: 500, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' },
   telaGerid: { marginTop: 7, padding: '9px 11px', background: '#0f172a', color: '#e2e8f0', borderRadius: 8, fontSize: 11, lineHeight: 1.5, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, monospace' },
@@ -273,7 +274,7 @@ const s = {
     background: ok ? '#ecfdf5' : '#fef2f2',
     border: '1px solid ' + (ok ? '#34d399' : '#f87171') }),
   avisoTitulo: (ok) => ({ fontSize: 12, fontWeight: 600, color: ok ? '#065f46' : '#991b1b', marginBottom: 8 }),
-  avisoLinha: { fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', wordBreak: 'break-word', lineHeight: 1.45 },
+  avisoLinha: { fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', wordBreak: 'break-word', lineHeight: 1.45, whiteSpace: 'pre-wrap' },
   avisoBotoes: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   avisoAlerta: { marginTop: 8, fontSize: 12, fontWeight: 600, color: '#b45309' },
   motivoBtn: (cor) => ({
@@ -330,6 +331,24 @@ const brDeIso = (v) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''))
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v || '')
 }
+// 22/09 (Bruno) — a vendedora precisa saber QUAL empresa fez valer o direito,
+// pra conferir com a cliente na ligação. O robô já identificou; aqui isso vira
+// texto de gente.
+// Benefício e recolhimento NÃO são empregador: dizer "você trabalhou na AUXILIO
+// DOENCA" queima a ligação, por isso o rótulo muda.
+const textoVinculo = (v) => {
+  if (!v) return ''
+  if (v.bruto) return v.bruto
+  const periodo = v.inicio ? `${v.inicio} a ${v.fim}` : `até ${v.fim}`
+  const quando = v.meses_antes_do_parto === 0
+    ? 'no mês do parto'
+    : `${v.meses_antes_do_parto} ${v.meses_antes_do_parto === 1 ? 'mês' : 'meses'} antes do parto`
+  return v.eh_beneficio
+    ? `${v.empresa} (${v.tipo}) — ${periodo}, ${quando}`
+    : `${v.empresa} — ${v.tipo}, ${periodo}, ${quando}`
+}
+const rotuloVinculo = (v) => (v && v.eh_beneficio ? 'Benefício que garante o direito' : 'Empresa que garante o direito')
+
 const fmtQuando = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
@@ -592,11 +611,19 @@ export default function MesaAdvogada() {
       const filhos = filhosDoLead.length > 1 ? filhosOk : filhosDoLead
       const rotulo = filhos.length > 1 ? 'Filhos no prazo' : 'Filho no prazo'
       const trechoFilhos = filhos.length ? ` - ${rotulo}: ${filhos.join(', ')}` : ''
+      // 22/09 (Bruno): a vendedora liga sem saber onde a cliente trabalhou. A
+      // linha do grupo é o único canal que chega nela, então o vínculo que
+      // gerou o direito vai junto — em linha separada, pra não virar um
+      // parágrafo ilegível no WhatsApp.
+      const vinc = lead.vinculo_direito
+      const trechoVinculo = vinc
+        ? `\n${vinc.eh_beneficio ? '📄' : '🏢'} ${rotuloVinculo(vinc)}: ${textoVinculo(vinc)}`
+        : ''
       setAviso({
         tipo: 'ok',
         cliente: lead.nome || 'cliente',
         semVendedora: !vend,
-        texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}${trechoFilhos}`,
+        texto: `${cpfTxt} - ${dataTxt} - ${prazo} - ${vend || 'SEM VENDEDORA DISPONÍVEL'}${trechoFilhos}${trechoVinculo}`,
         // aviso extra na tela so quando ha mais de um: a linha ja leva a lista,
         // isto aqui e pra advogada nao passar batido no caso que rende mais.
         extraFilhos: filhos.length > 1 ? lead.filhos_elegiveis : null,
@@ -931,6 +958,12 @@ export default function MesaAdvogada() {
                   )}
                 </div>
                 {c.gerid_resumo && <div style={s.roboResumo}>{c.gerid_resumo}</div>}
+                {c.vinculo_direito && (
+                  <div style={s.vincDireito}>
+                    {c.vinculo_direito.eh_beneficio ? '📄' : '🏢'} <b>{rotuloVinculo(c.vinculo_direito)}:</b>{' '}
+                    {textoVinculo(c.vinculo_direito)}
+                  </div>
+                )}
                 {(Array.isArray(c.gerid_filhos) ? c.gerid_filhos : []).map((fl, i) => {
                   const sg = seloFilho(fl && fl.sugestao)
                   return (
