@@ -132,10 +132,13 @@ const VERIFICAR_WHATS_LIGADO = false
 const GERID = {
   apr: { chave: 'apr', label: '🤖 Aprovar',  cor: '#059669', bg: 'rgba(5,150,105,.10)',
          dica: 'O robô não reprovou tudo — é aqui que sai venda' },
-  rep: { chave: 'rep', label: '🤖 Reprovar', cor: '#b45309', bg: 'rgba(180,83,9,.10)',
-         dica: 'O robô reprovou todos os filhos — dá pra decidir em lote' },
+  aud: { chave: 'aud', label: '🔍 Conferir o robô', cor: '#b45309', bg: 'rgba(180,83,9,.10)',
+         dica: 'Amostra do dia: o robô reprovou, mas estes ficaram pra você conferir se ele acertou' },
 }
-const abaGerid = (v) => (v === 'aprovar' ? 'apr' : v === 'reprovar' ? 'rep' : null)
+// 22/09 — quem o robô reprovou NÃO chega mais aqui: o banco reprova sozinho.
+// A exceção é a amostra diária de 10, que vem marcada com gerid_auditoria e é
+// justamente o que mede se o robô está certo.
+const abaGerid = (c) => (c && c.gerid_auditoria ? 'aud' : c && c.gerid_veredito === 'aprovar' ? 'apr' : null)
 
 // selo por filho. 'conferir' do robô é mostrado como aprovar, pelo mesmo motivo.
 const SUGESTAO = {
@@ -144,10 +147,6 @@ const SUGESTAO = {
 }
 const seloFilho = (s) => (s === 'reprovar' ? SUGESTAO.reprovar : SUGESTAO.aprovar)
 
-// Teto do lote. O banco recusa acima de 100; aqui seguro em 30 porque cada
-// linha manda uma mensagem de recusa pra uma cliente de verdade, e lote grande
-// demais é lote que ninguém lê antes de confirmar.
-const MAX_LOTE = 30
 
 // Motivos — exatamente os que a operacao usa hoje no grupo do WhatsApp
 const MOTIVOS_APROVA = [
@@ -232,6 +231,7 @@ const s = {
   vincBox: { marginTop: 10, padding: '9px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.09)', borderRadius: 9 },
   vincTit: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
   vincLinha: { fontSize: 11.5, color: '#334155', padding: '3px 0', borderTop: '0.5px solid rgba(15,23,42,.06)', lineHeight: 1.45 },
+  telaGerid: { marginTop: 7, padding: '9px 11px', background: '#0f172a', color: '#e2e8f0', borderRadius: 8, fontSize: 11, lineHeight: 1.5, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, monospace' },
   vincImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(15,23,42,.12)', marginTop: 7, display: 'block' },
   buscaWrap: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6, flexWrap: 'wrap' },
   buscaInput: { flex: '1 1 280px', minWidth: 0, padding: '9px 12px', fontSize: 13, borderRadius: 9, border: '0.5px solid rgba(15,23,42,.14)', background: '#ffffff', color: '#0f172a', fontFamily: 'inherit', boxSizing: 'border-box' },
@@ -347,11 +347,10 @@ export default function MesaAdvogada() {
   // 21/09 — abas do robô do GERID
   const [fGerid, setFGerid] = useState('tudo')      // tudo | conf | rep
   const [busca, setBusca] = useState('')            // 22/09 — nome, telefone ou CPF
-  const [selLote, setSelLote] = useState([])        // ids marcados na aba de reprovação
-  const [enviandoLote, setEnviandoLote] = useState(false)
   const [detGerid, setDetGerid] = useState(null)    // detalhe do lead aberto (vínculos, prints, tela)
   const [detCarregando, setDetCarregando] = useState(false)
   const [verVinculos, setVerVinculos] = useState(false)
+  const [verTela, setVerTela] = useState(false)
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -438,7 +437,7 @@ export default function MesaAdvogada() {
     // 21/09 — vinculos, prints e a 'tela' do GERID vem SOB DEMANDA, um lead por
     // vez. Ficam fora do board de proposito: sao pesados e o board recarrega
     // de minuto em minuto.
-    setDetGerid(null); setVerVinculos(false)
+    setDetGerid(null); setVerVinculos(false); setVerTela(false)
     if (c.gerid_veredito) {
       setDetCarregando(true)
       supabase.rpc('mesa_gerid_detalhe', { p_lead_id: c.id })
@@ -455,6 +454,16 @@ export default function MesaAdvogada() {
     const doDet  = (detGerid && Array.isArray(detGerid.prints)) ? detGerid.prints : []
     return (doDet.length ? doDet : doCard).filter(u => typeof u === 'string' && /^https?:\/\//.test(u))
   }
+
+  // 22/09 (Bruno): "quando ela for aprovar, tem que usar o que o robô anexou já".
+  // O robô grava DUAS formas de prova e hoje só uma está vindo:
+  //   prints[] -> imagens do GERID (ainda em zero nos 126 leads consultados)
+  //   tela     -> o TEXTO da etapa de vínculos, até 6000 chars (esse ele grava)
+  // Texto é prova melhor que print, inclusive: dá pra auditar em massa, imagem
+  // não dá. Então qualquer uma das duas libera a pré-aprovação — exigir que ela
+  // cole print seria mandar refazer no GERID a consulta que o robô acabou de
+  // fazer, que é o oposto do ganho.
+  const temProvaDoRobo = (c) => !!(c && c.gerid_tem_consulta) || printsDoRobo(c).length > 0
   const alternarFilho = (f) =>
     setFilhosOk(l => l.includes(f) ? l.filter(x => x !== f) : [...l, f])
 
@@ -493,46 +502,6 @@ export default function MesaAdvogada() {
     }
   }
 
-  // 21/09 — REPROVAÇÃO EM LOTE. Só existe na aba "🤖 Reprovar", e só age em quem
-  // ela marcou. Nada roda sozinho: o robô sugere, ela confirma.
-  // Cada linha daqui manda uma mensagem de recusa pra uma cliente de verdade e
-  // NÃO tem volta — por isso a confirmação é explícita, com o número na frente.
-  const reprovarLote = async () => {
-    if (!selLote.length || enviandoLote) return
-    const n = selLote.length
-    const ok = window.confirm(
-      `Reprovar ${n} ${n === 1 ? 'cliente' : 'clientes'} de uma vez?\n\n` +
-      `Cada uma recebe AGORA a mensagem de recusa no WhatsApp. Isso não tem como desfazer.\n\n` +
-      `Confere a lista antes: o robô sugeriu, mas quem responde pela decisão é você.`
-    )
-    if (!ok) return
-    setEnviandoLote(true)
-    const r = await supabase.rpc('advogada_reprovar_lote', {
-      p_leads: selLote, p_advogada: (profile && profile.id) || null,
-    })
-    setEnviandoLote(false)
-    if (r.error) { alert('Erro no lote: ' + r.error.message); return }
-    const d = r.data || {}
-    const falhas = Array.isArray(d.falhas) ? d.falhas : []
-    setSelLote([])
-    await carregar()
-    if (falhas.length) {
-      alert(
-        `Reprovadas: ${d.reprovados || 0}\nNão tocadas: ${falhas.length}\n\n` +
-        falhas.slice(0, 8).map(f => `· ${f.lead_id}: ${f.erro}`).join('\n') +
-        (falhas.length > 8 ? `\n… e mais ${falhas.length - 8}` : '') +
-        `\n\nAs não tocadas continuam na fila pra você decidir uma a uma.`
-      )
-    } else {
-      alert(`✅ ${d.reprovados || 0} reprovadas. As clientes já foram avisadas.`)
-    }
-  }
-
-  const alternarLote = (id) =>
-    setSelLote(l => (l.includes(id) ? l.filter(x => x !== id)
-      : l.length >= MAX_LOTE ? (alert(`No máximo ${MAX_LOTE} por vez — lote grande é lote que ninguém lê antes de confirmar.`), l)
-      : [...l, id]))
-
   const decidir = async (lead, aprovado, motivo) => {
     if (!motivo || !motivo.trim()) { alert('Escolha o motivo.'); return }
     // Regra 26/08: pré-aprovar exige o print do GERID. Negar não exige.
@@ -540,7 +509,7 @@ export default function MesaAdvogada() {
     // imagem, exigir que ela cole de novo seria obrigá-la a refazer no GERID
     // exatamente a consulta que o robô acabou de fazer — o oposto do ganho.
     const printRobo = printsDoRobo(lead)
-    if (aprovado && !print && !printRobo.length) {
+    if (aprovado && !print && !temProvaDoRobo(lead)) {
       alert('Cole (Ctrl+V) ou anexe o print do GERID antes de pré-aprovar.'); return
     }
 
@@ -659,7 +628,7 @@ export default function MesaAdvogada() {
   const contaWhats = fila.reduce((a, c) => { const k = chaveWhats(whatsDoLead(c)); a[k] = (a[k] || 0) + 1; return a }, {})
   const nDetetive = fila.filter(c => c.do_detetive).length
   // contagem das abas do robô, sobre a fila inteira
-  const contaGerid = fila.reduce((a, c) => { const k = abaGerid(c.gerid_veredito); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
+  const contaGerid = fila.reduce((a, c) => { const k = abaGerid(c); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
   // 22/09 — busca por nome, telefone ou CPF. Roda em cima da fila que já está
   // carregada, então responde enquanto ela digita, sem ida ao banco.
   // Dígito é dígito: "119" casa telefone E CPF, porque quem digita não sabe (nem
@@ -681,13 +650,14 @@ export default function MesaAdvogada() {
     if (filtro && c.fila !== filtro) return false
     if (soDetetive && !c.do_detetive) return false
     if (fWhats !== 'tudo' && chaveWhats(whatsDoLead(c)) !== fWhats) return false
-    if (fGerid !== 'tudo' && abaGerid(c.gerid_veredito) !== fGerid) return false
+    // 22/09 (Bruno): "o todas tem que mostrar so a fila". O que o robô já
+    // classificou é trabalho à parte e vive nas abas dele — não se mistura.
+    if (fGerid === 'tudo' ? abaGerid(c) !== null : abaGerid(c) !== fGerid) return false
     return true
   })
   // quantos a busca acharia se os chips não estivessem filtrando — serve pra
   // dizer "achei 2, mas os filtros escondem" em vez de mentir "não achei nada"
   const achadosSoBusca = bus ? fila.filter(casaBusca).length : 0
-  const modoLote = fGerid === 'rep'
   const fmtTempo = (m) => {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
@@ -756,15 +726,15 @@ export default function MesaAdvogada() {
 
       <div style={s.chips}>
         <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro && !soDetetive && fWhats === 'tudo' && fGerid === 'tudo')}
-          onClick={() => { setFiltro(''); setSoDetetive(false); setFWhats('tudo'); setFGerid('tudo'); setSelLote([]) }}>
-          Todas · {fila.length}
+          onClick={() => { setFiltro(''); setSoDetetive(false); setFWhats('tudo'); setFGerid('tudo') }}>
+          Todas · {fila.filter(c => abaGerid(c) === null).length}
         </button>
-        {/* 21/09 — as duas abas do robô. Separadas de propósito: conferência
-            vira venda e sai no grupo; reprovação é limpeza em lote. */}
-        {['apr', 'rep'].map(k => (
+        {/* As duas abas do robô. À parte da fila normal de propósito:
+            Aprovar vira venda; Conferir é a amostra que audita o robô. */}
+        {['apr', 'aud'].map(k => (
           contaGerid[k] ? (
             <button key={k} style={s.chip(GERID[k].cor, GERID[k].bg, fGerid === k)}
-              onClick={() => { setFGerid(fGerid === k ? 'tudo' : k); setSelLote([]) }}
+              onClick={() => setFGerid(fGerid === k ? 'tudo' : k)}
               title={GERID[k].dica}>
               {GERID[k].label} · {contaGerid[k]}
             </button>
@@ -821,32 +791,6 @@ export default function MesaAdvogada() {
         </div>
       )}
 
-      {/* 21/09 — barra da aba de reprovação. Só aparece nessa aba. */}
-      {modoLote && !loading && (
-        <div style={s.loteRep}>
-          <div style={s.loteRepTopo}>
-            <b>🤖 Reprovar em lote</b> — o robô reprovou todos os filhos destes {visiveis.length}.
-            Confere cada um, desmarca o que não concorda, e reprova de uma vez.
-          </div>
-          <div style={s.loteRepBotoes}>
-            <button style={s.btnLoteSec}
-              onClick={() => setSelLote(visiveis.slice(0, MAX_LOTE).map(c => c.id))}>
-              marcar {Math.min(visiveis.length, MAX_LOTE)}
-            </button>
-            <button style={s.btnLoteSec} onClick={() => setSelLote([])}>limpar</button>
-            <button style={s.btnLoteFinal(!selLote.length || enviandoLote)}
-              disabled={!selLote.length || enviandoLote}
-              onClick={reprovarLote}>
-              {enviandoLote ? 'reprovando…' : `⛔ Reprovar ${selLote.length} selecionada${selLote.length === 1 ? '' : 's'}`}
-            </button>
-          </div>
-          <div style={s.loteRepPe}>
-            ⚠️ Cada uma recebe a mensagem de recusa no WhatsApp <b>na hora</b>, e isso não desfaz.
-            O robô ainda está em calibração — a sugestão dele é palpite, a decisão é sua.
-          </div>
-        </div>
-      )}
-
       {!loading && visiveis.length > 0 && (
         <div style={s.barraLote}>
           <button style={s.btnLote} onClick={() => copiarLote(visiveis)}>
@@ -873,12 +817,6 @@ export default function MesaAdvogada() {
               <div>
                 <div style={s.nome}>
                   {/* caixa de seleção só na aba de reprovação em lote */}
-                  {modoLote && (
-                    <input type="checkbox" style={s.checkLote}
-                      checked={selLote.includes(c.id)}
-                      onChange={() => alternarLote(c.id)}
-                      title="marcar pra reprovar em lote" />
-                  )}
                   {c.nome || 'Cliente +Mais Mãe'}
                 </div>
                 <div style={s.dado}>
@@ -971,7 +909,7 @@ export default function MesaAdvogada() {
             {/* 21/09 — o que o ROBÔ DO GERID achou. Um bloco por filho, com o
                 motivo em texto. Isso é sugestão: quem decide é ela. */}
             {c.gerid_veredito && (
-              <div style={s.roboBox(abaGerid(c.gerid_veredito) === 'rep')}>
+              <div style={s.roboBox(abaGerid(c) === 'aud')}>
                 <div style={s.roboTopo}>
                   <span>🤖 <b>Robô consultou o GERID</b>{c.gerid_em ? ' · ' + fmtQuando(c.gerid_em) : ''}</span>
                   {Array.isArray(c.gerid_prints) && c.gerid_prints.length > 0 && (
@@ -1031,6 +969,18 @@ export default function MesaAdvogada() {
                       </a>
                     ))}
 
+                    {/* 22/09 — o TEXTO que o robô leu no GERID. Hoje é a prova
+                        que existe de fato: prints[] está vazio em todos os 126
+                        consultados, e a tela vem em 117 deles. */}
+                    {detGerid && detGerid.tela && (
+                      <div style={{ marginTop: 8 }}>
+                        <button style={s.btnLoteSec} onClick={() => setVerTela(v => !v)}>
+                          {verTela ? 'esconder' : 'ver'} o que o robô leu na tela do GERID
+                        </button>
+                        {verTela && <pre style={s.telaGerid}>{detGerid.tela}</pre>}
+                      </div>
+                    )}
+
                     {detGerid && Array.isArray(detGerid.vinculos) && detGerid.vinculos.length > 0 && (
                       <div style={{ marginTop: 8 }}>
                         <button style={s.btnLoteSec} onClick={() => setVerVinculos(v => !v)}>
@@ -1046,9 +996,9 @@ export default function MesaAdvogada() {
                       </div>
                     )}
 
-                    {!detCarregando && !printsDoRobo(c).length && (
+                    {!detCarregando && !printsDoRobo(c).length && !c.gerid_tem_consulta && (
                       <div style={{ fontSize: 11.5, color: '#92400e', marginTop: 4 }}>
-                        O robô não guardou imagem deste — se for pré-aprovar, cole o print do GERID abaixo.
+                        O robô não guardou nem imagem nem texto deste — se for pré-aprovar, cole o print do GERID abaixo.
                       </div>
                     )}
                   </div>
@@ -1095,14 +1045,17 @@ export default function MesaAdvogada() {
                         </div>
                       </div>
                     )}
-                    {!print && !printsDoRobo(c).length && (
+                    {!print && !temProvaDoRobo(c) && (
                       <div style={{ ...s.colaDica, color: '#b45309', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
                         Sem o print os motivos abaixo ficam bloqueados.
                       </div>
                     )}
-                    {!print && printsDoRobo(c).length > 0 && (
+                    {!print && temProvaDoRobo(c) && (
                       <div style={{ ...s.colaDica, color: '#059669', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
-                        ✅ O print do robô já vale como prova — não precisa colar nada. Se quiser trocar, cole o seu aqui.
+                        ✅ {printsDoRobo(c).length > 0
+                              ? 'O print do robô já vale como prova'
+                              : 'O que o robô leu no GERID já vale como prova'} — não precisa colar nada.
+                        Se quiser anexar o seu também, cole aqui.
                       </div>
                     )}
                   </div>
@@ -1162,11 +1115,11 @@ export default function MesaAdvogada() {
                         ...s.motivoBtn(abrindo.tipo === 'ok' ? '#059669' : '#dc2626'),
                         // 21/09: print do robô libera igual ao print colado
                         ...(abrindo.tipo === 'ok'
-                            && ((!print && !printsDoRobo(c).length) || (filhos.length > 1 && filhosOk.length === 0))
+                            && ((!print && !temProvaDoRobo(c)) || (filhos.length > 1 && filhosOk.length === 0))
                             ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
                       }}
                       disabled={salvando || (abrindo.tipo === 'ok'
-                        && ((!print && !printsDoRobo(c).length) || (filhos.length > 1 && filhosOk.length === 0)))}
+                        && ((!print && !temProvaDoRobo(c)) || (filhos.length > 1 && filhosOk.length === 0)))}
                       onClick={() => decidir(c, abrindo.tipo === 'ok', m)}
                     >
                       {m}
