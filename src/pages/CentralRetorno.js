@@ -129,7 +129,7 @@ export default function CentralRetorno() {
     return () => clearInterval(t)
   }, [carregarOverview])
 
-  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['crefaz', '💡 Crefaz'], ['detetive', '🕵️ Detetive'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
+  const ABAS = [['painel', '📊 Painel'], ['leads', '👥 Leads'], ['crefaz', '💡 Crefaz'], ['detetive', '🕵️ Detetive'], ['promobank', '🏦 PromoBank'], ['whats', '📲 Validação WhatsApp'], ['conectores', '🔌 Conectores'], ['campanhas', '📢 Campanhas'], ['email', '✉️ E-mail'], ['fila', '📜 Fila / Log']]
 
   return (
     <div style={{ maxWidth: 1180 }}>
@@ -157,6 +157,8 @@ export default function CentralRetorno() {
       {tela === 'leads' && <Leads />}
       {tela === 'crefaz' && <Crefaz />}
       {tela === 'detetive' && <Detetive />}
+      {tela === 'promobank' && <PromoBank />}
+      {tela === 'whats' && <ValidacaoWhats />}
       {ov && tela === 'conectores' && <Conectores ov={ov} recarregar={carregarOverview} />}
       {tela === 'campanhas' && <Campanhas />}
       {tela === 'email' && <Email />}
@@ -1295,6 +1297,387 @@ function Crefaz() {
           O <b>CEP</b> ao lado da concessionária é o centro da cidade principal daquele DDD, para preencher a
           simulação — não é o endereço do cliente. Onde aparece <b style={{ color: ALERTA }}>⚠ aprox.</b> existe
           mais de uma distribuidora no mesmo DDD e é o CEP que define qual atende, então o teto pode vir diferente.
+        </div>
+      </Secao>
+    </>
+  )
+}
+
+// ═══════════════ VALIDAÇÃO DE WHATSAPP ═══════════════
+// 22/09 (Bruno). Tudo sobre a verificação de WhatsApp num lugar só.
+// Só leitura: nada aqui escreve na whats_validacao_fila nem na tabela de chips
+// — isso é do Engenheiro Central, e duas portas de escrita com regras
+// diferentes é como se perde o controle de um chip só.
+//
+// Duas coisas que a tela mostra e que os números soltos escondiam:
+//   · SAÚDE DO CHIP — teto, consumo do dia e quando foi a última validação.
+//     Sem isso, o validador pode estar morto há horas e ninguém nota.
+//   · CONFLITO — o robô disse uma coisa, a atendente carimbou outra. É o único
+//     jeito de saber se o validador está acertando.
+function ValidacaoWhats() {
+  const [res, setRes] = useState(null)
+  const [lista, setLista] = useState(null)
+  const [filtro, setFiltro] = useState('tudo')
+  const [busca, setBusca] = useState('')
+  const [erro, setErro] = useState('')
+  const [carregando, setCarregando] = useState(false)
+
+  const carregar = useCallback(async (f, b) => {
+    setCarregando(true); setErro('')
+    const [a, c] = await Promise.all([
+      supabase.rpc('whats_validacao_resumo'),
+      supabase.rpc('whats_validacao_lista', { p_filtro: f, p_busca: b || null, p_limite: 300 }),
+    ])
+    setCarregando(false)
+    if (a.error || c.error) { setErro((a.error || c.error).message); return }
+    setRes(a.data || null); setLista(c.data || [])
+  }, [])
+  useEffect(() => { carregar(filtro, busca) }, [carregar, filtro])   // busca só no Enter/botão
+
+  const chips = (res && res.chips) || []
+  const pct = res && res.validados
+    ? Math.round((res.sem_whatsapp * 1000) / res.validados) / 10 : 0
+
+  // "morreu" = passou de 1h sem validar dentro da janela. O Central deu esse
+  // critério e ele é bom: fila viva parada mais de 1h é validador caído.
+  const ultima = res && res.ultima_validacao ? new Date(res.ultima_validacao) : null
+  const horasParado = ultima ? (Date.now() - ultima.getTime()) / 3600000 : null
+  const suspeito = horasParado != null && horasParado > 1 && res && res.fila_viva > 0
+
+  return (
+    <>
+      <Secao icone="📲" titulo="Validação de WhatsApp" sub="o que o robô já verificou e como está o chip"
+        acao={<button style={s.btn('#2563eb')} onClick={() => carregar(filtro, busca)} disabled={carregando}>
+          {carregando ? 'atualizando…' : '↻ atualizar'}</button>}>
+        {erro && <div style={s.erroBox}>⚠ {erro}</div>}
+        {!res && !erro && <div style={s.vazio}>Carregando…</div>}
+
+        {res && (
+          <>
+            {suspeito && (
+              <div style={{ ...s.aviso, marginBottom: 12 }}>
+                ⚠️ Última validação há {horasParado < 24 ? Math.round(horasParado) + 'h' : Math.round(horasParado / 24) + ' dia(s)'},
+                com {res.fila_viva} na fila viva. Dentro da janela isso significa validador parado.
+              </div>
+            )}
+            <div style={{ ...s.grid(140), marginBottom: 12 }}>
+              <div style={s.kpi}>
+                <div style={s.kpiLbl}>Verificados</div>
+                <div style={s.kpiNum}>{res.validados}</div>
+                <div style={s.kpiSub}>total já consultado</div>
+              </div>
+              <div style={s.kpi}>
+                <div style={s.kpiLbl}>Tem WhatsApp</div>
+                <div style={{ ...s.kpiNum, color: '#059669' }}>{res.tem_whatsapp}</div>
+                <div style={s.kpiSub}>pode mandar mensagem</div>
+              </div>
+              <div style={s.kpi}>
+                <div style={s.kpiLbl}>Sem WhatsApp</div>
+                <div style={{ ...s.kpiNum, color: '#dc2626' }}>{res.sem_whatsapp}</div>
+                <div style={s.kpiSub}>{pct}% do total — precisa ligar</div>
+              </div>
+              <div style={s.kpi}>
+                <div style={s.kpiLbl}>Fila viva</div>
+                <div style={s.kpiNum}>{res.fila_viva}</div>
+                <div style={s.kpiSub}>+ {res.backfill} de backfill</div>
+              </div>
+              <div style={s.kpi}>
+                <div style={s.kpiLbl}>Falharam</div>
+                <div style={{ ...s.kpiNum, color: res.falharam > 0 ? '#b45309' : '#0f172a' }}>{res.falharam}</div>
+                <div style={s.kpiSub}>precisam voltar pra fila</div>
+              </div>
+            </div>
+
+            {chips.map(c => {
+              const estourou = Number(c.consultas_hoje) >= Number(c.teto_dia)
+              return (
+                <div key={c.instancia} style={{ ...s.kpi, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div>
+                      <b style={{ fontSize: 13 }}>📱 {c.instancia}</b>{' '}
+                      <span style={c.banido_em
+                        ? s.badge('#dc2626', 'rgba(220,38,38,.10)')
+                        : c.status === 'ativo' ? s.badge('#059669', 'rgba(5,150,105,.12)')
+                        : s.badge('#b45309', 'rgba(251,191,36,.14)')}>
+                        {c.banido_em ? 'BANIDO' : c.status}
+                      </span>
+                      <div style={s.kpiSub}>
+                        janela {c.janela} · intervalo {c.intervalo} · último uso {fmtBR(c.ultimo_uso_em)}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ ...s.kpiNum, fontSize: 20, color: estourou ? '#dc2626' : '#0f172a' }}>
+                        {c.consultas_hoje} / {c.teto_dia}
+                      </div>
+                      <div style={s.kpiSub}>
+                        {estourou ? 'teto do dia estourado' : `restam ${c.restam} hoje`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )}
+      </Secao>
+
+      <Secao icone="📋" titulo="Clientes verificados" sub="o que o robô respondeu, cliente por cliente">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+          {[['tudo', 'Tudo'], ['tem', '✅ Tem'], ['nao', '❌ Não tem'],
+            ['pendente', '⏳ Na fila'], ['falhou', '⚠️ Falhou'],
+            ['conflito', '🔴 Robô × pessoa']].map(([k, lbl]) => (
+            <button key={k} style={s.chip(filtro === k)} onClick={() => setFiltro(k)}>{lbl}</button>
+          ))}
+          <input style={{ ...s.input, flex: '1 1 200px', maxWidth: 280 }}
+            value={busca} onChange={e => setBusca(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') carregar(filtro, busca) }}
+            placeholder="nome, telefone ou CPF — Enter pra buscar" />
+          <button style={s.btn('#2563eb')} onClick={() => carregar(filtro, busca)}>buscar</button>
+        </div>
+
+        {!lista && <div style={s.vazio}>Carregando…</div>}
+        {lista && lista.length === 0 && <div style={s.vazio}>Nada com esse filtro.</div>}
+        {lista && lista.length > 0 && (
+          <div style={{ maxHeight: 520, overflow: 'auto' }}>
+            <table style={s.tabela}>
+              <thead><tr>
+                <th style={s.th}>Cliente</th><th style={s.th}>Telefone</th>
+                <th style={s.th}>Robô</th><th style={s.th}>Atendente</th>
+                <th style={s.th}>Chip</th><th style={s.th}>Origem</th>
+                <th style={s.th}>Verificado</th><th style={s.th}>Vendedora</th>
+              </tr></thead>
+              <tbody>
+                {lista.map(l => (
+                  <tr key={l.lead_id} style={l.conflito ? { background: 'rgba(220,38,38,.05)' } : undefined}>
+                    <td style={s.td}>
+                      {l.nome || <span style={{ color: '#94a3b8' }}>—</span>}
+                      {l.conflito && <div><span style={s.badge('#dc2626', 'rgba(220,38,38,.10)')}>robô × pessoa</span></div>}
+                    </td>
+                    <td style={s.td}>{l.telefone || '—'}</td>
+                    <td style={s.td}>
+                      {l.status !== 'pronto'
+                        ? <span style={s.badge('#5b6b84', 'rgba(15,23,42,.06)')}>
+                            {l.status === 'pendente' ? (l.prioridade < 0 ? 'backfill' : 'na fila') : l.status}
+                          </span>
+                        : l.tem_whatsapp
+                          ? <span style={s.badge('#059669', 'rgba(5,150,105,.12)')}>✅ tem</span>
+                          : <span style={s.badge('#dc2626', 'rgba(220,38,38,.10)')}>❌ não tem</span>}
+                      {l.status === 'falhou' && l.detalhe && <div style={s.kpiSub}>{l.detalhe}</div>}
+                    </td>
+                    <td style={s.td}>
+                      {l.carimbo_humano === 'iniciado'
+                        ? <span style={s.badge('#065f46', 'rgba(52,211,153,.14)')}>📲 chamou</span>
+                        : l.carimbo_humano === 'sem_whats'
+                          ? <span style={s.badge('#991b1b', 'rgba(220,38,38,.12)')}>📵 não tem</span>
+                          : <span style={{ color: '#94a3b8' }}>—</span>}
+                    </td>
+                    <td style={s.td}>{l.chip || '—'}</td>
+                    <td style={s.td}>{l.origem || '—'}</td>
+                    <td style={s.td}>{fmtBR(l.validado_em)}</td>
+                    <td style={s.td}>{l.vendedora || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={s.nota}>
+          A coluna <b>Atendente</b> é o carimbo humano do Revisão IA Retroativo. Quando ela discorda do robô,
+          a linha fica vermelha — é o único jeito de descobrir se o validador está errando.
+        </div>
+      </Secao>
+    </>
+  )
+}
+
+// ═══════════════ PROMOBANK — o que tem pra consultar ═══════════════
+// 22/09 (Bruno). Duas listas numa aba:
+//
+// 1) FILA — o que ainda vai ser consultado, juntando as DUAS origens:
+//    · promobank -> ja esta na consulta_maternidade_fila esperando a vez
+//    · detetive  -> esta na fila do Detetive; quando ele achar a data real,
+//                   o trigger joga no PromoBank sozinho
+//
+// 2) INDEFINIDOS — lead do retroativo que NUNCA foi ao PromoBank e NAO entra
+//    na fila porque falta dado. O trigger exige CPF de 11 digitos e uma data
+//    que o banco consiga ler; quem nao tem fica parado sem ninguem ver.
+//    Aqui da pra arrumar o CPF ou a data e o lead volta pra fila sozinho —
+//    a correcao grava no lead e o proprio trigger enfileira. Nao escrevo na
+//    fila na mao: seriam duas portas de entrada com regras diferentes.
+function PromoBank() {
+  const [fila, setFila] = useState(null)
+  const [inds, setInds] = useState(null)
+  const [erro, setErro] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [fOrigem, setFOrigem] = useState('tudo')     // tudo | promobank | detetive
+  const [edit, setEdit] = useState(null)             // { lead_id, cpf, data }
+  const [salvando, setSalvando] = useState(false)
+
+  const carregar = useCallback(async () => {
+    setCarregando(true); setErro('')
+    const [a, b] = await Promise.all([
+      supabase.rpc('promobank_fila_painel', { p_limite: 1000 }),
+      supabase.rpc('promobank_indefinidos', { p_limite: 500 }),
+    ])
+    setCarregando(false)
+    if (a.error || b.error) { setErro((a.error || b.error).message); return }
+    setFila(a.data || []); setInds(b.data || [])
+  }, [])
+  useEffect(() => { carregar() }, [carregar])
+
+  const salvar = async () => {
+    if (!edit || salvando) return
+    setSalvando(true)
+    const r = await supabase.rpc('promobank_corrigir', {
+      p_lead_id: edit.lead_id,
+      p_cpf: edit.cpf || null,
+      p_data: edit.data || null,
+    })
+    setSalvando(false)
+    if (r.error) { alert('Erro: ' + r.error.message); return }
+    const d = r.data || {}
+    if (!d.ok) { alert(d.erro || 'não deu pra corrigir'); return }
+    setEdit(null)
+    await carregar()
+    alert(d.entrou_na_fila
+      ? '✅ Corrigido e já entrou na fila do PromoBank.'
+      : '⚠️ ' + (d.aviso || 'gravei, mas ainda falta dado pro PromoBank aceitar'))
+  }
+
+  const visiveis = (fila || []).filter(f => fOrigem === 'tudo' || f.origem === fOrigem)
+  const nPromo = (fila || []).filter(f => f.origem === 'promobank').length
+  const nDet = (fila || []).filter(f => f.origem === 'detetive').length
+
+  return (
+    <>
+      <Secao icone="🏦" titulo="Fila do PromoBank" sub="tudo que ainda vai ser consultado"
+        acao={<button style={s.btn('#2563eb')} onClick={carregar} disabled={carregando}>
+          {carregando ? 'atualizando…' : '↻ atualizar'}</button>}>
+        <div style={{ ...s.grid(150), marginBottom: 12 }}>
+          <div style={s.kpi}>
+            <div style={s.kpiLbl}>Na fila do PromoBank</div>
+            <div style={s.kpiNum}>{nPromo}</div>
+            <div style={s.kpiSub}>esperando a vez de consultar</div>
+          </div>
+          <div style={s.kpi}>
+            <div style={s.kpiLbl}>No Detetive</div>
+            <div style={s.kpiNum}>{nDet}</div>
+            <div style={s.kpiSub}>quando ele achar a data, cai aqui sozinho</div>
+          </div>
+          <div style={s.kpi}>
+            <div style={s.kpiLbl}>Indefinidos</div>
+            <div style={s.kpiNum}>{(inds || []).length}</div>
+            <div style={s.kpiSub}>parados por falta de dado — dá pra arrumar abaixo</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          {[['tudo', `Tudo · ${(fila || []).length}`],
+            ['promobank', `🏦 PromoBank · ${nPromo}`],
+            ['detetive', `🕵️ Detetive · ${nDet}`]].map(([k, lbl]) => (
+            <button key={k} style={s.chip(fOrigem === k)} onClick={() => setFOrigem(k)}>{lbl}</button>
+          ))}
+        </div>
+
+        {erro && <div style={s.erroBox}>⚠ {erro}</div>}
+        {!fila && !erro && <div style={s.vazio}>Carregando…</div>}
+        {fila && visiveis.length === 0 && <div style={s.vazio}>Nada nessa fila.</div>}
+
+        {visiveis.length > 0 && (
+          <div style={{ maxHeight: 420, overflow: 'auto' }}>
+            <table style={s.tabela}>
+              <thead><tr>
+                <th style={s.th}>Origem</th><th style={s.th}>Nome</th><th style={s.th}>CPF</th>
+                <th style={s.th}>Nascimento</th><th style={s.th}>Status</th><th style={s.th}>Entrou</th>
+              </tr></thead>
+              <tbody>
+                {visiveis.slice(0, 300).map((f, i) => (
+                  <tr key={f.origem + f.ref + i}>
+                    <td style={s.td}>
+                      <span style={f.origem === 'detetive'
+                        ? s.badge('#7c3aed', 'rgba(124,58,237,.10)')
+                        : s.badge('#2563eb', 'rgba(37,99,235,.10)')}>
+                        {f.origem === 'detetive' ? '🕵️ Detetive' : '🏦 PromoBank'}
+                      </span>
+                    </td>
+                    <td style={s.td}>{f.nome || '—'}</td>
+                    <td style={s.td}>{f.cpf || '—'}</td>
+                    <td style={s.td}>{f.data_nascimento_filho
+                      ? String(f.data_nascimento_filho).split('-').reverse().join('/')
+                      : <span style={{ color: '#94a3b8' }}>o Detetive vai trazer</span>}</td>
+                    <td style={s.td}>{f.status}</td>
+                    <td style={s.td}>{fmtBR(f.criado_em)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {visiveis.length > 300 && (
+              <div style={s.nota}>mostrando as 300 primeiras de {visiveis.length}</div>
+            )}
+          </div>
+        )}
+      </Secao>
+
+      <Secao icone="🛠️" titulo="Indefinidos — arrumar e devolver pra fila"
+        sub="não foram consultados porque falta CPF ou data. Corrigindo aqui, o lead volta pra fila sozinho.">
+        {!inds && <div style={s.vazio}>Carregando…</div>}
+        {inds && inds.length === 0 && <div style={s.vazio}>✅ Nenhum indefinido.</div>}
+        {inds && inds.length > 0 && (
+          <div style={{ maxHeight: 460, overflow: 'auto' }}>
+            <table style={s.tabela}>
+              <thead><tr>
+                <th style={s.th}>Nome</th><th style={s.th}>Telefone</th>
+                <th style={s.th}>CPF</th><th style={s.th}>Data</th>
+                <th style={s.th}>Motivo</th><th style={s.th}></th>
+              </tr></thead>
+              <tbody>
+                {inds.slice(0, 200).map(l => {
+                  const aberto = edit && edit.lead_id === l.lead_id
+                  return (
+                    <tr key={l.lead_id}>
+                      <td style={s.td}>{l.nome || '—'}</td>
+                      <td style={s.td}>{l.telefone || '—'}</td>
+                      <td style={s.td}>
+                        {aberto
+                          ? <input style={{ ...s.input, minWidth: 130 }} value={edit.cpf}
+                              placeholder={l.cpf_bruto || 'CPF'}
+                              onChange={e => setEdit({ ...edit, cpf: e.target.value })} />
+                          : (l.cpf_bruto || <span style={{ color: '#b45309' }}>vazio</span>)}
+                      </td>
+                      <td style={s.td}>
+                        {aberto
+                          ? <input style={{ ...s.input, minWidth: 110 }} value={edit.data}
+                              placeholder={l.data_bruta || 'dd/mm/aaaa'}
+                              onChange={e => setEdit({ ...edit, data: e.target.value })} />
+                          : (l.data_bruta || <span style={{ color: '#b45309' }}>vazio</span>)}
+                      </td>
+                      <td style={s.td}><span style={s.badge('#b45309', 'rgba(251,191,36,.14)')}>{l.motivo}</span></td>
+                      <td style={s.td}>
+                        {aberto ? (
+                          <span style={{ display: 'flex', gap: 6 }}>
+                            <button style={s.btn('#059669', true)} onClick={salvar} disabled={salvando}>
+                              {salvando ? '…' : 'salvar'}
+                            </button>
+                            <button style={s.btn('#5b6b84')} onClick={() => setEdit(null)}>cancelar</button>
+                          </span>
+                        ) : (
+                          <button style={s.btn('#2563eb')}
+                            onClick={() => setEdit({ lead_id: l.lead_id, cpf: '', data: '' })}>
+                            arrumar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {inds.length > 200 && <div style={s.nota}>mostrando os 200 mais novos de {inds.length}</div>}
+          </div>
+        )}
+        <div style={s.nota}>
+          O CPF é validado pelo dígito verificador e a data precisa ser real e não estar no futuro.
+          Dado que não passa volta com o erro em vez de ser gravado.
         </div>
       </Secao>
     </>
