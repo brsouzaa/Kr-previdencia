@@ -260,8 +260,17 @@ const s = {
   btnChat: { padding: '10px 14px', background: 'rgba(96,165,250,.12)', color: '#2563eb', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 9, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' },
   motivos: { marginTop: 12, padding: 12, borderRadius: 10, background: '#f2f5fa', border: '0.5px solid rgba(15,23,42,0.08)' },
   // 16/09 — faixa da linha pronta pro grupo do WhatsApp, depois de pré-aprovar
-  avisoWrap: (ok) => ({ position: 'sticky', top: 0, zIndex: 20, marginBottom: 14, padding: 14, borderRadius: 12,
-    background: ok ? 'rgba(52,211,153,.14)' : 'rgba(248,113,113,.14)',
+  // 22/09 — era 'sticky' e por isso a advogada NAO via a linha do grupo:
+  // sticky so gruda enquanto o elemento ainda esta na tela, e ela decide no
+  // MEIO da lista, com a pagina ja rolada muito abaixo do topo. O aviso nascia
+  // la em cima, fora do campo de visao, e ela nunca soube que ele existia.
+  // Com 'fixed' ele aparece na frente, onde quer que ela esteja na pagina.
+  avisoWrap: (ok) => ({
+    position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+    width: 'min(1100px, calc(100vw - 24px))', maxHeight: '70vh', overflowY: 'auto',
+    boxSizing: 'border-box', zIndex: 60, padding: 14, borderRadius: 12,
+    boxShadow: '0 10px 30px rgba(15,23,42,.22)',
+    background: ok ? '#ecfdf5' : '#fef2f2',
     border: '1px solid ' + (ok ? '#34d399' : '#f87171') }),
   avisoTitulo: (ok) => ({ fontSize: 12, fontWeight: 600, color: ok ? '#065f46' : '#991b1b', marginBottom: 8 }),
   avisoLinha: { fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#ffffff', padding: '10px 12px', borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.11)', wordBreak: 'break-word', lineHeight: 1.45 },
