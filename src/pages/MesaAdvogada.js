@@ -233,6 +233,10 @@ const s = {
   vincTit: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
   vincLinha: { fontSize: 11.5, color: '#334155', padding: '3px 0', borderTop: '0.5px solid rgba(15,23,42,.06)', lineHeight: 1.45 },
   vincImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(15,23,42,.12)', marginTop: 7, display: 'block' },
+  buscaWrap: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6, flexWrap: 'wrap' },
+  buscaInput: { flex: '1 1 280px', minWidth: 0, padding: '9px 12px', fontSize: 13, borderRadius: 9, border: '0.5px solid rgba(15,23,42,.14)', background: '#ffffff', color: '#0f172a', fontFamily: 'inherit', boxSizing: 'border-box' },
+  buscaLimpar: { padding: '8px 11px', fontSize: 12, fontWeight: 700, borderRadius: 9, border: '0.5px solid rgba(15,23,42,.14)', background: '#ffffff', color: '#5b6b84', cursor: 'pointer', fontFamily: 'inherit' },
+  buscaConta: { fontSize: 11.5, color: '#5b6b84' },
   // --- escolher quais filhos entram (20/09) ---
   escolhaBox: { marginBottom: 10, padding: 11, borderRadius: 9, background: '#fffdf7', border: '1px solid rgba(180,83,9,.35)' },
   escolhaTit: { fontSize: 12.5, fontWeight: 700, color: '#92400e', marginBottom: 7 },
@@ -342,6 +346,7 @@ export default function MesaAdvogada() {
   const [whatsParado, setWhatsParado] = useState(null)  // { motivo, texto }
   // 21/09 — abas do robô do GERID
   const [fGerid, setFGerid] = useState('tudo')      // tudo | conf | rep
+  const [busca, setBusca] = useState('')            // 22/09 — nome, telefone ou CPF
   const [selLote, setSelLote] = useState([])        // ids marcados na aba de reprovação
   const [enviandoLote, setEnviandoLote] = useState(false)
   const [detGerid, setDetGerid] = useState(null)    // detalhe do lead aberto (vínculos, prints, tela)
@@ -655,13 +660,33 @@ export default function MesaAdvogada() {
   const nDetetive = fila.filter(c => c.do_detetive).length
   // contagem das abas do robô, sobre a fila inteira
   const contaGerid = fila.reduce((a, c) => { const k = abaGerid(c.gerid_veredito); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
+  // 22/09 — busca por nome, telefone ou CPF. Roda em cima da fila que já está
+  // carregada, então responde enquanto ela digita, sem ida ao banco.
+  // Dígito é dígito: "119" casa telefone E CPF, porque quem digita não sabe (nem
+  // precisa saber) em qual dos dois campos o número está gravado.
+  const bus = busca.trim().toLowerCase()
+  const busNum = busca.replace(/\D/g, '')
+  const casaBusca = (c) => {
+    if (!bus) return true
+    if ((c.nome || '').toLowerCase().includes(bus)) return true
+    if (busNum) {
+      if ((c.cpf_limpo || '').includes(busNum)) return true
+      if ((c.tel || '').replace(/\D/g, '').includes(busNum)) return true
+    }
+    return false
+  }
+
   const visiveis = fila.filter(c => {
+    if (!casaBusca(c)) return false
     if (filtro && c.fila !== filtro) return false
     if (soDetetive && !c.do_detetive) return false
     if (fWhats !== 'tudo' && chaveWhats(whatsDoLead(c)) !== fWhats) return false
     if (fGerid !== 'tudo' && abaGerid(c.gerid_veredito) !== fGerid) return false
     return true
   })
+  // quantos a busca acharia se os chips não estivessem filtrando — serve pra
+  // dizer "achei 2, mas os filtros escondem" em vez de mentir "não achei nada"
+  const achadosSoBusca = bus ? fila.filter(casaBusca).length : 0
   const modoLote = fGerid === 'rep'
   const fmtTempo = (m) => {
     const n = Number(m) || 0
@@ -671,6 +696,26 @@ export default function MesaAdvogada() {
   return (
     <div style={s.wrap}>
       <h1 style={s.h1}>⚖️ Mesa da Advogada — Retroativo</h1>
+
+      {/* 22/09 — busca na fila carregada. Filtra enquanto digita. */}
+      <div style={s.buscaWrap}>
+        <input
+          style={s.buscaInput}
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="🔎 Buscar na fila por nome, telefone ou CPF…"
+        />
+        {busca && (
+          <button style={s.buscaLimpar} onClick={() => setBusca('')} title="limpar busca">✕</button>
+        )}
+        {busca && (
+          <span style={s.buscaConta}>
+            {visiveis.length === 0 && achadosSoBusca > 0
+              ? `${achadosSoBusca} achada${achadosSoBusca === 1 ? '' : 's'}, mas os filtros abaixo estão escondendo`
+              : `${visiveis.length} de ${fila.length}`}
+          </span>
+        )}
+      </div>
       <div style={s.sub}>
         Só chega aqui quem já passou pela conferência PromoBank. Pré-aprovadas vêm primeiro;
         quem não mandou o CNIS só entra depois de 20 minutos parada.<br />
