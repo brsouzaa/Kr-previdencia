@@ -231,6 +231,8 @@ const s = {
   vincBox: { marginTop: 10, padding: '9px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.09)', borderRadius: 9 },
   vincTit: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
   vincLinha: { fontSize: 11.5, color: '#334155', padding: '3px 0', borderTop: '0.5px solid rgba(15,23,42,.06)', lineHeight: 1.45 },
+  provaOk: { marginBottom: 10, padding: '10px 12px', background: 'rgba(5,150,105,.09)', border: '0.5px solid rgba(5,150,105,.28)', borderRadius: 9, fontSize: 12.5, fontWeight: 600, color: '#065f46', lineHeight: 1.55 },
+  provaLink: { display: 'block', marginTop: 5, padding: 0, background: 'none', border: 0, color: '#5b6b84', fontSize: 11.5, fontWeight: 500, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' },
   telaGerid: { marginTop: 7, padding: '9px 11px', background: '#0f172a', color: '#e2e8f0', borderRadius: 8, fontSize: 11, lineHeight: 1.5, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, monospace' },
   vincImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(15,23,42,.12)', marginTop: 7, display: 'block' },
   buscaWrap: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6, flexWrap: 'wrap' },
@@ -351,6 +353,7 @@ export default function MesaAdvogada() {
   const [detCarregando, setDetCarregando] = useState(false)
   const [verVinculos, setVerVinculos] = useState(false)
   const [verTela, setVerTela] = useState(false)
+  const [colarMesmoAssim, setColarMesmoAssim] = useState(false)
   const [abrindo, setAbrindo] = useState(null)   // { id, tipo: 'ok' | 'nao' }
   const [outroTexto, setOutroTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -427,7 +430,7 @@ export default function MesaAdvogada() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const fecharPainel = () => { setAbrindo(null); setOutroTexto(''); limparPrint(); setFilhosOk([]) }
+  const fecharPainel = () => { setAbrindo(null); setOutroTexto(''); limparPrint(); setFilhosOk([]); setColarMesmoAssim(false) }
 
   // abre o painel ja com todos os filhos marcados
   const abrirPainel = (c, tipo) => {
@@ -437,7 +440,7 @@ export default function MesaAdvogada() {
     // 21/09 — vinculos, prints e a 'tela' do GERID vem SOB DEMANDA, um lead por
     // vez. Ficam fora do board de proposito: sao pesados e o board recarrega
     // de minuto em minuto.
-    setDetGerid(null); setVerVinculos(false); setVerTela(false)
+    setDetGerid(null); setVerVinculos(false); setVerTela(false); setColarMesmoAssim(false)
     if (c.gerid_veredito) {
       setDetCarregando(true)
       supabase.rpc('mesa_gerid_detalhe', { p_lead_id: c.id })
@@ -1004,8 +1007,25 @@ export default function MesaAdvogada() {
                   </div>
                 )}
 
-                {/* PRINT DO GERID — só na pré-aprovação */}
-                {abrindo.tipo === 'ok' && (
+                {/* PRINT DO GERID — só na pré-aprovação.
+                    22/09 (Bruno): quando o robô já trouxe a prova, a área de
+                    colar SOME. Deixar ela na tela pedindo Ctrl+V ao lado de um
+                    aviso dizendo "não precisa colar nada" é contraditório — ela
+                    lê o pedido, não o aviso, e cola à toa.
+                    Fica só um link discreto pra quem quiser anexar assim mesmo. */}
+                {abrindo.tipo === 'ok' && temProvaDoRobo(c) && !print && !colarMesmoAssim && (
+                  <div style={s.provaOk}>
+                    ✅ {printsDoRobo(c).length > 0
+                          ? 'O print do robô já vale como prova do GERID.'
+                          : 'O que o robô leu no GERID já vale como prova.'}
+                    {' '}Pode escolher o motivo direto.
+                    <button style={s.provaLink} onClick={() => setColarMesmoAssim(true)}>
+                      anexar um print meu mesmo assim
+                    </button>
+                  </div>
+                )}
+
+                {abrindo.tipo === 'ok' && (!temProvaDoRobo(c) || !!print || colarMesmoAssim) && (
                   <div>
                     {/* IMPORTANTE: clicar aqui NAO abre a janela de arquivos.
                         Antes abria, o dialogo do Windows roubava o foco e o Ctrl+V
@@ -1048,14 +1068,6 @@ export default function MesaAdvogada() {
                     {!print && !temProvaDoRobo(c) && (
                       <div style={{ ...s.colaDica, color: '#b45309', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
                         Sem o print os motivos abaixo ficam bloqueados.
-                      </div>
-                    )}
-                    {!print && temProvaDoRobo(c) && (
-                      <div style={{ ...s.colaDica, color: '#059669', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
-                        ✅ {printsDoRobo(c).length > 0
-                              ? 'O print do robô já vale como prova'
-                              : 'O que o robô leu no GERID já vale como prova'} — não precisa colar nada.
-                        Se quiser anexar o seu também, cole aqui.
                       </div>
                     )}
                   </div>
