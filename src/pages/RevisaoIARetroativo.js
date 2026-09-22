@@ -137,6 +137,21 @@ function primeiroNome(n) { return (n || 'cliente').split(' ')[0] }
 
 // 21/09 — "16/09 13:03" pro carimbo de WhatsApp. Valor ruim no banco vira ''
 // em vez de "Invalid Date" no meio do card.
+// 22/09 (Bruno) — a vendedora liga sem saber onde a cliente trabalhou, e é
+// justamente isso que ela precisa confirmar pra fechar. O robô do GERID já
+// identificou o vínculo que gerou o direito; aqui ele vira texto de gente.
+// Benefício e recolhimento não são empregador — dizer "você trabalhou na
+// AUXILIO DOENCA" queima a ligação, então o rótulo muda.
+function textoVinculo(v) {
+  if (!v) return ''
+  if (v.bruto) return v.bruto
+  const periodo = v.inicio ? `${v.inicio} a ${v.fim}` : `até ${v.fim}`
+  const quando = v.meses_antes_do_parto === 0
+    ? 'no mês do parto'
+    : `${v.meses_antes_do_parto} ${v.meses_antes_do_parto === 1 ? 'mês' : 'meses'} antes do parto`
+  return `${periodo} · ${quando}`
+}
+
 function fmtCarimbo(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -263,6 +278,11 @@ const s = {
   // card: sao 7 mil leads sem validacao e o card viraria um mar de cinza.
   seloSemWhats: { marginTop: 4, display: 'block', padding: '3px 8px', background: 'rgba(220,38,38,.12)', color: '#991b1b', border: '0.5px solid rgba(220,38,38,.32)', borderRadius: 7, fontSize: 11, fontWeight: 700, lineHeight: 1.35 },
   seloTemWhats: { marginTop: 4, display: 'inline-block', padding: '1px 7px', background: 'rgba(5,150,105,.12)', color: '#059669', borderRadius: 7, fontSize: 10.5, fontWeight: 700 },
+  vincBox: { marginTop: 8, marginBottom: 4, padding: '10px 12px', background: 'rgba(37,99,235,.06)', border: '0.5px solid rgba(37,99,235,.22)', borderRadius: 10 },
+  vincTit: { fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 5 },
+  vincNome: { fontSize: 14, fontWeight: 700, color: '#0f172a', lineHeight: 1.35 },
+  vincMeta: { fontSize: 12, color: '#475569', marginTop: 2, lineHeight: 1.45 },
+  vincRegra: { fontSize: 11.5, color: '#065f46', marginTop: 6, lineHeight: 1.45 },
   fichaWhats: (cor, bg) => ({ display: 'inline-block', marginLeft: 6, padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg }),
   // 21/09 — CARIMBO HUMANO. Dado diferente do selo do robo acima, de proposito:
   // um e o validador automatico, o outro e o que a atendente constatou na pratica.
@@ -987,6 +1007,28 @@ export default function RevisaoIARetroativo() {
             <div style={s.ficha}>
               {lead.data_nascimento_filho && (
                 <div style={s.destaque}>👶 Nascimento do filho: {lead.data_nascimento_filho}{lead.idade_bebe ? ` (${lead.idade_bebe})` : ''}</div>
+              )}
+
+              {/* 22/09 — O QUE GARANTE O DIREITO DELA. É o que a vendedora
+                  confirma na ligação: "você trabalhou na X até tal data, né?".
+                  Sem isso ela liga no escuro. Vem do robô do GERID. */}
+              {lead.vinculo_direito && !lead.vinculo_direito.bruto && (
+                <div style={s.vincBox}>
+                  <div style={s.vincTit}>
+                    {lead.vinculo_direito.eh_beneficio
+                      ? '📄 Benefício que garante o direito'
+                      : '🏢 Empresa que garante o direito'}
+                  </div>
+                  <div style={s.vincNome}>{lead.vinculo_direito.empresa}</div>
+                  <div style={s.vincMeta}>{lead.vinculo_direito.tipo}</div>
+                  <div style={s.vincMeta}>{textoVinculo(lead.vinculo_direito)}</div>
+                  <div style={s.vincRegra}>
+                    ✅ {lead.vinculo_direito.regra}
+                    {lead.vinculo_direito.total_vinculos > 1
+                      ? ` · a cliente tem ${lead.vinculo_direito.total_vinculos} vínculos no CNIS, este é o que vale`
+                      : ''}
+                  </div>
+                </div>
               )}
               <div>
                 📱 {lead.tel || '—'}
