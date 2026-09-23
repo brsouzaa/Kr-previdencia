@@ -144,7 +144,8 @@ export default function CoordenadorB2C() {
       supabase.from('clientes').select('id', { count: 'exact', head: true })
         .in('status', ['aguardando_pos_venda','em_contato_pos_venda'])
         .lte('pos_venda_prazo', seisHorasFrente),
-      setorResp === 'captacao'
+      // 23/09 — 'todos' tambem enxerga a fila da IA, que e de captacao.
+      (setorResp === 'captacao' || setorResp === 'todos')
         ? supabase.from('clientes').select('id', { count: 'exact', head: true })
             .eq('status', 'aguardando_revisao_ia')
             .lte('updated_at', doze_horas_atras)
@@ -170,11 +171,14 @@ export default function CoordenadorB2C() {
     setHistorico(hist || [])
 
     // 4) Vendedores e supervisoras do setor (pra dropdowns nos modais)
-    const { data: vends } = await supabase
+    // 23/09 (Bruno) — com 'todos' NAO da pra filtrar .eq('setor','todos'):
+    // voltaria vazio e derrubaria os modais de transferir, pausar, reativar
+    // e trocar supervisora de uma vez. Nesse caso a lista sai sem filtro.
+    let qVendedores = supabase
       .from('profiles')
-      .select('id, nome, ativo, supervisora_id, role')
-      .eq('setor', setorResp)
-      .order('nome')
+      .select('id, nome, ativo, supervisora_id, role, setor')
+    if (setorResp !== 'todos') qVendedores = qVendedores.eq('setor', setorResp)
+    const { data: vends } = await qVendedores.order('nome')
     setVendedoresSetor((vends || []).filter(v => ['vendedor_operador','supervisor_producao'].includes(v.role)))
     setSupervisorasSetor((vends || []).filter(v => v.role === 'supervisor_producao'))
 
@@ -213,11 +217,15 @@ export default function CoordenadorB2C() {
       <div style={s.pageTitle}>
         Painel da coordenadora
         <span style={{ fontSize: 12, fontWeight: 400, color: '#5b6b84', marginLeft: 10 }}>
-          • Setor: {setorResp === 'captacao' ? 'Captação + IA' : 'Autônomos'}
+          • Setor: {setorResp === 'captacao' ? 'Captação + IA'
+                  : setorResp === 'autonomos' ? 'Autônomos'
+                  : 'Todos os setores'}
         </span>
       </div>
       <div style={s.pageSubtitle}>
-        Olá, {profile.nome}. Tudo abaixo já está filtrado pelo seu setor.
+        Olá, {profile.nome}. {setorResp === 'todos'
+          ? 'Você enxerga todos os setores — confira o setor do cliente antes de agir.'
+          : 'Tudo abaixo já está filtrado pelo seu setor.'}
       </div>
 
       <div style={s.sectionTitle}>📊 Produção de hoje</div>
@@ -370,8 +378,12 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
       : supabase.from('clientes').select('id, nome, cpf, status, vendedor_operador_id, setor').ilike('nome', `%${valor}%`).limit(8)
     query.then(({ data }) => {
       // RLS já filtra por setor; segurança extra:
-      const filtrado = (data || []).filter(c => 
-        (setorResp === 'captacao' && (c.setor === 'captacao' || c.vendedor_operador_id === IA_ID))
+      // 23/09 (Bruno) — setor_responsavel 'todos' = coordenadora de todos os
+      // setores. Sem este primeiro ramo, nenhum dos dois de baixo bate e a
+      // busca devolve VAZIO pra qualquer cliente, inclusive de captação.
+      const filtrado = (data || []).filter(c =>
+        setorResp === 'todos'
+        || (setorResp === 'captacao' && (c.setor === 'captacao' || c.vendedor_operador_id === IA_ID))
         || (setorResp === 'autonomos' && c.setor === 'autonomos')
       )
       setResultados(filtrado)
@@ -402,6 +414,10 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
               <div style={{ fontWeight: 500 }}>{c.nome}</div>
               <div style={{ fontSize: 11, color: '#5b6b84' }}>
                 {formatCPF(c.cpf)} • {c.status}
+                {/* 23/09 — com 'todos' podem vir dois homonimos de setores
+                    diferentes (aconteceu com ALINE APARECIDA DOS SANTOS).
+                    Sem o setor na linha nao da pra saber qual e qual. */}
+                {setorResp === 'todos' && c.setor ? ` • ${c.setor}` : ''}
               </div>
             </div>
           ))}
@@ -467,7 +483,10 @@ function ModalCancelar({ onClose, onSucesso, setorResp }) {
         {cliente && (
           <div style={{ ...s.card, background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa', marginBottom: 12, padding: '8px 10px' }}>
             <div style={{ fontWeight: 500, fontSize: 13 }}>{cliente.nome}</div>
-            <div style={{ fontSize: 11, color: '#5b6b84' }}>{formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b></div>
+            <div style={{ fontSize: 11, color: '#5b6b84' }}>
+              {formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b>
+              {setorResp === 'todos' && cliente.setor ? <> • Setor: <b>{cliente.setor}</b></> : null}
+            </div>
           </div>
         )}
 
@@ -533,11 +552,15 @@ function ModalTransferir({ onClose, onSucesso, setorResp, vendedores }) {
         <label style={s.label}>Cliente</label>
         <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
 
-        <label style={s.label}>Novo vendedor (do setor {setorResp})</label>
+        <label style={s.label}>
+          Novo vendedor {setorResp === 'todos' ? '(todos os setores)' : `(do setor ${setorResp})`}
+        </label>
         <select style={s.select} value={novoVendedor} onChange={e => setNovoVendedor(e.target.value)}>
           <option value="">Selecione…</option>
           {vendedores.map(v => (
-            <option key={v.id} value={v.id}>{v.nome} {v.ativo === false ? '(pausado)' : ''}</option>
+            <option key={v.id} value={v.id}>
+              {v.nome}{setorResp === 'todos' && v.setor ? ` · ${v.setor}` : ''} {v.ativo === false ? '(pausado)' : ''}
+            </option>
           ))}
         </select>
 
