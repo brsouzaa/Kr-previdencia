@@ -1388,8 +1388,19 @@ function ValidacaoWhats() {
               </div>
             </div>
 
+            {/* 23/09 — passei a ler a view whats_validacao_chips_status.
+                Quem decide se o chip está disponível é o BANCO, não esta tela:
+                antes eu comparava consultas_hoje com teto_dia aqui, e isso é
+                regra de negócio duplicada no front — erra sozinha quando a do
+                banco muda. Foi o que aconteceu: com o worker parado desde
+                21/09, o contador cru ficou em 101/60 e a tela gritava "teto
+                estourado" num chip que estava livre, apontando o culpado
+                errado. A view já entrega consultas_hoje com o reset do dia
+                aplicado, mais disponivel_agora e motivo prontos. */}
             {chips.map(c => {
-              const estourou = Number(c.consultas_hoje) >= Number(c.teto_dia)
+              const livre = c.disponivel_agora !== false
+              // contador cru ≠ do dia significa que ninguém pede chip há dias
+              const travadoEmDiaAntigo = Number(c.consultas_hoje_bruto) > Number(c.consultas_hoje)
               return (
                 <div key={c.instancia} style={{ ...s.kpi, marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1401,16 +1412,32 @@ function ValidacaoWhats() {
                         : s.badge('#b45309', 'rgba(251,191,36,.14)')}>
                         {c.banido_em ? 'BANIDO' : c.status}
                       </span>
+                      {!livre && c.motivo && (
+                        <span style={{ ...s.badge('#b45309', 'rgba(251,191,36,.16)'), marginLeft: 6 }}>
+                          {c.motivo}
+                        </span>
+                      )}
+                      {Number(c.falhas_seguidas) > 0 && (
+                        <span style={{ ...s.badge('#dc2626', 'rgba(220,38,38,.10)'), marginLeft: 6 }}>
+                          {c.falhas_seguidas} falha(s) seguidas
+                        </span>
+                      )}
                       <div style={s.kpiSub}>
                         janela {c.janela} · intervalo {c.intervalo} · último uso {fmtBR(c.ultimo_uso_em)}
                       </div>
+                      {travadoEmDiaAntigo && (
+                        <div style={{ ...s.kpiSub, color: '#b45309' }}>
+                          contador cru parado em {c.consultas_hoje_bruto} desde {String(c.reset_em || '').split('-').reverse().join('/')} —
+                          o reset só roda quando alguém pede chip, então isso é sinal de que ninguém pede
+                        </div>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ ...s.kpiNum, fontSize: 20, color: estourou ? '#dc2626' : '#0f172a' }}>
+                      <div style={{ ...s.kpiNum, fontSize: 20, color: livre ? '#0f172a' : '#dc2626' }}>
                         {c.consultas_hoje} / {c.teto_dia}
                       </div>
                       <div style={s.kpiSub}>
-                        {estourou ? 'teto do dia estourado' : `restam ${c.restam} hoje`}
+                        {livre ? `restam ${c.restam} hoje` : (c.motivo || 'indisponível')}
                       </div>
                     </div>
                   </div>
