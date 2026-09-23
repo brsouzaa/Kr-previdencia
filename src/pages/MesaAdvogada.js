@@ -129,16 +129,32 @@ const VERIFICAR_WHATS_LIGADO = false
 // DUAS ABAS SEPARADAS, por decisão do Bruno: aprovação não se mistura com
 // reprovação. São trabalhos diferentes — a aprovação vira venda e sai no grupo;
 // a reprovação é limpeza em lote.
+// 23/09 (Bruno) — TRÊS chips, e nada mais. A mesa tinha virado uma salada de
+// eixos (origem do dado, fila do funil, WhatsApp, robô) que respondiam
+// perguntas diferentes ao mesmo tempo, e por isso ela abria um lead e via o
+// robô, abria outro e não via. Agora o eixo é UM só: em que pé está o robô.
+//
+//   fila  -> o robô ainda não consultou. Não tem o que decidir aqui ainda.
+//   apr   -> o robô aprovou. Ela confere e libera. É onde sai venda.
+//   neg   -> o robô negou e separou pra ela conferir se ele acertou.
 const GERID = {
-  apr: { chave: 'apr', label: '🤖 Aprovar',  cor: '#059669', bg: 'rgba(5,150,105,.10)',
-         dica: 'O robô não reprovou tudo — é aqui que sai venda' },
-  aud: { chave: 'aud', label: '🔍 Conferir o robô', cor: '#b45309', bg: 'rgba(180,83,9,.10)',
-         dica: 'Amostra do dia: o robô reprovou, mas estes ficaram pra você conferir se ele acertou' },
+  fila: { label: '⏳ Fila do robô', cor: '#5b6b84', bg: 'rgba(15,23,42,.05)',
+          dica: 'O robô ainda não consultou o GERID destes' },
+  apr:  { label: '✅ Aprovadas',    cor: '#059669', bg: 'rgba(5,150,105,.10)',
+          dica: 'O robô aprovou — confira e libere pro vendedor' },
+  neg:  { label: '⛔ Negadas',      cor: '#b45309', bg: 'rgba(180,83,9,.10)',
+          dica: 'O robô negou e separou pra você conferir se ele acertou' },
 }
-// 22/09 — quem o robô reprovou NÃO chega mais aqui: o banco reprova sozinho.
-// A exceção é a amostra diária de 10, que vem marcada com gerid_auditoria e é
-// justamente o que mede se o robô está certo.
-const abaGerid = (c) => (c && c.gerid_auditoria ? 'aud' : c && c.gerid_veredito === 'aprovar' ? 'apr' : null)
+// A ordem aqui importa: APROVAR vence a marca de auditoria. Um lead que o robô
+// reprovou e depois, ao reconsultar, aprovou, fica com as duas marcas no banco —
+// e se a auditoria ganhasse, uma venda liberada apareceria como "Negada".
+// Auditoria só faz sentido em cima de reprovação.
+const abaGerid = (c) => (
+  !c ? null
+  : c.gerid_veredito === 'aprovar' ? 'apr'
+  : c.gerid_auditoria ? 'neg'
+  : !c.gerid_tem_consulta ? 'fila'
+  : 'fila')
 
 // selo por filho. 'conferir' do robô é mostrado como aprovar, pelo mesmo motivo.
 const SUGESTAO = {
@@ -231,6 +247,7 @@ const s = {
   vincBox: { marginTop: 10, padding: '9px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.09)', borderRadius: 9 },
   vincTit: { fontSize: 11.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
   vincLinha: { fontSize: 11.5, color: '#334155', padding: '3px 0', borderTop: '0.5px solid rgba(15,23,42,.06)', lineHeight: 1.45 },
+  vincTexto: { marginTop: 6, padding: '8px 10px', background: 'rgba(37,99,235,.06)', border: '0.5px solid rgba(37,99,235,.2)', borderRadius: 8, fontSize: 11.5, lineHeight: 1.6, color: '#0f172a', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit', margin: '6px 0 0' },
   vincDireito: { marginTop: 6, padding: '6px 9px', background: 'rgba(37,99,235,.07)', border: '0.5px solid rgba(37,99,235,.2)', borderRadius: 7, fontSize: 11.5, color: '#0f172a', lineHeight: 1.5 },
   provaOk: { marginBottom: 10, padding: '10px 12px', background: 'rgba(5,150,105,.09)', border: '0.5px solid rgba(5,150,105,.28)', borderRadius: 9, fontSize: 12.5, fontWeight: 600, color: '#065f46', lineHeight: 1.55 },
   provaLink: { display: 'block', marginTop: 5, padding: 0, background: 'none', border: 0, color: '#5b6b84', fontSize: 11.5, fontWeight: 500, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' },
@@ -362,8 +379,6 @@ export default function MesaAdvogada() {
   const [fila, setFila] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
-  const [soDetetive, setSoDetetive] = useState(false)   // 20/09 — filtro de origem
-  const [fWhats, setFWhats] = useState('tudo')          // 21/09 — tudo | tem | nao | nver
   // 21/09 — resultado das verificacoes feitas AQUI, no clique da advogada.
   // Fica so na memoria da tela: o banco ja foi gravado pela edge function, e a
   // fila recarrega sozinha de minuto em minuto. Isso aqui e pra resposta na hora.
@@ -615,10 +630,19 @@ export default function MesaAdvogada() {
       // linha do grupo é o único canal que chega nela, então o vínculo que
       // gerou o direito vai junto — em linha separada, pra não virar um
       // parágrafo ilegível no WhatsApp.
+      // 22/09 — o robô passou a gravar gerid.vendedor: texto pronto, por
+      // filho, já com quebras de linha. Uso ele direto em vez de remontar a
+      // frase aqui: qualquer melhora que ele faça no texto chega sozinha, e
+      // some o risco de a linha do grupo divergir do que a tela mostra.
+      // Só caio no meu formato quando o lead é antigo e não tem esse campo.
+      // 22/09 (Bruno): na linha do grupo vai o RECORTE — só o filho que tem
+      // direito e a empresa que o sustenta, com entrada e saída. Filho sem
+      // direito é assunto da advogada, não da vendedora: na mão dela só cria
+      // conversa que derruba a venda.
       const vinc = lead.vinculo_direito
-      const trechoVinculo = vinc
-        ? `\n${vinc.eh_beneficio ? '📄' : '🏢'} ${rotuloVinculo(vinc)}: ${textoVinculo(vinc)}`
-        : ''
+      const trechoVinculo = lead.gerid_venda
+        ? `\n\n${lead.gerid_venda}`
+        : vinc ? `\n${vinc.eh_beneficio ? '📄' : '🏢'} ${rotuloVinculo(vinc)}: ${textoVinculo(vinc)}` : ''
       setAviso({
         tipo: 'ok',
         cliente: lead.nome || 'cliente',
@@ -662,10 +686,6 @@ export default function MesaAdvogada() {
   }
 
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
-  // contagem por estado de WhatsApp, calculada sobre a fila inteira (nao sobre
-  // o filtro atual) — senao o chip mudaria de numero ao clicar nele mesmo.
-  const contaWhats = fila.reduce((a, c) => { const k = chaveWhats(whatsDoLead(c)); a[k] = (a[k] || 0) + 1; return a }, {})
-  const nDetetive = fila.filter(c => c.do_detetive).length
   // contagem das abas do robô, sobre a fila inteira
   const contaGerid = fila.reduce((a, c) => { const k = abaGerid(c); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
   // 22/09 — busca por nome, telefone ou CPF. Roda em cima da fila que já está
@@ -686,17 +706,19 @@ export default function MesaAdvogada() {
 
   const visiveis = fila.filter(c => {
     if (!casaBusca(c)) return false
-    if (filtro && c.fila !== filtro) return false
-    if (soDetetive && !c.do_detetive) return false
-    if (fWhats !== 'tudo' && chaveWhats(whatsDoLead(c)) !== fWhats) return false
-    // 22/09 (Bruno): "o todas tem que mostrar so a fila". O que o robô já
-    // classificou é trabalho à parte e vive nas abas dele — não se mistura.
-    if (fGerid === 'tudo' ? abaGerid(c) !== null : abaGerid(c) !== fGerid) return false
+    // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
+    // por onde o robô está. Nada de filtro cruzado — foi isso que confundiu.
+    if (fGerid !== 'tudo' && abaGerid(c) !== fGerid) return false
     return true
   })
   // quantos a busca acharia se os chips não estivessem filtrando — serve pra
   // dizer "achei 2, mas os filtros escondem" em vez de mentir "não achei nada"
   const achadosSoBusca = bus ? fila.filter(casaBusca).length : 0
+  // 23/09 — o que dá pra decidir AGORA vem primeiro. Antes o topo era dos
+  // leads que o robô ainda não tinha consultado: ela abria a mesa e tropeçava
+  // justamente nos que não dava pra resolver.
+  const PESO = { apr: 0, neg: 1, fila: 2 }
+  visiveis.sort((a, b) => (PESO[abaGerid(a)] ?? 3) - (PESO[abaGerid(b)] ?? 3))
   const fmtTempo = (m) => {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
@@ -729,9 +751,8 @@ export default function MesaAdvogada() {
         Só chega aqui quem já passou pela conferência PromoBank. Pré-aprovadas vêm primeiro;
         quem não mandou o CNIS só entra depois de 20 minutos parada.<br />
         Sua decisão é a oficial: <b>pré-aprovado real</b> vai pro vendedor, <b>negado</b> encerra e a cliente é avisada automaticamente.
-        {nDetetive > 0 && (
-          <><br />🕵️ As <b>{nDetetive}</b> do Detetive vêm no topo: a data de nascimento delas foi lida no órgão, não estimada.</>
-        )}
+        <br />🤖 O robô do GERID consulta antes de você: <b>✅ Aprovadas</b> e <b>⛔ Negadas</b> já vêm com os vínculos.
+        A <b>⏳ Fila do robô</b> é quem ele ainda não alcançou — nessas, consulte o GERID como sempre.
       </div>
 
       {aviso && (
@@ -764,59 +785,19 @@ export default function MesaAdvogada() {
       )}
 
       <div style={s.chips}>
-        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', !filtro && !soDetetive && fWhats === 'tudo' && fGerid === 'tudo')}
-          onClick={() => { setFiltro(''); setSoDetetive(false); setFWhats('tudo'); setFGerid('tudo') }}>
-          Todas · {fila.filter(c => abaGerid(c) === null).length}
+        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fGerid === 'tudo')}
+          onClick={() => setFGerid('tudo')}>
+          Todas · {fila.length}
         </button>
-        {/* As duas abas do robô. À parte da fila normal de propósito:
-            Aprovar vira venda; Conferir é a amostra que audita o robô. */}
-        {['apr', 'aud'].map(k => (
-          contaGerid[k] ? (
-            <button key={k} style={s.chip(GERID[k].cor, GERID[k].bg, fGerid === k)}
-              onClick={() => setFGerid(fGerid === k ? 'tudo' : k)}
-              title={GERID[k].dica}>
-              {GERID[k].label} · {contaGerid[k]}
-            </button>
-          ) : null
-        ))}
-        {nDetetive > 0 && (
-          <button style={s.chip(DETETIVE_COR, DETETIVE_BG, soDetetive)}
-            onClick={() => setSoDetetive(v => !v)}
-            title="Leads que nasceram de uma consulta do robô Detetive — data lida no órgão">
-            🕵️ Detetive · {nDetetive}
+        {['fila', 'apr', 'neg'].map(k => (
+          <button key={k} style={s.chip(GERID[k].cor, GERID[k].bg, fGerid === k)}
+            onClick={() => setFGerid(fGerid === k ? 'tudo' : k)}
+            title={GERID[k].dica}>
+            {GERID[k].label} · {contaGerid[k] || 0}
           </button>
-        )}
-        {ORDEM_FILAS.map(k => (
-          contagem[k] ? (
-            <button key={k} style={s.chip(FILAS[k].cor, FILAS[k].bg, filtro === k)} onClick={() => setFiltro(filtro === k ? '' : k)}>
-              {FILAS[k].label} · {contagem[k]}
-            </button>
-          ) : null
         ))}
       </div>
 
-      {/* 21/09 — filtro de WhatsApp. Eixo proprio: cruza com os filtros de fila
-          e de origem acima. Padrao 'tudo' pra nao esconder ninguem. */}
-      <div style={s.chipsLinha}>
-        <span style={s.chipsRotulo}>WhatsApp:</span>
-        <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fWhats === 'tudo')}
-          onClick={() => setFWhats('tudo')}>
-          Tudo · {fila.length}
-        </button>
-        {['tem', 'nao', 'nver'].map(k => (
-          <button key={k} style={s.chip(WHATS[k].cor, WHATS[k].bg, fWhats === k)}
-            onClick={() => setFWhats(fWhats === k ? 'tudo' : k)}>
-            {WHATS[k].label} · {contaWhats[k] || 0}
-          </button>
-        ))}
-        <span style={{ fontSize: 11.5, color: '#64748b' }}>
-          {VERIFICAR_WHATS_LIGADO
-            ? <>a checagem automática só roda depois da sua decisão — aqui, use o <b>🔍 Verificar</b> do card
-                quando o WhatsApp fizer diferença pro caso</>
-            : <>🧪 o validador está em fase de teste, rodando só em leads antigos — por isso a fila daqui
-                aparece toda sem verificar. <b>Decida normalmente</b>, nada mudou pra você.</>}
-        </span>
-      </div>
 
       {/* 21/09 — validador fora do ar. Aviso UNICO no topo, e o botao some de todos
           os cards. Sem isso, cada clique queima uma consulta do chip a troco de nada. */}
@@ -958,12 +939,14 @@ export default function MesaAdvogada() {
                   )}
                 </div>
                 {c.gerid_resumo && <div style={s.roboResumo}>{c.gerid_resumo}</div>}
-                {c.vinculo_direito && (
-                  <div style={s.vincDireito}>
-                    {c.vinculo_direito.eh_beneficio ? '📄' : '🏢'} <b>{rotuloVinculo(c.vinculo_direito)}:</b>{' '}
-                    {textoVinculo(c.vinculo_direito)}
-                  </div>
-                )}
+                {c.gerid_vendedor
+                  ? <pre style={s.vincTexto}>{c.gerid_vendedor}</pre>
+                  : c.vinculo_direito && (
+                      <div style={s.vincDireito}>
+                        {c.vinculo_direito.eh_beneficio ? '📄' : '🏢'} <b>{rotuloVinculo(c.vinculo_direito)}:</b>{' '}
+                        {textoVinculo(c.vinculo_direito)}
+                      </div>
+                    )}
                 {(Array.isArray(c.gerid_filhos) ? c.gerid_filhos : []).map((fl, i) => {
                   const sg = seloFilho(fl && fl.sugestao)
                   return (
