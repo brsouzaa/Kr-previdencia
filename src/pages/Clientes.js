@@ -104,9 +104,20 @@ function chavesDe(produto, docs) {
 // Medido em 08/09: 3.698 de 3.706 clientes com link resolvem o advogado por aqui (99,8%).
 // O lote tambem tem advogado_id, mas cobre menos (3.689) e nao acrescenta nenhum caso
 // que o contrato ja nao resolva — por isso uma fonte so, sem fallback que confunda.
+//
+// 25/09 (Bruno) — agora PRECISA de fallback, e o motivo e novo. Quando o cliente
+// e barrado ou cancelado, o backend zera clientes.contrato_producao_id (e certo:
+// e isso que desliga o cliente do lote e impede o sincronizador de pega-lo de
+// novo). So que o caminho acima passa por esse ponteiro — ele arrebenta no meio
+// e o nome some, mesmo com o advogado gravado ali no proprio cadastro.
+// Medido em 25/09: 1.019 cadastros nessa situacao (777 barrado_pos_venda, que e
+// 100% dos barrados, e 242 cancelados).
+// O contrato continua sendo a fonte preferida — so cai pro campo do cliente
+// quando o contrato nao responde.
 function advogadoDe(c) {
   const cp = c?.contratos_producao
-  const a = Array.isArray(cp) ? cp[0]?.advogados : cp?.advogados
+  const doContrato = Array.isArray(cp) ? cp[0]?.advogados : cp?.advogados
+  const a = (doContrato && doContrato.nome_completo) ? doContrato : c?.advogados
   if (!a || !a.nome_completo) return null
   return {
     nome: a.nome_completo,
@@ -444,8 +455,12 @@ export default function Clientes() {
     // 08/09: traz junto o advogado do contrato de assinatura. Se a RLS de
     // contratos_producao bloquear quem esta logado, o embed volta null e o resto
     // da tela segue igual — nada quebra, so nao aparece o advogado.
+    // 25/09 — alem do advogado do contrato, traz o advogado gravado no proprio
+    // cliente. E a unica fonte que sobra para barrado/cancelado, que perdem o
+    // contrato_producao_id (ver advogadoDe). Embed a mais, nenhuma query a mais.
     let q = supabase.from('clientes').select(
       '*, profiles!clientes_vendedor_operador_id_fkey(nome),' +
+      ' advogados!clientes_advogado_id_fkey(nome_completo, oab, cidade, estado),' +
       ' contratos_producao!clientes_contrato_producao_id_fkey(status, data_assinatura, advogados(nome_completo, oab, cidade, estado))'
     )
     if (desde) {
