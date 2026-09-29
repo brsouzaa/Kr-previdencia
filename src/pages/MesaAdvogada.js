@@ -137,13 +137,39 @@ const VERIFICAR_WHATS_LIGADO = false
 //   fila  -> o robô ainda não consultou. Não tem o que decidir aqui ainda.
 //   apr   -> o robô aprovou. Ela confere e libera. É onde sai venda.
 //   neg   -> o robô negou e separou pra ela conferir se ele acertou.
+// 28/09 (Bruno) — a aba "Aprovadas" virou DUAS. O robô aprova por dois caminhos
+// diferentes e eles exigem conversas diferentes com a cliente:
+//   12 meses  -> parou de contribuir e ainda está no período de graça. Direito
+//                limpo, libera direto.
+//   12 a 24   -> o direito só existe pela EXTENSÃO do período de graça, que
+//                depende de seguro-desemprego ou 120 contribuições. O próprio
+//                robô escreve "CONFIRMAR seguro-desemprego com a cliente".
+// Misturados numa aba só, o segundo grupo era liberado como se fosse o primeiro
+// — e a confirmação que ele exige passava batido.
 const GERID = {
-  fila: { label: '⏳ Fila do robô', cor: '#5b6b84', bg: 'rgba(15,23,42,.05)',
-          dica: 'O robô ainda não consultou o GERID destes' },
-  apr:  { label: '✅ Aprovadas',    cor: '#059669', bg: 'rgba(5,150,105,.10)',
-          dica: 'O robô aprovou — confira e libere pro vendedor' },
-  neg:  { label: '⛔ Negadas',      cor: '#b45309', bg: 'rgba(180,83,9,.10)',
-          dica: 'O robô negou e separou pra você conferir se ele acertou' },
+  fila:  { label: '⏳ Fila do robô',  cor: '#5b6b84', bg: 'rgba(15,23,42,.05)',
+           dica: 'O robô ainda não consultou o GERID destes' },
+  apr12: { label: '✅ 12 meses',      cor: '#059669', bg: 'rgba(5,150,105,.10)',
+           dica: 'Direito dentro do período de graça de 12 meses — pode liberar direto' },
+  apr24: { label: '✅ 12 a 24 meses', cor: '#0d9488', bg: 'rgba(13,148,136,.10)',
+           dica: 'Direito por extensão — CONFIRME o seguro-desemprego com a cliente antes de liberar' },
+  neg:   { label: '⛔ Negadas',       cor: '#b45309', bg: 'rgba(180,83,9,.10)',
+           dica: 'O robô negou e separou pra você conferir se ele acertou' },
+}
+
+// Em qual faixa o robô encaixou o direito. Lê o motivo que ele escreveu em cada
+// filho APROVADO — reprovado não conta, senão um filho negado por "já recebeu"
+// mudaria a aba de uma cliente que tem direito por outro.
+// Quando a mesma cliente tem um filho de 12 meses e outro de 12 a 24, vale o de
+// 12: é o caso mais forte, e não obriga a advogada a confirmar nada.
+const faixaGerid = (c) => {
+  const filhos = Array.isArray(c && c.gerid_filhos) ? c.gerid_filhos : []
+  const motivos = filhos
+    .filter(f => f && f.sugestao === 'aprovar')
+    .map(f => String((f && f.motivo) || '').toLowerCase())
+  if (motivos.some(m => m.includes('dentro dos 12 meses'))) return '12'
+  if (motivos.some(m => m.includes('entre 12 e 24') || m.includes('24 meses') || m.includes('120 contrib'))) return '24'
+  return null
 }
 // A ordem aqui importa: APROVAR vence a marca de auditoria. Um lead que o robô
 // reprovou e depois, ao reconsultar, aprovou, fica com as duas marcas no banco —
@@ -151,7 +177,10 @@ const GERID = {
 // Auditoria só faz sentido em cima de reprovação.
 const abaGerid = (c) => (
   !c ? null
-  : c.gerid_veredito === 'aprovar' ? 'apr'
+  // só vai pra "12 meses" (liberar direto) quem o robô classificou como tal.
+  // Aprovado com motivo que não reconhecemos cai em "12 a 24", que é a aba que
+  // pede conferência — errar pro lado de olhar a mais, não a menos.
+  : c.gerid_veredito === 'aprovar' ? (faixaGerid(c) === '12' ? 'apr12' : 'apr24')
   : c.gerid_auditoria ? 'neg'
   : !c.gerid_tem_consulta ? 'fila'
   : 'fila')
@@ -717,8 +746,8 @@ export default function MesaAdvogada() {
   // 23/09 — o que dá pra decidir AGORA vem primeiro. Antes o topo era dos
   // leads que o robô ainda não tinha consultado: ela abria a mesa e tropeçava
   // justamente nos que não dava pra resolver.
-  const PESO = { apr: 0, neg: 1, fila: 2 }
-  visiveis.sort((a, b) => (PESO[abaGerid(a)] ?? 3) - (PESO[abaGerid(b)] ?? 3))
+  const PESO = { apr12: 0, apr24: 1, neg: 2, fila: 3 }
+  visiveis.sort((a, b) => (PESO[abaGerid(a)] ?? 9) - (PESO[abaGerid(b)] ?? 9))
   const fmtTempo = (m) => {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
@@ -789,7 +818,7 @@ export default function MesaAdvogada() {
           onClick={() => setFGerid('tudo')}>
           Todas · {fila.length}
         </button>
-        {['fila', 'apr', 'neg'].map(k => (
+        {['fila', 'apr12', 'apr24', 'neg'].map(k => (
           <button key={k} style={s.chip(GERID[k].cor, GERID[k].bg, fGerid === k)}
             onClick={() => setFGerid(fGerid === k ? 'tudo' : k)}
             title={GERID[k].dica}>
