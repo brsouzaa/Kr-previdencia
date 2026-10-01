@@ -264,8 +264,12 @@ function paginaPermitida(profile, page) {
   if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
   // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
   if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
-  // Agentes BF (Joana, Pamela, Ju, Nadia): acesso a tela Revisao IA Bolsa Familia por ID, sem perder roles
-  if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
+  // Agentes BF (Joana, Pamela, Ju, Nadia, Hellen): acesso as telas Revisao IA por ID.
+  // 01/10 (Bruno): 'revisao_ia_retroativo' entrou aqui. O item ja estava no menu
+  // (Layout.js, IDS_AGENTES_BF) mas esta lista so liberava o Bolsa Familia — entao
+  // elas clicavam e o App devolvia pra pagina inicial do papel delas, sem aviso
+  // nenhum. E o MESMO bug de 02/09 anotado acima: as duas listas TEM que bater.
+  if (IDS_AGENTES_BF.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)) return true
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
   if (IDS_AGENTES_RETROATIVO.includes(profile.id) && ['revisao_ia_retroativo','confere_cnis'].includes(page)) return true
   // Egle (supervisora de board): acesso as DUAS telas Revisao IA
