@@ -82,7 +82,7 @@ const IDS_VENDEDORAS_RETROATIVO = [
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda (supervisoraeduarda25) — a que ja atuava no setor
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 16/09: sem esta linha ela via o board INTEIRO (6.021 leads)
-    // 01/10 — time de 24 meses. SEM ESTAS LINHAS a tela tenta baixar o board
+  // 01/10 — time de 24 meses. SEM ESTAS LINHAS a tela tenta baixar o board
   // inteiro (10.362 leads em 11 requisicoes) e fica carregando pra sempre:
   // foi o que travou as 5 hoje, e e o MESMO caso da Luciane em 16/09.
   '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
@@ -324,6 +324,15 @@ const s = {
   painelMotivos: { marginTop: 8, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
+  // 01/10 — transferir lead entre vendedoras (supervisora do time)
+  btnTransf: { padding: '9px 12px', background: 'rgba(96,165,250,.14)', color: '#1d4ed8', border: '0.5px solid rgba(37,99,235,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  transfTit: { fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 2 },
+  transfSub: { fontSize: 13, color: '#5b6b84', marginBottom: 14 },
+  transfLabel: { fontSize: 12, fontWeight: 700, color: '#5b6b84', marginBottom: 6, marginTop: 10 },
+  transfSelect: { width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '0.5px solid rgba(15,23,42,0.18)', background: '#ffffff', color: '#0f172a', boxSizing: 'border-box', fontFamily: 'inherit' },
+  transfVazio: { fontSize: 12, color: '#b45309', background: 'rgba(251,191,36,.12)', borderRadius: 8, padding: '8px 10px', marginTop: 8 },
+  transfCheck: { display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 10, fontSize: 12.5, cursor: 'pointer' },
+  transfCheckPe: { fontSize: 11, color: '#64748b', lineHeight: 1.45 },
 }
 
 export default function RevisaoIARetroativo() {
@@ -397,6 +406,16 @@ export default function RevisaoIARetroativo() {
   const [busca, setBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [achados, setAchados] = useState(null)   // null = ainda nao buscou
+  // 01/10 (Bruno): supervisora passa um lead pra outra vendedora do time dela.
+  // A trava de faixa esta no BANCO (retroativo_transferir_lead), nao aqui — a tela
+  // so filtra a lista pra nao oferecer quem ela nao pode escolher.
+  const [transf, setTransf] = useState(null)
+  const [transfPara, setTransfPara] = useState('')
+  const [transfMotivo, setTransfMotivo] = useState('')
+  const [transfHoje, setTransfHoje] = useState(false)
+  const [transfVends, setTransfVends] = useState([])
+  const [transferindo, setTransferindo] = useState(false)
+  const podeTransferir = ehSupervisorTime || ehAdmin
 
   const carregarPainelDia = useCallback(async (data) => {
     setPainelCarregando(true)
@@ -586,6 +605,36 @@ export default function RevisaoIARetroativo() {
 
   const fechar = () => { setLead(null); setMensagens([]); setAnexos([]); setGerid(null); setVenda(null) }
 
+  // 01/10 — monta a lista: so as vendedoras do MEU time, fora eu mesma e fora quem ja
+  // tem o lead. Admin ve os dois times. Nao busco em maismae.bf_agentes porque o front
+  // nao tem permissao nesse schema — uso as listas que ja estao no topo deste arquivo.
+  const abrirTransferir = async (l) => {
+    setTransf(l); setTransfPara(''); setTransfMotivo(''); setTransfHoje(false); setTransfVends([])
+    const base = meuTime || (ehAdmin ? Object.values(SUPERVISORAS_TIME).flat() : [])
+    const ids = base.filter(id => id !== profile?.id && id !== l.bf_agente_id)
+    if (ids.length === 0) return
+    const { data } = await supabase.from('profiles')
+      .select('id, nome').in('id', ids).eq('ativo', true).order('nome')
+    setTransfVends(data || [])
+  }
+
+  const confirmarTransferir = async () => {
+    if (!transf || !transfPara || !transfMotivo.trim() || transferindo) return
+    setTransferindo(true)
+    const { data, error } = await supabase.rpc('retroativo_transferir_lead', {
+      p_lead_id: transf.id,
+      p_para: transfPara,
+      p_motivo: transfMotivo.trim(),
+      p_marcar_entregue_hoje: transfHoje,
+    })
+    setTransferindo(false)
+    if (error || !data?.ok) {
+      alert('Não deu pra transferir: ' + (error?.message || data?.erro || 'erro')); return
+    }
+    alert(`✅ ${transf.nome || 'Cliente'} passou de ${data.de || 'sem dono'} para ${data.para}.`
+      + (data.marcado_entregue_hoje ? '\nMarcado como entregue hoje.' : ''))
+    setTransf(null); fechar(); carregar()
+  }
 
   // Pega o card (marca selo) sem mandar mensagem
   // 21/09 — carimbo do atendimento por WhatsApp. TRES estados: nada, 'iniciado'
@@ -1236,6 +1285,17 @@ export default function RevisaoIARetroativo() {
               )}
             </div>
 
+            {/* 01/10 — supervisora do time passa o lead pra outra vendedora.
+                Nao aparece pra vendedora: so supervisora de time e admin. A trava
+                de verdade esta no banco (retroativo_transferir_lead). */}
+            {podeTransferir && (
+              <div style={{ marginBottom: 10 }}>
+                <button style={s.btnTransf} onClick={() => abrirTransferir(lead)}>
+                  🔄 Passar para outra vendedora
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84' }}>
                 💬 Conversa <span style={{ color: '#059669', fontWeight: 500 }}>· atualiza sozinha</span>
@@ -1280,6 +1340,49 @@ export default function RevisaoIARetroativo() {
             ) : (
               <div style={{ fontSize: 12, color: '#dc2626', background: 'rgba(248,113,113,.10)', borderRadius: 8, padding: 10, marginBottom: 10 }}>Sem conversa no Chatwoot vinculada a este lead.</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 01/10 — modal de transferencia. O motivo e obrigatorio nos DOIS lados:
+          o botao fica desabilitado sem ele, e o banco recusa se vier vazio. */}
+      {transf && (
+        <div style={s.overlay} onClick={() => !transferindo && setTransf(null)}>
+          <div style={{ ...s.modal, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div style={s.transfTit}>🔄 Passar para outra vendedora</div>
+            <div style={s.transfSub}>{transf.nome || 'Cliente'}</div>
+
+            <div style={s.transfLabel}>Para quem vai *</div>
+            <select style={s.transfSelect} value={transfPara} onChange={e => setTransfPara(e.target.value)}>
+              <option value="">escolha a vendedora...</option>
+              {transfVends.map(v => <option key={v.id} value={v.id}>{v.nome}</option>)}
+            </select>
+            {transfVends.length === 0 && (
+              <div style={s.transfVazio}>Nenhuma outra vendedora disponível no seu time.</div>
+            )}
+
+            <div style={s.transfLabel}>Motivo *</div>
+            <textarea style={s.textarea} value={transfMotivo} onChange={e => setTransfMotivo(e.target.value)}
+              placeholder="Ex: cliente pediu outra atendente, vendedora de folga, carga desbalanceada..." />
+
+            <label style={s.transfCheck}>
+              <input type="checkbox" checked={transfHoje} onChange={e => setTransfHoje(e.target.checked)} />
+              <span><b>Marcar como entregue hoje</b><br />
+                <span style={s.transfCheckPe}>
+                  O lead volta pro topo da fila de hoje, como se tivesse acabado de chegar.
+                  Se deixar desmarcado, a data de entrega original é mantida.
+                </span>
+              </span>
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button style={s.btnVoltar} disabled={transferindo} onClick={() => setTransf(null)}>Cancelar</button>
+              <button style={{ ...s.btnAvancar, flex: 2, opacity: (!transfPara || !transfMotivo.trim()) ? 0.5 : 1 }}
+                disabled={transferindo || !transfPara || !transfMotivo.trim()}
+                onClick={confirmarTransferir}>
+                {transferindo ? '⏳ passando...' : 'Confirmar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
