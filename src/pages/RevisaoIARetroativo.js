@@ -116,6 +116,23 @@ const MOTIVOS_NEGAR = [
   ['outro', 'Outro'],
 ]
 
+// 01/10 (Bruno): motivo da transferencia e MENU FECHADO, nao texto livre.
+// Com texto cada supervisora escrevia de um jeito e no fim do mes nao dava pra
+// contar nada. Os codigos aqui tem que ser os MESMOS da funcao do banco
+// (retroativo_transferir_lead) — mexer num lado sem o outro derruba a validacao.
+// 'venda_fora' e o caso que o Bruno pediu: a vendedora fechou por planilha e o
+// lead esta com outra pessoa; passa pra ela, marca entregue hoje, e ela clica em
+// "Fechei a venda" — o credito vai pra quem vendeu.
+const MOTIVOS_TRANSF = [
+  ['venda_fora', '💰 Venda por fora — ela já fechou por planilha'],
+  ['cliente_pediu', '🗣️ Cliente pediu outra atendente'],
+  ['folga', '🏖️ Vendedora de folga / afastada'],
+  ['carga', '⚖️ Reequilibrar a carga do time'],
+  ['sem_contato', '📵 Não conseguiu contato com a cliente'],
+  ['ja_atendeu', '🤝 Já atendeu essa cliente antes'],
+  ['outro', '✏️ Outro — escrever'],
+]
+
 // Faixa de datas a partir do preset (base: fuso do navegador = BRT do usuario)
 function faixaData(preset, cDe, cAte) {
   const ini = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
@@ -324,8 +341,17 @@ const s = {
   painelMotivos: { marginTop: 8, padding: 12, background: '#f1f5f9', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 10 },
   motivosGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   btnMotivo: { padding: '9px 10px', background: '#ffffff', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' },
-  // 01/10 — transferir lead entre vendedoras (supervisora do time)
-  btnTransf: { padding: '9px 12px', background: 'rgba(96,165,250,.14)', color: '#1d4ed8', border: '0.5px solid rgba(37,99,235,0.35)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  // 01/10 — ficha reorganizada: as acoes viraram DOIS blocos com titulo
+  // ("enquanto voce atende" / "como terminou"), e a troca de dona saiu do meio
+  // delas pra linha do dono, la em cima. Antes eram 5 botoes soltos de 5 cores,
+  // sem dizer o que era rotina e o que era excecao.
+  donoLinha: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: '#f1f5f9', borderRadius: 9, padding: '9px 12px', marginBottom: 12, fontSize: 12.5, color: '#0f172a', flexWrap: 'wrap' },
+  donoAcao: { fontSize: 11.5, fontWeight: 600, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit' },
+  bloco: { background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 10, padding: '11px 12px', marginBottom: 10 },
+  blocoFecho: { background: '#ffffff', border: '0.5px solid rgba(5,150,105,.25)', borderRadius: 10, padding: '11px 12px', marginBottom: 10 },
+  blocoLabel: { fontSize: 10.5, fontWeight: 700, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 9 },
+  blocoLinha: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  blocoPe: { fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.45 },
   transfTit: { fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 2 },
   transfSub: { fontSize: 13, color: '#5b6b84', marginBottom: 14 },
   transfLabel: { fontSize: 12, fontWeight: 700, color: '#5b6b84', marginBottom: 6, marginTop: 10 },
@@ -333,6 +359,7 @@ const s = {
   transfVazio: { fontSize: 12, color: '#b45309', background: 'rgba(251,191,36,.12)', borderRadius: 8, padding: '8px 10px', marginTop: 8 },
   transfCheck: { display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 10, fontSize: 12.5, cursor: 'pointer' },
   transfCheckPe: { fontSize: 11, color: '#64748b', lineHeight: 1.45 },
+  transfAviso: { fontSize: 11.5, color: '#92400e', background: 'rgba(251,191,36,.14)', borderRadius: 8, padding: '8px 10px', marginTop: 10, lineHeight: 1.45 },
 }
 
 export default function RevisaoIARetroativo() {
@@ -411,6 +438,7 @@ export default function RevisaoIARetroativo() {
   // so filtra a lista pra nao oferecer quem ela nao pode escolher.
   const [transf, setTransf] = useState(null)
   const [transfPara, setTransfPara] = useState('')
+  const [transfCod, setTransfCod] = useState('')
   const [transfMotivo, setTransfMotivo] = useState('')
   const [transfHoje, setTransfHoje] = useState(false)
   const [transfVends, setTransfVends] = useState([])
@@ -609,7 +637,7 @@ export default function RevisaoIARetroativo() {
   // tem o lead. Admin ve os dois times. Nao busco em maismae.bf_agentes porque o front
   // nao tem permissao nesse schema — uso as listas que ja estao no topo deste arquivo.
   const abrirTransferir = async (l) => {
-    setTransf(l); setTransfPara(''); setTransfMotivo(''); setTransfHoje(false); setTransfVends([])
+    setTransf(l); setTransfPara(''); setTransfCod(''); setTransfMotivo(''); setTransfHoje(false); setTransfVends([])
     const base = meuTime || (ehAdmin ? Object.values(SUPERVISORAS_TIME).flat() : [])
     const ids = base.filter(id => id !== profile?.id && id !== l.bf_agente_id)
     if (ids.length === 0) return
@@ -618,13 +646,17 @@ export default function RevisaoIARetroativo() {
     setTransfVends(data || [])
   }
 
+  // so "Outro" exige texto — nos demais o codigo ja diz tudo
+  const transfOk = transfPara && transfCod && (transfCod !== 'outro' || transfMotivo.trim())
+
   const confirmarTransferir = async () => {
-    if (!transf || !transfPara || !transfMotivo.trim() || transferindo) return
+    if (!transf || !transfOk || transferindo) return
     setTransferindo(true)
     const { data, error } = await supabase.rpc('retroativo_transferir_lead', {
       p_lead_id: transf.id,
       p_para: transfPara,
-      p_motivo: transfMotivo.trim(),
+      p_motivo_codigo: transfCod,
+      p_motivo_texto: transfMotivo.trim() || null,
       p_marcar_entregue_hoje: transfHoje,
     })
     setTransferindo(false)
@@ -1082,6 +1114,20 @@ export default function RevisaoIARetroativo() {
               <button style={s.btnFechar} onClick={fechar}>Fechar ✕</button>
             </div>
 
+            {/* 01/10 — trocar a dona e acao de GESTAO, nao de venda: fica junto do
+                nome da dona e so a supervisora ve. Antes era um botao do mesmo
+                tamanho do "Fechei a venda", no meio das acoes da vendedora. */}
+            {ehSupervisor && (
+              <div style={s.donoLinha}>
+                <span>👤 {lead.agente_nome ? <b>{lead.agente_nome}</b> : <i>sem dona</i>}</span>
+                {podeTransferir && (
+                  <button style={s.donoAcao} onClick={() => abrirTransferir(lead)}>
+                    passar para outra
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={s.ficha}>
               {lead.data_nascimento_filho && (
                 <div style={s.destaque}>👶 Nascimento do filho: {lead.data_nascimento_filho}{lead.idade_bebe ? ` (${lead.idade_bebe})` : ''}</div>
@@ -1127,7 +1173,6 @@ export default function RevisaoIARetroativo() {
               <div>📌 Etapa: {lead.estado}{lead.sub_estado ? ` / ${lead.sub_estado}` : ''}</div>
               {lead.cnis_aprovado === 'true' && <div>✅ CNIS aprovado</div>}
               {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
-              {ehSupervisor && lead.agente_nome && <div>👤 Dona: {lead.agente_nome}</div>}
             </div>
 
             {/* Print do GERID da advogada. So aparece quando ela anexou — a aprovacao
@@ -1173,12 +1218,27 @@ export default function RevisaoIARetroativo() {
               </div>
             </div>
 
-            {/* 21/09 — CARIMBO DE WHATSAPP. Bloco proprio, separado do "estou
-                nesse" e da IA. Dois botoes, um carimbo de cada vez: clicar no que
-                ja esta aceso desmarca, clicar no outro troca. */}
-            <div style={s.carimboBox}>
-              <div style={s.carimboLabel}>📲 Atendimento por WhatsApp</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* 01/10 — UM bloco pro que acontece DURANTE o atendimento: pegar o
+                card e carimbar o WhatsApp. Antes "estou nesse" era um botao solto
+                embaixo e o carimbo era outra caixa, sem relacao visual.
+                21/09 — o carimbo tem TRES estados: nada, 'iniciado' e 'sem_whats'.
+                Clicar no que ja esta aceso DESMARCA; clicar no outro TROCA. */}
+            <div style={s.bloco}>
+              <div style={s.blocoLabel}>Enquanto você atende</div>
+              <div style={s.blocoLinha}>
+                {lead.bf_em_tratamento ? (
+                  <button style={s.carimboBtn(true, '#065f46', 'rgba(52,211,153,.16)', 'rgba(5,150,105,.3)')}
+                    onClick={() => soltarTratamento(lead)}
+                    title="você está com essa cliente — clicar solta o card">
+                    🙋 Estou nesse (soltar)
+                  </button>
+                ) : (
+                  <button style={s.carimboBtn(false, '#065f46', 'rgba(52,211,153,.16)', 'rgba(5,150,105,.3)')}
+                    onClick={() => marcarTratando(lead)}
+                    title="marca que você pegou essa cliente, pra ninguém atender junto">
+                    🙋 Estou nesse
+                  </button>
+                )}
                 <button
                   style={s.carimboBtn(lead.whats_marcado === 'iniciado', '#065f46', 'rgba(52,211,153,.16)', 'rgba(5,150,105,.3)')}
                   disabled={carimbando}
@@ -1209,31 +1269,22 @@ export default function RevisaoIARetroativo() {
                 </div>
               )}
               {!lead.whats_marcado && (
-                <div style={s.carimboPe}>
+                <div style={s.blocoPe}>
                   Serve pra ninguém chamar a mesma cliente duas vezes — e pra conferir se o validador automático está acertando.
                 </div>
               )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              {lead.bf_em_tratamento ? (
-                <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(248,113,113,.14)', color: '#dc2626', border: '0.5px solid rgba(178,59,59,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-                  onClick={() => soltarTratamento(lead)}
-                >✋ Soltar (não estou mais nesse)</button>
-              ) : (
-                <button
-                  style={{ fontSize: 12, padding: '6px 12px', background: 'rgba(52,211,153,.14)', color: '#059669', border: '0.5px solid rgba(59,109,17,0.3)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-                  onClick={() => marcarTratando(lead)}
-                >🙋 Estou nesse</button>
-              )}
               {lead.bf_em_tratamento && lead.cliente_respondeu && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: 'rgba(251,191,36,.12)', padding: '6px 10px', borderRadius: 8 }}>💬 o cliente respondeu</span>
+                <div style={{ ...s.blocoPe, color: '#b45309', fontWeight: 700 }}>💬 a cliente respondeu</div>
               )}
             </div>
 
-            {lead.cnis_aprovado === 'true' && (
-              <div style={{ marginBottom: 10 }}>
+            {/* 01/10 — o DESFECHO num bloco so. O verde aparece UMA vez e e a acao
+                que a gente quer que ela clique; o "nao quis" fica do lado, menor.
+                Antes o verde competia com o laranja do soltar e o azul do passar. */}
+            <div style={s.blocoFecho}>
+              <div style={s.blocoLabel}>Como terminou</div>
+              {lead.cnis_aprovado === 'true' && (
+              <div>
                 {vendaCarregando ? (
                   <div style={{ fontSize: 12, color: '#5b6b84' }}>conferindo o fechamento…</div>
                 ) : venda?.fechada ? (
@@ -1261,18 +1312,26 @@ export default function RevisaoIARetroativo() {
                     )}
                   </div>
                 ) : (
-                  <>
+                  <div style={s.blocoLinha}>
                     <button style={s.btnFechou} onClick={() => fecharVenda(lead.id)}>✅ Fechei a venda</button>
-                    <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 5 }}>
-                      Use também quando fechar pelo WhatsApp — é assim que entra no seu fechamento do dia.
-                    </div>
-                  </>
+                    <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Não quis</button>
+                  </div>
                 )}
               </div>
-            )}
+              )}
 
-            <div style={{ marginBottom: 10 }}>
-              <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Negar / Não quis</button>
+              {/* lead que ainda nao foi pre-aprovado nao tem "fechei a venda",
+                  mas pode ser negado do mesmo jeito */}
+              {lead.cnis_aprovado !== 'true' && (
+                <div style={s.blocoLinha}>
+                  <button style={s.btnNegar} onClick={() => setMostrarMotivosNegar(v => !v)}>❌ Não quis</button>
+                </div>
+              )}
+
+              {!venda?.fechada && lead.cnis_aprovado === 'true' && !vendaCarregando && (
+                <div style={s.blocoPe}>Vale também quando fechar pelo WhatsApp — é assim que entra no seu fechamento do dia.</div>
+              )}
+
               {mostrarMotivosNegar && (
                 <div style={s.painelMotivos}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#5b6b84', marginBottom: 8 }}>Por que está negando? (não mexe no CNIS)</div>
@@ -1284,17 +1343,6 @@ export default function RevisaoIARetroativo() {
                 </div>
               )}
             </div>
-
-            {/* 01/10 — supervisora do time passa o lead pra outra vendedora.
-                Nao aparece pra vendedora: so supervisora de time e admin. A trava
-                de verdade esta no banco (retroativo_transferir_lead). */}
-            {podeTransferir && (
-              <div style={{ marginBottom: 10 }}>
-                <button style={s.btnTransf} onClick={() => abrirTransferir(lead)}>
-                  🔄 Passar para outra vendedora
-                </button>
-              </div>
-            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#5b6b84' }}>
@@ -1350,7 +1398,9 @@ export default function RevisaoIARetroativo() {
         <div style={s.overlay} onClick={() => !transferindo && setTransf(null)}>
           <div style={{ ...s.modal, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <div style={s.transfTit}>🔄 Passar para outra vendedora</div>
-            <div style={s.transfSub}>{transf.nome || 'Cliente'}</div>
+            <div style={s.transfSub}>
+              {transf.nome || 'Cliente'}{transf.agente_nome ? ` · hoje com ${transf.agente_nome}` : ''}
+            </div>
 
             <div style={s.transfLabel}>Para quem vai *</div>
             <select style={s.transfSelect} value={transfPara} onChange={e => setTransfPara(e.target.value)}>
@@ -1361,9 +1411,28 @@ export default function RevisaoIARetroativo() {
               <div style={s.transfVazio}>Nenhuma outra vendedora disponível no seu time.</div>
             )}
 
-            <div style={s.transfLabel}>Motivo *</div>
-            <textarea style={s.textarea} value={transfMotivo} onChange={e => setTransfMotivo(e.target.value)}
-              placeholder="Ex: cliente pediu outra atendente, vendedora de folga, carga desbalanceada..." />
+            <div style={s.transfLabel}>Por quê? *</div>
+            <select style={s.transfSelect} value={transfCod} onChange={e => setTransfCod(e.target.value)}>
+              <option value="">escolha o motivo...</option>
+              {MOTIVOS_TRANSF.map(([cod, txt]) => <option key={cod} value={cod}>{txt}</option>)}
+            </select>
+
+            {/* so "Outro" abre o texto: nos demais o codigo ja explica, e campo
+                livre que ninguem preenche direito so atrapalha a contagem */}
+            {transfCod === 'outro' && (
+              <>
+                <div style={s.transfLabel}>Escreva o motivo *</div>
+                <textarea style={s.textarea} value={transfMotivo} onChange={e => setTransfMotivo(e.target.value)}
+                  placeholder="O que aconteceu?" />
+              </>
+            )}
+
+            {transfCod === 'venda_fora' && (
+              <div style={s.transfAviso}>
+                💡 Marque <b>"entregue hoje"</b> abaixo: assim a cliente volta pro topo da fila
+                e a vendedora consegue clicar em "Fechei a venda" pra entrar no fechamento do dia dela.
+              </div>
+            )}
 
             <label style={s.transfCheck}>
               <input type="checkbox" checked={transfHoje} onChange={e => setTransfHoje(e.target.checked)} />
@@ -1377,8 +1446,8 @@ export default function RevisaoIARetroativo() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               <button style={s.btnVoltar} disabled={transferindo} onClick={() => setTransf(null)}>Cancelar</button>
-              <button style={{ ...s.btnAvancar, flex: 2, opacity: (!transfPara || !transfMotivo.trim()) ? 0.5 : 1 }}
-                disabled={transferindo || !transfPara || !transfMotivo.trim()}
+              <button style={{ ...s.btnAvancar, flex: 2, opacity: transfOk ? 1 : 0.5 }}
+                disabled={transferindo || !transfOk}
                 onClick={confirmarTransferir}>
                 {transferindo ? '⏳ passando...' : 'Confirmar'}
               </button>
