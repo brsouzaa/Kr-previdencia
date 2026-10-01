@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-// Supervisores de board (Egle): veem em modo supervisor — todos os atendentes + filtro + cores
 const IDS_SUPERVISOR_BOARD = [
-  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
+  // 01/10: Egle saiu daqui — agora ela e supervisora do TIME de 24 meses
+  // (SUPERVISORAS_TIME), nao do board inteiro.
+  // '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
 // ===== OPERAÇÕES LICENCIADAS (Ronaldo / Leandro) =====
@@ -24,11 +25,30 @@ const SUPERVISORAS_OPERACAO = [
   'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (Leandro)
 ]
 
-// Supervisoras de TIME interno (KR): veem o board filtrado pelos leads das PROPRIAS vendedoras.
-// 25/08 (Bruno): Maryana Kodos SAIU daqui. No retroativo ela e vendedora, nao supervisora —
-// tem que ver so o que a advogada liberou, igual Sthefany e Eduarda. Estar nesta lista
-// ligava ehSupervisor -> veTodasColunas e ela enxergava o funil inteiro.
-const SUPERVISORAS_TIME = {}
+// 01/10 (Bruno): o retroativo virou DOIS times por faixa. Agatha supervisiona o de
+// 12 meses, Egle o de 24. As duas NAO recebem lead — so olham o time.
+// A propria supervisora entra na lista porque pode ter lead antigo na mao
+// (a Egle tem 8 de 12 meses recebidos na mao em 25/09).
+const SUPERVISORAS_TIME = {
+  // Agatha Barreto — time 12 meses
+  '0a5958b9-d43b-4bac-a01d-af60247dd721': [
+    '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda
+    'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+    '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
+    'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+    'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    '0a5958b9-d43b-4bac-a01d-af60247dd721', // ela mesma
+  ],
+  // Egle Marcela — time 12 a 24 meses
+  '6db43f01-71e6-4972-b84e-eb49375e8e70': [
+    '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
+    '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+    'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // nadiacajado
+    '2c71c435-f5c2-49cf-984b-3629438045d2', // helenlima451
+    '7ad37a1d-e5be-438c-9afd-982646d507d4', // juhferreira141988
+    '6db43f01-71e6-4972-b84e-eb49375e8e70', // ela mesma (8 leads de 25/09)
+  ],
+}
 
 const COLUNAS = [
   // Ordem = ordem real do fluxo. O PromoBank vem ANTES do CNIS: so quem qualifica
@@ -61,8 +81,17 @@ const IDS_VENDEDORAS_RETROATIVO = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda (supervisoraeduarda25) — a que ja atuava no setor
-  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 16/09: sem esta linha ela via o board INTEIRO (6.021 leads)
+    // 01/10 — time de 24 meses. SEM ESTAS LINHAS a tela tenta baixar o board
+  // inteiro (10.362 leads em 11 requisicoes) e fica carregando pra sempre:
+  // foi o que travou as 5 hoje, e e o MESMO caso da Luciane em 16/09.
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // nadiacajado
+  '2c71c435-f5c2-49cf-984b-3629438045d2', // helenlima451
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // juhferreira141988
+  // 01/10: Agatha Barreto SAIU daqui — virou supervisora do time de 12,
+  // nao e mais vendedora. Ela entrou em SUPERVISORAS_TIME acima.
 ]
 
 // Painel do dia: SO o Bruno ve. Deliberadamente por ID e nao por role='admin' —
