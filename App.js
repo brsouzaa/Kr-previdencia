@@ -44,19 +44,27 @@ import RecebimentosAdvogados from './pages/RecebimentosAdvogados'
 import MetasFinanceiras from './pages/MetasFinanceiras'
 import RevisaoIABolsaFamilia from './pages/RevisaoIABolsaFamilia'
 import RevisaoIARetroativo from './pages/RevisaoIARetroativo'
+import MeuPlanejamento from './pages/MeuPlanejamento'
+import PainelVendas from './pages/PainelVendas'
+import ValidacaoAdvogado from './pages/ValidacaoAdvogado'
 import RevisaoIAGestante from './pages/RevisaoIAGestante'
 import RevisaoIACLT from './pages/RevisaoIACLT'
 import ConfereCNIS from './pages/ConfereCNIS'
 import PainelDigitador from './pages/PainelDigitador'
 import Clientes from './pages/Clientes'
 import CentralRetorno from './pages/CentralRetorno'
+import RevisaoCrefaz from './pages/RevisaoCrefaz'
 import MesaAdvogada from './pages/MesaAdvogada'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia — entrou no setor 27/08
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine — entrou no setor 27/08
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
   '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
+  '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
 ]
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
@@ -83,7 +91,7 @@ const IDS_SUPERVISOR_BOARD = [
 // Nada do resto do sistema KR — dashboard, financeiro, funil etc. ficam bloqueados.
 const IDS_OPERACAO_LICENCIADA = [
   '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (sup. Ronaldo)
-  '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda (Ronaldo)
+  '8bff997b-e43f-4b65-bafc-b4e7e704b14b', // Brenda Bettini (Ronaldo) — NAO e a Brenda Ribeiro do gestante
   '3a9c1779-2008-4aaa-9cfb-e64336b9207a', // Tamy (Ronaldo)
   'ed181784-484b-4ad9-9e8c-4f35b1279940', // Kisse (Ronaldo)
   '7085f131-b2db-4b96-a4db-2a1e2a5bf6f6', // Kayllaine (Ronaldo)
@@ -92,11 +100,92 @@ const IDS_OPERACAO_LICENCIADA = [
   '977a4664-eb04-4a51-84ab-b61449720dc2', // Sara (Leandro)
 ]
 
+// Revisao IA Gestante por ID: entra SO nessa revisao, sem o pacote das quatro
+// que o time da Maryana recebe (IDS_TIME_MARYANA)
+const IDS_REVISAO_GESTANTE = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro — 03/09
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 09/09: vendedora do gestante, responde ao Jose
+]
+
+// Fila de entregas: acesso por ID, sem mexer nas telas do papel
+const IDS_FILA_ENTREGAS = [
+  '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
+]
+
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
+  'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
 ]
+
+// Supervisao Producao por ID: quem supervisiona um setor sem ter o papel
+// supervisor_producao. O papel do Leandro e vendedor_operador, que nao tem
+// essa tela — mas ele cuida do funil gestante e precisa acompanhar a producao.
+const IDS_SUPERVISAO_PRODUCAO = [
+  '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+]
+
+// Supervisao de SETOR por ID (09/09): quem supervisiona um setor sem largar a
+// venda. Uma lista para as quatro telas, em vez de quatro listas de um nome so —
+// as excecoes por ID ja passam de meia duzia neste arquivo.
+// Jose Carlos Galvao entrou aqui em 09/09: virou supervisor do gestante mas
+// CONTINUA vendendo, entao o papel dele segue vendedor_operador. Trocar para
+// supervisor_producao tiraria dele "Meus clientes" e "Meu desempenho", que sao
+// justamente as telas de quem vende.
+const IDS_SUPERVISAO_SETOR = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+]
+
+// Pos-venda por ID (10/09): quem analisa pos-venda sem ter o papel pos_venda.
+// Jose Carlos Galvao entrou aqui pra fazer as analises junto com a Luciane; dentro
+// dessas duas telas ele so ve e so age nas gravidas (Maternidade e Gestante ate 5
+// meses) — o recorte esta em PosVenda.js / PosVendaHistorico.js e vale SO la.
+const IDS_POS_VENDA = [
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 10/09
+  // 14/09 (Bruno): time do pós-venda de Maternidade Mãe (o retroativo).
+  // Elas entram nas duas telas, mas só enxergam/agem no produto Maternidade Mãe —
+  // o recorte está no PosVenda.js e no PosVendaHistorico.js (IDS_MATERNIDADE_MAE).
+  '1eaeb4ad-75c0-44a7-ab3f-ad13be47309b', // Mariana Marques
+  '8922cbe6-854c-4f40-8db5-76197620eef8', // Larissa Lara
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+]
+const TELAS_POS_VENDA = ['pos_venda', 'pos_venda_historico']
+
+// Revisao IA (fila dos cadastros que a IA fez e precisam de conferencia humana):
+// acesso por ID, sem mexer nas telas do papel.
+const IDS_REVISAO_IA = [
+  '8ddd99bd-9b8c-4205-a108-f7fefa88295f', // Brenda Ribeiro — 10/09
+]
+
+// Revisao Crefaz (09/09): quem trabalha os clientes que o robo pre-aprovou no
+// Credito Conta de Luz. A Duda opera; Bruno e Egle acompanham. Nao existe mais
+// botao de "entregar" na Central — todo pre-aprovado sobe pra tela sozinho.
+const IDS_REVISAO_CREFAZ = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — opera a fila
+  '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — acompanha
+]
+
+// Simulacao de Emprestimo por ID: quem usa a tela sem ter (ou sem ter mais) o
+// papel simulador_emprestimo.
+// 02/10 (Bruno): Egle entrou aqui porque o papel dela virou coordenador_b2c para
+// igualar as telas da Agatha. O acesso a esta tela vinha do papel antigo —
+// sem este ID ela PERDE a Simulacao de Emprestimo. MESMA lista do Layout.js:
+// se as duas nao baterem, o item aparece no menu e a pagina nega (bug de 02/09).
+const IDS_SIMULACAO_EMPRESTIMO = [
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado — vendedora B2C que tambem vende emprestimo
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // Ju Ferreira — vendedora B2C que tambem vende emprestimo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
+]
+
+const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 function PortalRoute() {
   const [vendedor, setVendedor] = useState(null)
@@ -141,18 +230,42 @@ const IDS_TIME_MARYANA = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
   '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
-  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Daniele
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
 function paginaPermitida(profile, page) {
   const role = profile.role
+  // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
+  if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
+  // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
+  // 02/09 (correcao): 'simulador_emprestimo' e 'analista' entraram na regra do MENU
+  // no Layout.js e nao entraram aqui — o item aparecia e a pagina era negada, entao
+  // o clique devolvia a pessoa pra tela inicial do papel dela, sem explicacao.
+  // Atinge Duda, Sthefany, Joana, Pamela, Egle e Lerine. As duas listas tem que bater.
+  if (page === 'painel_vendas') return ['admin','vendedor','vendedor_operador','supervisor_producao','coordenador_b2c','simulador_emprestimo','analista'].includes(role)
+  if (page === 'validacao_advogado') return ['admin','vendedor','supervisor_producao'].includes(role)
   // Advogada (Maithe): mesa dela e mais nada do sistema
   if (role === 'advogada') return page === 'mesa_advogada'
   // Vendedoras do retroativo: board do Retroativo ALEM do que ja tem hoje
   if (IDS_VENDAS_RETROATIVO.includes(profile.id) && page === 'revisao_ia_retroativo') return true
   // Página Clientes (consulta geral de clientes + documentos): acesso restrito por ID
   if (IDS_ACESSO_CLIENTES.includes(profile.id) && page === 'clientes') return true
+  // Supervisao Producao por ID (Leandro, Jose Carlos): a tela nao faz parte do papel vendedor_operador
+  if (IDS_SUPERVISAO_PRODUCAO.includes(profile.id) && page === 'supervisor_producao') return true
+  // Supervisao de setor por ID: fila de digitacao, revisao IA, ranking e contratos
+  if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
+  // Fila de entregas por ID (Agatha, Egle): a tela nao faz parte do papel coordenador_b2c
+  if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
+  // Pos-venda por ID (Jose Carlos): as duas telas nao fazem parte do papel vendedor_operador
+  if (IDS_POS_VENDA.includes(profile.id) && TELAS_POS_VENDA.includes(page)) return true
+  // Revisao IA por ID (Brenda Ribeiro): a fila da IA nao faz parte do papel vendedor_operador
+  if (IDS_REVISAO_IA.includes(profile.id) && page === 'revisao_ia') return true
+  // Revisao Crefaz por ID (Duda opera, Egle acompanha): a tela nao pertence a papel nenhum
+  if (IDS_REVISAO_CREFAZ.includes(profile.id) && page === 'revisao_crefaz') return true
+  // Revisao IA Gestante por ID (Leandro): so essa revisao, nao o pacote do time da Maryana
+  if (IDS_REVISAO_GESTANTE.includes(profile.id) && page === 'revisao_ia_gestante') return true
   // Time Maryana: telas Revisao IA por ID (alem das telas do role atual)
   if (IDS_TIME_MARYANA.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo','revisao_ia_clt','revisao_ia_gestante'].includes(page)) return true
   // Operações licenciadas: SÓ as telas de Revisão IA — bloqueia todo o resto do sistema KR
@@ -163,10 +276,14 @@ function paginaPermitida(profile, page) {
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae','confere_cnis'].includes(page)) return true
   // Sthefany (analista): valida direito na etapa de analise do Acompanhamento Mae
   if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
-  // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
-  if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
-  // Agentes BF (Joana, Pamela, Ju, Nadia): acesso a tela Revisao IA Bolsa Familia por ID, sem perder roles
-  if (IDS_AGENTES_BF.includes(profile.id) && page === 'revisao_ia_bf') return true
+  // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): a tela nao faz parte do papel delas
+  if (IDS_SIMULACAO_EMPRESTIMO.includes(profile.id) && page === 'simulacao_emprestimo') return true
+  // Agentes BF (Joana, Pamela, Ju, Nadia, Hellen): acesso as telas Revisao IA por ID.
+  // 01/10 (Bruno): 'revisao_ia_retroativo' entrou aqui. O item ja estava no menu
+  // (Layout.js, IDS_AGENTES_BF) mas esta lista so liberava o Bolsa Familia — entao
+  // elas clicavam e o App devolvia pra pagina inicial do papel delas, sem aviso
+  // nenhum. E o MESMO bug de 02/09 anotado acima: as duas listas TEM que bater.
+  if (IDS_AGENTES_BF.includes(profile.id) && ['revisao_ia_bf','revisao_ia_retroativo'].includes(page)) return true
   // Duda (retroativo): acesso a tela Revisao IA Retroativo por ID
   if (IDS_AGENTES_RETROATIVO.includes(profile.id) && ['revisao_ia_retroativo','confere_cnis'].includes(page)) return true
   // Egle (supervisora de board): acesso as DUAS telas Revisao IA
@@ -263,10 +380,14 @@ function AppInner() {
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
     revisao_ia_retroativo: <RevisaoIARetroativo />,
+    meu_planejamento: <MeuPlanejamento />,
+    painel_vendas: <PainelVendas />,
+    validacao_advogado: <ValidacaoAdvogado />,
     revisao_ia_gestante: <RevisaoIAGestante />,
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
     mesa_advogada: <MesaAdvogada />,
+    revisao_crefaz: <RevisaoCrefaz />,
   }
 
   const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
