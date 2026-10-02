@@ -38,6 +38,7 @@ const IDS_REVISAO_GESTANTE = [
 // nao tem essa tela por padrao)
 const IDS_FILA_ENTREGAS = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
 ]
 
 // Clientes (consulta geral de clientes e documentos): item por ID
@@ -49,6 +50,7 @@ const IDS_ACESSO_CLIENTES = [
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
 ]
 
 // Supervisao Producao por ID (mesma lista do App.js — se as duas nao baterem,
@@ -98,6 +100,18 @@ const IDS_REVISAO_CREFAZ = [
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — opera a fila
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — acompanha
+]
+
+// Simulacao de Emprestimo por ID: quem usa a tela sem ter (ou sem ter mais) o
+// papel simulador_emprestimo. MESMA lista do App.js — se as duas nao baterem,
+// o item aparece no menu e a pagina nega (bug de 02/09).
+// 02/10 (Bruno): Egle entrou aqui porque o papel dela virou coordenador_b2c para
+// igualar as telas da Agatha. O acesso a esta tela vinha do papel antigo —
+// sem este ID ela PERDE a Simulacao de Emprestimo.
+const IDS_SIMULACAO_EMPRESTIMO = [
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado — vendedora B2C que tambem vende emprestimo
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // Ju Ferreira — vendedora B2C que tambem vende emprestimo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
 ]
 
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
@@ -335,8 +349,8 @@ export default function Layout({ children, page, setPage }) {
   if (profile?.id === '88929e81-7223-4754-a17b-1cd08f46195d' && !nav.some(n => n.key === 'acompanhamento_mae')) {
     nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
   }
-  // Nadia Cajado e Ju Ferreira: vendedoras B2C que tambem vendem emprestimo
-  if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
+  // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): o papel delas nao tem essa tela
+  if (IDS_SIMULACAO_EMPRESTIMO.includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
     nav = [...nav, { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' }]
   }
   // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): itens Revisao IA (Bolsa Familia + Retroativo) por ID
@@ -437,7 +451,7 @@ export default function Layout({ children, page, setPage }) {
     nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
   }
 
-  // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana)
+  // Clientes (consulta geral de clientes e documentos): item por ID (Bruno, Agatha, Maryana, Egle)
   if (IDS_ACESSO_CLIENTES.includes(profile?.id) && !nav.some(n => n.key === 'clientes')) {
     nav = [...nav, { key: 'clientes', label: '📋 Clientes' }]
   }
