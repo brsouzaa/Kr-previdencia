@@ -185,6 +185,22 @@ const IDS_SIMULACAO_EMPRESTIMO = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
 ]
 
+// Digitacao por ID (02/10, Bruno): quem fecha venda no Revisao IA Retroativo e
+// precisa digitar a cliente e acompanhar a propria producao, mas cujo papel nao
+// da essas telas. Joana e Pamela sao 'simulador_emprestimo' — "Supervisora" no
+// nome delas e so apelido, elas vendem e digitam igual as outras. Trocar o papel
+// delas pra vendedor_operador tiraria a Simulacao de Emprestimo (foi o que quase
+// aconteceu com a Egle), entao entra por ID.
+// As outras tres do time de 24 (helenlima451, juhferreira, nadiacajado) ja sao
+// vendedor_operador e ja tinham essas telas — nao precisam estar aqui.
+// MESMA lista do Layout.js: se as duas nao baterem, o item aparece no menu e a
+// pagina nega (bug de 02/09).
+const IDS_DIGITACAO_RETROATIVO = [
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+]
+const TELAS_DIGITACAO_RETROATIVO = ['novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes']
+
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 function PortalRoute() {
@@ -278,6 +294,8 @@ function paginaPermitida(profile, page) {
   if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
   // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): a tela nao faz parte do papel delas
   if (IDS_SIMULACAO_EMPRESTIMO.includes(profile.id) && page === 'simulacao_emprestimo') return true
+  // Digitacao por ID (Joana, Pamela): cadastrar cliente e ver a propria producao
+  if (IDS_DIGITACAO_RETROATIVO.includes(profile.id) && TELAS_DIGITACAO_RETROATIVO.includes(page)) return true
   // Agentes BF (Joana, Pamela, Ju, Nadia, Hellen): acesso as telas Revisao IA por ID.
   // 01/10 (Bruno): 'revisao_ia_retroativo' entrou aqui. O item ja estava no menu
   // (Layout.js, IDS_AGENTES_BF) mas esta lista so liberava o Bolsa Familia — entao
