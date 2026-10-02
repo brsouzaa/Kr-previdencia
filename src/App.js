@@ -110,6 +110,7 @@ const IDS_REVISAO_GESTANTE = [
 // Fila de entregas: acesso por ID, sem mexer nas telas do papel
 const IDS_FILA_ENTREGAS = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — 02/09
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
 ]
 
 const IDS_ACESSO_CLIENTES = [
@@ -120,6 +121,7 @@ const IDS_ACESSO_CLIENTES = [
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
 ]
 
 // Supervisao Producao por ID: quem supervisiona um setor sem ter o papel
@@ -169,6 +171,18 @@ const IDS_REVISAO_CREFAZ = [
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — opera a fila
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — acompanha
+]
+
+// Simulacao de Emprestimo por ID: quem usa a tela sem ter (ou sem ter mais) o
+// papel simulador_emprestimo.
+// 02/10 (Bruno): Egle entrou aqui porque o papel dela virou coordenador_b2c para
+// igualar as telas da Agatha. O acesso a esta tela vinha do papel antigo —
+// sem este ID ela PERDE a Simulacao de Emprestimo. MESMA lista do Layout.js:
+// se as duas nao baterem, o item aparece no menu e a pagina nega (bug de 02/09).
+const IDS_SIMULACAO_EMPRESTIMO = [
+  'a3e94f8b-7e64-479b-9d72-1414afb83d1c', // Nadia Cajado — vendedora B2C que tambem vende emprestimo
+  '7ad37a1d-e5be-438c-9afd-982646d507d4', // Ju Ferreira — vendedora B2C que tambem vende emprestimo
+  '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
 ]
 
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
@@ -242,7 +256,7 @@ function paginaPermitida(profile, page) {
   if (IDS_SUPERVISAO_PRODUCAO.includes(profile.id) && page === 'supervisor_producao') return true
   // Supervisao de setor por ID: fila de digitacao, revisao IA, ranking e contratos
   if (IDS_SUPERVISAO_SETOR.includes(profile.id) && TELAS_SUPERVISAO_SETOR.includes(page)) return true
-  // Fila de entregas por ID (Agatha): a tela nao faz parte do papel coordenador_b2c
+  // Fila de entregas por ID (Agatha, Egle): a tela nao faz parte do papel coordenador_b2c
   if (IDS_FILA_ENTREGAS.includes(profile.id) && page === 'fila') return true
   // Pos-venda por ID (Jose Carlos): as duas telas nao fazem parte do papel vendedor_operador
   if (IDS_POS_VENDA.includes(profile.id) && TELAS_POS_VENDA.includes(page)) return true
@@ -262,8 +276,8 @@ function paginaPermitida(profile, page) {
   if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae','confere_cnis'].includes(page)) return true
   // Sthefany (analista): valida direito na etapa de analise do Acompanhamento Mae
   if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
-  // Nadia Cajado e Ju Ferreira: vendedoras B2C que TAMBEM vendem emprestimo (acesso extra a tela de emprestimo, sem perder o B2C)
-  if (['a3e94f8b-7e64-479b-9d72-1414afb83d1c','7ad37a1d-e5be-438c-9afd-982646d507d4'].includes(profile.id) && page === 'simulacao_emprestimo') return true
+  // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): a tela nao faz parte do papel delas
+  if (IDS_SIMULACAO_EMPRESTIMO.includes(profile.id) && page === 'simulacao_emprestimo') return true
   // Agentes BF (Joana, Pamela, Ju, Nadia, Hellen): acesso as telas Revisao IA por ID.
   // 01/10 (Bruno): 'revisao_ia_retroativo' entrou aqui. O item ja estava no menu
   // (Layout.js, IDS_AGENTES_BF) mas esta lista so liberava o Bolsa Familia — entao
