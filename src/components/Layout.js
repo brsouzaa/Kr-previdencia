@@ -114,6 +114,17 @@ const IDS_SIMULACAO_EMPRESTIMO = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
 ]
 
+// Digitacao por ID (02/10, Bruno) — MESMA lista do App.js (se as duas nao baterem,
+// o item aparece no menu e a pagina nega, bug de 02/09). Joana e Pamela fecham
+// venda no Revisao IA Retroativo e precisam digitar a cliente, mas o papel delas
+// (simulador_emprestimo) nao da essas telas. "Supervisora" no nome e so apelido.
+// As outras tres do time de 24 ja sao vendedor_operador e ja tinham o menu.
+const IDS_DIGITACAO_RETROATIVO = [
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+]
+const TELAS_DIGITACAO_RETROATIVO = ['novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes']
+
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 const NAV_PRODUTOR = [
@@ -352,6 +363,16 @@ export default function Layout({ children, page, setPage }) {
   // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): o papel delas nao tem essa tela
   if (IDS_SIMULACAO_EMPRESTIMO.includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
     nav = [...nav, { key: 'simulacao_emprestimo', label: '💰 Simulação Empréstimo' }]
+  }
+  // Digitacao por ID (Joana, Pamela): cadastrar cliente e acompanhar a propria producao
+  if (IDS_DIGITACAO_RETROATIVO.includes(profile?.id)) {
+    const rot = {
+      meus_clientes: '📋 Meus clientes', novo_cliente: '➕ Novo cliente',
+      devolucoes: '⚠️ Meus devolvidos', meu_desempenho: '🏆 Meu desempenho',
+    }
+    TELAS_DIGITACAO_RETROATIVO.forEach(k => {
+      if (!nav.some(n => n.key === k)) nav = [...nav, { key: k, label: rot[k] }]
+    })
   }
   // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): itens Revisao IA (Bolsa Familia + Retroativo) por ID
   if (IDS_AGENTES_BF.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_bf')) {
