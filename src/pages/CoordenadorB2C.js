@@ -7,6 +7,7 @@ const IA_ID = 'a1a1a1a1-aaaa-bbbb-cccc-aaaaaaaaaaaa'
 const MOTIVOS_CANCELAMENTO = [
   { key: 'cliente_desistiu', label: 'Cliente desistiu' },
   { key: 'dados_divergentes', label: 'Dados divergentes / dúvida' },
+  { key: 'advogado_errado', label: 'Advogado errado — vai pra outro advogado' },
   { key: 'nao_se_encaixa_no_perfil', label: 'Não se encaixa no perfil' },
   { key: 'duplicidade', label: 'Duplicidade' },
   { key: 'solicitacao_advogado', label: 'Solicitação do advogado' },
@@ -45,6 +46,7 @@ const s = {
   td: { padding: '10px 12px', borderTop: '0.5px solid rgba(15,23,42,0.05)', color: '#334155' },
   modalBg: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 },
   modal: { background: '#ffffff', borderRadius: 16, padding: 22, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto' },
+  modalLargo: { background: '#ffffff', borderRadius: 16, padding: 22, maxWidth: 680, width: '100%', maxHeight: '90vh', overflow: 'auto' },
   modalTitulo: { fontSize: 16, fontWeight: 600, color: '#0f172a', marginBottom: 14 },
   label: { fontSize: 12, fontWeight: 500, color: '#334155', marginBottom: 6, display: 'block' },
   input: { width: '100%', padding: '10px 12px', fontSize: 13, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, background: '#ffffff', outline: 'none', boxSizing: 'border-box', marginBottom: 12 },
@@ -57,6 +59,24 @@ const s = {
   msgOk: { padding: 10, background: 'rgba(52,211,153,.14)', color: '#059669', fontSize: 12, borderRadius: 8, marginBottom: 10 },
   candidato: { padding: '8px 10px', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 8, cursor: 'pointer', marginBottom: 6, fontSize: 12 },
   candidatoAtivo: { background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa' },
+
+  // ===== confirmacao (02/10, Bruno) =====
+  // Pedido: "voce tem certeza?" antes de cancelar. Nao e um aviso generico:
+  // a tela repete o NOME da cliente e o que vai acontecer de irreversivel.
+  // Confirmacao generica vira automatismo em duas semanas; com o nome, ela le.
+  confirmBox: { border: '1.5px solid #f87171', background: 'rgba(248,113,113,.08)', borderRadius: 12, padding: 14, marginBottom: 12 },
+  confirmTitulo: { fontSize: 14, fontWeight: 600, color: '#dc2626', marginBottom: 8 },
+  confirmNome: { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 2 },
+  confirmLinha: { fontSize: 12, color: '#334155', marginBottom: 4 },
+  confirmAviso: { fontSize: 12, color: '#b45309', background: 'rgba(251,191,36,.14)', borderRadius: 8, padding: '8px 10px', marginTop: 10 },
+
+  // ===== fila do retroativo =====
+  filaLinha: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '0.5px solid rgba(15,23,42,0.06)' },
+  filaNome: { fontSize: 13, fontWeight: 500, color: '#0f172a' },
+  filaSub: { fontSize: 11, color: '#5b6b84' },
+  pillOn: { fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(52,211,153,.18)', color: '#059669' },
+  pillOff: { fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(148,163,184,.22)', color: '#64748b' },
+  btnMini: { padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 8, cursor: 'pointer', border: 'none' },
 }
 
 function tempoRel(dt) {
@@ -85,6 +105,7 @@ function rotuloAcao(a) {
     reativar_vendedor: 'Reativou vendedor',
     trocar_supervisora: 'Trocou supervisora',
     mudar_status_cliente: 'Mudou status',
+    rodizio_retroativo: 'Mexeu na fila do Retroativo',
   }
   return map[a] || a
 }
@@ -98,7 +119,7 @@ export default function CoordenadorB2C() {
   const [vendedoresSetor, setVendedoresSetor] = useState([])
   const [supervisorasSetor, setSupervisorasSetor] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modalAberto, setModalAberto] = useState(null) // 'cancelar' | 'transferir' | 'pausar' | 'reativar' | 'trocar_sup' | 'status' | null
+  const [modalAberto, setModalAberto] = useState(null) // 'cancelar' | 'transferir' | 'pausar' | 'reativar' | 'trocar_sup' | 'status' | 'fila_retroativo' | null
 
   const setorResp = profile?.setor_responsavel
 
@@ -269,6 +290,7 @@ export default function CoordenadorB2C() {
       <div style={s.sectionTitle}>⚡ Ações rápidas</div>
       <div style={s.acoesGrid}>
         <AcaoBtn icone="❌" titulo="Cancelar cliente" desc="Busca por nome ou CPF, motivo obrigatório" onClick={() => setModalAberto('cancelar')} />
+        <AcaoBtn icone="🎯" titulo="Fila do Retroativo" desc="Quem do seu time recebe lead novo" onClick={() => setModalAberto('fila_retroativo')} />
         <AcaoBtn icone="↔️" titulo="Transferir cliente" desc="Move cliente entre vendedoras do setor" onClick={() => setModalAberto('transferir')} />
         <AcaoBtn icone="⏸️" titulo="Pausar vendedor" desc="Desativa cadastro de cliente novo" onClick={() => setModalAberto('pausar')} />
         <AcaoBtn icone="▶️" titulo="Reativar vendedor" desc="Volta a deixar cadastrar" onClick={() => setModalAberto('reativar')} />
@@ -295,8 +317,13 @@ export default function CoordenadorB2C() {
                 <td style={s.td}>{tempoRel(h.created_at)}</td>
                 <td style={s.td}>{rotuloAcao(h.acao)}</td>
                 <td style={s.td}>
-                  {h.detalhes?.cliente_nome || h.entidade_tipo}
+                  {h.detalhes?.cliente_nome || h.detalhes?.vendedor_nome || h.entidade_tipo}
                   {h.detalhes?.cliente_cpf && <span style={{ color: '#5b6b84' }}> ({formatCPF(h.detalhes.cliente_cpf)})</span>}
+                  {h.acao === 'rodizio_retroativo' && h.detalhes?.faixa && (
+                    <span style={{ color: '#5b6b84' }}>
+                      {' '}· {h.detalhes.para ? 'entrou na' : 'saiu da'} fila de {h.detalhes.faixa} meses
+                    </span>
+                  )}
                 </td>
                 <td style={s.td}>{h.motivo}</td>
               </tr>
@@ -311,6 +338,9 @@ export default function CoordenadorB2C() {
       {/* MODAIS */}
       {modalAberto === 'cancelar' && (
         <ModalCancelar onClose={() => setModalAberto(null)} onSucesso={fetchTudo} setorResp={setorResp} />
+      )}
+      {modalAberto === 'fila_retroativo' && (
+        <ModalFilaRetroativo onClose={() => setModalAberto(null)} onSucesso={fetchTudo} />
       )}
       {modalAberto === 'transferir' && (
         <ModalTransferir onClose={() => setModalAberto(null)} onSucesso={fetchTudo} setorResp={setorResp} vendedores={vendedoresSetor} />
@@ -427,24 +457,37 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
   )
 }
 
+// ────────────────────────────────────────────────────────────
+// CANCELAR — com confirmacao em dois passos (02/10, Bruno)
+// ────────────────────────────────────────────────────────────
 function ModalCancelar({ onClose, onSucesso, setorResp }) {
   const [busca, setBusca] = useState('')
   const [cliente, setCliente] = useState(null)
   const [motivoKey, setMotivoKey] = useState('')
   const [motivoTexto, setMotivoTexto] = useState('')
+  const [confirmando, setConfirmando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
 
-  async function confirmar() {
+  const motivoBase = MOTIVOS_CANCELAMENTO.find(m => m.key === motivoKey)?.label || motivoKey
+  const motivoFinal = motivoTexto.trim() ? `${motivoBase}: ${motivoTexto.trim()}` : motivoBase
+
+  // O contrato no ZapSign morre de 3 a 5 minutos depois do cancelamento (o cron
+  // zapsign-cancelar-fila roda a cada 5 min). Depois disso o link nao volta: a
+  // cliente teria que assinar um contrato novo. Por isso o aviso so aparece
+  // quando existe contrato vivo.
+  const temContratoVivo = cliente && ['emitido','assinado','aguardando_pos_venda','em_contato_pos_venda','em_validacao','validado'].includes(cliente.status)
+
+  function revisar() {
     setErro('')
     if (!cliente) { setErro('Selecione um cliente.'); return }
     if (!motivoKey) { setErro('Escolha um motivo.'); return }
-    const motivoBase = MOTIVOS_CANCELAMENTO.find(m => m.key === motivoKey)?.label || motivoKey
-    const motivoFinal = motivoTexto.trim()
-      ? `${motivoBase}: ${motivoTexto.trim()}`
-      : motivoBase
     if (motivoFinal.length < 3) { setErro('Motivo precisa de pelo menos 3 caracteres.'); return }
+    setConfirmando(true)
+  }
 
+  async function confirmar() {
+    setErro('')
     setEnviando(true)
     // Chama edge function pra cancelar ZapSign + cancelar cliente + auditar
     const { data: { session } } = await supabase.auth.getSession()
@@ -467,7 +510,7 @@ function ModalCancelar({ onClose, onSucesso, setorResp }) {
     )
     const body = await resp.json()
     setEnviando(false)
-    if (!body.ok) { setErro(body.error || 'Erro ao cancelar'); return }
+    if (!body.ok) { setErro(body.error || 'Erro ao cancelar'); setConfirmando(false); return }
     onSucesso()
     onClose()
   }
@@ -478,40 +521,208 @@ function ModalCancelar({ onClose, onSucesso, setorResp }) {
         <div style={s.modalTitulo}>❌ Cancelar cliente</div>
         {erro && <div style={s.msgErro}>{erro}</div>}
 
-        <label style={s.label}>Cliente</label>
-        <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
-        {cliente && (
-          <div style={{ ...s.card, background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa', marginBottom: 12, padding: '8px 10px' }}>
-            <div style={{ fontWeight: 500, fontSize: 13 }}>{cliente.nome}</div>
-            <div style={{ fontSize: 11, color: '#5b6b84' }}>
-              {formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b>
-              {setorResp === 'todos' && cliente.setor ? <> • Setor: <b>{cliente.setor}</b></> : null}
+        {confirmando ? (
+          <>
+            <div style={s.confirmBox}>
+              <div style={s.confirmTitulo}>Você tem certeza?</div>
+              <div style={s.confirmNome}>{cliente.nome}</div>
+              <div style={s.confirmLinha}>
+                {formatCPF(cliente.cpf)} · status atual <b>{cliente.status}</b>
+                {setorResp === 'todos' && cliente.setor ? <> · setor <b>{cliente.setor}</b></> : null}
+              </div>
+              <div style={{ ...s.confirmLinha, marginTop: 8 }}>
+                Motivo: <b>{motivoFinal}</b>
+              </div>
+              {temContratoVivo && (
+                <div style={s.confirmAviso}>
+                  ⚠️ Esta cliente tem contrato ativo. Cancelar <b>mata o link de assinatura no ZapSign</b> em
+                  poucos minutos, e ele não volta — se for engano, ela vai precisar assinar um contrato novo.
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={s.btnGhost} onClick={() => setConfirmando(false)} disabled={enviando}>
+                Voltar
+              </button>
+              <button style={s.btnDanger} onClick={confirmar} disabled={enviando}>
+                {enviando ? 'Cancelando...' : `Sim, cancelar ${cliente.nome.trim().split(/\s+/)[0]}`}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <label style={s.label}>Cliente</label>
+            <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
+            {cliente && (
+              <div style={{ ...s.card, background: 'rgba(96,165,250,.12)', borderColor: '#60a5fa', marginBottom: 12, padding: '8px 10px' }}>
+                <div style={{ fontWeight: 500, fontSize: 13 }}>{cliente.nome}</div>
+                <div style={{ fontSize: 11, color: '#5b6b84' }}>
+                  {formatCPF(cliente.cpf)} • Status atual: <b>{cliente.status}</b>
+                  {setorResp === 'todos' && cliente.setor ? <> • Setor: <b>{cliente.setor}</b></> : null}
+                </div>
+              </div>
+            )}
+
+            <label style={s.label}>Motivo</label>
+            <select style={s.select} value={motivoKey} onChange={e => setMotivoKey(e.target.value)}>
+              <option value="">Selecione…</option>
+              {MOTIVOS_CANCELAMENTO.map(m => (
+                <option key={m.key} value={m.key}>{m.label}</option>
+              ))}
+            </select>
+
+            <label style={s.label}>Observação (opcional)</label>
+            <textarea
+              style={s.textarea}
+              placeholder="Detalhe adicional (vai pro log de auditoria)"
+              value={motivoTexto}
+              onChange={e => setMotivoTexto(e.target.value)}
+            />
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+              <button style={s.btnGhost} onClick={onClose}>Fechar</button>
+              <button style={s.btnDanger} onClick={revisar}>Revisar e cancelar</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// FILA DO RETROATIVO (02/10, Bruno)
+// Quem do time recebe lead novo no Revisao IA Retroativo.
+// O escopo vem do banco: a coordenadora de autonomos ve a faixa de 24 meses,
+// a de captacao ve a de 12, e quem e 'todos' ve as duas.
+// ────────────────────────────────────────────────────────────
+function ModalFilaRetroativo({ onClose, onSucesso }) {
+  const [fila, setFila] = useState([])
+  const [carregando, setCarregando] = useState(true)
+  const [alvo, setAlvo] = useState(null)      // { vendedor_id, nome, faixa, ligar }
+  const [motivo, setMotivo] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState('')
+  const [ok, setOk] = useState('')
+
+  const carregar = useCallback(async () => {
+    setCarregando(true)
+    const { data, error } = await supabase.rpc('coordenadora_rodizio_retroativo_listar')
+    if (error) setErro(error.message)
+    setFila(data || [])
+    setCarregando(false)
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  async function confirmar() {
+    setErro(''); setOk('')
+    if (motivo.trim().length < 3) { setErro('Motivo precisa de pelo menos 3 caracteres.'); return }
+    setEnviando(true)
+    const { error } = await supabase.rpc('coordenadora_rodizio_retroativo', {
+      p_vendedor_id: alvo.vendedor_id,
+      p_ativo: alvo.ligar,
+      p_motivo: motivo.trim(),
+    })
+    setEnviando(false)
+    if (error) { setErro(error.message); return }
+    setOk(`${alvo.nome} ${alvo.ligar ? 'voltou pra fila' : 'saiu da fila'} de ${alvo.faixa} meses.`)
+    setAlvo(null); setMotivo('')
+    await carregar()
+    onSucesso()
+  }
+
+  const faixas = [...new Set(fila.map(f => f.faixa))].sort()
+
+  return (
+    <div style={s.modalBg} onClick={onClose}>
+      <div style={s.modalLargo} onClick={e => e.stopPropagation()}>
+        <div style={s.modalTitulo}>🎯 Fila do Revisão IA Retroativo</div>
+        <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 14 }}>
+          Quem está <b>na fila</b> recebe lead novo quando a Maithe aprova. Tirar da fila
+          não mexe nos leads que a pessoa já tem na mão — só para de mandar novos.
+        </div>
+
+        {erro && <div style={s.msgErro}>{erro}</div>}
+        {ok && <div style={s.msgOk}>{ok}</div>}
+
+        {alvo ? (
+          <div style={s.confirmBox}>
+            <div style={s.confirmTitulo}>Você tem certeza?</div>
+            <div style={s.confirmNome}>{alvo.nome}</div>
+            <div style={s.confirmLinha}>
+              {alvo.ligar
+                ? <>Vai <b>voltar a receber</b> lead novo da faixa de {alvo.faixa} meses.</>
+                : <>Vai <b>parar de receber</b> lead novo da faixa de {alvo.faixa} meses. Os leads que já estão com ela continuam com ela.</>}
+            </div>
+            <label style={{ ...s.label, marginTop: 10 }}>Motivo (obrigatório)</label>
+            <textarea
+              style={{ ...s.textarea, marginBottom: 0 }}
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              placeholder={alvo.ligar ? 'Ex: voltou de folga' : 'Ex: de folga hoje, carga alta, treinamento…'}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+              <button style={s.btnGhost} onClick={() => { setAlvo(null); setMotivo('') }} disabled={enviando}>Voltar</button>
+              <button style={alvo.ligar ? s.btnPrimary : s.btnDanger} onClick={confirmar} disabled={enviando}>
+                {enviando ? 'Salvando...' : (alvo.ligar ? 'Sim, colocar na fila' : 'Sim, tirar da fila')}
+              </button>
             </div>
           </div>
+        ) : carregando ? (
+          <div style={{ ...s.card, fontSize: 12, color: '#5b6b84' }}>Carregando...</div>
+        ) : fila.length === 0 ? (
+          <div style={{ ...s.card, fontSize: 12, color: '#5b6b84' }}>
+            Nenhuma vendedora do seu setor está no rodízio do Retroativo.
+          </div>
+        ) : (
+          faixas.map(fx => {
+            const doGrupo = fila.filter(f => f.faixa === fx)
+            const ativos = doGrupo.filter(f => f.no_rodizio).length
+            return (
+              <div key={fx} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                  Faixa de {fx} meses
+                  <span style={{ fontWeight: 400, color: '#5b6b84' }}> · {ativos} de {doGrupo.length} recebendo</span>
+                </div>
+                <div style={{ ...s.card, padding: 0, overflow: 'hidden' }}>
+                  {doGrupo.map(f => (
+                    <div key={f.vendedor_id} style={s.filaLinha}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={s.filaNome}>{f.nome}</div>
+                        <div style={s.filaSub}>
+                          {f.leads_na_mao} na mão · {f.recebidos_hoje} hoje · {f.em_atendimento} em atendimento
+                        </div>
+                      </div>
+                      <span style={f.no_rodizio ? s.pillOn : s.pillOff}>
+                        {f.no_rodizio ? 'RECEBENDO' : 'FORA'}
+                      </span>
+                      <button
+                        style={{
+                          ...s.btnMini,
+                          background: f.no_rodizio ? 'rgba(248,113,113,.14)' : 'rgba(52,211,153,.18)',
+                          color: f.no_rodizio ? '#dc2626' : '#059669',
+                        }}
+                        onClick={() => setAlvo({
+                          vendedor_id: f.vendedor_id, nome: f.nome, faixa: f.faixa, ligar: !f.no_rodizio,
+                        })}
+                      >
+                        {f.no_rodizio ? 'Tirar da fila' : 'Colocar na fila'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })
         )}
 
-        <label style={s.label}>Motivo</label>
-        <select style={s.select} value={motivoKey} onChange={e => setMotivoKey(e.target.value)}>
-          <option value="">Selecione…</option>
-          {MOTIVOS_CANCELAMENTO.map(m => (
-            <option key={m.key} value={m.key}>{m.label}</option>
-          ))}
-        </select>
-
-        <label style={s.label}>Observação (opcional)</label>
-        <textarea
-          style={s.textarea}
-          placeholder="Detalhe adicional (vai pro log de auditoria)"
-          value={motivoTexto}
-          onChange={e => setMotivoTexto(e.target.value)}
-        />
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-          <button style={s.btnGhost} onClick={onClose} disabled={enviando}>Cancelar</button>
-          <button style={s.btnDanger} onClick={confirmar} disabled={enviando}>
-            {enviando ? 'Cancelando...' : 'Confirmar cancelamento'}
-          </button>
-        </div>
+        {!alvo && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button style={s.btnGhost} onClick={onClose}>Fechar</button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -699,15 +910,20 @@ function ModalMudarStatus({ onClose, onSucesso, setorResp }) {
   const [cliente, setCliente] = useState(null)
   const [novoStatus, setNovoStatus] = useState('')
   const [motivo, setMotivo] = useState('')
+  const [confirmando, setConfirmando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
 
-  async function confirmar() {
+  function revisar() {
     setErro('')
     if (!cliente) { setErro('Selecione o cliente.'); return }
     if (!novoStatus) { setErro('Escolha o novo status.'); return }
     if (motivo.trim().length < 3) { setErro('Motivo precisa de pelo menos 3 caracteres.'); return }
+    setConfirmando(true)
+  }
 
+  async function confirmar() {
+    setErro('')
     setEnviando(true)
     const { error } = await supabase.rpc('coordenadora_mudar_status_cliente', {
       p_cliente_id: cliente.id,
@@ -715,7 +931,7 @@ function ModalMudarStatus({ onClose, onSucesso, setorResp }) {
       p_motivo: motivo.trim(),
     })
     setEnviando(false)
-    if (error) { setErro(error.message); return }
+    if (error) { setErro(error.message); setConfirmando(false); return }
     onSucesso()
     onClose()
   }
@@ -729,31 +945,55 @@ function ModalMudarStatus({ onClose, onSucesso, setorResp }) {
         </div>
         {erro && <div style={s.msgErro}>{erro}</div>}
 
-        <label style={s.label}>Cliente</label>
-        <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
-        {cliente && (
-          <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 10 }}>
-            Status atual: <b>{cliente.status}</b>
-          </div>
+        {confirmando ? (
+          <>
+            <div style={s.confirmBox}>
+              <div style={s.confirmTitulo}>Você tem certeza?</div>
+              <div style={s.confirmNome}>{cliente.nome}</div>
+              <div style={s.confirmLinha}>
+                {formatCPF(cliente.cpf)} · de <b>{cliente.status}</b> para <b>{novoStatus}</b>
+              </div>
+              <div style={{ ...s.confirmLinha, marginTop: 8 }}>Motivo: <b>{motivo.trim()}</b></div>
+              {novoStatus === 'cancelado' && (
+                <div style={s.confirmAviso}>
+                  ⚠️ Mudar para <b>cancelado</b> também mata o link de assinatura no ZapSign em poucos minutos.
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={s.btnGhost} onClick={() => setConfirmando(false)} disabled={enviando}>Voltar</button>
+              <button style={s.btnDanger} onClick={confirmar} disabled={enviando}>
+                {enviando ? 'Salvando...' : 'Sim, mudar o status'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <label style={s.label}>Cliente</label>
+            <BuscaCliente valor={busca} setValor={setBusca} setSelecionado={setCliente} setorResp={setorResp} />
+            {cliente && (
+              <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 10 }}>
+                Status atual: <b>{cliente.status}</b>
+              </div>
+            )}
+
+            <label style={s.label}>Novo status</label>
+            <select style={s.select} value={novoStatus} onChange={e => setNovoStatus(e.target.value)}>
+              <option value="">Selecione…</option>
+              {STATUS_OVERRIDE.map(st => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+
+            <label style={s.label}>Motivo</label>
+            <textarea style={s.textarea} value={motivo} onChange={e => setMotivo(e.target.value)} />
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+              <button style={s.btnGhost} onClick={onClose}>Fechar</button>
+              <button style={s.btnPrimary} onClick={revisar}>Revisar e mudar</button>
+            </div>
+          </>
         )}
-
-        <label style={s.label}>Novo status</label>
-        <select style={s.select} value={novoStatus} onChange={e => setNovoStatus(e.target.value)}>
-          <option value="">Selecione…</option>
-          {STATUS_OVERRIDE.map(st => (
-            <option key={st} value={st}>{st}</option>
-          ))}
-        </select>
-
-        <label style={s.label}>Motivo</label>
-        <textarea style={s.textarea} value={motivo} onChange={e => setMotivo(e.target.value)} />
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-          <button style={s.btnGhost} onClick={onClose} disabled={enviando}>Cancelar</button>
-          <button style={s.btnPrimary} onClick={confirmar} disabled={enviando}>
-            {enviando ? 'Salvando...' : 'Confirmar'}
-          </button>
-        </div>
       </div>
     </div>
   )
