@@ -46,33 +46,92 @@ const s = {
   titleBadge: (t) => ({ padding: '2px 7px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: TITULOS_CLASS[t]?.bg || '#e2e8f0', color: TITULOS_CLASS[t]?.color || '#5b6b84', whiteSpace: 'nowrap' }),
   prodTag: (p) => ({ padding: '2px 6px', borderRadius: 4, fontSize: 11, marginRight: 3, background: PROD_CLASS[p]?.bg || '#e2e8f0', color: PROD_CLASS[p]?.color || '#5b6b84', display: 'inline-block' }),
   loading: { textAlign: 'center', padding: '3rem', color: '#5b6b84', fontSize: 14 },
+  // 05/10 — aviso de falha: a tela nunca mais diz "nenhum advogado" quando o que houve foi erro de consulta
+  erroBox: { background: 'rgba(248,113,113,.14)', border: '0.5px solid rgba(220,38,38,.35)', borderRadius: 10, padding: '12px 14px', marginBottom: '1rem' },
+  erroTitulo: { fontSize: 13, fontWeight: 600, color: '#dc2626', marginBottom: 4 },
+  erroTexto: { fontSize: 12, color: '#991b1b', fontFamily: 'ui-monospace, monospace', wordBreak: 'break-word' },
+  erroDica: { fontSize: 11, color: '#dc2626', marginTop: 6 },
 }
 
 export default function Advogados() {
   const { profile } = useAuth()
   const [advogados, setAdvogados] = useState([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState(null)
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
   const [showNovo, setShowNovo] = useState(false)
   const [detalhe, setDetalhe] = useState(null)
 
-  const fetch = useCallback(async () => {
+  // 05/10 — a consulta foi quebrada em 3 chamadas simples, sem embed.
+  // Motivo: o embed profiles(nome) depende de o PostgREST adivinhar por qual chave ligar
+  // advogados a profiles. Quando a tabela advogados ganhou uma segunda coluna apontando
+  // para profiles, ele parou de adivinhar e passou a devolver erro no lugar da lista,
+  // e a tela mostrou TOTAL 0 com 198 advogados no banco. Sem embed isso nao acontece.
+  // Renomeada de "fetch" para "carregar" para nao ter uma variavel com o nome do fetch global.
+  const carregar = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('advogados').select(`*, profiles(nome), advogado_produtos(produto)`).order('updated_at', { ascending: false })
-    if (profile?.role !== 'admin') q = q.eq('vendedor_id', profile?.id)
+    setErro(null)
+
+    const ehAdmin = profile?.role === 'admin'
+
+    let q = supabase.from('advogados').select('*').order('updated_at', { ascending: false })
+    if (!ehAdmin) {
+      if (!profile?.id) { setErro('Seu usuario carregou sem identificador. Saia e entre de novo.'); setAdvogados([]); setLoading(false); return }
+      q = q.eq('vendedor_id', profile.id)
+    }
     if (filtroStatus) q = q.eq('status', filtroStatus)
-    const { data } = await q
-    setAdvogados(data || [])
+
+    const { data: advs, error: errAdv } = await q
+    if (errAdv) {
+      console.error('[Advogados] falha ao ler advogados:', errAdv)
+      setErro(`${errAdv.message}${errAdv.code ? ` (codigo ${errAdv.code})` : ''}`)
+      setAdvogados([])
+      setLoading(false)
+      return
+    }
+
+    const lista = advs || []
+    const ids = lista.map(a => a.id)
+
+    // produtos de cada advogado — consulta separada; falha aqui nao derruba a lista
+    const mapaProdutos = {}
+    if (ids.length) {
+      const { data: prods, error: errProd } = await supabase
+        .from('advogado_produtos').select('advogado_id, produto').in('advogado_id', ids)
+      if (errProd) console.error('[Advogados] falha ao ler produtos:', errProd)
+      for (const p of (prods || [])) {
+        if (!mapaProdutos[p.advogado_id]) mapaProdutos[p.advogado_id] = []
+        mapaProdutos[p.advogado_id].push({ produto: p.produto })
+      }
+    }
+
+    // nome do vendedor — so para admin, que e quem ve a coluna, e tambem sem embed
+    const mapaVendedor = {}
+    if (ehAdmin && ids.length) {
+      const idsVend = [...new Set(lista.map(a => a.vendedor_id).filter(Boolean))]
+      if (idsVend.length) {
+        const { data: profs, error: errProf } = await supabase
+          .from('profiles').select('id, nome').in('id', idsVend)
+        if (errProf) console.error('[Advogados] falha ao ler vendedores:', errProf)
+        for (const p of (profs || [])) mapaVendedor[p.id] = p.nome
+      }
+    }
+
+    setAdvogados(lista.map(a => ({
+      ...a,
+      advogado_produtos: mapaProdutos[a.id] || [],
+      profiles: a.vendedor_id && mapaVendedor[a.vendedor_id] ? { nome: mapaVendedor[a.vendedor_id] } : null,
+    })))
     setLoading(false)
   }, [profile, filtroStatus])
 
-  useEffect(() => { if (profile) fetch() }, [fetch, profile])
+  useEffect(() => { if (profile) carregar() }, [carregar, profile])
 
   const filtered = advogados.filter(a => {
     const q = busca.toLowerCase()
-    const matchQ = !q || a.nome_completo.toLowerCase().includes(q) || a.oab.toLowerCase().includes(q) || a.cidade.toLowerCase().includes(q)
+    const matchQ = !q || (a.nome_completo || '').toLowerCase().includes(q) || (a.oab || '').toLowerCase().includes(q) || (a.cidade || '').toLowerCase().includes(q)
     const matchP = !filtroProduto || (a.advogado_produtos || []).some(p => p.produto === filtroProduto)
     return matchQ && matchP
   })
@@ -85,6 +144,14 @@ export default function Advogados() {
         <div style={s.title}>Advogados parceiros</div>
         <button style={s.btnAdd} onClick={() => setShowNovo(true)}>+ Novo advogado</button>
       </div>
+
+      {erro && (
+        <div style={s.erroBox}>
+          <div style={s.erroTitulo}>A consulta falhou — a lista abaixo nao esta vazia por falta de advogado</div>
+          <div style={s.erroTexto}>{erro}</div>
+          <div style={s.erroDica}>Manda esta mensagem para quem cuida do sistema. Nada foi apagado.</div>
+        </div>
+      )}
 
       <div style={s.metrics}>
         <div style={s.metric}><div style={s.metricLabel}>Total</div><div style={s.metricValue}>{counts.total}</div></div>
@@ -152,14 +219,14 @@ export default function Advogados() {
                   <td style={{ ...s.td, color: '#64748b', fontSize: 16 }}>›</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#64748b', padding: '2rem' }}>Nenhum advogado encontrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={profile?.role === 'admin' ? 9 : 8} style={{ ...s.td, textAlign: 'center', color: '#64748b', padding: '2rem' }}>{erro ? 'A consulta falhou — veja o aviso vermelho acima' : 'Nenhum advogado encontrado'}</td></tr>}
             </tbody>
           </table>
         )}
       </div>
 
-      {showNovo && <NovoAdvogado onClose={() => setShowNovo(false)} onSaved={() => { setShowNovo(false); fetch() }} />}
-      {detalhe && <DetalheAdvogado advogado={detalhe} onClose={() => { setDetalhe(null); fetch() }} onUpdated={() => { setDetalhe(null); fetch() }} />}
+      {showNovo && <NovoAdvogado onClose={() => setShowNovo(false)} onSaved={() => { setShowNovo(false); carregar() }} />}
+      {detalhe && <DetalheAdvogado advogado={detalhe} onClose={() => { setDetalhe(null); carregar() }} onUpdated={() => { setDetalhe(null); carregar() }} />}
     </div>
   )
 }
