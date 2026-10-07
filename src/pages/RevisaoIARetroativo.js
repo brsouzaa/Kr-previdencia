@@ -163,7 +163,35 @@ const OPCOES_DATA = [['tudo', 'tudo'], ['hoje', 'hoje'], ['ontem', 'ontem'], ['7
 // "content-range: 0-999/5440" do mesmo jeito. Header Range também não pagina em RPC.
 // O que funciona é OFFSET, que o supabase-js gera com .range(de, ate).
 const PAGINA_BOARD = 1000
-const MAX_PAGINAS = 12   // trava de segurança: 12 mil leads
+// 07/10 — era 12 (teto de 12 mil). O board da Duda tem 14.706 linhas, então ela
+// perdia 2.706 leads TODA vez, em silêncio. Subi pra 25 (25 mil) com folga.
+// Se um dia estourar de novo, o sintoma é o mesmo: colunas do fim do funil
+// encolhendo sem motivo. Conferir com: select count(*) from mae_board2(<id>,...).
+const MAX_PAGINAS = 25
+
+// 07/10 — os filtros viviam só em useState. Qualquer remontagem da tela (troca de
+// aba, refresh de token, volta de navegação) zerava tudo pro padrão e o número da
+// coluna pulava sozinho: a vendedora via 42 virar 191 sem ninguém tocar em lead.
+// Era isso que elas chamavam de "os leads estão sumindo". Agora cada filtro fica
+// gravado no navegador dela. Navegador sem storage (aba anônima travada, política
+// de privacidade) simplesmente não persiste — a tela continua funcionando igual.
+const CHAVE_FILTROS = 'kr_retro_filtros_v1'
+function lerFiltroSalvo(campo, padrao) {
+  try {
+    const bruto = window.localStorage.getItem(CHAVE_FILTROS)
+    if (!bruto) return padrao
+    const o = JSON.parse(bruto)
+    return (o && o[campo] !== undefined && o[campo] !== null) ? o[campo] : padrao
+  } catch (_) { return padrao }
+}
+function salvarFiltro(campo, valor) {
+  try {
+    const bruto = window.localStorage.getItem(CHAVE_FILTROS)
+    const o = bruto ? JSON.parse(bruto) : {}
+    o[campo] = valor
+    window.localStorage.setItem(CHAVE_FILTROS, JSON.stringify(o))
+  } catch (_) { /* sem storage: segue sem persistir */ }
+}
 
 // Busca a RPC do board inteira, em páginas. Para assim que uma página vier incompleta,
 // então quem filtra por agente (vendedora, ~130 leads) continua fazendo 1 requisição só.
@@ -378,19 +406,33 @@ export default function RevisaoIARetroativo() {
   const ehDono = profile?.id === ID_DONO_PAINEL
 
   const [board, setBoard] = useState([])
-  const [soVermelhos, setSoVermelhos] = useState(false)
-  const [filtroAgente, setFiltroAgente] = useState('')
-  const [filtroEntrada, setFiltroEntrada] = useState('tudo')
-  const [filtroAtividade, setFiltroAtividade] = useState('mes')
-  const [filtroAtendimento, setFiltroAtendimento] = useState('todos')
-  const [entradaDe, setEntradaDe] = useState(''); const [entradaAte, setEntradaAte] = useState('')
-  const [ativDe, setAtivDe] = useState(''); const [ativAte, setAtivAte] = useState('')
+
+  // 07/10 — usarFiltro = useState que grava no navegador. Mesma assinatura do
+  // useState, então o resto da tela não muda em nada. Fica aqui dentro do
+  // componente de propósito: hook declarado fora não tem por que existir.
+  const usarFiltro = (campo, padrao) => {
+    const [v, setV] = useState(() => lerFiltroSalvo(campo, padrao))
+    const set = (novo) => setV(anterior => {
+      const valor = typeof novo === 'function' ? novo(anterior) : novo
+      salvarFiltro(campo, valor)
+      return valor
+    })
+    return [v, set]
+  }
+
+  const [soVermelhos, setSoVermelhos] = usarFiltro('soVermelhos', false)
+  const [filtroAgente, setFiltroAgente] = usarFiltro('filtroAgente', '')
+  const [filtroEntrada, setFiltroEntrada] = usarFiltro('filtroEntrada', 'tudo')
+  const [filtroAtividade, setFiltroAtividade] = usarFiltro('filtroAtividade', 'mes')
+  const [filtroAtendimento, setFiltroAtendimento] = usarFiltro('filtroAtendimento', 'todos')
+  const [entradaDe, setEntradaDe] = usarFiltro('entradaDe', ''); const [entradaAte, setEntradaAte] = usarFiltro('entradaAte', '')
+  const [ativDe, setAtivDe] = usarFiltro('ativDe', ''); const [ativAte, setAtivAte] = usarFiltro('ativAte', '')
   // 16/09 (Bruno): filtro por QUANDO A ADVOGADA ENTREGOU o lead pra vendedora.
   // Nasceu porque lead aprovado hoje com conversa de dias atras so era achado
   // adivinhando a data da ultima interacao. Padrao 'tudo' de proposito: se abrisse
   // em 'hoje', a vendedora perderia a carteira inteira ao abrir a tela.
-  const [filtroEntrega, setFiltroEntrega] = useState('tudo')
-  const [entregaDe, setEntregaDe] = useState(''); const [entregaAte, setEntregaAte] = useState('')
+  const [filtroEntrega, setFiltroEntrega] = usarFiltro('filtroEntrega', 'tudo')
+  const [entregaDe, setEntregaDe] = usarFiltro('entregaDe', ''); const [entregaAte, setEntregaAte] = usarFiltro('entregaAte', '')
   const [lead, setLead] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [mostrarMotivosNegar, setMostrarMotivosNegar] = useState(false)
@@ -776,11 +818,21 @@ export default function RevisaoIARetroativo() {
   }
 
   const passaAtend = (l) => filtroAtendimento === 'todos' || (filtroAtendimento === 'respondido' ? l.humano_respondeu : !l.humano_respondeu)
-  const cardsDe = (col) => board.filter(l =>
+  // 07/10 — separei o que a coluna TEM do que ela MOSTRA. Antes o título contava
+  // board.filter(coluna) cru (sem os filtros de cor/atendimento) e os cards saíam
+  // de outra conta, cortada em 60. Dava dois números diferentes na mesma coluna e
+  // ninguém sabia qual valia. Agora o título mostra o total filtrado de verdade e,
+  // quando o corte esconde alguém, avisa "60 de 191" em vez de mentir.
+  const LIMITE_CARDS = 60
+  const totalDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
     // vendedora: em "A analisar" só vê os que travaram (precisa de ajuda)
     && (!(ehVendedor && !veTodasColunas && col === 'A_ANALISAR') || l.cor === 'vermelho')
-  ).slice(0, 60)
+  ).length
+  const cardsDe = (col) => board.filter(l =>
+    l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
+    && (!(ehVendedor && !veTodasColunas && col === 'A_ANALISAR') || l.cor === 'vermelho')
+  ).slice(0, LIMITE_CARDS)
   const colunasVisiveis = veTodasColunas ? COLUNAS : COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k))
 
   return (
@@ -1041,7 +1093,7 @@ export default function RevisaoIARetroativo() {
               style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #60a5fa' } : {}) }}
               onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
               onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
-              <div style={s.colTitulo}><span>{titulo}</span><span>{ehVendedor && !veTodasColunas && col === 'A_ANALISAR' ? cards.length : board.filter(l => l.coluna === col).length}</span></div>
+              <div style={s.colTitulo}><span>{titulo}</span><span>{totalDe(col) > LIMITE_CARDS ? `${LIMITE_CARDS} de ${totalDe(col)}` : totalDe(col)}</span></div>
               {cards.map(l => (
                 <div key={l.id} draggable
                   onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(l.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(l.id) }}
