@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -406,6 +406,10 @@ export default function RevisaoIARetroativo() {
   const ehDono = profile?.id === ID_DONO_PAINEL
 
   const [board, setBoard] = useState([])
+  // 07/10 — contador de requisição: resposta atrasada não escreve na tela.
+  const reqAtual = useRef(0)
+  // 07/10 — lista do seletor de vendedora, guardada à parte do board.
+  const [agentesConhecidos, setAgentesConhecidos] = useState([])
 
   // 07/10 — usarFiltro = useState que grava no navegador. Mesma assinatura do
   // useState, então o resto da tela não muda em nada. Fica aqui dentro do
@@ -519,6 +523,7 @@ export default function RevisaoIARetroativo() {
 
   const carregar = useCallback(async () => {
     if (!profile?.id) return
+    const meuReq = ++reqAtual.current   // 07/10 — senha desta chamada (ver nota lá embaixo)
     // Funil retroativo é 100% automático e SEM DONO por lead. Se a vendedora filtrar
     // pelo próprio id, ela só enxerga A analisar/Pitch (sempre visíveis) e perde cadastro/
     // assinatura/finalizado (que são gated por dono). Ela vê o funil compartilhado inteiro,
@@ -552,11 +557,38 @@ export default function RevisaoIARetroativo() {
       p_entrega_de: fg.de ? fg.de.toISOString() : null,
       p_entrega_ate: fg.ate ? fg.ate.toISOString() : null,
     })
+    // 07/10 — RESPOSTA ATRASADA. Este é o bug do "o filtro some e depois volta
+    // sozinho". Sem filtro o board tem 14.706 linhas = 15 idas ao servidor, uns
+    // 10 segundos. Com filtro tem ~300 = meio segundo. Então:
+    //   t=0  abre a tela sem filtro  -> dispara a busca LENTA
+    //   t=1  escolhe a vendedora     -> busca RÁPIDA volta, tela certa
+    //   t=10 a busca LENTA termina   -> setBoard joga TUDO por cima  (filtro "sumiu")
+    //   t=45 o timer roda de novo    -> volta ao certo              ("corrigiu sozinho")
+    // A correção é descartar a resposta que chegou atrasada: cada chamada leva um
+    // número, e só a mais recente tem direito de escrever na tela.
+    if (meuReq !== reqAtual.current) return
+
     // Operação licenciada só enxerga os leads da própria operação
-    setBoard((data || []).filter(l =>
+    const visiveis = (data || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
       (!meuTime || meuTime.includes(l.bf_agente_id)) &&
-      (!soMeusLeads || l.bf_agente_id === profile?.id)))
+      (!soMeusLeads || l.bf_agente_id === profile?.id))
+    setBoard(visiveis)
+
+    // 07/10 — a lista do seletor saía do próprio board. Ao filtrar por uma
+    // vendedora o board só tinha os leads dela, então o seletor passava a listar
+    // só ela e não dava pra trocar direto pra outra: tinha que voltar em "Todos
+    // os agentes" primeiro. Agora a lista completa é guardada enquanto NÃO há
+    // filtro e reaproveitada depois, então o seletor nunca encolhe.
+    if (!filtroAgente) {
+      const completos = []
+      visiveis.forEach(l => {
+        if (l.bf_agente_id && l.agente_nome && !completos.some(a => a.id === l.bf_agente_id)) {
+          completos.push({ id: l.bf_agente_id, nome: l.agente_nome })
+        }
+      })
+      if (completos.length) setAgentesConhecidos(completos.sort((a, b) => a.nome.localeCompare(b.nome)))
+    }
   }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte, filtroEntrega, entregaDe, entregaAte])
 
   useEffect(() => {
@@ -565,12 +597,17 @@ export default function RevisaoIARetroativo() {
     return () => clearInterval(timer)
   }, [carregar])
 
-  const agentes = []
-  board.forEach(l => {
-    if (l.bf_agente_id && l.agente_nome && !agentes.some(a => a.id === l.bf_agente_id)) {
-      agentes.push({ id: l.bf_agente_id, nome: l.agente_nome })
-    }
-  })
+  // 07/10 — usa a lista guardada (completa). Se ainda não carregou nenhuma vez
+  // sem filtro, cai no board atual, que é o comportamento antigo.
+  const agentes = agentesConhecidos.length ? agentesConhecidos : (() => {
+    const acc = []
+    board.forEach(l => {
+      if (l.bf_agente_id && l.agente_nome && !acc.some(a => a.id === l.bf_agente_id)) {
+        acc.push({ id: l.bf_agente_id, nome: l.agente_nome })
+      }
+    })
+    return acc
+  })()
 
   const totalVermelhos = board.filter(l => l.cor === 'vermelho').length
   const filaAnalista = board.filter(l => l.coluna === 'A_ANALISAR').length
@@ -821,9 +858,12 @@ export default function RevisaoIARetroativo() {
   // 07/10 — separei o que a coluna TEM do que ela MOSTRA. Antes o título contava
   // board.filter(coluna) cru (sem os filtros de cor/atendimento) e os cards saíam
   // de outra conta, cortada em 60. Dava dois números diferentes na mesma coluna e
-  // ninguém sabia qual valia. Agora o título mostra o total filtrado de verdade e,
-  // quando o corte esconde alguém, avisa "60 de 191" em vez de mentir.
-  const LIMITE_CARDS = 60
+  // ninguém sabia qual valia.
+  // Subi o corte de 60 pra 250: com 60 a coluna escondia mais do que mostrava
+  // (203 leads, 60 na tela) e o título virava "60 de 203", que confundiu o time.
+  // Agora o título traz só o número real e, se ainda sobrar card escondido, o
+  // aviso aparece no PÉ da coluna, em texto, onde não se confunde com contagem.
+  const LIMITE_CARDS = 250
   const totalDe = (col) => board.filter(l =>
     l.coluna === col && (!soVermelhos || l.cor === 'vermelho') && passaAtend(l)
     // vendedora: em "A analisar" só vê os que travaram (precisa de ajuda)
@@ -1093,7 +1133,7 @@ export default function RevisaoIARetroativo() {
               style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #60a5fa' } : {}) }}
               onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
               onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
-              <div style={s.colTitulo}><span>{titulo}</span><span>{totalDe(col) > LIMITE_CARDS ? `${LIMITE_CARDS} de ${totalDe(col)}` : totalDe(col)}</span></div>
+              <div style={s.colTitulo}><span>{titulo}</span><span>{totalDe(col)}</span></div>
               {cards.map(l => (
                 <div key={l.id} draggable
                   onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(l.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(l.id) }}
@@ -1153,6 +1193,12 @@ export default function RevisaoIARetroativo() {
                   {seloTratamento(l)}
                 </div>
               ))}
+              {/* 07/10 — aviso de corte no pé da coluna, em texto, longe do contador */}
+              {totalDe(col) > LIMITE_CARDS && (
+                <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', padding: '8px 4px' }}>
+                  + {totalDe(col) - LIMITE_CARDS} não exibidos · use os filtros para reduzir a lista
+                </div>
+              )}
             </div>
           )
         })}
