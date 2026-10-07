@@ -420,6 +420,9 @@ export default function MesaAdvogada() {
   const [whatsParado, setWhatsParado] = useState(null)  // { motivo, texto }
   // 21/09 — abas do robô do GERID
   const [fGerid, setFGerid] = useState('tudo')      // tudo | conf | rep
+  // 07/10 — filtro por advogado, só pra quem enxerga a mesa inteira (admin e
+  // Maithe). Serve pra ver o que cada um já fez e o que falta.
+  const [fAdv, setFAdv] = useState('todos')
   const [busca, setBusca] = useState('')            // 22/09 — nome, telefone ou CPF
   const [detGerid, setDetGerid] = useState(null)    // detalhe do lead aberto (vínculos, prints, tela)
   const [detCarregando, setDetCarregando] = useState(false)
@@ -445,10 +448,23 @@ export default function MesaAdvogada() {
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
+  // 07/10 — a mesa virou dividida: cada advogada enxerga só o lote dela, e a
+  // Maithe/admin continuam vendo tudo. Quem vê tudo precisa saber de QUEM é cada
+  // lead, então o dono vem junto, de uma função separada (mesa_advogada_donos).
+  // Ficou fora da mesa_advogada de propósito: trocar a assinatura dela exige
+  // DROP, e DROP nela trava — mae_board2 depende dela (timeout de 180s em 07/10).
   const carregar = useCallback(async () => {
-    const r = await supabase.rpc('mesa_advogada', { p_limite: 300 })
+    // p_limite era 300 e a mesa tem 943: pra quem vê tudo, 643 ficavam de fora
+    // sem nenhum aviso na tela. Subi pra 2000.
+    const [r, d] = await Promise.all([
+      supabase.rpc('mesa_advogada', { p_limite: 2000 }),
+      supabase.rpc('mesa_advogada_donos'),
+    ])
     if (r.error) console.error(r.error)
-    setFila(r.data || [])
+    if (d.error) console.error(d.error)
+    const donos = {}
+    ;(d.data || []).forEach(x => { donos[x.lead_id] = x.advogado_nome })
+    setFila((r.data || []).map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
     setLoading(false)
   }, [])
 
@@ -733,11 +749,26 @@ export default function MesaAdvogada() {
     return false
   }
 
+  // 07/10 — quem aparece no seletor de advogado: os donos que existem na fila.
+  // Sai da própria fila carregada, então quem só vê o lote dele não ganha
+  // seletor nenhum (a lista vem com um nome só, o dele).
+  const advogadosNaFila = []
+  fila.forEach(c => {
+    if (c.advogado_nome && !advogadosNaFila.includes(c.advogado_nome)) advogadosNaFila.push(c.advogado_nome)
+  })
+  advogadosNaFila.sort((a, b) => a.localeCompare(b))
+  const veTodaMesa = advogadosNaFila.length > 1
+
   const visiveis = fila.filter(c => {
     if (!casaBusca(c)) return false
     // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
     // por onde o robô está. Nada de filtro cruzado — foi isso que confundiu.
     if (fGerid !== 'tudo' && abaGerid(c) !== fGerid) return false
+    // 07/10 — corte por advogado. "sem_dono" pega o que ficou fora da divisão.
+    if (fAdv !== 'todos') {
+      if (fAdv === 'sem_dono') { if (c.advogado_nome) return false }
+      else if (c.advogado_nome !== fAdv) return false
+    }
     return true
   })
   // quantos a busca acharia se os chips não estivessem filtrando — serve pra
@@ -827,6 +858,36 @@ export default function MesaAdvogada() {
         ))}
       </div>
 
+      {/* 07/10 — só aparece pra quem enxerga a mesa inteira (admin e Maithe).
+          Quem vê só o próprio lote não ganha seletor, porque não teria o que
+          escolher. O número ao lado de cada nome é o que AINDA FALTA dele:
+          a mesa só lista lead não decidido, então o contador cai sozinho
+          conforme a pessoa trabalha. */}
+      {veTodaMesa && (
+        <div style={s.chipsLinha}>
+          <span style={s.chipsRotulo}>Advogado</span>
+          <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fAdv === 'todos')}
+            onClick={() => setFAdv('todos')}>
+            Todos · {fila.length}
+          </button>
+          {advogadosNaFila.map(nome => (
+            <button key={nome}
+              style={s.chip('#185fa5', 'rgba(96,165,250,.12)', fAdv === nome)}
+              onClick={() => setFAdv(fAdv === nome ? 'todos' : nome)}
+              title={`Falta ${fila.filter(c => c.advogado_nome === nome).length} na mão de ${nome}`}>
+              {nome.split(' ')[0]} · {fila.filter(c => c.advogado_nome === nome).length}
+            </button>
+          ))}
+          {fila.some(c => !c.advogado_nome) && (
+            <button style={s.chip('#854f0b', 'rgba(251,191,36,.14)', fAdv === 'sem_dono')}
+              onClick={() => setFAdv(fAdv === 'sem_dono' ? 'todos' : 'sem_dono')}
+              title="Entraram na mesa depois da divisão e ainda não têm dono">
+              sem dono · {fila.filter(c => !c.advogado_nome).length}
+            </button>
+          )}
+        </div>
+      )}
+
 
       {/* 21/09 — validador fora do ar. Aviso UNICO no topo, e o botao some de todos
           os cards. Sem isso, cada clique queima uma consulta do chip a troco de nada. */}
@@ -867,6 +928,19 @@ export default function MesaAdvogada() {
                 <div style={s.nome}>
                   {/* caixa de seleção só na aba de reprovação em lote */}
                   {c.nome || 'Cliente +Mais Mãe'}
+                  {/* 07/10 — de quem é o lead. Só pra quem enxerga a mesa
+                      inteira: pra própria advogada seria o nome dela em todos
+                      os cards, puro ruído. */}
+                  {veTodaMesa && (
+                    <span style={{
+                      marginLeft: 8, fontSize: 11, fontWeight: 600, padding: '2px 8px',
+                      borderRadius: 20, verticalAlign: 'middle',
+                      color: c.advogado_nome ? '#185fa5' : '#854f0b',
+                      background: c.advogado_nome ? 'rgba(96,165,250,.12)' : 'rgba(251,191,36,.14)',
+                    }} title={c.advogado_nome ? `na mão de ${c.advogado_nome}` : 'entrou depois da divisão, ainda sem dono'}>
+                      {c.advogado_nome ? `⚖️ ${c.advogado_nome.split(' ')[0]}` : '⚖️ sem dono'}
+                    </span>
+                  )}
                 </div>
                 <div style={s.dado}>
                   {c.tel || 'sem telefone'}
