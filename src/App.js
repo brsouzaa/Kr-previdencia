@@ -55,6 +55,7 @@ import Clientes from './pages/Clientes'
 import CentralRetorno from './pages/CentralRetorno'
 import RevisaoCrefaz from './pages/RevisaoCrefaz'
 import MesaAdvogada from './pages/MesaAdvogada'
+import FichaCNIS from './pages/FichaCNIS'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -355,6 +356,15 @@ function AppInner() {
 
   // Primeiro acesso: força troca de senha + nome
   if (profile.senha_temporaria === true) return <PrimeiroAcesso />
+
+  // 08/10 (Bruno) — FICHA CNIS: documento do pre-aprovado que a validacao imprime
+  // em PDF e anexa no Drive do advogado. Rota com URL propria (/ficha/<cpf>) igual
+  // ao Portal e a ParceriaPensao, porque precisa abrir em aba nova e ser colada no
+  // WhatsApp/Drive — nao da pra chegar nela por setPage.
+  // DIFERENCA das outras duas: fica DEPOIS do login. A ficha traz CPF, telefone e o
+  // CNIS inteiro da cliente, entao nao pode ser publica como o Portal de cadastro.
+  // Fica FORA do Layout de proposito: na impressao o documento sai limpo, sem menu.
+  if (window.location.pathname.startsWith('/ficha/')) return <FichaCNIS />
 
   const pages = {
     dashboard: <Dashboard />,
