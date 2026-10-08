@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // ===== FICHA CNIS — documento do pré-aprovado para o advogado (08/10) =====
@@ -7,7 +6,13 @@ import { supabase } from '../lib/supabase'
 // ficha com o CNIS inteiro e a justificativa do direito, que a validacao imprime em
 // PDF e anexa no Drive do advogado.
 //
-// Rota: /ficha/:cpf   — o CPF e a chave porque funciona nos DOIS momentos:
+// Rota: /ficha/<cpf>  — por PATHNAME, igual ao Portal e a ParceriaPensao. Este
+// projeto nao usa react-router-dom: o App navega por estado (setPage) e as rotas
+// com URL propria saem de window.location.pathname. Nao ha useParams aqui.
+// A ficha entra no App DEPOIS do login (tem CPF, telefone e o CNIS inteiro) e
+// FORA do Layout, pra sair limpa na impressao, sem menu.
+//
+// O CPF e a chave porque funciona nos DOIS momentos:
 //   pre_aprovacao -> so existe o lead/GERID (sem vendedora, telefone, produto)
 //   validacao     -> o lead ja virou cliente, a ficha sai completa
 // Quem decide qual e qual e a propria rpc (campo 'etapa'). O front so pinta.
@@ -49,14 +54,26 @@ const FAIXA = {
   fora:               { rot: 'Fora do período de graça',   cor: 'vermelho' },
 }
 
+// CPF vem do proprio endereco: /ficha/85852661554 ou /ficha/858.526.615-54
+const cpfDaUrl = () => {
+  const p = window.location.pathname
+  const i = p.indexOf('/ficha/')
+  if (i < 0) return ''
+  return decodeURIComponent(p.slice(i + 7)).split('/')[0].replace(/\D/g, '')
+}
+
 export default function FichaCNIS() {
-  const { cpf } = useParams()
+  const [cpf] = useState(cpfDaUrl)
   const [dados, setDados]   = useState(null)
   const [erro, setErro]     = useState('')
   const [carregando, setCarregando] = useState(true)
 
   const carregar = useCallback(async () => {
     setCarregando(true); setErro('')
+    if (!cpf || cpf.length !== 11) {
+      setErro('O endereço não traz um CPF válido. Use /ficha/00000000000 (11 dígitos).')
+      setDados(null); setCarregando(false); return
+    }
     const { data, error } = await supabase.rpc('ficha_cnis', { p_cpf: cpf })
     if (error)                 { setErro(error.message); setDados(null) }
     else if (!data?.encontrado){ setErro(data?.erro || 'Não encontrado'); setDados(null) }
@@ -171,22 +188,27 @@ export default function FichaCNIS() {
           font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;line-height:1.6;
           white-space:pre-wrap;word-break:break-word}
         .fc-rodape{padding:18px 30px;font-size:11.5px;color:var(--suave);background:var(--fundo)}
-        .fc-btn{position:absolute;top:24px;right:28px;background:var(--tinta);color:#fff;border:0;
-          border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer}
+        .fc-acoes{position:absolute;top:24px;right:28px;display:flex;gap:8px}
+        .fc-btn{background:var(--tinta);color:#fff;border:0;border-radius:8px;padding:9px 16px;
+          font-size:13px;font-weight:600;cursor:pointer}
         .fc-btn:hover{opacity:.88}
+        .fc-btn2{background:transparent;color:var(--suave);border:1px solid var(--linha)}
         .fc-etapa{display:inline-block;margin-top:9px;padding:3px 10px;border-radius:20px;
           font-size:11px;font-weight:600}
         @media print{
           .fichacnis{background:#fff;padding:0}
           .fc-folha{border:0;border-radius:0;max-width:none}
-          .fc-btn{display:none}
+          .fc-acoes{display:none}
         }
       `}</style>
 
       <div className="fc-folha">
 
         <div className="fc-topo">
-          <button className="fc-btn" onClick={() => window.print()}>Imprimir / PDF</button>
+          <div className="fc-acoes">
+            <button className="fc-btn fc-btn2" onClick={() => { window.location.href = '/' }}>Voltar</button>
+            <button className="fc-btn" onClick={() => window.print()}>Imprimir / PDF</button>
+          </div>
           <h1>{nome || 'Cliente'}</h1>
           <div className="fc-sub">
             Consulta ao CNIS pelo GERID — {gerid?.consultado_em || 'data não registrada'}
