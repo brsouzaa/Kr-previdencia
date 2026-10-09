@@ -559,6 +559,27 @@ export default function FilaEntregas() {
                 </div>
               </div>
 
+              {/* FICHA CNIS (09/10) — resumo do direito pra imprimir e anexar no Drive do advogado.
+                  Abre /ficha/<cpf> em aba nova. So tem conteudo pra quem passou pelo GERID
+                  (hoje: Maternidade Mae / retroativo). Nos outros produtos a ficha abre avisando
+                  que nao achou — por isso o texto abaixo diz isso antes do clique. */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 500 }}>📄 Ficha CNIS do cliente</div>
+                <div style={{ background: 'rgba(96,165,250,.10)', border: '0.5px solid #60a5fa50', padding: 14, borderRadius: 8 }}>
+                  <div style={{ fontSize: 12.5, color: '#0f172a', lineHeight: 1.5, marginBottom: 10 }}>
+                    Vínculos do CNIS, o vínculo que gera o direito, a distância do parto, a carência e o fundamento legal. Abre em aba nova e tem botão de imprimir em PDF.
+                  </div>
+                  <a href={'/ficha/' + String(clienteDetalhe.cpf || '').replace(/\D/g, '')}
+                    target="_blank" rel="noreferrer"
+                    style={{ display: 'inline-block', padding: '8px 12px', background: '#60a5fa', color: '#232a37', borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                    📄 Ver ficha CNIS
+                  </a>
+                  <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 8, lineHeight: 1.4 }}>
+                    Só tem ficha quem passou pela consulta do GERID. Nos produtos que não passam (Maternidade e Gestante até 5 meses), a ficha abre avisando que não encontrou.
+                  </div>
+                </div>
+              </div>
+
               {/* MOTIVO DA APROVAÇÃO — o advogado precisa disso no Drive */}
               {clienteDetalhe.dados_produto && clienteDetalhe.dados_produto.motivo_aprovacao && (
                 <div style={{ marginBottom: 20 }}>
