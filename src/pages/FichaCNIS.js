@@ -83,6 +83,24 @@ export default function FichaCNIS() {
 
   useEffect(() => { carregar() }, [carregar])
 
+  // 09/10 (Bruno) — NOME DO ARQUIVO PDF.
+  // O navegador usa o document.title como nome sugerido no "Salvar como PDF". A pagina
+  // nao tem title proprio, entao herdava o do public/index.html e TODA ficha saia
+  // chamada "KR Previdencia CRM" — o Drive do advogado virava uma pasta de arquivos
+  // com o mesmo nome. Padrao definido: "Ficha CNIS - NOME - CPF".
+  // Os caracteres \ / : * ? " < > | sao trocados por "-": nome de arquivo nao aceita
+  // eles, e uma barra no nome da cliente truncaria o arquivo na hora de salvar.
+  // Restaura o title ao sair, pra o nome da cliente nao ficar na aba das outras telas.
+  useEffect(() => {
+    const titleOriginal = document.title
+    const nomeFicha = dados && dados.nome
+    if (nomeFicha) {
+      const limpo = String(nomeFicha).replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim()
+      document.title = 'Ficha CNIS - ' + limpo + (cpf ? ' - ' + cpf : '')
+    }
+    return () => { document.title = titleOriginal }
+  }, [dados, cpf])
+
   if (carregando) return <div style={{ padding: 40, fontFamily: 'system-ui' }}>Carregando a ficha…</div>
   if (erro) return (
     <div style={{ padding: 40, fontFamily: 'system-ui' }}>
