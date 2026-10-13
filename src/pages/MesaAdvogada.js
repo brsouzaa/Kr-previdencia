@@ -134,9 +134,9 @@ const VERIFICAR_WHATS_LIGADO = false
 // perguntas diferentes ao mesmo tempo, e por isso ela abria um lead e via o
 // robô, abria outro e não via. Agora o eixo é UM só: em que pé está o robô.
 //
-//   fila  -> o robô ainda não consultou. Não tem o que decidir aqui ainda.
+//   fila  -> o assistente ainda não consultou. Não tem o que decidir aqui ainda.
 //   apr   -> o robô aprovou. Ela confere e libera. É onde sai venda.
-//   neg   -> o robô negou e separou pra ela conferir se ele acertou.
+//   neg   -> o assistente não encontrou direito e separou pra ela conferir.
 // 28/09 (Bruno) — a aba "Aprovadas" virou DUAS. O robô aprova por dois caminhos
 // diferentes e eles exigem conversas diferentes com a cliente:
 //   12 meses  -> parou de contribuir e ainda está no período de graça. Direito
@@ -147,14 +147,14 @@ const VERIFICAR_WHATS_LIGADO = false
 // Misturados numa aba só, o segundo grupo era liberado como se fosse o primeiro
 // — e a confirmação que ele exige passava batido.
 const GERID = {
-  fila:  { label: '⏳ Fila do robô',  cor: '#5b6b84', bg: 'rgba(15,23,42,.05)',
-           dica: 'O robô ainda não consultou o GERID destes' },
+  fila:  { label: '⏳ Fila do assistente',  cor: '#5b6b84', bg: 'rgba(15,23,42,.05)',
+           dica: 'O assistente ainda não consultou o GERID destes' },
   apr12: { label: '✅ 12 meses',      cor: '#059669', bg: 'rgba(5,150,105,.10)',
            dica: 'Direito dentro do período de graça de 12 meses — pode liberar direto' },
   apr24: { label: '✅ 12 a 24 meses', cor: '#0d9488', bg: 'rgba(13,148,136,.10)',
            dica: 'Direito por extensão — CONFIRME o seguro-desemprego com a cliente antes de liberar' },
   neg:   { label: '⛔ Negadas',       cor: '#b45309', bg: 'rgba(180,83,9,.10)',
-           dica: 'O robô negou e separou pra você conferir se ele acertou' },
+           dica: 'O assistente não encontrou direito aqui e separou pra você conferir' },
 }
 
 // Em qual faixa o robô encaixou o direito. Lê o motivo que ele escreveu em cada
@@ -192,8 +192,8 @@ const abaGerid = (c) => (
 
 // selo por filho. 'conferir' do robô é mostrado como aprovar, pelo mesmo motivo.
 const SUGESTAO = {
-  aprovar:  { label: '✅ robô sugere APROVAR',  cor: '#059669', bg: 'rgba(5,150,105,.12)' },
-  reprovar: { label: '⛔ robô sugere REPROVAR', cor: '#b45309', bg: 'rgba(180,83,9,.12)' },
+  aprovar:  { label: '✅ assistente sugere SEGUIR',  cor: '#059669', bg: 'rgba(5,150,105,.12)' },
+  reprovar: { label: '⛔ assistente sugere NÃO SEGUIR', cor: '#b45309', bg: 'rgba(180,83,9,.12)' },
 }
 const seloFilho = (s) => (s === 'reprovar' ? SUGESTAO.reprovar : SUGESTAO.aprovar)
 
@@ -260,7 +260,7 @@ const s = {
   btnWhats: (off) => ({ marginLeft: 6, padding: '1px 8px', background: '#ffffff', color: off ? '#94a3b8' : '#2563eb', border: '0.5px solid rgba(15,23,42,0.16)', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: off ? 'wait' : 'pointer', fontFamily: 'inherit' }),
   whatsErro: { display: 'inline-block', marginLeft: 6, fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'rgba(251,191,36,.18)', borderRadius: 6, padding: '2px 7px' },
   whatsParado: { background: 'rgba(251,191,36,.14)', border: '0.5px solid rgba(180,83,9,.35)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, lineHeight: 1.55, color: '#7c2d12' },
-  // 21/09 — robô do GERID
+  // 21/09 — assistente do GERID
   roboBox: (rep) => ({ marginTop: 10, padding: '9px 12px', borderRadius: 9, fontSize: 12.5, lineHeight: 1.5,
     background: rep ? 'rgba(180,83,9,.06)' : 'rgba(3,105,161,.06)',
     border: '0.5px solid ' + (rep ? 'rgba(180,83,9,.22)' : 'rgba(3,105,161,.22)'), color: '#0f172a' }),
@@ -423,7 +423,7 @@ export default function MesaAdvogada() {
   // quando isso enche, o botao some da tela inteira ate recarregar a pagina.
   // So acontece em "acabaram os chips" ou "chave recusada" — ver derrubaBotaoGeral.
   const [whatsParado, setWhatsParado] = useState(null)  // { motivo, texto }
-  // 21/09 — abas do robô do GERID
+  // 21/09 — abas do assistente do GERID
   const [fGerid, setFGerid] = useState('tudo')      // tudo | conf | rep
   // 07/10 — filtro por advogado, só pra quem enxerga a mesa inteira (admin e
   // Maithe). Serve pra ver o que cada um já fez e o que falta.
@@ -453,55 +453,27 @@ export default function MesaAdvogada() {
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
-  // 13/10 — O CORTE DE 1.000 DO POSTGREST. O Supabase devolve no maximo 1.000 linhas
-  // por chamada (db-max-rows) e NAO avisa: a resposta volta cortada, sem erro nenhum.
-  // Com a mesa em 1.253 isso dava DOIS estragos ao mesmo tempo:
-  //   1) a lista chegava com 1.000 e 253 leads ficavam invisiveis pra quem ve tudo;
-  //   2) pior, mesa_advogada_donos cortava em OUTRAS 1.000 linhas (ordem diferente),
-  //      entao leads que vinham na lista e nao vinham no mapa de donos apareciam
-  //      como "sem dono" — eram 204 em 13/10, com ZERO sem dono no banco.
-  // Buscar por paginas de 1.000 resolve os dois. O de-duplica por id porque a funcao
-  // e reexecutada a cada pagina e um lead decidido no meio do caminho desloca a ordem.
-  const PAGINA = 1000
-  const rpcTudo = useCallback(async (fn, args) => {
-    const vistos = new Set()
-    const todas = []
-    for (let de = 0; de < 20000; de += PAGINA) {
-      const { data, error } = await supabase.rpc(fn, args).range(de, de + PAGINA - 1)
-      if (error) {
-        console.error(fn, error)
-        // Rede de seguranca: se o .range() for recusado, volta pro comportamento
-        // antigo (uma chamada so). Melhor a tela com 1.000 do que a tela vazia.
-        if (de === 0) {
-          const r2 = await supabase.rpc(fn, args)
-          if (r2.error) console.error(fn, r2.error)
-          return r2.data || []
-        }
-        break
-      }
-      const lote = data || []
-      lote.forEach(x => {
-        const k = x.id != null ? x.id : x.lead_id
-        if (!vistos.has(k)) { vistos.add(k); todas.push(x) }
-      })
-      if (lote.length < PAGINA) break
-    }
-    return todas
-  }, [])
-
+  // 13/10 — SOBRE O CORTE DE 1.000 DO POSTGREST (db-max-rows): ele existe e e real,
+  // mas NAO se resolve com .range(). Medido no endpoint: numa chamada RPC o PostgREST
+  // IGNORA o header Range — "Range: 1000-1999" devolve exatamente as mesmas 1.000
+  // linhas que "0-999". A tentativa de paginar assim so fazia 20 chamadas identicas
+  // da funcao mais cara do banco, a cada 60s, por pessoa logada. Saiu.
+  // Quem precisa de paginacao de verdade e so quem ve a mesa inteira (admin/Maithe):
+  // a mesa toda tem 1.093 e a advogada ve ~300, muito abaixo do teto. O caminho que
+  // funciona, pra quando for mexer nisso, e ?limit=&offset= na URL (medido: offset
+  // 1000 devolve o resto certinho), nao o header Range.
   const carregar = useCallback(async () => {
-    // p_limite 5000: a mesa saiu de 453 pra 1.253 em duas horas no dia 13/10 e os
-    // 2000 de antes viram teto em pouco tempo. O corte de verdade e o de 1.000 do
-    // PostgREST, tratado pelo rpcTudo acima.
     const [r, d] = await Promise.all([
-      rpcTudo('mesa_advogada', { p_limite: 5000 }),
-      rpcTudo('mesa_advogada_donos'),
+      supabase.rpc('mesa_advogada', { p_limite: 5000 }),
+      supabase.rpc('mesa_advogada_donos'),
     ])
+    if (r.error) console.error('mesa_advogada', r.error)
+    if (d.error) console.error('mesa_advogada_donos', d.error)
     const donos = {}
-    d.forEach(x => { donos[x.lead_id] = x.advogado_nome })
-    setFila(r.map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
+    ;(d.data || []).forEach(x => { donos[x.lead_id] = x.advogado_nome })
+    setFila((r.data || []).map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
     setLoading(false)
-  }, [rpcTudo])
+  }, [])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => {
@@ -801,7 +773,7 @@ export default function MesaAdvogada() {
     return c.advogado_nome === fAdv
   }
   // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
-  // por onde o robô está.
+  // por onde o assistente está.
   const casaGerid = (c) => (fGerid === 'tudo' || abaGerid(c) === fGerid)
 
   // 13/10 — OS NÚMEROS DOS CHIPS MENTIAM. Eles contavam sempre a fila INTEIRA,
@@ -858,8 +830,8 @@ export default function MesaAdvogada() {
         Só chega aqui quem já passou pela conferência PromoBank. Pré-aprovadas vêm primeiro;
         quem não mandou o CNIS só entra depois de 20 minutos parada.<br />
         Sua decisão é a oficial: <b>pré-aprovado real</b> vai pro vendedor, <b>negado</b> encerra e a cliente é avisada automaticamente.
-        <br />🤖 O robô do GERID consulta antes de você: <b>✅ Aprovadas</b> e <b>⛔ Negadas</b> já vêm com os vínculos.
-        A <b>⏳ Fila do robô</b> é quem ele ainda não alcançou — nessas, consulte o GERID como sempre.
+        <br />🤖 O assistente do GERID consulta antes de você: <b>✅ Aprovadas</b> e <b>⛔ Negadas</b> já vêm com os vínculos.
+        A <b>⏳ Fila do assistente</b> é quem ele ainda não alcançou — nessas, consulte o GERID como sempre.
       </div>
 
       {aviso && (
@@ -1083,9 +1055,9 @@ export default function MesaAdvogada() {
             {c.gerid_veredito && (
               <div style={s.roboBox(abaGerid(c) === 'neg')}>
                 <div style={s.roboTopo}>
-                  <span>🤖 <b>Robô consultou o GERID</b>{c.gerid_em ? ' · ' + fmtQuando(c.gerid_em) : ''}</span>
+                  <span>🤖 <b>Assistente consultou o GERID</b>{c.gerid_em ? ' · ' + fmtQuando(c.gerid_em) : ''}</span>
                   {Array.isArray(c.gerid_prints) && c.gerid_prints.length > 0 && (
-                    <span style={s.roboPrintOk} title="o robô guardou a imagem do GERID — você não precisa colar print">
+                    <span style={s.roboPrintOk} title="o assistente guardou a imagem do GERID — você não precisa colar print">
                       🗂️ print guardado
                     </span>
                   )}
@@ -1134,12 +1106,12 @@ export default function MesaAdvogada() {
                   {abrindo.tipo === 'ok' ? 'Por que ela é pré-aprovada?' : 'Por que ela foi negada?'}
                 </div>
 
-                {/* 21/09 — o que o robô leu no GERID: prints e vínculos.
+                {/* 21/09 — o que o assistente leu no GERID: prints e vínculos.
                     Vem sob demanda (mesa_gerid_detalhe), só ao abrir o lead. */}
                 {c.gerid_veredito && (
                   <div style={s.vincBox}>
                     <div style={s.vincTit}>
-                      <span>🤖 O que o robô leu no GERID</span>
+                      <span>🤖 O que o assistente leu no GERID</span>
                       {detCarregando && <span style={{ fontWeight: 400, textTransform: 'none' }}>carregando…</span>}
                     </div>
 
@@ -1149,13 +1121,13 @@ export default function MesaAdvogada() {
                       </a>
                     ))}
 
-                    {/* 22/09 — o TEXTO que o robô leu no GERID. Hoje é a prova
+                    {/* 22/09 — o TEXTO que o assistente leu no GERID. Hoje é a prova
                         que existe de fato: prints[] está vazio em todos os 126
                         consultados, e a tela vem em 117 deles. */}
                     {detGerid && detGerid.tela && (
                       <div style={{ marginTop: 8 }}>
                         <button style={s.btnLoteSec} onClick={() => setVerTela(v => !v)}>
-                          {verTela ? 'esconder' : 'ver'} o que o robô leu na tela do GERID
+                          {verTela ? 'esconder' : 'ver'} o que o assistente leu na tela do GERID
                         </button>
                         {verTela && <pre style={s.telaGerid}>{detGerid.tela}</pre>}
                       </div>
@@ -1178,7 +1150,7 @@ export default function MesaAdvogada() {
 
                     {!detCarregando && !printsDoRobo(c).length && !c.gerid_tem_consulta && (
                       <div style={{ fontSize: 11.5, color: '#92400e', marginTop: 4 }}>
-                        O robô não guardou nem imagem nem texto deste — se for pré-aprovar, cole o print do GERID abaixo.
+                        O assistente não guardou nem imagem nem texto deste — se for pré-aprovar, cole o print do GERID abaixo.
                       </div>
                     )}
                   </div>
@@ -1193,8 +1165,8 @@ export default function MesaAdvogada() {
                 {abrindo.tipo === 'ok' && temProvaDoRobo(c) && !print && !colarMesmoAssim && (
                   <div style={s.provaOk}>
                     ✅ {printsDoRobo(c).length > 0
-                          ? 'O print do robô já vale como prova do GERID.'
-                          : 'O que o robô leu no GERID já vale como prova.'}
+                          ? 'O print do assistente já vale como prova do GERID.'
+                          : 'O que o assistente leu no GERID já vale como prova.'}
                     {' '}Pode escolher o motivo direto.
                     <button style={s.provaLink} onClick={() => setColarMesmoAssim(true)}>
                       anexar um print meu mesmo assim
