@@ -453,40 +453,64 @@ export default function MesaAdvogada() {
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
-  // 13/10 — SOBRE O CORTE DE 1.000 DO POSTGREST (db-max-rows): ele existe e e real,
-  // mas NAO se resolve com .range(). Medido no endpoint: numa chamada RPC o PostgREST
-  // IGNORA o header Range — "Range: 1000-1999" devolve exatamente as mesmas 1.000
-  // linhas que "0-999". A tentativa de paginar assim so fazia 20 chamadas identicas
-  // da funcao mais cara do banco, a cada 60s, por pessoa logada. Saiu.
-  // Quem precisa de paginacao de verdade e so quem ve a mesa inteira (admin/Maithe):
-  // a mesa toda tem 1.093 e a advogada ve ~300, muito abaixo do teto. O caminho que
-  // funciona, pra quando for mexer nisso, e ?limit=&offset= na URL (medido: offset
-  // 1000 devolve o resto certinho), nao o header Range.
+  // 13/10 — O CORTE DE 1.000 DO POSTGREST (db-max-rows). A resposta volta cortada
+  // em 1.000 linhas, sem erro e sem aviso. Com a mesa perto desse numero da dois
+  // estragos: leads somem da lista, e — pior — mesa_advogada e mesa_advogada_donos
+  // cortam conjuntos DIFERENTES, entao lead que vem numa e nao na outra aparece
+  // como "sem dono" com zero sem dono no banco.
+  // CUIDADO AO MEXER: .range() aqui FUNCIONA. O supabase-js nao usa o header Range
+  // numa chamada RPC — ele monta ?offset=&limit= na query string, que e o caminho
+  // que o PostgREST aceita. (Testado com o fetch interceptado: .range(1000,1999)
+  // vira "?offset=1000&limit=1000".) Testar isso com curl mandando o header Range
+  // da falso negativo: o header e mesmo ignorado em RPC. Ja removi esta paginacao
+  // uma vez por causa desse teste errado e os 1.000 voltaram na hora.
+  // O de-duplica por id porque a funcao e reexecutada a cada pagina e um lead
+  // decidido no meio do caminho desloca a ordem.
+  const PAGINA = 1000
+  const rpcTudo = useCallback(async (fn, args) => {
+    const vistos = new Set()
+    const todas = []
+    for (let de = 0; de < 20000; de += PAGINA) {
+      const { data, error } = await supabase.rpc(fn, args).range(de, de + PAGINA - 1)
+      if (error) {
+        console.error(fn, error)
+        // Rede de seguranca: se o .range() for recusado, volta pro comportamento
+        // antigo (uma chamada so). Melhor a tela com 1.000 do que a tela vazia.
+        if (de === 0) {
+          const r2 = await supabase.rpc(fn, args)
+          if (r2.error) console.error(fn, r2.error)
+          return r2.data || []
+        }
+        break
+      }
+      const lote = data || []
+      lote.forEach(x => {
+        const k = x.id != null ? x.id : x.lead_id
+        if (!vistos.has(k)) { vistos.add(k); todas.push(x) }
+      })
+      if (lote.length < PAGINA) break
+    }
+    return todas
+  }, [])
+
   const carregar = useCallback(async () => {
-    // 13/10 — a terceira chamada traz ha quanto tempo cada lead esta esperando na
-    // mesa do advogado. Funcao separada e leve (nao chama a mesa_advogada dentro),
-    // e vai em PARALELO com as outras duas, entao nao soma espera na tela.
+    // as tres em paralelo: a lista, de quem e cada lead, e ha quanto tempo espera.
     const [r, d, e] = await Promise.all([
-      supabase.rpc('mesa_advogada', { p_limite: 5000 }),
-      supabase.rpc('mesa_advogada_donos'),
-      supabase.rpc('mesa_advogada_espera'),
+      rpcTudo('mesa_advogada', { p_limite: 5000 }),
+      rpcTudo('mesa_advogada_donos'),
+      rpcTudo('mesa_advogada_espera'),
     ])
-    if (r.error) console.error('mesa_advogada', r.error)
-    if (d.error) console.error('mesa_advogada_donos', d.error)
-    if (e.error) console.error('mesa_advogada_espera', e.error)
     const donos = {}
-    ;(d.data || []).forEach(x => { donos[x.lead_id] = x.advogado_nome })
-    // se a chamada falhar, espera fica vazio e o card so nao mostra o tempo —
-    // nada na tela depende dele pra funcionar.
+    d.forEach(x => { donos[x.lead_id] = x.advogado_nome })
     const espera = {}
-    ;(e.data || []).forEach(x => { espera[x.lead_id] = x.entrou_em })
-    setFila((r.data || []).map(c => ({
+    e.forEach(x => { espera[x.lead_id] = x.entrou_em })
+    setFila(r.map(c => ({
       ...c,
       advogado_nome: donos[c.id] || null,
       entrou_em: espera[c.id] || null,
     })))
     setLoading(false)
-  }, [])
+  }, [rpcTudo])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => {
