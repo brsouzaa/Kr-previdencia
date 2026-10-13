@@ -181,7 +181,12 @@ const abaGerid = (c) => (
   // Aprovado com motivo que não reconhecemos cai em "12 a 24", que é a aba que
   // pede conferência — errar pro lado de olhar a mais, não a menos.
   : c.gerid_veredito === 'aprovar' ? (faixaGerid(c) === '12' ? 'apr12' : 'apr24')
-  : c.gerid_auditoria ? 'neg'
+  // 13/10 — "Negadas" agora exige as DUAS coisas: a marca de auditoria E a prova
+  // de que o robô realmente consultou (print guardado ou texto da tela). Sem a
+  // segunda condição, um lead que recebesse a marca antes da consulta aparecia
+  // na aba de negadas sem o robô ter olhado o GERID dele. No banco de hoje isso
+  // é zero, então nada muda na tela — é trava pra não voltar a acontecer.
+  : (c.gerid_auditoria && c.gerid_tem_consulta) ? 'neg'
   : !c.gerid_tem_consulta ? 'fila'
   : 'fila')
 
@@ -761,8 +766,6 @@ export default function MesaAdvogada() {
   }
 
   const contagem = fila.reduce((a, c) => { a[c.fila] = (a[c.fila] || 0) + 1; return a }, {})
-  // contagem das abas do robô, sobre a fila inteira
-  const contaGerid = fila.reduce((a, c) => { const k = abaGerid(c); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
   // 22/09 — busca por nome, telefone ou CPF. Roda em cima da fila que já está
   // carregada, então responde enquanto ela digita, sem ida ao banco.
   // Dígito é dígito: "119" casa telefone E CPF, porque quem digita não sabe (nem
@@ -789,18 +792,32 @@ export default function MesaAdvogada() {
   advogadosNaFila.sort((a, b) => a.localeCompare(b))
   const veTodaMesa = advogadosNaFila.length > 1
 
-  const visiveis = fila.filter(c => {
-    if (!casaBusca(c)) return false
-    // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
-    // por onde o robô está. Nada de filtro cruzado — foi isso que confundiu.
-    if (fGerid !== 'tudo' && abaGerid(c) !== fGerid) return false
-    // 07/10 — corte por advogado. "sem_dono" pega o que ficou fora da divisão.
-    if (fAdv !== 'todos') {
-      if (fAdv === 'sem_dono') { if (c.advogado_nome) return false }
-      else if (c.advogado_nome !== fAdv) return false
-    }
-    return true
-  })
+  // 13/10 — os dois cortes, cada um na sua função, pra cada contador poder
+  // ignorar o SEU proprio eixo e respeitar os outros.
+  // 07/10 — corte por advogado. "sem_dono" pega o que ficou fora da divisão.
+  const casaAdv = (c) => {
+    if (fAdv === 'todos') return true
+    if (fAdv === 'sem_dono') return !c.advogado_nome
+    return c.advogado_nome === fAdv
+  }
+  // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
+  // por onde o robô está.
+  const casaGerid = (c) => (fGerid === 'tudo' || abaGerid(c) === fGerid)
+
+  // 13/10 — OS NÚMEROS DOS CHIPS MENTIAM. Eles contavam sempre a fila INTEIRA,
+  // então escolher um advogado não mudava nada: com Felipe selecionado a tela
+  // seguia mostrando "Negadas · 590", que é o total da mesa — Felipe tem 88.
+  // Foi isso que fez parecer que os negados do Felipe e da Yasmin "não estavam
+  // aparecendo pra eles": o número grande era da mesa toda, não o deles.
+  // Agora cada eixo conta dentro do outro: o chip do robô conta DENTRO do
+  // advogado escolhido, e o chip do advogado conta DENTRO da aba escolhida.
+  const baseGerid = fila.filter(c => casaBusca(c) && casaAdv(c))
+  const baseAdv = fila.filter(c => casaBusca(c) && casaGerid(c))
+  const contaGerid = baseGerid.reduce((a, c) => { const k = abaGerid(c); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
+  const contaAdv = (nome) => baseAdv.filter(c => c.advogado_nome === nome).length
+  const contaSemDono = baseAdv.filter(c => !c.advogado_nome).length
+
+  const visiveis = fila.filter(c => casaBusca(c) && casaGerid(c) && casaAdv(c))
   // quantos a busca acharia se os chips não estivessem filtrando — serve pra
   // dizer "achei 2, mas os filtros escondem" em vez de mentir "não achei nada"
   const achadosSoBusca = bus ? fila.filter(casaBusca).length : 0
@@ -877,7 +894,7 @@ export default function MesaAdvogada() {
       <div style={s.chips}>
         <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fGerid === 'tudo')}
           onClick={() => setFGerid('tudo')}>
-          Todas · {fila.length}
+          Todas · {baseGerid.length}
         </button>
         {['fila', 'apr12', 'apr24', 'neg'].map(k => (
           <button key={k} style={s.chip(GERID[k].cor, GERID[k].bg, fGerid === k)}
@@ -898,21 +915,21 @@ export default function MesaAdvogada() {
           <span style={s.chipsRotulo}>Advogado</span>
           <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fAdv === 'todos')}
             onClick={() => setFAdv('todos')}>
-            Todos · {fila.length}
+            Todos · {baseAdv.length}
           </button>
           {advogadosNaFila.map(nome => (
             <button key={nome}
               style={s.chip('#185fa5', 'rgba(96,165,250,.12)', fAdv === nome)}
               onClick={() => setFAdv(fAdv === nome ? 'todos' : nome)}
-              title={`Falta ${fila.filter(c => c.advogado_nome === nome).length} na mão de ${nome}`}>
-              {nome.split(' ')[0]} · {fila.filter(c => c.advogado_nome === nome).length}
+              title={`Falta ${contaAdv(nome)} na mão de ${nome}`}>
+              {nome.split(' ')[0]} · {contaAdv(nome)}
             </button>
           ))}
           {fila.some(c => !c.advogado_nome) && (
             <button style={s.chip('#854f0b', 'rgba(251,191,36,.14)', fAdv === 'sem_dono')}
               onClick={() => setFAdv(fAdv === 'sem_dono' ? 'todos' : 'sem_dono')}
               title="Entraram na mesa depois da divisão e ainda não têm dono">
-              sem dono · {fila.filter(c => !c.advogado_nome).length}
+              sem dono · {contaSemDono}
             </button>
           )}
         </div>
@@ -1060,9 +1077,11 @@ export default function MesaAdvogada() {
             )}
 
             {/* 21/09 — o que o ROBÔ DO GERID achou. Um bloco por filho, com o
-                motivo em texto. Isso é sugestão: quem decide é ela. */}
+                motivo em texto. Isso é sugestão: quem decide é ela.
+                13/10 — a moldura de destaque comparava com 'aud', valor que
+                abaGerid nunca devolve, então nunca acendia. O rótulo é 'neg'. */}
             {c.gerid_veredito && (
-              <div style={s.roboBox(abaGerid(c) === 'aud')}>
+              <div style={s.roboBox(abaGerid(c) === 'neg')}>
                 <div style={s.roboTopo}>
                   <span>🤖 <b>Robô consultou o GERID</b>{c.gerid_em ? ' · ' + fmtQuando(c.gerid_em) : ''}</span>
                   {Array.isArray(c.gerid_prints) && c.gerid_prints.length > 0 && (
