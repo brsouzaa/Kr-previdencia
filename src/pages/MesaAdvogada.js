@@ -463,15 +463,28 @@ export default function MesaAdvogada() {
   // funciona, pra quando for mexer nisso, e ?limit=&offset= na URL (medido: offset
   // 1000 devolve o resto certinho), nao o header Range.
   const carregar = useCallback(async () => {
-    const [r, d] = await Promise.all([
+    // 13/10 — a terceira chamada traz ha quanto tempo cada lead esta esperando na
+    // mesa do advogado. Funcao separada e leve (nao chama a mesa_advogada dentro),
+    // e vai em PARALELO com as outras duas, entao nao soma espera na tela.
+    const [r, d, e] = await Promise.all([
       supabase.rpc('mesa_advogada', { p_limite: 5000 }),
       supabase.rpc('mesa_advogada_donos'),
+      supabase.rpc('mesa_advogada_espera'),
     ])
     if (r.error) console.error('mesa_advogada', r.error)
     if (d.error) console.error('mesa_advogada_donos', d.error)
+    if (e.error) console.error('mesa_advogada_espera', e.error)
     const donos = {}
     ;(d.data || []).forEach(x => { donos[x.lead_id] = x.advogado_nome })
-    setFila((r.data || []).map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
+    // se a chamada falhar, espera fica vazio e o card so nao mostra o tempo —
+    // nada na tela depende dele pra funcionar.
+    const espera = {}
+    ;(e.data || []).forEach(x => { espera[x.lead_id] = x.entrou_em })
+    setFila((r.data || []).map(c => ({
+      ...c,
+      advogado_nome: donos[c.id] || null,
+      entrou_em: espera[c.id] || null,
+    })))
     setLoading(false)
   }, [])
 
@@ -802,6 +815,29 @@ export default function MesaAdvogada() {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
   }
+  // 13/10 — tempo de espera na mesa do advogado. Em dia/hora, nao em minutos como
+  // o fmtTempo acima: ali a conta e de minutos (ultima interacao com a cliente),
+  // aqui e de dias. "144h" nao diz nada; "6d" diz.
+  const diasEspera = (iso) => {
+    if (!iso) return null
+    const ms = Date.now() - new Date(iso).getTime()
+    return ms > 0 ? ms / 86400000 : 0
+  }
+  const fmtEspera = (iso) => {
+    const dd = diasEspera(iso)
+    if (dd === null) return null
+    const min = Math.floor(dd * 1440)
+    if (min < 60) return min + 'min'
+    const h = Math.floor(min / 60)
+    if (h < 24) return h + 'h'
+    const resto = h % 24
+    return Math.floor(h / 24) + 'd' + (resto ? ' ' + resto + 'h' : '')
+  }
+  // cinza ate 2 dias, ambar de 2 a 4, vermelho acima de 4. So pra bater o olho.
+  const corEspera = (iso) => {
+    const dd = diasEspera(iso)
+    return dd === null ? '#5b6b84' : dd >= 4 ? '#b91c1c' : dd >= 2 ? '#b45309' : '#5b6b84'
+  }
 
   return (
     <div style={s.wrap}>
@@ -991,6 +1027,15 @@ export default function MesaAdvogada() {
                       )}
                     </>) })()}
                   {' · '}parada há {fmtTempo(c.minutos_parado)} · {c.estado || '—'}
+                  {c.entrou_em && (
+                    <>
+                      {' · '}
+                      <b style={{ color: corEspera(c.entrou_em) }}
+                         title="há quanto tempo este lead está na mesa do advogado esperando a consulta">
+                        ⏱️ na mesa há {fmtEspera(c.entrou_em)}
+                      </b>
+                    </>
+                  )}
                 </div>
 
                 <div style={s.gerid}>
