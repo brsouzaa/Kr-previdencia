@@ -448,25 +448,55 @@ export default function MesaAdvogada() {
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
-  // 07/10 — a mesa virou dividida: cada advogada enxerga só o lote dela, e a
-  // Maithe/admin continuam vendo tudo. Quem vê tudo precisa saber de QUEM é cada
-  // lead, então o dono vem junto, de uma função separada (mesa_advogada_donos).
-  // Ficou fora da mesa_advogada de propósito: trocar a assinatura dela exige
-  // DROP, e DROP nela trava — mae_board2 depende dela (timeout de 180s em 07/10).
-  const carregar = useCallback(async () => {
-    // p_limite era 300 e a mesa tem 943: pra quem vê tudo, 643 ficavam de fora
-    // sem nenhum aviso na tela. Subi pra 2000.
-    const [r, d] = await Promise.all([
-      supabase.rpc('mesa_advogada', { p_limite: 2000 }),
-      supabase.rpc('mesa_advogada_donos'),
-    ])
-    if (r.error) console.error(r.error)
-    if (d.error) console.error(d.error)
-    const donos = {}
-    ;(d.data || []).forEach(x => { donos[x.lead_id] = x.advogado_nome })
-    setFila((r.data || []).map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
-    setLoading(false)
+  // 13/10 — O CORTE DE 1.000 DO POSTGREST. O Supabase devolve no maximo 1.000 linhas
+  // por chamada (db-max-rows) e NAO avisa: a resposta volta cortada, sem erro nenhum.
+  // Com a mesa em 1.253 isso dava DOIS estragos ao mesmo tempo:
+  //   1) a lista chegava com 1.000 e 253 leads ficavam invisiveis pra quem ve tudo;
+  //   2) pior, mesa_advogada_donos cortava em OUTRAS 1.000 linhas (ordem diferente),
+  //      entao leads que vinham na lista e nao vinham no mapa de donos apareciam
+  //      como "sem dono" — eram 204 em 13/10, com ZERO sem dono no banco.
+  // Buscar por paginas de 1.000 resolve os dois. O de-duplica por id porque a funcao
+  // e reexecutada a cada pagina e um lead decidido no meio do caminho desloca a ordem.
+  const PAGINA = 1000
+  const rpcTudo = useCallback(async (fn, args) => {
+    const vistos = new Set()
+    const todas = []
+    for (let de = 0; de < 20000; de += PAGINA) {
+      const { data, error } = await supabase.rpc(fn, args).range(de, de + PAGINA - 1)
+      if (error) {
+        console.error(fn, error)
+        // Rede de seguranca: se o .range() for recusado, volta pro comportamento
+        // antigo (uma chamada so). Melhor a tela com 1.000 do que a tela vazia.
+        if (de === 0) {
+          const r2 = await supabase.rpc(fn, args)
+          if (r2.error) console.error(fn, r2.error)
+          return r2.data || []
+        }
+        break
+      }
+      const lote = data || []
+      lote.forEach(x => {
+        const k = x.id != null ? x.id : x.lead_id
+        if (!vistos.has(k)) { vistos.add(k); todas.push(x) }
+      })
+      if (lote.length < PAGINA) break
+    }
+    return todas
   }, [])
+
+  const carregar = useCallback(async () => {
+    // p_limite 5000: a mesa saiu de 453 pra 1.253 em duas horas no dia 13/10 e os
+    // 2000 de antes viram teto em pouco tempo. O corte de verdade e o de 1.000 do
+    // PostgREST, tratado pelo rpcTudo acima.
+    const [r, d] = await Promise.all([
+      rpcTudo('mesa_advogada', { p_limite: 5000 }),
+      rpcTudo('mesa_advogada_donos'),
+    ])
+    const donos = {}
+    d.forEach(x => { donos[x.lead_id] = x.advogado_nome })
+    setFila(r.map(c => ({ ...c, advogado_nome: donos[c.id] || null })))
+    setLoading(false)
+  }, [rpcTudo])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => {
