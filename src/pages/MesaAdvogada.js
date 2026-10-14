@@ -384,6 +384,8 @@ const s = {
   provaOk: { marginBottom: 10, padding: '10px 12px', background: 'rgba(5,150,105,.09)', border: '0.5px solid rgba(5,150,105,.28)', borderRadius: 9, fontSize: 12.5, fontWeight: 600, color: '#065f46', lineHeight: 1.55 },
   provaLink: { display: 'block', marginTop: 5, padding: 0, background: 'none', border: 0, color: '#5b6b84', fontSize: 11.5, fontWeight: 500, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' },
   telaGerid: { marginTop: 7, padding: '9px 11px', background: '#0f172a', color: '#e2e8f0', borderRadius: 8, fontSize: 11, lineHeight: 1.5, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, monospace' },
+  // 14/10 — sem uso desde que o print virou link (Bruno pediu texto, nao foto).
+  // Mantido so pra quem quiser voltar a mostrar a imagem inline.
   vincImg: { maxWidth: '100%', borderRadius: 8, border: '0.5px solid rgba(15,23,42,.12)', marginTop: 7, display: 'block' },
   buscaWrap: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6, flexWrap: 'wrap' },
   buscaInput: { flex: '1 1 280px', minWidth: 0, padding: '9px 12px', fontSize: 13, borderRadius: 9, border: '0.5px solid rgba(15,23,42,.14)', background: '#ffffff', color: '#0f172a', fontFamily: 'inherit', boxSizing: 'border-box' },
@@ -1480,11 +1482,23 @@ export default function MesaAdvogada() {
                     <div>
                       {cnisCarregando && <div style={s.provaMini}>carregando…</div>}
 
-                      {printsDoRobo(c).map((u, i2) => (
-                        <a key={i2} href={u} target="_blank" rel="noreferrer" title="abrir em tamanho real">
-                          <img src={u} alt={'GERID ' + (i2 + 1)} style={s.vincImg} />
-                        </a>
-                      ))}
+                      {/* 14/10 (Bruno): "pq tem alguns com fotos e outros com texto
+                          eu quero com texto de maneira organizada".
+                          A foto saiu daqui e virou link. Medido antes de tirar: dos
+                          leads da mesa com print, TODOS tem tambem os vinculos em
+                          texto (de 2 a 26 por lead) — nenhuma informacao se perde,
+                          so para de empurrar 2 a 4 imagens na frente da tabela.
+                          O link fica pro caso de a advogada querer a prova original. */}
+                      {printsDoRobo(c).length > 0 && (
+                        <div style={{ marginBottom: 8, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {printsDoRobo(c).map((u, i2) => (
+                            <a key={i2} href={u} target="_blank" rel="noreferrer"
+                               style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>
+                              🖼️ print {i2 + 1} do GERID
+                            </a>
+                          ))}
+                        </div>
+                      )}
 
                       {cnisDet && Array.isArray(cnisDet.vinculos) && cnisDet.vinculos.length > 0 && (
                         <div style={s.vincTabela}>
@@ -1508,8 +1522,10 @@ export default function MesaAdvogada() {
                         </div>
                       )}
 
-                      {/* texto bruto: so pra conferencia, link pequeno */}
-                      {cnisDet && cnisDet.tela && (
+                      {/* texto bruto: so pra conferencia, link pequeno.
+                          So aparece quando o texto REALMENTE tem vinculo. Quem
+                          decide isso e o banco (tela_tem_dados), nao o front. */}
+                      {cnisDet && cnisDet.tela && cnisDet.tela_tem_dados && (
                         <div style={{ marginTop: 8 }}>
                           <button style={s.linkMini} onClick={() => setCnisBruto(b => !b)}>
                             {cnisBruto ? 'esconder' : 'ver'} texto bruto do GERID
@@ -1518,8 +1534,17 @@ export default function MesaAdvogada() {
                         </div>
                       )}
 
-                      {!cnisCarregando && cnisDet && !(Array.isArray(cnisDet.vinculos) && cnisDet.vinculos.length) && !cnisDet.tela && (
-                        <div style={s.provaMini}>O assistente não guardou os vínculos deste lead.</div>
+                      {/* 14/10 — antes isto so aparecia quando a 'tela' vinha vazia,
+                          e por isso quase nunca aparecia: 357 leads da mesa tem tela
+                          preenchida so com o cabecalho do portal, SEM nenhuma data.
+                          A advogada clicava em "ver texto bruto" e achava um texto
+                          sem vinculo nenhum. Agora a tela diz a verdade. */}
+                      {!cnisCarregando && cnisDet
+                        && !(Array.isArray(cnisDet.vinculos) && cnisDet.vinculos.length)
+                        && !cnisDet.tela_tem_dados && (
+                        <div style={s.provaMini}>
+                          O assistente não capturou os vínculos deste lead — consulte o GERID.
+                        </div>
                       )}
                     </div>
                   )}
