@@ -556,6 +556,12 @@ export default function MesaAdvogada() {
   // Agora a linha sai pronta daqui, com o CPF, a data e o prazo que FORAM GRAVADOS,
   // mais a vendedora que o rodizio sorteou (vem no retorno da advogada_decidir).
   const [aviso, setAviso] = useState(null)   // { texto, cliente }
+  // 14/10 (Bruno): botao da Maithe que fecha a distribuicao do dia. O estado
+  // inteiro vem do banco (retroativo_trava_status): travado, quem fechou, a
+  // que hora, quantos estao represados e se EU posso clicar. Nao decido
+  // permissao no front — quem decide e a retroativo_pode_travar.
+  const [trava, setTrava] = useState(null)
+  const [travando, setTravando] = useState(false)
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
@@ -604,15 +610,28 @@ export default function MesaAdvogada() {
     // espera + classificacao do seguro-desemprego + faixa de venda).
     // 14/10 — mesa_advogada_espera_v2 no lugar da mesa_advogada_espera: traz o
     // entrou_em junto com o resto, entao continua sendo 3 chamadas, nao 4.
-    const [r, d, e] = await Promise.all([
+    // 14/10 — entrou a 4a: mesa_advogada_filhos, o mapa data -> [nomes] dos
+    // filhos, pra linha do grupo sair com o nome completo e nao so a data.
+    // Ela NAO chama a mesa_advogada dentro (custa ~420ms, nao 1.590ms) e
+    // devolve UMA linha por lead de proposito — ver o comentario do rpcTudo.
+    const [r, d, e, fl] = await Promise.all([
       rpcTudo('mesa_advogada', { p_limite: 5000 }),
       rpcTudo('mesa_advogada_donos'),
       rpcTudo('mesa_advogada_espera_v2'),
+      rpcTudo('mesa_advogada_filhos'),
     ])
     const donos = {}
     d.forEach(x => { donos[x.lead_id] = x.advogado_nome })
     const extras = {}
     e.forEach(x => { extras[x.lead_id] = x })
+    const nomesFilhos = {}
+    fl.forEach(x => { nomesFilhos[x.lead_id] = x.filhos || {} })
+    // estado do botao de fechar o dia. Fora do Promise.all acima de proposito:
+    // devolve UM jsonb (nao e lista), entao nao passa pelo rpcTudo, e se falhar
+    // nao pode derrubar o carregamento da mesa — por isso o catch silencioso.
+    supabase.rpc('retroativo_trava_status')
+      .then(({ data }) => setTrava(data || null))
+      .catch(e => console.error('retroativo_trava_status', e))
     setFila(r.map(c => {
       const x = extras[c.id] || {}
       return {
@@ -627,6 +646,10 @@ export default function MesaAdvogada() {
         meses_nos_18: x.meses_nos_18 == null ? null : x.meses_nos_18,
         demissao: x.demissao || null,
         faixa_venda: x.faixa || null,
+        // mapa { "DD/MM/AAAA": ["Nome Completo", ...] }. Vem pronto do banco,
+        // ja sem a marcacao "Óbito"/"Indicativo criminal" que a detetive_fila
+        // cola no nome da crianca. Nao montar nome no front.
+        filhos_nomes: nomesFilhos[c.id] || {},
       }
     }))
     setLoading(false)
@@ -847,7 +870,20 @@ export default function MesaAdvogada() {
       // so os filhos que ela marcou — o que ela descartou nao vai pro grupo
       const filhos = filhosDoLead.length > 1 ? filhosOk : filhosDoLead
       const rotulo = filhos.length > 1 ? 'Filhos no prazo' : 'Filho no prazo'
-      const trechoFilhos = filhos.length ? ` - ${rotulo}: ${filhos.join(', ')}` : ''
+      // 14/10 (Bruno): "quando o advogado copia e cola pra mandar nos grupos
+      // apareça o nome completo do filho nao só a data de nascimento".
+      // O nome vem pronto do banco (mesa_advogada_filhos) num mapa
+      // data -> [nomes]; aqui e so lookup pela data que a advogada marcou.
+      // Quem nao tem nome no detetive (0,7% da mesa) continua saindo so com a
+      // data, exatamente como antes — nunca sai "undefined" no grupo.
+      // Gemeos: dois nomes na mesma data, ligados por " e ".
+      const comNome = (dn) => {
+        const lista = (lead.filhos_nomes || {})[dn]
+        return (lista && lista.length) ? `${lista.join(' e ')} — ${dn}` : dn
+      }
+      const trechoFilhos = filhos.length
+        ? ` - ${rotulo}: ${filhos.map(comNome).join(', ')}`
+        : ''
       // 22/09 (Bruno): a vendedora liga sem saber onde a cliente trabalhou. A
       // linha do grupo é o único canal que chega nela, então o vínculo que
       // gerou o direito vai junto — em linha separada, pra não virar um
@@ -897,6 +933,28 @@ export default function MesaAdvogada() {
     copiar(texto)
     setCopiado(chave)
     setTimeout(() => setCopiado(c => (c === chave ? '' : c)), 1400)
+  }
+
+  // 14/10 (Bruno): fecha/reabre a distribuicao do dia.
+  // Fechado NAO para a analise: a advogada segue aprovando igual, o lead so nao
+  // cai na vendedora hoje — sai amanha as 8h pelo cron.
+  // O motivo e obrigatorio no banco (igual a troca de fila da coordenadora),
+  // entao peco aqui antes de chamar.
+  const mexerNaTrava = async (fechar) => {
+    const motivo = window.prompt(fechar
+      ? 'Por que está fechando a distribuição de hoje?\n(ex: limite do dia batido)'
+      : 'Por que está reabrindo a distribuição de hoje?')
+    if (motivo === null) return                       // cancelou
+    if (!motivo || motivo.trim().length < 3) { alert('Escreva o motivo (mínimo 3 letras).'); return }
+    setTravando(true)
+    try {
+      const { data, error } = await supabase.rpc('retroativo_trava_dia',
+        { p_travar: fechar, p_motivo: motivo.trim() })
+      if (error) { alert('Não deu: ' + error.message); return }
+      if (data && data.ok === false) { alert(data.erro || 'Não deu.'); return }
+      const { data: st } = await supabase.rpc('retroativo_trava_status')
+      setTrava(st || null)
+    } finally { setTravando(false) }
   }
 
   const copiarLote = (lista) => {
@@ -1011,6 +1069,49 @@ export default function MesaAdvogada() {
   return (
     <div style={s.wrap}>
       <h1 style={s.h1}>⚖️ Mesa da Advogada — Retroativo</h1>
+
+      {/* 14/10 (Bruno): fechar a distribuicao do dia. Quando esta fechado TODA
+          a mesa ve a faixa (pra ninguem achar que a entrega quebrou), mas so
+          quem tem permissao ve o botao — e quem decide isso e o banco. */}
+      {trava && trava.travado && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fdba74', borderRadius: 10,
+                      padding: '10px 14px', marginBottom: 12, display: 'flex',
+                      alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: '#9a3412' }}>
+            🔒 Distribuição de hoje fechada
+          </span>
+          <span style={{ fontSize: 12.5, color: '#7c2d12' }}>
+            {trava.travado_por ? `por ${trava.travado_por}` : ''}
+            {trava.travado_em ? ` às ${trava.travado_em}` : ''}
+            {trava.motivo ? ` · ${trava.motivo}` : ''}
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#9a3412' }}>
+            {trava.represados || 0} represada{(trava.represados || 0) === 1 ? '' : 's'} — sai{(trava.represados || 0) === 1 ? '' : 'em'} amanhã às 8h
+          </span>
+          <span style={{ fontSize: 12, color: '#7c2d12', flex: 1, minWidth: 180 }}>
+            Continue aprovando normal: só não cai na vendedora hoje.
+          </span>
+          {trava.pode_travar && (
+            <button style={s.btnLoteSec} disabled={travando}
+                    onClick={() => mexerNaTrava(false)}>
+              {travando ? 'aguarde…' : '🔓 Reabrir hoje'}
+            </button>
+          )}
+        </div>
+      )}
+      {trava && !trava.travado && trava.pode_travar && (
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center',
+                      gap: 10, flexWrap: 'wrap' }}>
+          <button style={s.btnLoteSec} disabled={travando}
+                  onClick={() => mexerNaTrava(true)}>
+            {travando ? 'aguarde…' : '🔒 Fechar distribuição de hoje'}
+          </button>
+          <span style={{ fontSize: 12, color: '#5b6b84' }}>
+            {trava.entregues_hoje || 0} entregue{(trava.entregues_hoje || 0) === 1 ? '' : 's'} hoje ·
+            fechando, o que for aprovado daqui pra frente sai amanhã às 8h
+          </span>
+        </div>
+      )}
 
       {/* 22/09 — busca na fila carregada. Filtra enquanto digita. */}
       <div style={s.buscaWrap}>
