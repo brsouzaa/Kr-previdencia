@@ -157,6 +157,83 @@ const GERID = {
            dica: 'O assistente não encontrou direito aqui e separou pra você conferir' },
 }
 
+// 14/10 — SELO DO SEGURO-DESEMPREGO (lead de 24 meses).
+// A classe vem PRONTA do banco (dados_json.gerid_seguro, preenchido por trigger,
+// ou a funcao gerid_seguro_provavel). Aqui so se escolhe cor e texto — nenhuma
+// regra de seguro-desemprego e decidida no front.
+const SEGURO = {
+  provavel:   { label: '24m · Seguro provável',     cor: '#047857', bg: 'rgba(5,150,105,.12)' },
+  improvavel: { label: '24m · Sem seguro provável', cor: '#b45309', bg: 'rgba(180,83,9,.12)' },
+  sem_dado:   { label: '24m · Conferir vínculos',   cor: '#5b6b84', bg: 'rgba(15,23,42,.06)' },
+}
+// 14/10 — SELO GRANDE do cabecalho. So combina dois campos que ja vem prontos do
+// banco (faixa + seguro_classe) pra escolher rotulo e cor. Nenhuma regra sai daqui.
+const seloFaixa = (c) => {
+  if (!c) return null
+  if (c.seguro_classe === 'provavel')   return { label: '24m · Seguro provável',     cor: '#047857', bg: 'rgba(5,150,105,.14)' }
+  if (c.seguro_classe === 'improvavel') return { label: '24m · Sem seguro provável', cor: '#b45309', bg: 'rgba(180,83,9,.14)' }
+  if (c.seguro_classe === 'sem_dado')   return { label: 'Conferir vínculos',         cor: '#5b6b84', bg: 'rgba(15,23,42,.07)' }
+  if (c.faixa_venda === '12')           return { label: '12 meses',                  cor: '#047857', bg: 'rgba(5,150,105,.14)' }
+  if (c.faixa_venda === '24')           return { label: '24 meses',                  cor: '#0d9488', bg: 'rgba(13,148,136,.14)' }
+  return null
+}
+// O filho que deu o direito e o motivo dele, tirados do que a RPC ja manda.
+const filhoDoDireito = (c) => {
+  const lista = Array.isArray(c && c.gerid_filhos) ? c.gerid_filhos : []
+  const v = c && c.vinculo_direito
+  if (v && v.filho_dn) { const m = lista.find(f => f && f.dn === v.filho_dn); if (m) return m }
+  return lista.find(f => f && f.sugestao === 'aprovar') || null
+}
+// Filhos que o assistente NAO aprovou. Ficam numa linha discreta, nao somem.
+const filhosReprovados = (c) =>
+  (Array.isArray(c && c.gerid_filhos) ? c.gerid_filhos : []).filter(f => f && f.sugestao === 'reprovar')
+// 14/10 — o aviso de nome vem DENTRO do texto do gerid_resumo, escrito pelo
+// assistente ("ATENCAO nome do portal ... nao bate com o CRM"). Nao existe campo
+// proprio no banco. Aqui so se recorta a frase pra virar faixa; nada e comparado.
+const avisoNome = (c) => {
+  const r = (c && c.gerid_resumo) || ''
+  const m = r.match(/ATENCAO[^|]*nome do portal[^|]*/i)
+  return m ? m[0].trim() : null
+}
+// quantos vinculos o CNIS tem, pelo numero que o proprio resumo abre ("3 vinculo(s) | ...")
+const qtdVinculos = (c) => {
+  const v = c && c.vinculo_direito
+  if (v && v.total_vinculos) return v.total_vinculos
+  const m = ((c && c.gerid_resumo) || '').match(/^(\d+)\s+vinculo/i)
+  return m ? Number(m[1]) : null
+}
+// 14/10 — qual botao de decisao combina com a faixa/seguro deste lead. SO destaca:
+// o advogado continua tendo que clicar, e todos os botoes seguem habilitados.
+const motivoSugerido = (c) => {
+  if (!c) return null
+  if (c.seguro_classe === 'provavel' || c.seguro_classe === 'improvavel') return MOTIVOS_APROVA[1]
+  if (c.faixa_venda === '12') return MOTIVOS_APROVA[0]
+  if (c.faixa_venda === '24') return MOTIVOS_APROVA[1]
+  return null
+}
+
+// Quando mostrar: o BANCO ja decidiu. A mesa_advogada_espera_v2 devolve
+// seguro_classe NULA quando nao e caso de 24 meses por seguro. Aqui so se
+// pergunta se veio classe — nenhuma regra de seguro-desemprego sai daqui.
+const seloSeguro = (c) => (c && c.seguro_classe ? SEGURO[c.seguro_classe] || null : null)
+const dicaSeguro = (c) => {
+  if (!c) return ''
+  const p = []
+  if (c.seguro_motivo) p.push(c.seguro_motivo)
+  if (c.meses_nos_18 != null) p.push(c.meses_nos_18 + ' meses de carteira nos 18 antes da demissão')
+  if (c.demissao) p.push('demissão ' + c.demissao)
+  // 14/10 — a faixa fica AQUI, no tooltip, e nao num chip proprio: a tela ja tem
+  // os chips "12 meses" e "12 a 24 meses" do assistente, e um segundo par com os
+  // mesmos numeros so confundia quem bate o olho.
+  if (c.faixa_venda) p.push('faixa de venda: ' + c.faixa_venda + ' meses')
+  return p.join(' · ')
+}
+
+// 14/10 — DESLIGADA do uso. Era ela que decidia os chips "12 meses" / "12 a 24
+// meses" lendo o texto do motivo do GERID. Agora essa decisao vem do banco, pela
+// retroativo_faixa_do_lead, que chega em c.faixa_venda. Nao religar: o motivo do
+// GERID nao sabe do seguro-desemprego, entao ele joga em "12 a 24" uma venda que
+// na verdade e de 12.
 // Em qual faixa o robô encaixou o direito. Lê o motivo que ele escreveu em cada
 // filho APROVADO — reprovado não conta, senão um filho negado por "já recebeu"
 // mudaria a aba de uma cliente que tem direito por outro.
@@ -177,10 +254,12 @@ const faixaGerid = (c) => {
 // Auditoria só faz sentido em cima de reprovação.
 const abaGerid = (c) => (
   !c ? null
-  // só vai pra "12 meses" (liberar direto) quem o robô classificou como tal.
-  // Aprovado com motivo que não reconhecemos cai em "12 a 24", que é a aba que
-  // pede conferência — errar pro lado de olhar a mais, não a menos.
-  : c.gerid_veredito === 'aprovar' ? (faixaGerid(c) === '12' ? 'apr12' : 'apr24')
+  // 14/10 — a faixa vem do BANCO (mesa_advogada_espera_v2 -> retroativo_faixa_do_lead),
+  // nao mais do texto do motivo do GERID. 12 meses e 12 meses: o 24 meses com
+  // seguro-desemprego provavel JA ENTRA AQUI como 12, que e a faixa de venda real.
+  // Sem faixa (lead ainda sem classificacao) cai em "12 a 24", que e a aba que pede
+  // conferencia — errar pro lado de olhar a mais, nao a menos.
+  : c.gerid_veredito === 'aprovar' ? (c.faixa_venda === '12' ? 'apr12' : 'apr24')
   // 13/10 — "Negadas" agora exige as DUAS coisas: a marca de auditoria E a prova
   // de que o robô realmente consultou (print guardado ou texto da tela). Sem a
   // segunda condição, um lead que recebesse a marca antes da consulta aparecia
@@ -232,6 +311,25 @@ const s = {
   dado: { fontSize: 12, color: '#5b6b84', marginTop: 3 },
   badge: (cor, bg) => ({ padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color: cor, whiteSpace: 'nowrap' }),
   badges: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  // 14/10 — selo grande da faixa/seguro, no cabecalho do lead.
+  seloTopo: (cor, bg) => ({ display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 14, fontWeight: 800, background: bg, color: cor, whiteSpace: 'nowrap', letterSpacing: '0.2px' }),
+  // card unico "Por que tem direito"
+  pqBox: (neg) => ({ border: '1px solid ' + (neg ? 'rgba(180,83,9,.45)' : '#d7e0ec'), borderRadius: 11, padding: '11px 13px', background: neg ? 'rgba(251,191,36,.09)' : '#f8fbff', marginTop: 10 }),
+  pqTit: { fontSize: 11, fontWeight: 800, color: '#5b6b84', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 7 },
+  pqLinha: { fontSize: 13.5, color: '#0f172a', lineHeight: 1.55 },
+  pqForte: { fontWeight: 700 },
+  pqMotivo: { fontSize: 12.5, color: '#41506b', marginTop: 5, lineHeight: 1.5 },
+  faixaAmarela: { marginTop: 9, padding: '8px 11px', borderRadius: 9, background: 'rgba(251,191,36,.18)', border: '1px solid rgba(180,83,9,.35)', color: '#854f0b', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 },
+  faixaVermelha: { marginTop: 9, padding: '8px 11px', borderRadius: 9, background: 'rgba(220,38,38,.10)', border: '1px solid rgba(185,28,28,.45)', color: '#b91c1c', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 },
+  reprovados: { marginTop: 8, fontSize: 12, color: '#5b6b84', lineHeight: 1.5 },
+  // botao primario dos vinculos
+  btnCNIS: { width: '100%', marginTop: 10, padding: '12px 14px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  linkMini: { background: 'none', border: 'none', color: '#185fa5', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit' },
+  provaMini: { marginTop: 7, fontSize: 11.5, color: '#41506b', lineHeight: 1.6 },
+  vincTabela: { marginTop: 8, borderTop: '1px solid #e4eaf3' },
+  vincRow: (destaque) => ({ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, padding: '7px 9px', borderBottom: '1px solid #eef2f8', fontSize: 12.5, background: destaque ? 'rgba(5,150,105,.09)' : 'transparent', borderLeft: destaque ? '3px solid #059669' : '3px solid transparent' }),
+  vincEmpresa: { fontWeight: 700, color: '#0f172a' },
+  vincPeriodo: { color: '#5b6b84', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' },
   barraLote: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 },
   btnLote: { padding: '9px 14px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
   loteDica: { fontSize: 12, color: '#5b6b84' },
@@ -428,6 +526,14 @@ export default function MesaAdvogada() {
   // 07/10 — filtro por advogado, só pra quem enxerga a mesa inteira (admin e
   // Maithe). Serve pra ver o que cada um já fez e o que falta.
   const [fAdv, setFAdv] = useState('todos')
+  // 14/10 — eixo do seguro-desemprego. So faz sentido no lead de 24 meses.
+  // 14/10 — janela dos vinculos do CNIS, agora aberta pelo botao principal e nao
+  // so depois de clicar em pre-aprovar/negar. Usa a MESMA mesa_gerid_detalhe.
+  const [cnisAberto, setCnisAberto] = useState(null)   // id do lead
+  const [cnisDet, setCnisDet] = useState(null)
+  const [cnisCarregando, setCnisCarregando] = useState(false)
+  const [cnisBruto, setCnisBruto] = useState(false)
+  const [fSeg, setFSeg] = useState('tudo')          // tudo | provavel | improvavel | sem_dado
   const [busca, setBusca] = useState('')            // 22/09 — nome, telefone ou CPF
   const [detGerid, setDetGerid] = useState(null)    // detalhe do lead aberto (vínculos, prints, tela)
   const [detCarregando, setDetCarregando] = useState(false)
@@ -494,21 +600,35 @@ export default function MesaAdvogada() {
   }, [])
 
   const carregar = useCallback(async () => {
-    // as tres em paralelo: a lista, de quem e cada lead, e ha quanto tempo espera.
+    // as tres em paralelo: a lista, de quem e cada lead, e a espera v2 (tempo de
+    // espera + classificacao do seguro-desemprego + faixa de venda).
+    // 14/10 — mesa_advogada_espera_v2 no lugar da mesa_advogada_espera: traz o
+    // entrou_em junto com o resto, entao continua sendo 3 chamadas, nao 4.
     const [r, d, e] = await Promise.all([
       rpcTudo('mesa_advogada', { p_limite: 5000 }),
       rpcTudo('mesa_advogada_donos'),
-      rpcTudo('mesa_advogada_espera'),
+      rpcTudo('mesa_advogada_espera_v2'),
     ])
     const donos = {}
     d.forEach(x => { donos[x.lead_id] = x.advogado_nome })
-    const espera = {}
-    e.forEach(x => { espera[x.lead_id] = x.entrou_em })
-    setFila(r.map(c => ({
-      ...c,
-      advogado_nome: donos[c.id] || null,
-      entrou_em: espera[c.id] || null,
-    })))
+    const extras = {}
+    e.forEach(x => { extras[x.lead_id] = x })
+    setFila(r.map(c => {
+      const x = extras[c.id] || {}
+      return {
+        ...c,
+        advogado_nome: donos[c.id] || null,
+        entrou_em: x.entrou_em || null,
+        // TUDO abaixo vem pronto do banco. Nao recalcular nada disso no front:
+        // a regra do seguro-desemprego e da faixa mora na gerid_seguro_provavel
+        // e na retroativo_faixa_do_lead.
+        seguro_classe: x.seguro_classe || null,
+        seguro_motivo: x.seguro_motivo || null,
+        meses_nos_18: x.meses_nos_18 == null ? null : x.meses_nos_18,
+        demissao: x.demissao || null,
+        faixa_venda: x.faixa || null,
+      }
+    }))
     setLoading(false)
   }, [rpcTudo])
 
@@ -580,6 +700,19 @@ export default function MesaAdvogada() {
         .catch(e => console.error('mesa_gerid_detalhe', e))
         .finally(() => setDetCarregando(false))
     }
+  }
+
+  // 14/10 — abre a lista de vinculos. Mesma RPC que o painel de decisao ja usava,
+  // so que agora dispara pelo botao principal. Nenhuma chamada nova foi criada.
+  const abrirCNIS = (c) => {
+    if (cnisAberto === c.id) { setCnisAberto(null); return }
+    setCnisAberto(c.id); setCnisBruto(false)
+    if (cnisDet && cnisDet.__id === c.id) return
+    setCnisDet(null); setCnisCarregando(true)
+    supabase.rpc('mesa_gerid_detalhe', { p_lead_id: c.id })
+      .then(({ data }) => setCnisDet(data ? { ...data, __id: c.id } : { __id: c.id }))
+      .catch(e => console.error('mesa_gerid_detalhe', e))
+      .finally(() => setCnisCarregando(false))
   }
 
   // prints que o robo tirou do GERID. Se existem, valem como print da
@@ -812,6 +945,9 @@ export default function MesaAdvogada() {
   // 23/09: eixo ÚNICO. "Todas" mostra a fila inteira; os três chips cortam
   // por onde o assistente está.
   const casaGerid = (c) => (fGerid === 'tudo' || abaGerid(c) === fGerid)
+  // 14/10 — terceiro eixo: seguro-desemprego. Lead sem classe (nao se aplica)
+  // some quando um dos dois chips esta ligado.
+  const casaSeg = (c) => (fSeg === 'tudo' || c.seguro_classe === fSeg)
 
   // 13/10 — OS NÚMEROS DOS CHIPS MENTIAM. Eles contavam sempre a fila INTEIRA,
   // então escolher um advogado não mudava nada: com Felipe selecionado a tela
@@ -820,13 +956,17 @@ export default function MesaAdvogada() {
   // aparecendo pra eles": o número grande era da mesa toda, não o deles.
   // Agora cada eixo conta dentro do outro: o chip do robô conta DENTRO do
   // advogado escolhido, e o chip do advogado conta DENTRO da aba escolhida.
-  const baseGerid = fila.filter(c => casaBusca(c) && casaAdv(c))
-  const baseAdv = fila.filter(c => casaBusca(c) && casaGerid(c))
+  const baseGerid = fila.filter(c => casaBusca(c) && casaAdv(c) && casaSeg(c))
+  const baseAdv = fila.filter(c => casaBusca(c) && casaGerid(c) && casaSeg(c))
+  // mesma logica dos outros eixos: cada chip conta dentro de todos os outros.
+  const baseSeg = fila.filter(c => casaBusca(c) && casaGerid(c) && casaAdv(c))
+  const contaSeg = (k) => baseSeg.filter(c => c.seguro_classe === k).length
+  const temSeguro = fila.some(c => c.seguro_classe)
   const contaGerid = baseGerid.reduce((a, c) => { const k = abaGerid(c); if (k) a[k] = (a[k] || 0) + 1; return a }, {})
   const contaAdv = (nome) => baseAdv.filter(c => c.advogado_nome === nome).length
   const contaSemDono = baseAdv.filter(c => !c.advogado_nome).length
 
-  const visiveis = fila.filter(c => casaBusca(c) && casaGerid(c) && casaAdv(c))
+  const visiveis = fila.filter(c => casaBusca(c) && casaGerid(c) && casaAdv(c) && casaSeg(c))
   // quantos a busca acharia se os chips não estivessem filtrando — serve pra
   // dizer "achei 2, mas os filtros escondem" em vez de mentir "não achei nada"
   const achadosSoBusca = bus ? fila.filter(casaBusca).length : 0
@@ -834,7 +974,12 @@ export default function MesaAdvogada() {
   // leads que o robô ainda não tinha consultado: ela abria a mesa e tropeçava
   // justamente nos que não dava pra resolver.
   const PESO = { apr12: 0, apr24: 1, neg: 2, fila: 3 }
-  visiveis.sort((a, b) => (PESO[abaGerid(a)] ?? 9) - (PESO[abaGerid(b)] ?? 9))
+  // 14/10 — dentro do mesmo grupo, seguro PROVAVEL vem antes: e a venda que vira
+  // administrativa, entao e a que vale a pena conferir primeiro.
+  const PESO_SEG = { provavel: 0, improvavel: 1, sem_dado: 2 }
+  visiveis.sort((a, b) =>
+    ((PESO[abaGerid(a)] ?? 9) - (PESO[abaGerid(b)] ?? 9)) ||
+    ((PESO_SEG[a.seguro_classe] ?? 3) - (PESO_SEG[b.seguro_classe] ?? 3)))
   const fmtTempo = (m) => {
     const n = Number(m) || 0
     return n >= 60 ? Math.floor(n / 60) + 'h' + String(n % 60).padStart(2, '0') : n + 'min'
@@ -964,6 +1109,32 @@ export default function MesaAdvogada() {
               sem dono · {contaSemDono}
             </button>
           )}
+        </div>
+      )}
+
+      {/* 14/10 — eixo do seguro-desemprego. So aparece quando ha lead classificado
+          na fila: em dia sem nenhum lead de 24 meses a linha nao polui a tela.
+          A classificacao e a faixa de venda vem prontas do banco. A DISTRIBUICAO
+          entre advogados tambem (maismae.mesa_rotear_faixa, de 2 em 2 min) —
+          nada aqui mexe em quem fica com o lead. */}
+      {temSeguro && (
+        <div style={s.chipsLinha}>
+          <span style={s.chipsRotulo}>Seguro-desemprego</span>
+          <button style={s.chip('#0f172a', 'rgba(15,23,42,.04)', fSeg === 'tudo')}
+            onClick={() => setFSeg('tudo')}>
+            Todos · {baseSeg.length}
+          </button>
+          {['provavel', 'improvavel', 'sem_dado'].map(k => (
+            <button key={k} style={s.chip(SEGURO[k].cor, SEGURO[k].bg, fSeg === k)}
+              onClick={() => setFSeg(fSeg === k ? 'tudo' : k)}
+              title={k === 'provavel'
+                ? 'Tem tempo de carteira pra ter recebido seguro-desemprego — confirme com a cliente e a venda vira administrativa'
+                : k === 'improvavel'
+                ? 'Sem tempo suficiente pra seguro-desemprego — segue pela tese de 24 meses'
+                : 'Vínculos insuficientes pra decidir — conferir no CNIS'}>
+              {SEGURO[k].label} · {contaSeg(k)}
+            </button>
+          ))}
         </div>
       )}
 
@@ -1100,13 +1271,23 @@ export default function MesaAdvogada() {
                   )}
                 </div>
               </div>
-              <div style={s.badges}>
-                {c.do_detetive && (
-                  <span style={s.badge(DETETIVE_COR, DETETIVE_BG)} title="data de nascimento lida no órgão">
-                    🕵️ Detetive
+              {/* 14/10 — coluna da direita: o selo da faixa em cima, sozinho e grande,
+                  porque e a primeira coisa que o advogado precisa ver. Os selos
+                  pequenos (Detetive, fila) ficam embaixo, numa linha so. */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                {seloFaixa(c) && (
+                  <span style={s.seloTopo(seloFaixa(c).cor, seloFaixa(c).bg)} title={dicaSeguro(c)}>
+                    {seloFaixa(c).label}
                   </span>
                 )}
-                <span style={s.badge(f.cor, f.bg)}>{f.label}</span>
+                <div style={s.badges}>
+                  {c.do_detetive && (
+                    <span style={s.badge(DETETIVE_COR, DETETIVE_BG)} title="data de nascimento lida no órgão">
+                      🕵️ Detetive
+                    </span>
+                  )}
+                  <span style={s.badge(f.cor, f.bg)}>{f.label}</span>
+                </div>
               </div>
             </div>
 
@@ -1117,43 +1298,141 @@ export default function MesaAdvogada() {
               </div>
             )}
 
-            {/* 21/09 — o que o ROBÔ DO GERID achou. Um bloco por filho, com o
-                motivo em texto. Isso é sugestão: quem decide é ela.
-                13/10 — a moldura de destaque comparava com 'aud', valor que
-                abaGerid nunca devolve, então nunca acendia. O rótulo é 'neg'. */}
-            {c.gerid_veredito && (
-              <div style={s.roboBox(abaGerid(c) === 'neg')}>
-                <div style={s.roboTopo}>
-                  <span>🤖 <b>Assistente consultou o GERID</b>{c.gerid_em ? ' · ' + fmtQuando(c.gerid_em) : ''}</span>
-                  {Array.isArray(c.gerid_prints) && c.gerid_prints.length > 0 && (
-                    <span style={s.roboPrintOk} title="o assistente guardou a imagem do GERID — você não precisa colar print">
-                      🗂️ print guardado
-                    </span>
+            {/* 14/10 — UM card so: o "DIREITO" e a sugestao do assistente estavam
+                dizendo a mesma coisa duas vezes, e o resumo corrido despejava todos
+                os vinculos num paragrafo. Tudo o que aparece aqui ja vem pronto da
+                mesa_advogada + mesa_advogada_espera_v2; nada e calculado. */}
+            {c.gerid_veredito && (() => {
+              const v = c.vinculo_direito
+              const fl = filhoDoDireito(c)
+              const reps = filhosReprovados(c)
+              const aviso = avisoNome(c)
+              const n = qtdVinculos(c)
+              return (
+                <div style={s.pqBox(abaGerid(c) === 'neg')}>
+                  <div style={s.pqTit}>
+                    {abaGerid(c) === 'neg' ? 'Por que o assistente não viu direito' : 'Por que tem direito'}
+                    {c.gerid_em ? ' · consultado ' + fmtQuando(c.gerid_em) : ''}
+                  </div>
+
+                  {fl && fl.dn && (
+                    <div style={s.pqLinha}>
+                      Filho: <span style={s.pqForte}>{brDeIso(fl.dn)}</span>
+                    </div>
+                  )}
+
+                  {v && (
+                    <>
+                      <div style={s.pqLinha}>
+                        {v.eh_beneficio ? '📄' : '🏢'}{' '}
+                        <span style={s.pqForte}>{v.empresa}</span>
+                        {v.tipo ? ' · ' + v.tipo : ''}
+                        {v.inicio || v.fim ? ' · ' + (v.inicio || '?') + ' → ' + (v.fim || '?') : ''}
+                      </div>
+                      {v.meses_antes_do_parto != null && (
+                        <div style={s.pqLinha}>
+                          Saiu <span style={s.pqForte}>
+                            {v.meses_antes_do_parto === 0
+                              ? 'no mês do parto'
+                              : v.meses_antes_do_parto + (v.meses_antes_do_parto === 1 ? ' mês' : ' meses') + ' antes do parto'}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {fl && fl.motivo && <div style={s.pqMotivo}>{fl.motivo}</div>}
+
+                  {/* so no 24 meses que depende de seguro-desemprego */}
+                  {(c.seguro_classe === 'provavel' || c.seguro_classe === 'improvavel') && (
+                    <div style={s.faixaAmarela}>
+                      ⚠️ CHECAR SEGURO-DESEMPREGO
+                      {c.meses_nos_18 != null && (
+                        <div style={{ fontWeight: 600, marginTop: 3 }}>
+                          {c.meses_nos_18} meses de carteira nos 18 antes da demissão
+                          {c.demissao ? ' · demissão ' + c.demissao : ''}
+                        </div>
+                      )}
+                      {c.seguro_motivo && (
+                        <div style={{ fontWeight: 400, marginTop: 3 }}>{c.seguro_motivo}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {aviso && <div style={s.faixaVermelha}>🚨 {aviso}</div>}
+
+                  {reps.length > 0 && (
+                    <div style={s.reprovados}>
+                      {reps.map((r, i2) => (
+                        <div key={i2}>
+                          ⛔ {r.dn ? brDeIso(r.dn) : 'outro filho'} — {r.motivo || 'sem direito'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button style={s.btnCNIS} onClick={() => abrirCNIS(c)}>
+                    {cnisAberto === c.id ? '▲ Esconder vínculos do CNIS' : '📄 Ver vínculos do CNIS' + (n ? ' (' + n + ')' : '')}
+                  </button>
+
+                  {cnisAberto === c.id && (
+                    <div>
+                      {cnisCarregando && <div style={s.provaMini}>carregando…</div>}
+
+                      {printsDoRobo(c).map((u, i2) => (
+                        <a key={i2} href={u} target="_blank" rel="noreferrer" title="abrir em tamanho real">
+                          <img src={u} alt={'GERID ' + (i2 + 1)} style={s.vincImg} />
+                        </a>
+                      ))}
+
+                      {cnisDet && Array.isArray(cnisDet.vinculos) && cnisDet.vinculos.length > 0 && (
+                        <div style={s.vincTabela}>
+                          {cnisDet.vinculos.map((vi, i2) => {
+                            const ehODireito = !!(v && vi && vi.nome && v.empresa
+                              && String(vi.nome).trim().toUpperCase() === String(v.empresa).trim().toUpperCase())
+                            return (
+                              <div key={i2} style={s.vincRow(ehODireito)}>
+                                <div>
+                                  <div style={s.vincEmpresa}>
+                                    {ehODireito ? '✅ ' : ''}{vi && vi.nome ? vi.nome : '—'}
+                                  </div>
+                                  <div style={{ color: '#5b6b84' }}>{vi && vi.tipo ? vi.tipo : ''}</div>
+                                </div>
+                                <div style={s.vincPeriodo}>
+                                  {vi && vi.inicio ? vi.inicio : '?'} → {vi && vi.fim ? vi.fim : 'hoje'}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* texto bruto: so pra conferencia, link pequeno */}
+                      {cnisDet && cnisDet.tela && (
+                        <div style={{ marginTop: 8 }}>
+                          <button style={s.linkMini} onClick={() => setCnisBruto(b => !b)}>
+                            {cnisBruto ? 'esconder' : 'ver'} texto bruto do GERID
+                          </button>
+                          {cnisBruto && <pre style={s.telaGerid}>{cnisDet.tela}</pre>}
+                        </div>
+                      )}
+
+                      {!cnisCarregando && cnisDet && !(Array.isArray(cnisDet.vinculos) && cnisDet.vinculos.length) && !cnisDet.tela && (
+                        <div style={s.provaMini}>O assistente não guardou os vínculos deste lead.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {temProvaDoRobo(c) && (
+                    <div style={s.provaMini}>
+                      ✅ {printsDoRobo(c).length > 0
+                            ? 'O print do assistente já vale como prova do GERID.'
+                            : 'O que o assistente leu no GERID já vale como prova.'}
+                    </div>
                   )}
                 </div>
-                {c.gerid_resumo && <div style={s.roboResumo}>{c.gerid_resumo}</div>}
-                {c.gerid_vendedor
-                  ? <pre style={s.vincTexto}>{c.gerid_vendedor}</pre>
-                  : c.vinculo_direito && (
-                      <div style={s.vincDireito}>
-                        {c.vinculo_direito.eh_beneficio ? '📄' : '🏢'} <b>{rotuloVinculo(c.vinculo_direito)}:</b>{' '}
-                        {textoVinculo(c.vinculo_direito)}
-                      </div>
-                    )}
-                {(Array.isArray(c.gerid_filhos) ? c.gerid_filhos : []).map((fl, i) => {
-                  const sg = seloFilho(fl && fl.sugestao)
-                  return (
-                    <div key={i} style={s.roboFilho}>
-                      <span style={s.roboSelo(sg.cor, sg.bg)}>{sg.label}</span>
-                      <span style={s.roboFilhoNome}>
-                        {fl && fl.nome ? fl.nome : 'filho'}{fl && fl.dn ? ' · ' + brDeIso(fl.dn) : ''}
-                      </span>
-                      {fl && fl.motivo && <div style={s.roboMotivo}>{fl.motivo}</div>}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+              )
+            })()}
 
             {!aberto && (
               <div style={s.acoes}>
@@ -1175,53 +1454,13 @@ export default function MesaAdvogada() {
                   {abrindo.tipo === 'ok' ? 'Por que ela é pré-aprovada?' : 'Por que ela foi negada?'}
                 </div>
 
-                {/* 21/09 — o que o assistente leu no GERID: prints e vínculos.
-                    Vem sob demanda (mesa_gerid_detalhe), só ao abrir o lead. */}
-                {c.gerid_veredito && (
-                  <div style={s.vincBox}>
-                    <div style={s.vincTit}>
-                      <span>🤖 O que o assistente leu no GERID</span>
-                      {detCarregando && <span style={{ fontWeight: 400, textTransform: 'none' }}>carregando…</span>}
-                    </div>
-
-                    {printsDoRobo(c).map((u, i) => (
-                      <a key={i} href={u} target="_blank" rel="noreferrer" title="abrir em tamanho real">
-                        <img src={u} alt={'GERID ' + (i + 1)} style={s.vincImg} />
-                      </a>
-                    ))}
-
-                    {/* 22/09 — o TEXTO que o assistente leu no GERID. Hoje é a prova
-                        que existe de fato: prints[] está vazio em todos os 126
-                        consultados, e a tela vem em 117 deles. */}
-                    {detGerid && detGerid.tela && (
-                      <div style={{ marginTop: 8 }}>
-                        <button style={s.btnLoteSec} onClick={() => setVerTela(v => !v)}>
-                          {verTela ? 'esconder' : 'ver'} o que o assistente leu na tela do GERID
-                        </button>
-                        {verTela && <pre style={s.telaGerid}>{detGerid.tela}</pre>}
-                      </div>
-                    )}
-
-                    {detGerid && Array.isArray(detGerid.vinculos) && detGerid.vinculos.length > 0 && (
-                      <div style={{ marginTop: 8 }}>
-                        <button style={s.btnLoteSec} onClick={() => setVerVinculos(v => !v)}>
-                          {verVinculos ? 'esconder' : 'ver'} os {detGerid.vinculos.length} vínculos do CNIS
-                        </button>
-                        {verVinculos && detGerid.vinculos.map((v, i) => (
-                          <div key={i} style={s.vincLinha}>
-                            <b>{v && v.nome ? v.nome : '—'}</b>
-                            {v && v.tipo ? ' · ' + v.tipo : ''}
-                            {v && v.inicio ? ' · ' + v.inicio : ''}{v && v.fim ? ' → ' + v.fim : ''}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {!detCarregando && !printsDoRobo(c).length && !c.gerid_tem_consulta && (
-                      <div style={{ fontSize: 11.5, color: '#92400e', marginTop: 4 }}>
-                        O assistente não guardou nem imagem nem texto deste — se for pré-aprovar, cole o print do GERID abaixo.
-                      </div>
-                    )}
+                {/* 14/10 — a lista de vinculos saiu DAQUI: agora abre pelo botao
+                    "Ver vinculos do CNIS" no card de cima, antes de decidir, que e
+                    quando ela serve. Repetir aqui era a mesma informacao duas vezes.
+                    Fica so o aviso de quem nao tem prova nenhuma. */}
+                {c.gerid_veredito && !c.gerid_tem_consulta && !printsDoRobo(c).length && (
+                  <div style={{ fontSize: 11.5, color: '#92400e', marginBottom: 8 }}>
+                    O assistente não guardou nem imagem nem texto deste — se for pré-aprovar, cole o print do GERID abaixo.
                   </div>
                 )}
 
@@ -1341,8 +1580,13 @@ export default function MesaAdvogada() {
                   ) : (
                     <button
                       key={m}
+                      title={m === motivoSugerido(c) ? 'combina com a faixa e o seguro deste lead — confira e clique' : undefined}
                       style={{
                         ...s.motivoBtn(abrindo.tipo === 'ok' ? '#059669' : '#dc2626'),
+                        // 14/10 — SO destaque. O botao sugerido nao e clicado sozinho,
+                        // nao fica pre-marcado e os outros continuam todos habilitados.
+                        ...(abrindo.tipo === 'ok' && m === motivoSugerido(c)
+                            ? { outline: '2px solid #059669', outlineOffset: 2, fontWeight: 800 } : {}),
                         // 21/09: print do robô libera igual ao print colado
                         ...(abrindo.tipo === 'ok'
                             && ((!print && !temProvaDoRobo(c)) || (filhos.length > 1 && filhosOk.length === 0))
@@ -1352,7 +1596,7 @@ export default function MesaAdvogada() {
                         && ((!print && !temProvaDoRobo(c)) || (filhos.length > 1 && filhosOk.length === 0)))}
                       onClick={() => decidir(c, abrindo.tipo === 'ok', m)}
                     >
-                      {m}
+                      {m}{abrindo.tipo === 'ok' && m === motivoSugerido(c) ? '   ← combina com este lead' : ''}
                     </button>
                   )
                 ))}
