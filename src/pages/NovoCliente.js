@@ -103,6 +103,12 @@ function cpfValido(cpf) {
   if (rest === 10 || rest === 11) rest = 0
   return rest === parseInt(cpf.substring(10, 11))
 }
+// 15/10 (Bruno) — data do banco (AAAA-MM-DD) no formato que a vendedora le.
+// Usada no aviso de CPF repetido, pra ela comparar o filho na hora.
+function dataBR(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''))
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+}
 function emailValido(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((e || '').trim()) }
 function telValido(t) { return (t || '').replace(/\D/g, '').length >= 10 }
 function normalizar(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }
@@ -155,8 +161,12 @@ export default function NovoCliente({ onSucesso }) {
     setVerificandoCpf(true)
     try {
       // Busca o cliente mais recente com mesmo CPF que NÃO esteja "morto"
+      // 15/10 (Bruno): + produto e dados_produto. No Maternidade Mae a cliente pode
+      // ter DOIS filhos com direito, e cada filho e um cadastro separado. Sem mostrar
+      // QUAL filho ja esta cadastrado, a vendedora le "ja existe" e para no meio —
+      // foi o que travou a Gislaine no CPF 126.605.766-88.
       const { data } = await supabase.from('clientes')
-        .select('id, nome, status, vendedor_operador_id, setor, profiles!clientes_vendedor_operador_id_fkey(nome)')
+        .select('id, nome, status, vendedor_operador_id, setor, produto, dados_produto, profiles!clientes_vendedor_operador_id_fkey(nome)')
         .eq('cpf', cpf)
         .not('status', 'in', '(expirado,cancelado,barrado_pos_venda)')
         .order('created_at', { ascending: false })
@@ -168,6 +178,10 @@ export default function NovoCliente({ onSucesso }) {
           nome: data.nome,
           status: data.status,
           setor: data.setor,
+          produto: data.produto,
+          // so existe no Maternidade Mae; nos outros produtos fica vazio e o aviso
+          // nem mostra a linha do filho
+          filho: dataBR((data.dados_produto || {}).data_nascimento_bebe),
           vendedorNome: data.profiles?.nome || 'outro vendedor',
           vendedorMesmo,
         })
@@ -472,13 +486,26 @@ export default function NovoCliente({ onSucesso }) {
 
         {duplicado && (
           <div style={duplicado.vendedorMesmo ? { ...s.duplicadoBox, background: 'rgba(251,191,36,.12)', borderColor: '#F59E0B40', color: '#b45309' } : s.duplicadoBox}>
+            {/* 15/10 (Bruno) — o texto antigo dizia "sera atualizado", o que NAO acontece:
+                o salvar faz INSERT, cria um cadastro novo e nao encosta no antigo. A
+                vendedora lia aquilo e parava no meio achando que ia perder o primeiro
+                filho. Agora o aviso diz o que de fato ocorre e mostra QUAL filho ja esta
+                cadastrado, pra ela comparar com o que tem na mao. */}
             <div style={{ fontWeight: 500, marginBottom: 4 }}>
               {duplicado.vendedorMesmo
-                ? '✓ CPF já é seu cliente (pode prosseguir, será atualizado)'
+                ? '✓ CPF já é seu cliente — pode prosseguir'
                 : '🚫 CPF já cadastrado por outro vendedor'}
             </div>
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '— seu cliente' : `— cadastrado por ${duplicado.vendedorNome}`} · status: <strong>{duplicado.status}</strong>{duplicado.setor && duplicado.setor !== 'captacao' && <> · setor <strong>{duplicado.setor}</strong></>}.
+              <strong>{duplicado.nome}</strong> {duplicado.vendedorMesmo ? '— seu cliente' : `— cadastrado por ${duplicado.vendedorNome}`} · status: <strong>{duplicado.status}</strong>{duplicado.setor && duplicado.setor !== 'captacao' && <> · setor <strong>{duplicado.setor}</strong></>}
+              {duplicado.filho && <> · 👶 filho já cadastrado: <strong>{duplicado.filho}</strong></>}.
+              {duplicado.vendedorMesmo && duplicado.produto === 'Maternidade Mãe' && (
+                <><br />
+                  Se o filho que você está cadastrando agora for <strong>outro</strong>, siga
+                  normalmente: entra um cadastro novo e o atual não é alterado. Se for o{' '}
+                  <strong>mesmo</strong> filho, o sistema bloqueia na hora de salvar.
+                </>
+              )}
               {!duplicado.vendedorMesmo && <><br />Você não pode cadastrar o mesmo CPF enquanto este cliente estiver ativo no sistema.</>}
             </div>
           </div>
@@ -745,7 +772,11 @@ export default function NovoCliente({ onSucesso }) {
             fgtsObrigatorio && !docs.extrato_fgts ? 'Falta o extrato FGTS — obrigatório no Maternidade Mãe' :
             !docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
             !camposMatOk ? 'Preencha NIS, data do parto e meses de gravidez' :
-            duplicado ? 'CPF já cadastrado pendente' :
+            // 15/10 (Bruno): era `duplicado`, que tambem e verdadeiro quando o cliente
+            // e da PROPRIA vendedora (caso de 2 filhos). Ela lia "CPF ja cadastrado
+            // pendente" no lugar do campo que realmente falta e parava. So bloqueia
+            // de verdade quando o cliente e de OUTRO vendedor.
+            duplicadoBloqueia ? 'CPF já cadastrado pendente' :
             'Preencha todos os campos corretamente'}
         </div>
       )}
