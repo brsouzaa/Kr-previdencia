@@ -358,6 +358,13 @@ const s = {
   vincMeta: { fontSize: 12, color: '#475569', marginTop: 2, lineHeight: 1.45 },
   vincRegra: { fontSize: 11.5, color: '#065f46', marginTop: 6, lineHeight: 1.45 },
   fichaWhats: (cor, bg) => ({ display: 'inline-block', marginLeft: 6, padding: '1px 7px', borderRadius: 7, fontSize: 11, fontWeight: 700, color: cor, background: bg }),
+
+  // 15/10 — bloco da Ficha CNIS. Azul igual ao botao da Fila de Entregas de proposito:
+  // e o MESMO documento, e quem usa as duas telas reconhece na hora.
+  fichaCnisBox: { background: 'rgba(96,165,250,.10)', border: '0.5px solid #60a5fa50', borderRadius: 10, padding: 14, marginBottom: 12 },
+  fichaCnisLabel: { fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 6 },
+  fichaCnisTxt: { fontSize: 12.5, color: '#0f172a', lineHeight: 1.5, marginBottom: 10 },
+  fichaCnisBtn: { display: 'inline-block', padding: '8px 12px', background: '#60a5fa', color: '#232a37', borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: 'none' },
   // 21/09 — CARIMBO HUMANO. Dado diferente do selo do robo acima, de proposito:
   // um e o validador automatico, o outro e o que a atendente constatou na pratica.
   // Ficam lado a lado porque o valor esta em poder comparar os dois.
@@ -1272,6 +1279,31 @@ export default function RevisaoIARetroativo() {
               {lead.cnis_aprovado === 'true' && <div>✅ CNIS aprovado</div>}
               {lead.cnis_aprovado === 'false' && <div>⛔ CNIS reprovado: {lead.cnis_reprovado_motivo || ''}</div>}
             </div>
+
+            {/* FICHA CNIS (15/10, Bruno) — a vendedora precisa do mesmo resumo do direito
+                que a Fila de Entregas ja tinha. MESMA rota /ficha/<cpf> (App.js), MESMA
+                rpc ficha_cnis (security definer, authenticated executa). Nada novo no
+                banco: so o link, que nao existia nesta tela.
+                So aparece com CPF de 11 digitos — sem isso a ficha abre reclamando do
+                endereco, e botao que abre tela de erro treina a vendedora a nao clicar. */}
+            {String(lead.cpf || '').replace(/\D/g, '').length === 11 && (
+              <div style={s.fichaCnisBox}>
+                <div style={s.fichaCnisLabel}>📄 Ficha CNIS — por que ela tem direito</div>
+                <div style={s.fichaCnisTxt}>
+                  Os vínculos do CNIS, qual vínculo gera o direito, a distância do parto,
+                  a carência e o fundamento legal. Abre em aba nova e dá pra mandar o link
+                  pra cliente no WhatsApp.
+                </div>
+                <a
+                  href={'/ficha/' + String(lead.cpf).replace(/\D/g, '')}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={s.fichaCnisBtn}
+                >
+                  📄 Ver ficha CNIS
+                </a>
+              </div>
+            )}
 
             {/* Print do GERID da advogada. So aparece quando ela anexou — a aprovacao
                 exige o print, entao pra pre-aprovado real ele existe. E a prova do
