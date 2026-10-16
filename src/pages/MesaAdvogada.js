@@ -374,6 +374,16 @@ const s = {
   loteRepTopo: { fontSize: 12.5, color: '#0f172a', lineHeight: 1.5, marginBottom: 9 },
   loteRepBotoes: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   btnLoteSec: { padding: '6px 12px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,.16)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+
+  // 16/10 — painel das linhas do grupo
+  lgBox: { marginTop: 10, background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.10)', borderRadius: 10, padding: 12, maxHeight: 520, overflowY: 'auto' },
+  lgTopo: { display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', paddingBottom: 8, marginBottom: 8, borderBottom: '0.5px solid rgba(15,23,42,.08)', fontSize: 13 },
+  lgGrupo: { marginBottom: 14 },
+  lgCabeca: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' },
+  lgBtnCopiar: { padding: '4px 10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 7, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  // pre preserva as quebras de linha do bloco do GERID — se virar <div> a linha
+  // cola tudo numa coisa so e a vendedora recebe um paredao ilegivel
+  lgTexto: { margin: 0, padding: 10, background: '#ffffff', border: '0.5px solid rgba(15,23,42,.08)', borderRadius: 8, fontSize: 12, lineHeight: 1.5, color: '#0f172a', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit' },
   btnLoteFinal: (off) => ({ padding: '7px 16px', background: off ? '#e2e8f0' : '#b45309', color: off ? '#94a3b8' : '#ffffff', border: 0, borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: off ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }),
   loteRepPe: { marginTop: 9, fontSize: 11.5, color: '#7c2d12', lineHeight: 1.5 },
   vincBox: { marginTop: 10, padding: '9px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,.09)', borderRadius: 9 },
@@ -564,6 +574,17 @@ export default function MesaAdvogada() {
   // permissao no front — quem decide e a retroativo_pode_travar.
   const [trava, setTrava] = useState(null)
   const [travando, setTravando] = useState(false)
+
+  // 16/10 (Bruno): as linhas que a Maithe manda no grupo. Quando a distribuicao
+  // do dia e fechada, a linha que a advogada copia na hora da aprovacao sai com
+  // "SEM VENDEDORA DISPONIVEL" — a vendedora so entra no dia seguinte, as 8h.
+  // A rpc retroativo_linhas_do_grupo REMONTA a linha depois que a vendedora ja
+  // existe, no mesmo formato. Antes disso a Maithe dependia de alguem gerar a
+  // lista por fora e mandar pra ela.
+  // reaproveita o copiado/copiarCom que a tela ja usa nos outros botoes
+  const [linhas, setLinhas] = useState(null)      // null = nunca abriu
+  const [linhasAbertas, setLinhasAbertas] = useState(false)
+  const [carregandoLinhas, setCarregandoLinhas] = useState(false)
   const fileRef = useRef(null)
   const colaRef = useRef(null)   // area que recebe o Ctrl+V
 
@@ -942,6 +963,30 @@ export default function MesaAdvogada() {
   // cai na vendedora hoje — sai amanha as 8h pelo cron.
   // O motivo e obrigatorio no banco (igual a troca de fila da coordenadora),
   // entao peco aqui antes de chamar.
+  // 16/10 — busca as linhas do dia (p_dia null = hoje). Agrupa por vendedora
+  // aqui mesmo: a rpc ja vem ordenada por vendedora, so preciso quebrar a lista.
+  const abrirLinhasDoGrupo = async () => {
+    if (linhasAbertas) { setLinhasAbertas(false); return }
+    setLinhasAbertas(true)
+    if (linhas) return                   // ja carregou nesta sessao
+    setCarregandoLinhas(true)
+    try {
+      const { data, error } = await supabase.rpc('retroativo_linhas_do_grupo', { p_dia: null })
+      if (error) throw error
+      const porVend = []
+      ;(data || []).forEach(r => {
+        const nome = r.vendedora || 'SEM VENDEDORA'
+        let g = porVend.find(x => x.vendedora === nome)
+        if (!g) { g = { vendedora: nome, time: r.time_vend || '?', itens: [] }; porVend.push(g) }
+        g.itens.push(r.linha)
+      })
+      setLinhas(porVend)
+    } catch (e) {
+      console.error('retroativo_linhas_do_grupo', e)
+      setLinhas([])
+    } finally { setCarregandoLinhas(false) }
+  }
+
   const mexerNaTrava = async (fechar) => {
     const motivo = window.prompt(fechar
       ? 'Por que está fechando a distribuição de hoje?\n(ex: limite do dia batido)'
@@ -1071,6 +1116,64 @@ export default function MesaAdvogada() {
   return (
     <div style={s.wrap}>
       <h1 style={s.h1}>⚖️ Mesa da Advogada — Retroativo</h1>
+
+      {/* 16/10 (Bruno) — LINHAS DO GRUPO. O que foi liberado hoje as 8h, ja com
+          a vendedora, no mesmo formato que a advogada copia na aprovacao. E so
+          leitura: nao decide, nao distribui, nao muda nada. */}
+      <div style={{ marginBottom: 12 }}>
+        <button style={s.btnLoteSec} onClick={abrirLinhasDoGrupo} disabled={carregandoLinhas}>
+          {carregandoLinhas ? 'carregando…'
+            : linhasAbertas ? '📋 Fechar linhas do grupo'
+            : '📋 Linhas do grupo de hoje'}
+        </button>
+        <span style={{ fontSize: 12, color: '#5b6b84', marginLeft: 10 }}>
+          o que saiu hoje às 8h, já com o nome da vendedora — copiar e colar no grupo
+        </span>
+
+        {linhasAbertas && !carregandoLinhas && (
+          <div style={s.lgBox}>
+            {(!linhas || !linhas.length) ? (
+              <div style={{ fontSize: 13, color: '#5b6b84' }}>
+                Nada foi liberado hoje ainda. A liberação do represamento roda às 8h.
+              </div>
+            ) : (
+              <>
+                <div style={s.lgTopo}>
+                  <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                    {linhas.reduce((n, g) => n + g.itens.length, 0)} cliente(s) ·{' '}
+                    {linhas.length} vendedora(s)
+                  </span>
+                  <button
+                    style={s.lgBtnCopiar}
+                    onClick={() => copiarCom('lg__tudo',
+                      linhas.map(g => g.itens.join('\n\n')).join('\n\n'))}>
+                    {copiado === 'lg__tudo' ? '✅ copiado' : '📋 Copiar tudo'}
+                  </button>
+                </div>
+
+                {linhas.map(g => (
+                  <div key={g.vendedora} style={s.lgGrupo}>
+                    <div style={s.lgCabeca}>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {g.vendedora}
+                      </span>
+                      <span style={{ fontSize: 11.5, color: '#5b6b84' }}>
+                        time {g.time} · {g.itens.length} cliente(s)
+                      </span>
+                      <button
+                        style={s.lgBtnCopiar}
+                        onClick={() => copiarCom('lg_' + g.vendedora, g.itens.join('\n\n'))}>
+                        {copiado === 'lg_' + g.vendedora ? '✅ copiado' : '📋 Copiar'}
+                      </button>
+                    </div>
+                    <pre style={s.lgTexto}>{g.itens.join('\n\n')}</pre>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 14/10 (Bruno): fechar a distribuicao do dia. Quando esta fechado TODA
           a mesa ve a faixa (pra ninguem achar que a entrega quebrou), mas so
