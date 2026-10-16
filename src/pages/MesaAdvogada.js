@@ -973,8 +973,14 @@ export default function MesaAdvogada() {
     try {
       const { data, error } = await supabase.rpc('retroativo_linhas_do_grupo', { p_dia: null })
       if (error) throw error
+      // 16/10 (Bruno): aqui so o TIME DE 12. Isso ja traz 12 meses puro + os de
+      // seguro-desemprego provavel + os de 120+ contribuicoes, porque a
+      // retroativo_faixa_do_lead manda esses tres pro time de 12 desde 14/10.
+      // Os de 24 PURO ficam de fora de proposito: quem manda esses no grupo e a
+      // Daniele, nao a Maithe. Filtro pelo time da vendedora (time_vend), que e
+      // o mesmo criterio que decidiu pra quem o lead foi.
       const porVend = []
-      ;(data || []).forEach(r => {
+      ;(data || []).filter(r => String(r.time_vend) === '12').forEach(r => {
         const nome = r.vendedora || 'SEM VENDEDORA'
         let g = porVend.find(x => x.vendedora === nome)
         if (!g) { g = { vendedora: nome, time: r.time_vend || '?', itens: [] }; porVend.push(g) }
@@ -1127,14 +1133,16 @@ export default function MesaAdvogada() {
             : '📋 Linhas do grupo de hoje'}
         </button>
         <span style={{ fontSize: 12, color: '#5b6b84', marginLeft: 10 }}>
-          o que saiu hoje às 8h, já com o nome da vendedora — copiar e colar no grupo
+          time de 12 (inclui seguro-desemprego provável) — copiar e colar no grupo ·
+          os de 24 meses são da Daniele
         </span>
 
         {linhasAbertas && !carregandoLinhas && (
           <div style={s.lgBox}>
             {(!linhas || !linhas.length) ? (
               <div style={{ fontSize: 13, color: '#5b6b84' }}>
-                Nada foi liberado hoje ainda. A liberação do represamento roda às 8h.
+                Nenhuma cliente do time de 12 foi liberada hoje. A liberação do
+                represamento roda às 8h — e os de 24 meses não aparecem aqui.
               </div>
             ) : (
               <>
