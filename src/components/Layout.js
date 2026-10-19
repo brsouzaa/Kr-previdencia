@@ -32,10 +32,13 @@ const IDS_SUPERVISOR_BOARD = [
 // Quem esta aqui tem o menu SUBSTITUIDO pelo pacote do vendedor do retroativo.
 // O porque de cada nome esta no App.js, junto da lista — inclusive quem ficou de
 // fora de proposito (Maryana, Agatha, Duda, Sthefany e o time de 24).
+// RT CRÉDITOS (Ronaldo) NAO entra aqui: e parceiro externo e este pacote tem o
+// Painel de vendas. Ele entra em IDS_VENDAS_RETROATIVO, mais abaixo.
 const IDS_SO_RETROATIVO = [
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
+  '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10
 ]
 // A ordem aqui e a ordem do dia dela: a mesa primeiro, o numero dela depois,
 // e por fim o que ela usa quando a cliente fecha.
@@ -490,6 +493,11 @@ export default function Layout({ children, page, setPage }) {
     '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
     '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
     '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
+    '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: time de 12 da KR
+    // 19/10 — RT CRÉDITOS (Ronaldo Arcari): o acesso dele foi criado no banco em
+    // 17/10 e o menu ficou de fora, entao ele recebeu 2 leads em 19/10 sem ter
+    // como abrir a tela. MESMA lista do App.js.
+    '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
   ]
   if (IDS_VENDAS_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
