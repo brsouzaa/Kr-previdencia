@@ -17,6 +17,10 @@ const s = {
   modalBg: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.05)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
   modal: { background: '#ffffff', borderRadius: 14, padding: '1.5rem', maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' },
   successBox: { background: 'rgba(52,211,153,.14)', border: '1.5px solid #3B6D1150', borderRadius: 12, padding: '1rem', marginTop: 12 },
+  // 19/10 — caixa do motivo real da recusa (antes a tela mostrava so "non-2xx")
+  erroBox: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #A32D2D40', borderRadius: 12, padding: '0.9rem', marginBottom: 14 },
+  erroTit: { fontSize: 12, color: '#dc2626', fontWeight: 600, marginBottom: 6 },
+  erroTxt: { background: '#ffffff', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#0f172a', wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1.45 },
 }
 
 const TIPOS_DOC = [
@@ -35,6 +39,36 @@ function tempoNaFila(dt) {
   const h = Math.floor(min / 60)
   if (h < 24) return `${h}h`
   return `${Math.floor(h/24)}d`
+}
+
+// 19/10 — POR QUE ESTA FUNCAO EXISTE:
+// supabase.functions.invoke NAO entrega a mensagem da edge function. Quando a
+// resposta nao e 2xx ele devolve um FunctionsHttpError cujo .message e sempre
+// "Edge Function returned a non-2xx status code" e cujo .context E A RESPOSTA
+// HTTP (um Response), ainda nao lido. O motivo de verdade — template errado,
+// ZapSign fora do ar, token recusado, sem advogado na fila, cadastro duplicado,
+// erro ao gravar — esta no corpo dessa resposta, em { ok:false, error:"..." }.
+// Sem ler isso, quem esta na tela nao tem como saber por que a emissao falhou
+// (caso ELLEN CARDOSO DOS ANJOS, 19/10). Le o corpo e devolve o motivo.
+async function motivoDoErro(err) {
+  try {
+    const ctx = err && err.context
+    if (ctx && typeof ctx.text === 'function') {
+      const status = ctx.status ? '[HTTP ' + ctx.status + '] ' : ''
+      const txt = await ctx.text()
+      if (!txt) return status + 'a função não devolveu mensagem'
+      try {
+        const j = JSON.parse(txt)
+        return status + (j.error || j.message || j.msg || txt)
+      } catch (e) {
+        return status + txt
+      }
+    }
+    // erro de rede / função fora do ar: nao ha resposta pra ler
+    return (err && err.message) || String(err)
+  } catch (e) {
+    return ((err && err.message) || String(err)) + ' · não foi possível ler o corpo da resposta: ' + ((e && e.message) || e)
+  }
 }
 
 // Mesma lista de status "vivos" que a edge (gerar-contratos-zapsign) usa pra decidir vaga.
@@ -57,6 +91,8 @@ export default function FilaDigitacao() {
   const [modalAberto, setModalAberto] = useState(null)
   const [emitindo, setEmitindo] = useState(false)
   const [resultado, setResultado] = useState(null)
+  const [erroEmissao, setErroEmissao] = useState(null)   // 19/10 — motivo real da recusa, mostrado no modal
+  const [copiadoErro, setCopiadoErro] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [copiadoWhatsId, setCopiadoWhatsId] = useState(null)
   const [verDocsId, setVerDocsId] = useState(null)
@@ -102,12 +138,14 @@ export default function FilaDigitacao() {
     if (emitindo) return
     setEmitindo(true)
     setResultado(null)
+    setErroEmissao(null)
     try {
       const resp = await supabase.functions.invoke('gerar-contratos-zapsign/emitir-cliente', {
         body: { cliente_id: cliente.id, supervisor_id: profile.id }
       })
-      if (resp.error) throw new Error(typeof resp.error === 'string' ? resp.error : JSON.stringify(resp.error))
-      if (!resp.data?.ok) throw new Error(resp.data?.error || 'Erro na emissão')
+      // 19/10 — resp.error vem sem mensagem util; o motivo esta no corpo da resposta
+      if (resp.error) throw new Error(await motivoDoErro(resp.error))
+      if (!resp.data?.ok) throw new Error(resp.data?.error || 'A função respondeu sem ok e sem motivo')
       setResultado({
         link: resp.data.link_assinatura,
         expira: resp.data.expira_em,
@@ -116,9 +154,20 @@ export default function FilaDigitacao() {
       })
       fetchTudo()
     } catch (err) {
-      alert('Erro: ' + (err.message || err.toString()))
+      // mostra no modal (da pra ler, copiar e mandar print) em vez de alert que some
+      setErroEmissao((err && err.message) || String(err))
     }
     setEmitindo(false)
+  }
+
+  function copiarErro() {
+    if (!erroEmissao) return
+    const txt = 'Falha ao emitir contrato\nCliente: ' + (modalAberto?.nome || '') + ' · ' + (modalAberto?.cpf || '')
+      + '\nAdvogado da vez: ' + (proximoLoteFiltrado?.advogados?.nome_completo || '—')
+      + '\nQuando: ' + new Date().toLocaleString('pt-BR')
+      + '\nMotivo: ' + erroEmissao
+    navigator.clipboard.writeText(txt)
+    setCopiadoErro(true); setTimeout(() => setCopiadoErro(false), 2500)
   }
 
   // Barra (cancela) um cliente parado na fila, com motivo obrigatorio
@@ -193,7 +242,7 @@ export default function FilaDigitacao() {
   }
 
   function fecharModal() {
-    setModalAberto(null); setResultado(null); setCopiado(false)
+    setModalAberto(null); setResultado(null); setCopiado(false); setErroEmissao(null); setCopiadoErro(false)
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: '#5b6b84' }}>Carregando fila...</div>
@@ -392,7 +441,7 @@ export default function FilaDigitacao() {
                   s.btnSec}>
                 {copiadoWhatsId === c.id ? '✓ Copiado pra WhatsApp' : '📋 Copiar pra WhatsApp'}
               </button>
-              <button onClick={() => setModalAberto(c)} style={proximoLoteFiltrado ? s.btn : s.btnDisabled} disabled={!proximoLoteFiltrado}>
+              <button onClick={() => { setErroEmissao(null); setModalAberto(c) }} style={proximoLoteFiltrado ? s.btn : s.btnDisabled} disabled={!proximoLoteFiltrado}>
                 🚀 Emitir contrato
               </button>
               <button onClick={() => { setBarrarCliente(c); setMotivoBarra('') }}
@@ -440,6 +489,18 @@ export default function FilaDigitacao() {
                   Será gerado um contrato no ZapSign vinculando este cliente ao advogado da vez.
                 </div>
 
+                {/* 19/10 — motivo real da recusa, direto do corpo da resposta da edge function */}
+                {erroEmissao && (
+                  <div style={s.erroBox}>
+                    <div style={s.erroTit}>⚠️ A emissão foi recusada — motivo:</div>
+                    <div style={s.erroTxt}>{erroEmissao}</div>
+                    <button onClick={copiarErro}
+                      style={{ width: '100%', marginTop: 10, padding: '9px', background: copiadoErro ? '#34d399' : '#ffffff', color: copiadoErro ? '#232a37' : '#dc2626', border: '0.5px solid #A32D2D40', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                      {copiadoErro ? '✓ Copiado' : '📋 Copiar motivo pra mandar no suporte'}
+                    </button>
+                  </div>
+                )}
+
                 <div style={{ background: '#f2f5fa', borderRadius: 8, padding: 12, marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 4 }}>CLIENTE</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a' }}>{modalAberto.nome}</div>
@@ -453,10 +514,10 @@ export default function FilaDigitacao() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{erroEmissao ? 'Fechar' : 'Cancelar'}</button>
                   <button onClick={() => emitir(modalAberto)} disabled={emitindo}
                     style={{ flex: 2, padding: '10px', background: emitindo ? '#64748b' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: emitindo ? 'not-allowed' : 'pointer' }}>
-                    {emitindo ? '⏳ Emitindo...' : '🚀 Confirmar e emitir'}
+                    {emitindo ? '⏳ Emitindo...' : (erroEmissao ? '🔄 Tentar de novo' : '🚀 Confirmar e emitir')}
                   </button>
                 </div>
               </>
