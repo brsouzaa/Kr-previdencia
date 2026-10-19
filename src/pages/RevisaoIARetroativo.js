@@ -1690,7 +1690,13 @@ export default function RevisaoIARetroativo() {
                   )}
 
                   <div style={s.mesaMeta}>
-                    {l.data_nascimento_filho ? '👶 filho em ' + l.data_nascimento_filho : ''}
+                    {/* 19/10 (Bruno) — nome do filho quando o Detetive trouxe. Vem dentro
+                        do vinculo_direito, casado por mes/ano com a data do parto; quando
+                        nao bate, nao vem nome nenhum (melhor calar do que falar errado). */}
+                    {l.vinculo_direito && (l.vinculo_direito.filho_nome || '').trim()
+                      ? <b style={{ color: '#0f172a' }}>👶 {l.vinculo_direito.filho_nome.trim()}</b>
+                      : (l.data_nascimento_filho ? '👶 filho' : '')}
+                    {l.data_nascimento_filho ? ' · nasceu em ' + l.data_nascimento_filho : ''}
                     {l.idade_bebe ? ' · ' + l.idade_bebe : ''}
                     {l.whats_tem === 'false' || l.whats_marcado === 'sem_whats'
                       ? ' · 📵 SEM WhatsApp — tem que ligar' : ''}
