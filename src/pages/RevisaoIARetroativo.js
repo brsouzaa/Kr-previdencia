@@ -1671,7 +1671,12 @@ export default function RevisaoIARetroativo() {
                   {/* O vínculo é o argumento da ligação: sem ele a vendedora liga
                       sem saber por que a cliente tem direito. Vem do GERID, é o
                       mesmo dado que a advogada usou pra aprovar. */}
-                  {l.vinculo_direito && (
+                  {/* 19/10 — condicionado a EMPRESA, nao a vinculo_direito existir.
+                      Desde a correcao do nome do filho, vinculo_direito vem preenchido
+                      (so com filho_nome) tambem em lead sem vinculo decisivo — a lead
+                      578729 e assim. Testar o objeto aqui desenhava um bloco azul
+                      "Empresa que deu o direito" com um travessao dentro. */}
+                  {l.vinculo_direito && (l.vinculo_direito.empresa || '').trim() && (
                     <div style={s.mesaVinc}>
                       <div style={s.mesaVincTit}>Empresa que deu o direito</div>
                       <div style={{ ...s.mesaVincTxt, fontWeight: 700 }}>
