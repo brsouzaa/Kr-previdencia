@@ -73,6 +73,62 @@ const COLUNAS = [
 // Ela só recebe PRÉ-APROVADO REAL (cnis_aprovado=true, decidido pela advogada) em diante.
 const COLUNAS_VENDEDOR = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL', 'AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
+// 19/10 (Bruno) — MESA DO VENDEDOR (modo CRM).
+// POR QUE: medido em 19/10 — 840 leads entregues em 14 dias e ZERO registro de
+// contato da vendedora. O board mostra o estado do ROBÔ do WhatsApp
+// (AGUARDANDO_CNIS, COLETANDO_CADASTRO), que não diz se alguém ligou. Resultado:
+// 149 dos 150 leads da Gislaine estavam parados há mais de 48h sem ninguém saber.
+// O board kanban continua INTACTO: isto é uma segunda visão, e o botão
+// "ver board antigo" devolve a tela de sempre. Nada foi removido.
+// As colunas abaixo são as que contam como "lead vivo na mão dela" — fechou
+// (FINALIZADO / AGUARDANDO_ASSINATURA) sai da mesa e vai pra aba de venda.
+const COLUNAS_MESA_ATIVA = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL']
+const COLUNAS_MESA_FECHOU = ['AGUARDANDO_ASSINATURA', 'FINALIZADO']
+
+// Abas da mesa. A ordem é a ordem do dia dela: primeiro o que caiu hoje, depois
+// o que ficou pra trás, depois o que ela já encostou.
+const ABAS_MESA = [
+  ['hoje', '🔥 Caiu hoje'],
+  ['represado', '📦 Atrasados'],
+  ['contato', '📞 Em contato'],
+  ['retomar', '🔁 Não respondeu'],
+  ['tel', '📵 Telefone errado'],
+  ['sem_direito', '🚫 Sem direito'],
+  ['fechou', '✅ Venda fechada'],
+]
+
+// Ações que o vendedor marca. Os códigos TÊM que ser os mesmos da função do
+// banco (retroativo_vendedor_marcar) — mexer num lado sem o outro quebra a tela.
+const ACOES_MESA = [
+  ['sem_resposta', '🔁 Não respondeu', '#fbbf24', '#92400e'],
+  ['tel_errado', '📵 Telefone errado', '#f87171', '#991b1b'],
+  ['sem_direito', '🚫 Não tem direito', '#94a3b8', '#334155'],
+]
+
+// Dia no fuso de São Paulo (en-CA dá yyyy-mm-dd). Comparar com toISOString()
+// erraria a virada: em UTC o dia vira às 21h daqui, e o "caiu hoje" da vendedora
+// sairia com os leads da noite anterior dentro.
+function diaBR(iso) {
+  if (!iso) return null
+  try { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) } catch (_) { return null }
+}
+function hojeBR() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+}
+// Horas desde a entrega. É o número que mostra o lead apodrecendo na mesa.
+function horasDe(iso) {
+  if (!iso) return null
+  const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000)
+  return h >= 0 ? h : 0
+}
+function fmtHoras(h) {
+  if (h === null) return '—'
+  if (h < 1) return 'agora'
+  if (h < 24) return h + 'h'
+  const d = Math.floor(h / 24)
+  return d + (d === 1 ? ' dia' : ' dias')
+}
+
 // Vendedoras do Retroativo: alem de so verem PRE-APROVADO REAL em diante,
 // cada uma ve SO OS LEADS DELA (bf_agente_id = ela). A advogada entrega por rodizio.
 const IDS_VENDEDORAS_RETROATIVO = [
@@ -395,6 +451,56 @@ const s = {
   transfCheck: { display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: '0.5px solid rgba(15,23,42,0.09)', borderRadius: 10, fontSize: 12.5, cursor: 'pointer' },
   transfCheckPe: { fontSize: 11, color: '#64748b', lineHeight: 1.45 },
   transfAviso: { fontSize: 11.5, color: '#92400e', background: 'rgba(251,191,36,.14)', borderRadius: 8, padding: '8px 10px', marginTop: 10, lineHeight: 1.45 },
+
+  // ===== 19/10 — MESA DO VENDEDOR (modo CRM) =====
+  // Paleta a mesma do resto da tela de propósito: quem usa o board reconhece as
+  // cores na hora. O que muda é o TAMANHO — aqui o alvo é o dedo no celular,
+  // não o mouse arrastando card.
+  mesaTopo: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 },
+  mesaAba: (on, urgente) => ({
+    padding: '9px 15px', fontSize: 13, fontWeight: on ? 700 : 500, borderRadius: 9,
+    border: '0.5px solid ' + (on ? (urgente ? '#dc2626' : '#0f172a') : 'rgba(15,23,42,0.11)'),
+    background: on ? (urgente ? '#dc2626' : '#0f172a') : '#ffffff',
+    color: on ? '#ffffff' : (urgente ? '#dc2626' : '#5b6b84'),
+    cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+  }),
+  mesaAbaNum: (on) => ({ fontWeight: 700, marginLeft: 6, opacity: on ? 1 : 0.75 }),
+  mesaLista: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20 },
+  // Card largo em vez de coluna estreita: cabe o vínculo, a empresa e os botões
+  // sem o vendedor ter que abrir a ficha pra cada lead.
+  mesaCard: (urgente) => ({
+    background: '#ffffff', borderRadius: 12, padding: '13px 15px',
+    border: urgente ? '1px solid #f8717199' : '0.5px solid rgba(15,23,42,0.10)',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+  }),
+  mesaCardTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' },
+  mesaNome: { fontSize: 15.5, fontWeight: 700, color: '#0f172a', lineHeight: 1.3 },
+  mesaTel: { fontSize: 13, color: '#334155', marginTop: 2, fontVariantNumeric: 'tabular-nums' },
+  mesaIdade: (urgente) => ({
+    fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap',
+    background: urgente ? 'rgba(248,113,113,.16)' : 'rgba(15,23,42,.06)',
+    color: urgente ? '#991b1b' : '#475569',
+  }),
+  mesaVinc: { marginTop: 9, padding: '8px 11px', background: 'rgba(37,99,235,.06)', border: '0.5px solid rgba(37,99,235,.18)', borderRadius: 9 },
+  mesaVincTit: { fontSize: 10, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  mesaVincTxt: { fontSize: 12.5, color: '#0f172a', marginTop: 3, lineHeight: 1.45 },
+  mesaMeta: { fontSize: 12, color: '#5b6b84', marginTop: 7, lineHeight: 1.5 },
+  mesaObs: { fontSize: 12, color: '#92400e', background: 'rgba(251,191,36,.12)', borderRadius: 8, padding: '6px 9px', marginTop: 7 },
+  // O "Peguei" é o botão gigante que o Bruno pediu: é a ação de 90% dos casos.
+  mesaAcoes: { display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11, alignItems: 'center' },
+  mesaPegar: { flex: '1 1 190px', padding: '13px 18px', background: '#059669', color: '#ffffff', border: 'none', borderRadius: 10, fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  mesaAcao: (bg, cor) => ({
+    padding: '11px 13px', background: '#ffffff', color: cor,
+    border: '0.5px solid ' + bg, borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+    cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+  }),
+  mesaZap: { padding: '11px 14px', background: 'rgba(52,211,153,.14)', color: '#059669', border: '0.5px solid rgba(5,150,105,.3)', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' },
+  mesaFicha: { padding: '11px 13px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.14)', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
+  mesaVazio: { fontSize: 13.5, color: '#5b6b84', padding: '26px 18px', background: '#ffffff', border: '0.5px dashed rgba(15,23,42,0.16)', borderRadius: 12, textAlign: 'center', lineHeight: 1.6 },
+  mesaAlerta: { fontSize: 12.5, color: '#991b1b', background: 'rgba(248,113,113,.12)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 10, padding: '10px 13px', marginBottom: 12, lineHeight: 1.5 },
+  mesaResumo: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
+  mesaKpi: (cor, bg) => ({ fontSize: 12.5, fontWeight: 600, color: cor, background: bg, borderRadius: 9, padding: '7px 13px' }),
+  mesaTrocar: { fontSize: 12, fontWeight: 600, color: '#5b6b84', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit' },
 }
 
 export default function RevisaoIARetroativo() {
@@ -498,6 +604,15 @@ export default function RevisaoIARetroativo() {
   const [transferindo, setTransferindo] = useState(false)
   const podeTransferir = ehSupervisorTime || ehAdmin
 
+  // 19/10 (Bruno) — MESA DO VENDEDOR. Só quem tem carteira própria entra no modo
+  // CRM; supervisora e admin continuam caindo no board kanban, que é a ferramenta
+  // de quem olha o time inteiro. O modo fica salvo no navegador: se a vendedora
+  // preferir o board antigo, a escolha dela vale no dia seguinte.
+  const temMesa = soMeusLeads && !veTodasColunas
+  const [modoMesa, setModoMesa] = usarFiltro('modoMesa', true)
+  const [abaMesa, setAbaMesa] = usarFiltro('abaMesa', 'hoje')
+  const [marcando, setMarcando] = useState(null)   // lead_id em processamento
+
   const carregarPainelDia = useCallback(async (data) => {
     setPainelCarregando(true)
     const p_dia = data || null   // null = hoje, resolvido no banco em BRT
@@ -555,7 +670,13 @@ export default function RevisaoIARetroativo() {
     //      sem ninguém ter falado nada, com defasagem de até 15 dias.
     //   2) p_entrega_de/ate: quando a ADVOGADA liberou o lead pra vendedora.
     // A mae_board antiga continua no banco, intacta — reverter = trocar o nome aqui.
-    const data = await buscarBoardCompleto('mae_board2', {
+    // 19/10 — mae_board3 = a mae_board2 de sempre MAIS 4 campos no fim
+    // (vend_status, vend_tentativas, vend_contato_em, vend_obs): o registro do
+    // trabalho do VENDEDOR, que não existia em lugar nenhum. Conferido no banco
+    // em 19/10: nos 33 campos antigos as duas devolvem linha por linha o mesmo
+    // resultado (192 = 192, zero diferença). A mae_board2 segue intacta —
+    // reverter = trocar o nome aqui de volta.
+    const data = await buscarBoardCompleto('mae_board3', {
       p_agente,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
@@ -882,14 +1003,68 @@ export default function RevisaoIARetroativo() {
   ).slice(0, LIMITE_CARDS)
   const colunasVisiveis = veTodasColunas ? COLUNAS : COLUNAS.filter(([k]) => COLUNAS_VENDEDOR.includes(k))
 
+  // ===== 19/10 — MESA DO VENDEDOR =====
+  // Em que aba cada lead cai. Regra de ouro: quem FECHOU sai da mesa (vai pra aba
+  // de venda) e quem o vendedor marcou vai pra aba da marcação. O resto é fila:
+  // caiu hoje ou está atrasado. Sem marcação nenhuma = fila, que é o estado de
+  // 100% dos leads até esta tela subir.
+  function abaDoLead(l) {
+    if (COLUNAS_MESA_FECHOU.includes(l.coluna)) return 'fechou'
+    if (!COLUNAS_MESA_ATIVA.includes(l.coluna)) return null   // reprovado/negado não é da mesa
+    if (l.vend_status === 'sem_direito') return 'sem_direito'
+    if (l.vend_status === 'tel_errado') return 'tel'
+    if (l.vend_status === 'sem_resposta') return 'retomar'
+    if (l.vend_status === 'contato') return 'contato'
+    return diaBR(l.entregue_vendedora_em) === hojeBR() ? 'hoje' : 'represado'
+  }
+
+  // Mesa ordenada: o mais velho primeiro. Lead parado há 5 dias dói mais que o de
+  // hoje — na ordem do board (ultima_interacao DESC) ele ficava no fim e morria lá.
+  const mesa = board
+    .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
+    .filter(l => l._aba)
+  const mesaDa = (aba) => mesa.filter(l => l._aba === aba).sort((a, b) => {
+    if (aba === 'fechou') return (b._h ?? -1) - (a._h ?? -1)   // venda: mais recente em cima
+    return (b._h ?? -1) - (a._h ?? -1)                          // fila: mais parado em cima
+  })
+  const contaAba = (aba) => mesa.filter(l => l._aba === aba).length
+  // "Atrasado" = na fila sem ninguém ter encostado há 48h+. É o número que o
+  // Bruno vai cobrar, então fica em cima, em vermelho, e não escondido numa aba.
+  const paradosGraves = mesa.filter(l => (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48).length
+  const mesaViva = contaAba('hoje') + contaAba('represado') + contaAba('contato') + contaAba('retomar')
+
+  // Marca a ação do vendedor. Quem decide o que pode é o BANCO
+  // (retroativo_vendedor_marcar); a tela só manda e recarrega.
+  async function marcarMesa(l, acao, pedirObs) {
+    let obs = null
+    if (pedirObs) {
+      obs = window.prompt(acao === 'sem_direito'
+        ? 'Por que ela não tem direito? (fica registrado no lead)'
+        : 'Alguma observação? (pode deixar vazio)') || null
+      if (acao === 'sem_direito' && !obs) return   // tirar da mesa exige motivo
+    }
+    setMarcando(l.id)
+    const { data, error } = await supabase.rpc('retroativo_vendedor_marcar', {
+      p_lead_id: l.id, p_acao: acao, p_obs: obs,
+    })
+    setMarcando(null)
+    if (error || !data?.ok) { alert('Não gravou: ' + (error?.message || data?.erro || 'erro')); return }
+    carregar()
+  }
+
   return (
     <div>
-      <div style={s.title}>🤱 Revisão IA — Retroativo</div>
-      <div style={s.sub}>{ehVendedor && !veTodasColunas
+      <div style={s.title}>{temMesa && modoMesa ? '📋 Minha mesa — Retroativo' : '🤱 Revisão IA — Retroativo'}</div>
+      <div style={s.sub}>{temMesa && modoMesa
+        ? 'Suas clientes pré-aprovadas. Marque o que aconteceu em cada ligação — é assim que nenhuma fica esquecida.'
+        : ehVendedor && !veTodasColunas
         ? 'Seus clientes: CNIS já enviado em diante. 🤖 = pré-aprovada pela máquina (confira de perto). Em "A analisar" aparecem só os que travaram e precisam de você.'
         : 'Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.'}</div>
 
-      <div style={s.topo}>
+      {/* 19/10 — no modo Mesa os filtros de board ficam fora: a vendedora não
+          filtra por cor nem por data de atividade, ela zera a fila do dia. Os
+          filtros voltam inteiros no board antigo, que segue a um clique. */}
+      <div style={{ ...s.topo, display: temMesa && modoMesa ? 'none' : s.topo.display }}>
         <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
           🔴 Só vermelhos ({totalVermelhos})
         </button>
@@ -1131,7 +1306,174 @@ export default function RevisaoIARetroativo() {
         )}
       </div>
 
-      <div style={s.board}>
+      {/* ===== 19/10 (Bruno) — MESA DO VENDEDOR =====
+          Nasceu de um número: 840 leads entregues em 14 dias, ZERO com registro de
+          contato. O board mostra o estado do robô, não o trabalho dela — então
+          ninguém via que 149 dos 150 leads da Gislaine estavam parados há 48h+.
+          Aqui cada lead tem UMA pergunta: você já falou com ela? E quatro botões
+          que respondem. O board antigo não saiu do lugar: está logo abaixo. */}
+      {temMesa && modoMesa && (
+        <div>
+          <div style={s.mesaResumo}>
+            <span style={s.mesaKpi('#0f172a', 'rgba(15,23,42,.06)')}>Na sua mesa: <b>{mesaViva}</b></span>
+            <span style={s.mesaKpi('#065f46', 'rgba(52,211,153,.14)')}>Vendas fechadas: <b>{contaAba('fechou')}</b></span>
+            {paradosGraves > 0 && (
+              <span style={s.mesaKpi('#991b1b', 'rgba(248,113,113,.14)')}>⏰ Parados 48h+: <b>{paradosGraves}</b></span>
+            )}
+            <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
+            <button style={s.mesaTrocar} onClick={() => setModoMesa(false)}>ver board antigo</button>
+          </div>
+
+          {paradosGraves > 0 && (
+            <div style={s.mesaAlerta}>
+              <b>{paradosGraves} {paradosGraves === 1 ? 'cliente está' : 'clientes estão'} há mais de 48h sem ninguém falar com {paradosGraves === 1 ? 'ela' : 'elas'}.</b>{' '}
+              Cada dia parado é uma chance de ela fechar com outro escritório. Comece pela aba Atrasados.
+            </div>
+          )}
+
+          <div style={s.mesaTopo}>
+            {ABAS_MESA.map(([k, rotulo]) => {
+              const n = contaAba(k)
+              const urgente = k === 'represado' && n > 0
+              return (
+                <button key={k} style={s.mesaAba(abaMesa === k, urgente)} onClick={() => setAbaMesa(k)}>
+                  {rotulo}<span style={s.mesaAbaNum(abaMesa === k)}>{n}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={s.mesaLista}>
+            {mesaDa(abaMesa).length === 0 ? (
+              <div style={s.mesaVazio}>
+                {abaMesa === 'hoje' ? 'Nenhum lead novo caiu hoje ainda. A advogada libera ao longo do dia — vale olhar os Atrasados enquanto isso.'
+                  : abaMesa === 'represado' ? '🎉 Nada atrasado. Sua mesa está limpa.'
+                  : abaMesa === 'contato' ? 'Nenhuma cliente em contato agora. Clique em "Peguei esta cliente" quando começar a falar com alguém.'
+                  : abaMesa === 'retomar' ? 'Ninguém marcado como "não respondeu".'
+                  : abaMesa === 'tel' ? 'Nenhum telefone errado pendente.'
+                  : abaMesa === 'sem_direito' ? 'Nenhuma cliente marcada como sem direito.'
+                  : 'Nenhuma venda fechada no período carregado.'}
+              </div>
+            ) : mesaDa(abaMesa).map(l => {
+              const urgente = (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48
+              const fechou = l._aba === 'fechou'
+              const zap = linkChatwoot(l)
+              return (
+                <div key={l.id} style={s.mesaCard(urgente)}>
+                  <div style={s.mesaCardTopo}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={s.mesaNome}>{l.nome || 'Sem nome'}</div>
+                      <div style={s.mesaTel}>{l.tel || 'sem telefone'}{l.cpf ? ' · CPF ' + l.cpf : ''}</div>
+                    </div>
+                    {!fechou && (
+                      <span style={s.mesaIdade(urgente)}>
+                        {l._h === null ? 'sem data' : 'na sua mão há ' + fmtHoras(l._h)}
+                      </span>
+                    )}
+                    {fechou && (
+                      <span style={s.mesaIdade(false)}>
+                        {l.coluna === 'FINALIZADO' ? '🎉 finalizada' : '✍️ aguardando assinatura'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* O vínculo é o argumento da ligação: sem ele a vendedora liga
+                      sem saber por que a cliente tem direito. Vem do GERID, é o
+                      mesmo dado que a advogada usou pra aprovar. */}
+                  {l.vinculo_direito && (
+                    <div style={s.mesaVinc}>
+                      <div style={s.mesaVincTit}>Empresa que deu o direito</div>
+                      <div style={{ ...s.mesaVincTxt, fontWeight: 700 }}>
+                        {l.vinculo_direito.empresa || '—'}
+                        {l.vinculo_direito.tipo ? ` (${l.vinculo_direito.tipo})` : ''}
+                      </div>
+                      <div style={s.mesaVincTxt}>{textoVinculo(l.vinculo_direito)}</div>
+                    </div>
+                  )}
+
+                  {/* 24 meses com seguro-desemprego: a cliente só tem direito se
+                      recebeu seguro, e isso SÓ ela sabe. Tem que perguntar na
+                      ligação — sem isso a venda cai na validação do advogado. */}
+                  {(l.advogada_motivo || '').indexOf('seguro-desemprego') >= 0 && (
+                    <div style={s.mesaObs}>⚠️ Perguntar se ela recebeu seguro-desemprego — o direito depende disso.</div>
+                  )}
+
+                  <div style={s.mesaMeta}>
+                    {l.data_nascimento_filho ? '👶 filho em ' + l.data_nascimento_filho : ''}
+                    {l.idade_bebe ? ' · ' + l.idade_bebe : ''}
+                    {l.whats_tem === 'false' || l.whats_marcado === 'sem_whats'
+                      ? ' · 📵 SEM WhatsApp — tem que ligar' : ''}
+                    {l.vend_tentativas > 0 ? ` · ${l.vend_tentativas} ${l.vend_tentativas === 1 ? 'tentativa' : 'tentativas'}` : ''}
+                    {l.vend_contato_em ? ' · 1º contato ' + fmtCarimbo(l.vend_contato_em) : ''}
+                  </div>
+
+                  {l.vend_obs && <div style={s.mesaObs}>📝 {l.vend_obs}</div>}
+
+                  {!fechou && l._aba !== 'sem_direito' && (
+                    <div style={s.mesaAcoes}>
+                      {l._aba !== 'contato' && (
+                        <button style={s.mesaPegar} disabled={marcando === l.id}
+                          onClick={() => marcarMesa(l, 'pegar', false)}>
+                          {marcando === l.id ? 'gravando...' : '✋ Peguei esta cliente'}
+                        </button>
+                      )}
+                      {zap && (
+                        <a href={zap} target="_blank" rel="noreferrer" style={s.mesaZap}>💬 WhatsApp</a>
+                      )}
+                      {l._aba === 'tel'
+                        ? (
+                          <button style={s.mesaAcao('rgba(5,150,105,.35)', '#059669')} disabled={marcando === l.id}
+                            onClick={() => marcarMesa(l, 'reabrir', false)}>
+                            ↩️ Telefone novo — devolver pra mesa
+                          </button>
+                        )
+                        : ACOES_MESA.map(([cod, rotulo, bg, cor]) => (
+                          <button key={cod} style={s.mesaAcao(bg, cor)} disabled={marcando === l.id}
+                            onClick={() => marcarMesa(l, cod, cod !== 'sem_resposta')}>
+                            {rotulo}
+                          </button>
+                        ))}
+                      <button style={s.mesaFicha} onClick={() => abrirLead(l)}>abrir ficha</button>
+                    </div>
+                  )}
+
+                  {l._aba === 'sem_direito' && (
+                    <div style={s.mesaAcoes}>
+                      <button style={s.mesaAcao('rgba(5,150,105,.35)', '#059669')} disabled={marcando === l.id}
+                        onClick={() => marcarMesa(l, 'reabrir', false)}>
+                        ↩️ Errei — devolver pra mesa
+                      </button>
+                      <button style={s.mesaFicha} onClick={() => abrirLead(l)}>abrir ficha</button>
+                    </div>
+                  )}
+
+                  {fechou && (
+                    <div style={s.mesaAcoes}>
+                      {zap && <a href={zap} target="_blank" rel="noreferrer" style={s.mesaZap}>💬 WhatsApp</a>}
+                      <button style={s.mesaFicha} onClick={() => abrirLead(l)}>abrir ficha</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={s.blocoPe}>
+            A venda não tem botão: quando o cadastro da cliente sobe pelo sistema e o
+            contrato é assinado, ela aparece sozinha na aba Venda fechada. O que você
+            marca aqui é só o CONTATO — serve pra ninguém ficar esquecido na mesa.
+          </div>
+        </div>
+      )}
+
+      {/* Board kanban original. Continua a ferramenta da supervisão e de quem
+          quiser a visão de funil — nada foi retirado dele. */}
+      {temMesa && !modoMesa && (
+        <div style={{ marginBottom: 10 }}>
+          <button style={s.chip} onClick={() => setModoMesa(true)}>← voltar pra minha mesa</button>
+        </div>
+      )}
+      <div style={{ ...s.board, display: temMesa && modoMesa ? 'none' : s.board.display }}>
         {colunasVisiveis.map(([col, titulo]) => {
           const cards = cardsDe(col)
           const podeSoltar = col !== 'OUTROS'
