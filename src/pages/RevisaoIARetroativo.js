@@ -37,6 +37,7 @@ const SUPERVISORAS_TIME = {
     '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
     'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
     'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: entrou no time de 12
     '0a5958b9-d43b-4bac-a01d-af60247dd721', // ela mesma
   ],
   // Egle Marcela — time 12 a 24 meses
@@ -148,6 +149,11 @@ const IDS_VENDEDORAS_RETROATIVO = [
   '7ad37a1d-e5be-438c-9afd-982646d507d4', // juhferreira141988
   // 01/10: Agatha Barreto SAIU daqui — virou supervisora do time de 12,
   // nao e mais vendedora. Ela entrou em SUPERVISORAS_TIME acima.
+  // 19/10 (Bruno) — estas duas entraram hoje. SEM A LINHA AQUI a tela tenta baixar
+  // o board INTEIRO (26.893 leads em 27 requisicoes) e fica carregando pra sempre:
+  // e o caso da Luciane em 16/09 e das cinco de 01/10, ja anotado acima.
+  '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — time de 12 da KR
+  '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS (Ronaldo Arcari) — faixa 'rt', parceria
 ]
 
 // Painel do dia: SO o Bruno ve. Deliberadamente por ID e nao por role='admin' —
