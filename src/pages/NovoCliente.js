@@ -9,6 +9,12 @@ const s = {
   input: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
   inputReadOnly: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, color: '#334155', background: '#e2e8f0', outline: 'none', boxSizing: 'border-box' },
   inputErr: { width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid #f87171', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box' },
+  // 19/10 — campo que a vendedora PRECISA digitar na mao. Amarelo forte + halo,
+  // pra nao passar batido igual aconteceu no cadastro da MARIA EDUARDA (CEP 38288-000).
+  inputFaltando: { width: '100%', padding: '10px 12px', fontSize: 14, border: '2px solid #f59e0b', borderRadius: 8, color: '#0f172a', background: '#fffbeb', outline: 'none', boxSizing: 'border-box', boxShadow: '0 0 0 3px rgba(245,158,11,.18)' },
+  badgeAqui: { marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', color: '#7c2d12', background: 'rgba(251,191,36,.3)', border: '1px solid #f59e0b', borderRadius: 999, padding: '2px 8px', textTransform: 'uppercase' },
+  boxFalta: { background: 'rgba(251,191,36,.12)', border: '1.5px solid #f59e0b', borderRadius: 10, padding: '13px 15px', marginTop: 10, fontSize: 13, color: '#7c2d12', lineHeight: 1.65 },
+  boxFaltaErro: { background: 'rgba(248,113,113,.14)', border: '1.5px solid #dc2626', borderRadius: 10, padding: '13px 15px', marginTop: 10, fontSize: 13, color: '#991b1b', lineHeight: 1.65 },
   select: { width: '100%', padding: '12px', fontSize: 15, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box', fontWeight: 500 },
   textarea: { width: '100%', padding: '10px 12px', fontSize: 14, border: '0.5px solid rgba(0,0,0,0.45)', borderRadius: 8, color: '#0f172a', background: '#ffffff', outline: 'none', boxSizing: 'border-box', minHeight: 60, fontFamily: 'inherit', resize: 'vertical' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
@@ -21,6 +27,7 @@ const s = {
   hint: { fontSize: 11, color: '#5b6b84', marginTop: 4 },
   hintErr: { fontSize: 11, color: '#dc2626', marginTop: 4 },
   hintOk: { fontSize: 11, color: '#059669', marginTop: 4 },
+  hintAcao: { fontSize: 11.5, color: '#b45309', marginTop: 4, fontWeight: 500 },
   warnBox: { background: 'rgba(251,191,36,.12)', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#b45309' },
   duplicadoBox: { background: 'rgba(248,113,113,.14)', border: '1px solid #A32D2D40', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#dc2626' },
   successBox: { background: 'rgba(52,211,153,.14)', border: '1.5px solid #3B6D1150', borderRadius: 14, padding: '1.5rem', textAlign: 'center' },
@@ -111,7 +118,7 @@ function dataBR(iso) {
 }
 function emailValido(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((e || '').trim()) }
 function telValido(t) { return (t || '').replace(/\D/g, '').length >= 10 }
-function normalizar(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }
+function normalizar(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() }
 
 export default function NovoCliente({ onSucesso }) {
   const { profile } = useAuth()
@@ -143,9 +150,16 @@ export default function NovoCliente({ onSucesso }) {
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [cepStatus, setCepStatus] = useState(null)
   const [endLockado, setEndLockado] = useState(false)
+  // 19/10 — guarda o que o CEP NAO trouxe. Tem que ser estado proprio, e nao
+  // "c.rua esta vazia": se fosse calculado do valor atual, o campo travaria de
+  // novo no exato momento em que a vendedora digitasse a primeira letra.
+  const [cepSemRua, setCepSemRua] = useState(false)
+  const [cepSemBairro, setCepSemBairro] = useState(false)
   const [cidadesUF, setCidadesUF] = useState([])
   const [cidadeStatus, setCidadeStatus] = useState(null)
   const ufCarregadaRef = useRef(null)
+  const ruaRef = useRef(null)
+  const bairroRef = useRef(null)
 
   // ID temporário usado pra agrupar uploads antes de salvar
   const tempIdRef = useRef(`temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`)
@@ -199,15 +213,25 @@ export default function NovoCliente({ onSucesso }) {
       const j = await r.json()
       if (j.erro) {
         setCepStatus('erro'); setEndLockado(false)
+        setCepSemRua(false); setCepSemBairro(false)
         setC(c => ({ ...c, rua:'', bairro:'', cidade:'', uf:'' }))
         setCidadeStatus(null)
       } else {
+        // 19/10 — CEP de cidade inteira (ex.: 38288-000, Uniao de Minas/MG) volta do
+        // ViaCEP com logradouro e bairro VAZIOS. Antes os dois ficavam cinza/readonly
+        // junto com cidade e UF, a tela dizia "endereco encontrado" e o cadastro
+        // travava sem dizer o motivo. Agora o cadeado e por campo: so fica travado
+        // o que o CEP realmente preencheu.
+        const vLog = (j.logradouro || '').toUpperCase()
+        const vBai = (j.bairro || '').toUpperCase()
         setC(c => ({ ...c,
-          rua: (j.logradouro || '').toUpperCase(),
-          bairro: (j.bairro || '').toUpperCase(),
+          rua: vLog,
+          bairro: vBai,
           cidade: (j.localidade || '').toUpperCase(),
           uf: (j.uf || '').toUpperCase(),
         }))
+        setCepSemRua(!vLog.trim())
+        setCepSemBairro(!vBai.trim())
         setCepStatus('ok'); setEndLockado(true); setCidadeStatus('ok')
       }
     } catch (e) { setCepStatus('erro'); setEndLockado(false) }
@@ -218,8 +242,15 @@ export default function NovoCliente({ onSucesso }) {
     const masked = maskCEP(v); set('cep', masked)
     const limpo = masked.replace(/\D/g, '')
     if (limpo.length === 8) buscarCep(limpo)
-    else { setCepStatus(null); setEndLockado(false); setCidadeStatus(null) }
+    else { setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setCepSemRua(false); setCepSemBairro(false) }
   }
+
+  // 19/10 — joga o cursor direto no campo que falta assim que o CEP volta
+  // incompleto. Sem isso a vendedora le o aviso, nao sabe onde clicar e desiste.
+  useEffect(() => {
+    if (cepSemRua && ruaRef.current) { try { ruaRef.current.focus() } catch (e) {} }
+    else if (cepSemBairro && bairroRef.current) { try { bairroRef.current.focus() } catch (e) {} }
+  }, [cepSemRua, cepSemBairro])
 
   async function carregarCidadesUF(uf) {
     if (!uf || uf.length !== 2) { setCidadesUF([]); return }
@@ -360,6 +391,7 @@ export default function NovoCliente({ onSucesso }) {
     setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'', motivo_aprovacao:'' })
     setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null, extrato_fgts: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
+    setCepSemRua(false); setCepSemBairro(false)
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
 
@@ -425,11 +457,63 @@ export default function NovoCliente({ onSucesso }) {
     </div>
   )
 
+  const mostrarEndereco = cepStatus === 'ok' || cepStatus === 'erro'
+
+  // 19/10 — cadeado POR CAMPO. Rua e bairro que o CEP nao trouxe nascem editaveis.
+  const ruaLockada = endLockado && !cepSemRua
+  const bairroLockado = endLockado && !cepSemBairro
+  // campo editavel, obrigatorio e ainda em branco = pinta de amarelo e avisa
+  const precisaDigitarRua = mostrarEndereco && !ruaLockada && !c.rua.trim()
+  const precisaDigitarBairro = mostrarEndereco && !bairroLockado && !c.bairro.trim()
+  const cepIncompleto = cepStatus === 'ok' && (cepSemRua || cepSemBairro)
+
   const inputCidade = endLockado ? s.inputReadOnly : (cidadeStatus === 'erro' ? s.inputErr : s.input)
   const inputUF = endLockado ? s.inputReadOnly : (c.uf && !ufOk ? s.inputErr : s.input)
-  const inputRua = endLockado ? s.inputReadOnly : s.input
-  const inputBairro = endLockado ? s.inputReadOnly : s.input
-  const mostrarEndereco = cepStatus === 'ok' || cepStatus === 'erro'
+  const inputRua = ruaLockada ? s.inputReadOnly : (precisaDigitarRua ? s.inputFaltando : s.input)
+  const inputBairro = bairroLockado ? s.inputReadOnly : (precisaDigitarBairro ? s.inputFaltando : s.input)
+
+  // 19/10 — a tela SABE qual campo falta e nao contava: o rodape dizia so
+  // "Preencha todos os campos corretamente". Foi o que travou o Ronaldo no
+  // cadastro da MARIA EDUARDA (CEP 38288-000, cidade sem rua nos Correios).
+  // Agora lista campo por campo, na ordem em que aparecem no formulario.
+  function listaFaltando() {
+    const f = []
+    if (!c.nome.trim()) f.push('Nome completo')
+    if (!c.cpf) f.push('CPF'); else if (!cpfOk) f.push('CPF (número inválido)')
+    if (!c.rg.trim()) f.push('RG')
+    if (!c.telefone) f.push('Telefone'); else if (!telOk) f.push('Telefone (incompleto)')
+    if (!c.email.trim()) f.push('E-mail'); else if (!emailOk) f.push('E-mail (formato inválido)')
+    if (!c.cep) f.push('CEP'); else if (!cepOk) f.push('CEP (incompleto)')
+    if (mostrarEndereco) {
+      if (!c.rua.trim()) f.push('Rua')
+      if (!c.numero.trim()) f.push('Número')
+      if (!c.bairro.trim()) f.push('Bairro')
+      if (!c.cidade.trim()) f.push('Cidade')
+      else if (!cidadeOk) f.push('Cidade (não confere com a UF)')
+      if (!c.uf) f.push('UF'); else if (!ufOk) f.push('UF (inválida)')
+    }
+    if (c.produto === 'Maternidade' || c.produto === 'Gestante até 5 meses') {
+      if (!c.nis) f.push('NIS')
+      if (!c.data_prevista_parto) f.push('Data prevista do parto')
+      if (!c.meses_gravidez.trim()) f.push('Meses de gravidez')
+    }
+    if (ehMae) {
+      if (!c.data_nascimento_bebe) f.push('Data de nascimento do bebê')
+      if (c.ja_trabalhou_clt === '') f.push('Já trabalhou de carteira assinada?')
+      if (c.trabalhava_no_nascimento === '') f.push('Estava trabalhando quando o bebê nasceu?')
+      if (c.ja_trabalhou_clt === 'sim' && c.trabalhava_no_nascimento === 'nao' && !c.saida_emprego_mes_ano.trim())
+        f.push('Mês/ano que saiu do último emprego')
+      if (!c.motivo_aprovacao) f.push('Por que essa cliente foi aprovada?')
+    }
+    if (!docs.rg_frente) f.push('anexar RG Frente')
+    if (!docs.rg_verso) f.push('anexar RG Verso')
+    if (!docs.comprovante_1) f.push('anexar Comprovante 1')
+    if (!docs.comprovante_2) f.push('anexar Comprovante 2')
+    if (ctpsObrigatorio && !docs.ctps_digital) f.push('anexar CTPS digital em PDF')
+    if (fgtsObrigatorio && !docs.extrato_fgts) f.push('anexar Extrato FGTS em PDF')
+    return f
+  }
+  const faltando = tudoOk ? [] : listaFaltando()
 
   const produtoInfo = PRODUTOS.find(p => p.key === c.produto)
 
@@ -537,12 +621,27 @@ export default function NovoCliente({ onSucesso }) {
             onChange={e => onCepChange(e.target.value)}
             placeholder="00000-000" inputMode="numeric" />
           {buscandoCep && <div style={s.hint}>🔍 Buscando endereço...</div>}
-          {cepStatus === 'ok' && <div style={s.hintOk}>✓ Endereço encontrado — confira e preencha o número</div>}
+          {cepStatus === 'ok' && !cepIncompleto && <div style={s.hintOk}>✓ Endereço encontrado — confira e preencha o número</div>}
+          {cepIncompleto && <div style={s.hintAcao}>✓ Cidade encontrada — mas esse CEP não tem {cepSemRua && cepSemBairro ? 'rua nem bairro' : cepSemRua ? 'rua' : 'bairro'}. Veja o aviso abaixo 👇</div>}
         </div>
 
         {cepStatus === 'erro' && (
           <div style={s.warnBox}>
             ⚠️ <strong>CEP não encontrado.</strong> Preencha o endereço manualmente abaixo.
+          </div>
+        )}
+
+        {/* 19/10 — aviso do CEP de cidade inteira. Sem ele a vendedora le
+            "endereco encontrado", nao ve o que falta e acha que o sistema travou. */}
+        {cepIncompleto && (
+          <div style={s.warnBox}>
+            📍 <strong>Esse CEP vale para a cidade inteira.</strong> Os Correios não têm{' '}
+            {cepSemRua && cepSemBairro ? <strong>rua nem bairro</strong> : cepSemRua ? <strong>rua</strong> : <strong>bairro</strong>}{' '}
+            cadastrado nele — isso é normal em cidade pequena, não é erro do sistema.
+            <br />
+            👉 Pergunte à cliente e <strong>digite à mão</strong>{' '}
+            {cepSemRua && cepSemBairro ? 'a rua e o bairro' : cepSemRua ? 'a rua' : 'o bairro'}{' '}
+            {cepSemRua && cepSemBairro ? 'nos campos marcados' : 'no campo marcado'} de amarelo aqui embaixo.
           </div>
         )}
 
@@ -552,6 +651,50 @@ export default function NovoCliente({ onSucesso }) {
               <div>
                 <label style={s.label}>
                   Rua *
+                  {precisaDigitarRua && <span style={s.badgeAqui}>⬅ digite aqui</span>}
+                  {ruaLockada && (
+                    <button type="button" onClick={() => setEndLockado(false)}
+                      style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}>
+                      editar
+                    </button>
+                  )}
+                </label>
+                <input ref={ruaRef} style={inputRua} value={c.rua}
+                  readOnly={ruaLockada}
+                  onChange={e => set('rua', e.target.value.toUpperCase())}
+                  placeholder={precisaDigitarRua ? 'DIGITE O NOME DA RUA / AVENIDA' : 'RUA / AVENIDA'} />
+                {precisaDigitarRua && <div style={s.hintAcao}>Esse endereço não vem preenchido — escreva o nome da rua ou avenida</div>}
+              </div>
+              <div>
+                <label style={s.label}>Número *</label>
+                <input style={c.numero.trim() || !mostrarEndereco ? s.input : s.inputFaltando} value={c.numero}
+                  onChange={e => set('numero', e.target.value.toUpperCase().slice(0, 10))}
+                  placeholder="123" />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={s.label}>
+                Bairro *
+                {precisaDigitarBairro && <span style={s.badgeAqui}>⬅ digite aqui</span>}
+                {bairroLockado && (
+                  <button type="button" onClick={() => setEndLockado(false)}
+                    style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}>
+                    editar
+                  </button>
+                )}
+              </label>
+              <input ref={bairroRef} style={inputBairro} value={c.bairro}
+                readOnly={bairroLockado}
+                onChange={e => set('bairro', e.target.value.toUpperCase())}
+                placeholder={precisaDigitarBairro ? 'DIGITE O BAIRRO' : 'BAIRRO'} />
+              {precisaDigitarBairro && <div style={s.hintAcao}>Esse endereço não vem preenchido — escreva o bairro</div>}
+            </div>
+
+            <div style={s.grid_cidade_uf}>
+              <div>
+                <label style={s.label}>
+                  Cidade *
                   {endLockado && (
                     <button type="button" onClick={() => setEndLockado(false)}
                       style={{ marginLeft: 8, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}>
@@ -559,30 +702,6 @@ export default function NovoCliente({ onSucesso }) {
                     </button>
                   )}
                 </label>
-                <input style={inputRua} value={c.rua}
-                  readOnly={endLockado}
-                  onChange={e => set('rua', e.target.value.toUpperCase())}
-                  placeholder="RUA / AVENIDA" />
-              </div>
-              <div>
-                <label style={s.label}>Número *</label>
-                <input style={s.input} value={c.numero}
-                  onChange={e => set('numero', e.target.value.toUpperCase().slice(0, 10))}
-                  placeholder="123" />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={s.label}>Bairro *</label>
-              <input style={inputBairro} value={c.bairro}
-                readOnly={endLockado}
-                onChange={e => set('bairro', e.target.value.toUpperCase())}
-                placeholder="BAIRRO" />
-            </div>
-
-            <div style={s.grid_cidade_uf}>
-              <div>
-                <label style={s.label}>Cidade *</label>
                 <input style={inputCidade} value={c.cidade}
                   readOnly={endLockado}
                   onChange={e => set('cidade', e.target.value.toUpperCase())}
@@ -765,20 +884,38 @@ export default function NovoCliente({ onSucesso }) {
         {enviando ? '⏳ Salvando...' : '✅ Cadastrar cliente'}
       </button>
 
+      {/* 19/10 — no lugar de "Preencha todos os campos corretamente", a lista
+          exata do que falta. O rodape e o ultimo lugar onde da pra salvar a
+          vendedora antes dela desistir do cadastro. */}
       {!tudoOk && (
-        <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>
-          {c.produto === 'Maternidade Mãe' && !c.motivo_aprovacao ? 'Escolha o motivo da aprovação' :
-            ctpsObrigatorio && !docs.ctps_digital ? 'Falta a CTPS digital — obrigatória no Maternidade Mãe' :
-            fgtsObrigatorio && !docs.extrato_fgts ? 'Falta o extrato FGTS — obrigatório no Maternidade Mãe' :
-            !docsOk ? 'Anexe os 4 documentos obrigatórios (RG frente, verso, comprovantes 1 e 2)' :
-            !camposMatOk ? 'Preencha NIS, data do parto e meses de gravidez' :
-            // 15/10 (Bruno): era `duplicado`, que tambem e verdadeiro quando o cliente
-            // e da PROPRIA vendedora (caso de 2 filhos). Ela lia "CPF ja cadastrado
-            // pendente" no lugar do campo que realmente falta e parava. So bloqueia
-            // de verdade quando o cliente e de OUTRO vendedor.
-            duplicadoBloqueia ? 'CPF já cadastrado pendente' :
-            'Preencha todos os campos corretamente'}
-        </div>
+        duplicadoBloqueia ? (
+          <div style={s.boxFaltaErro}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>🚫 Não dá pra cadastrar esse CPF agora</div>
+            Ele já está ativo no sistema com <strong>{duplicado.vendedorNome}</strong>. Fale com a
+            supervisão antes de seguir — trocar o CPF não resolve.
+          </div>
+        ) : faltando.length ? (
+          <div style={s.boxFalta}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              ⚠️ Falta {faltando.length === 1 ? '1 item' : `${faltando.length} itens`} para liberar o botão:
+            </div>
+            <div>
+              {faltando.map((f, i) => (
+                <span key={f}><strong>{f}</strong>{i < faltando.length - 1 ? ' · ' : ''}</span>
+              ))}
+            </div>
+            {(precisaDigitarRua || precisaDigitarBairro) && (
+              <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,.4)' }}>
+                👆 {cepIncompleto
+                      ? 'Esse CEP é de cidade inteira e não traz o endereço completo. '
+                      : 'O CEP não foi encontrado. '}
+                Role pra cima e digite nos campos <strong>marcados de amarelo</strong>.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ ...s.hint, textAlign: 'center', marginTop: 8 }}>Confira os dados antes de salvar</div>
+        )
       )}
     </div>
   )
