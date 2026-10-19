@@ -68,6 +68,42 @@ const IDS_VENDAS_RETROATIVO = [
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
 ]
 
+// 19/10 (Bruno) — SO RETROATIVO. Quem esta aqui perde TODAS as outras telas do
+// sistema e fica com o pacote de vendedor do retroativo (TELAS_SO_RETROATIVO).
+// Vale sobre qualquer outra regra deste arquivo, inclusive as injecoes por ID.
+//
+// POR QUE ESTES TRES E NAO AS OUTRAS SETE de IDS_VENDAS_RETROATIVO: conferido no
+// banco em 19/10, por produto digitado nos ultimos 90 dias.
+//   Leticia  — Maternidade ate 08/09, Gestante ate 27/08; de setembro pra ca SO Maternidade Mae
+//   Gislaine — Maternidade ate 03/09, Gestante ate 04/09; de setembro pra ca SO Maternidade Mae
+//   Luciane  — SO Maternidade Mae desde 17/09 (veio do pos-venda)
+// As tres ja migraram de fato ha mais de seis semanas: cortar nao tira trabalho
+// de ninguem, so tira menu que elas nao usam mais.
+//
+// FICARAM FORA DE PROPOSITO, porque cortar quebraria outra operacao:
+//   Maryana Kodos  — supervisor_producao, supervisiona time (SUPERVISORAS_TIME)
+//   Agatha Barreto — coordenador_b2c, supervisora do time de 12
+//   Duda           — opera a Revisao Crefaz e o Confere CNIS
+//   Sthefany       — analista, valida direito no Acompanhamento Mae e no pos-venda
+//   Joana / Pamela / Nadia / Ju / Hellen — time de 24, tambem vendem Simulacao de Emprestimo
+// Tirar alguem dessa lista de fora = tirar a tela do trabalho dela. Nao fazer
+// sem conferir o que a pessoa digita hoje.
+const IDS_SO_RETROATIVO = [
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
+]
+// O pacote completo do vendedor do retroativo: a mesa, o proprio numero e o que
+// ele precisa pra digitar a cliente que fechou.
+// 'fila_digitacao' NAO entra: e a tela da SUPERVISAO (718 notificacoes de
+// admin/supervisor dentro dela). Quem digita cliente usa 'novo_cliente'.
+// MESMA lista do Layout.js: se as duas nao baterem, o item aparece no menu e a
+// pagina nega (bug de 02/09).
+const TELAS_SO_RETROATIVO = [
+  'revisao_ia_retroativo', 'painel_vendas',
+  'novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes',
+]
+
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
   '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
@@ -242,6 +278,15 @@ function paginaInicial(role) {
   return 'dashboard'
 }
 
+// 19/10 — tela de abertura. Centralizado aqui porque antes a conta estava
+// repetida em dois lugares (o useEffect e o paginaSegura) e acrescentar um caso
+// exigia lembrar dos dois. Quem e so do retroativo abre na mesa dele.
+function paginaDeAbertura(profile) {
+  if (IDS_OPERACAO_LICENCIADA.includes(profile?.id)) return 'revisao_ia_bf'
+  if (IDS_SO_RETROATIVO.includes(profile?.id)) return 'revisao_ia_retroativo'
+  return paginaInicial(profile?.role)
+}
+
 // Time Maryana Kodos (supervisora + vendedoras B2C): acesso extra as telas Revisao IA, sem perder roles
 const IDS_TIME_MARYANA = [
   'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
@@ -255,6 +300,12 @@ function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
   if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // 19/10 (Bruno) — SO RETROATIVO. Fica no TOPO de proposito: e um corte, nao uma
+  // adicao, e tem que vencer tudo que vem depois — inclusive a regra do
+  // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
+  // Leticia e Gislaine estao em IDS_TIME_MARYANA logo acima: sem este corte vir
+  // primeiro, elas continuariam enxergando BF, Gestante e CLT.
+  if (IDS_SO_RETROATIVO.includes(profile.id)) return TELAS_SO_RETROATIVO.includes(page)
   // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
   // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
   // 02/09 (correcao): 'simulador_emprestimo' e 'analista' entraram na regra do MENU
@@ -330,7 +381,7 @@ function AppInner() {
 
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+      setPage(paginaDeAbertura(profile))
     }
   }, [profile, page])
 
@@ -418,7 +469,7 @@ function AppInner() {
     revisao_crefaz: <RevisaoCrefaz />,
   }
 
-  const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+  const paginaSegura = paginaPermitida(profile, page) ? page : paginaDeAbertura(profile)
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
