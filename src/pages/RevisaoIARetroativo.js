@@ -86,6 +86,21 @@ const COLUNAS_VENDEDOR = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPR
 const COLUNAS_MESA_ATIVA = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL']
 const COLUNAS_MESA_FECHOU = ['AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
+// 19/10 (Bruno) — A VENDA VEM DA TABELA clientes, nao da coluna do board.
+// Eu tinha feito a aba "Venda fechada" ler a coluna FINALIZADO. Estava errado:
+// medido em 19/10, das 370 vendas fechadas na mao das 13, so 176 tinham o lead em
+// FINALIZADO. As outras 194 (136 ainda em NOVO) foram digitadas no Novo Cliente,
+// que cria o cliente mas nao mexe no estado do lead — a aba mostrava 48%.
+// Agora quem manda e cliente_status, que a mae_board4 traz cruzando o CPF.
+const CLIENTE_FECHADO = ['validado', 'entregue', 'assinado']
+const CLIENTE_PERDIDO = ['cancelado', 'expirado', 'barrado_pos_venda']
+// Como cada perda e explicada pra ela, em portugues de gente.
+const MOTIVO_PERDA = {
+  expirado: ['⏳', 'Não assinou a tempo', 'O link de assinatura venceu antes de ela assinar.'],
+  cancelado: ['🚫', 'Cancelada', 'O contrato foi cancelado depois de emitido.'],
+  barrado_pos_venda: ['🛑', 'Barrada no pós-venda', 'A conferência do pós-venda não aprovou.'],
+}
+
 // Abas da mesa. A ordem é a ordem do dia dela: primeiro o que caiu hoje, depois
 // o que ficou pra trás, depois o que ela já encostou.
 const ABAS_MESA = [
@@ -96,7 +111,37 @@ const ABAS_MESA = [
   ['tel', '📵 Telefone errado'],
   ['sem_direito', '🚫 Sem direito'],
   ['fechou', '✅ Venda fechada'],
+  // 19/10 (Bruno) — RECUPERAR: cliente que fechou e caiu depois (nao assinou,
+  // cancelou, barrou no pos-venda). Antes isso sumia da vida da vendedora no
+  // instante em que virava cadastro. No produto inteiro sao 360 perdidas contra
+  // 407 fechadas — quase uma pra cada venda, e ninguem olhava.
+  ['recuperar', '♻️ Recuperar'],
 ]
+
+// 19/10 — filtro de QUANDO a advogada entregou o lead. Padrao 'tudo' de proposito:
+// na versao anterior a mesa herdava o filtro "Atividade: mes" do board e escondia
+// 655 dos 1.571 leads ativos (41,7%) — justo os mais abandonados. Filtro na mesa
+// so vale quando ELA escolhe.
+const PERIODOS_MESA = [
+  ['tudo', 'Todo o período'],
+  ['hoje', 'Hoje'],
+  ['ontem', 'Ontem'],
+  ['7d', 'Últimos 7 dias'],
+  ['30d', 'Últimos 30 dias'],
+]
+function dentroDoPeriodo(iso, periodo) {
+  if (periodo === 'tudo') return true
+  const d = diaBR(iso)
+  if (!d) return false
+  const hoje = hojeBR()
+  if (periodo === 'hoje') return d === hoje
+  const ms = new Date(hoje + 'T12:00:00') - new Date(d + 'T12:00:00')
+  const dias = Math.round(ms / 86400000)
+  if (periodo === 'ontem') return dias === 1
+  if (periodo === '7d') return dias >= 0 && dias <= 6
+  if (periodo === '30d') return dias >= 0 && dias <= 29
+  return true
+}
 
 // Ações que o vendedor marca. Os códigos TÊM que ser os mesmos da função do
 // banco (retroativo_vendedor_marcar) — mexer num lado sem o outro quebra a tela.
@@ -507,6 +552,40 @@ const s = {
   mesaResumo: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   mesaKpi: (cor, bg) => ({ fontSize: 12.5, fontWeight: 600, color: cor, background: bg, borderRadius: 9, padding: '7px 13px' }),
   mesaTrocar: { fontSize: 12, fontWeight: 600, color: '#5b6b84', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit' },
+
+  // ===== 19/10 — CABEÇALHO DA MESA =====
+  // Os cinco números em cima, antes de qualquer lista. O que manda aqui é
+  // "parados +48h": é o único deles que não existia em lugar nenhum do sistema
+  // e é o que mostra cliente apodrecendo na mão da vendedora.
+  cab: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,.10)', borderRadius: 14, padding: '15px 17px', marginBottom: 14, boxShadow: '0 1px 3px rgba(15,23,42,.05)' },
+  cabTopo: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 13, flexWrap: 'wrap', marginBottom: 13 },
+  cabQuem: { display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 },
+  cabAv: { width: 38, height: 38, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 },
+  cabNome: { fontSize: 15.5, fontWeight: 700, color: '#0f172a', lineHeight: 1.25 },
+  cabSub: { fontSize: 11.5, color: '#5b6b84', marginTop: 1 },
+  // grid que vira 2 colunas no celular sem media query (minmax + auto-fit)
+  cabKpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 9 },
+  cabKpi: (bg, borda) => ({ borderRadius: 11, padding: '10px 12px', background: bg || '#f8fafc', border: '0.5px solid ' + (borda || 'rgba(15,23,42,.08)') }),
+  cabKpiTit: (cor) => ({ fontSize: 10, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: cor || '#64748b' }),
+  cabKpiNum: (cor) => ({ fontSize: 25, fontWeight: 800, color: cor || '#0f172a', lineHeight: 1.1, marginTop: 4, fontVariantNumeric: 'tabular-nums' }),
+  cabKpiPe: { fontSize: 10.5, color: '#64748b', marginTop: 2 },
+  cabBarra: { marginTop: 12, background: '#f1f5f9', borderRadius: 999, height: 8, overflow: 'hidden' },
+  cabBarraIn: (pct) => ({ height: '100%', width: Math.max(2, Math.min(100, pct)) + '%', borderRadius: 999, background: 'linear-gradient(90deg,#34d399,#059669)', transition: 'width .4s' }),
+  cabBarraTxt: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11.5, color: '#5b6b84', marginTop: 6, flexWrap: 'wrap' },
+  cabSino: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(52,211,153,.14)', border: '0.5px solid rgba(5,150,105,.3)', color: '#047857', fontSize: 12.5, fontWeight: 700, padding: '7px 13px', borderRadius: 9 },
+  cabPonto: { width: 8, height: 8, borderRadius: 999, background: '#059669', boxShadow: '0 0 0 4px rgba(5,150,105,.18)' },
+
+  // Aviso de cliente nova. Fixo no canto no computador; no celular vira faixa no
+  // topo da lista, porque caixa flutuante em tela pequena tapa o primeiro card —
+  // que e justamente o que ela precisa tocar.
+  aviso: { position: 'fixed', right: 18, bottom: 18, width: 325, maxWidth: 'calc(100vw - 36px)', background: '#fff', borderRadius: 13, border: '1px solid rgba(5,150,105,.35)', boxShadow: '0 14px 34px rgba(15,23,42,.19)', zIndex: 60, overflow: 'hidden' },
+  avisoTopo: { background: 'linear-gradient(90deg, rgba(52,211,153,.2), rgba(52,211,153,.07))', padding: '11px 13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 9, borderBottom: '0.5px solid rgba(5,150,105,.2)' },
+  avisoTit: { fontSize: 13.5, fontWeight: 800, color: '#047857' },
+  avisoX: { background: 'none', border: 'none', color: '#5b6b84', fontSize: 15, cursor: 'pointer', lineHeight: 1, padding: 0, fontFamily: 'inherit' },
+  avisoCorpo: { padding: '11px 13px' },
+  avisoLin: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#0f172a', padding: '3px 0' },
+  avisoTag: { fontSize: 9.5, fontWeight: 700, color: '#1d4ed8', background: 'rgba(37,99,235,.1)', borderRadius: 5, padding: '1px 6px', flexShrink: 0 },
+  avisoBtn: { marginTop: 9, width: '100%', padding: '10px', background: '#059669', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
 }
 
 export default function RevisaoIARetroativo() {
@@ -618,6 +697,39 @@ export default function RevisaoIARetroativo() {
   const [modoMesa, setModoMesa] = usarFiltro('modoMesa', true)
   const [abaMesa, setAbaMesa] = usarFiltro('abaMesa', 'hoje')
   const [marcando, setMarcando] = useState(null)   // lead_id em processamento
+  // Padrao 'tudo': a mesa NUNCA esconde lead por conta propria. Ver nota em PERIODOS_MESA.
+  const [periodoMesa, setPeriodoMesa] = usarFiltro('periodoMesa', 'tudo')
+
+  // 19/10 — aviso de cliente nova. idsVistos comeca NULL de proposito: null quer
+  // dizer "ainda nao carregou nenhuma vez", e e isso que impede o alarme falso na
+  // abertura da tela. Set vazio significaria "carregou e nao tinha nada", que e
+  // outra coisa. Fica em ref e nao em state: mudar nao precisa redesenhar a tela.
+  const idsVistos = useRef(null)
+  const [avisoNovos, setAvisoNovos] = useState(null)
+  const [qtNovos, setQtNovos] = useState(0)
+  const timerAviso = useRef(null)
+
+  // Bipe curto gerado na hora (sem arquivo de som pra subir no repo). O navegador
+  // so deixa tocar depois que a pessoa clicou alguma coisa na pagina — por isso o
+  // try/catch: se bloquear, o aviso visual continua funcionando do mesmo jeito.
+  function tocarAviso() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (!Ctx) return
+      const ctx = new Ctx()
+      if (ctx.state === 'suspended') { ctx.close(); return }
+      const osc = ctx.createOscillator(); const vol = ctx.createGain()
+      osc.connect(vol); vol.connect(ctx.destination)
+      osc.type = 'sine'; osc.frequency.value = 880
+      vol.gain.setValueAtTime(0.0001, ctx.currentTime)
+      vol.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.02)
+      vol.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32)
+      osc.start(); osc.stop(ctx.currentTime + 0.34)
+      setTimeout(() => { try { ctx.close() } catch (_) {} }, 600)
+    } catch (_) { /* som e enfeite: nunca pode derrubar a tela */ }
+  }
+
+  useEffect(() => () => clearTimeout(timerAviso.current), [])
 
   const carregarPainelDia = useCallback(async (data) => {
     setPainelCarregando(true)
@@ -666,9 +778,16 @@ export default function RevisaoIARetroativo() {
     // O comentário antigo dizia que filtrar pelo id fazia ela perder colunas —
     // não é mais verdade. O .filter() do front continua abaixo como rede de segurança.
     const p_agente = ehAdmin ? (filtroAgente || null) : (soMeusLeads ? profile.id : null)
-    const fe = faixaData(filtroEntrada, entradaDe, entradaAte)
-    const fa = faixaData(filtroAtividade, ativDe, ativAte)
-    const fg = faixaData(filtroEntrega, entregaDe, entregaAte)
+    // 19/10 — NO MODO MESA OS FILTROS NAO VALEM. O padrao de Atividade e 'mes', e no
+    // board isso faz sentido (quem olha o funil quer o movimento recente). Na mesa
+    // faz o contrario do que ela precisa: lead parado ha mais de 30 dias SUMIA da
+    // tela dela — justo o que esta mais atrasado, que e o que ela tem que atacar.
+    // Na mesa ela ve a carteira inteira; filtro e coisa do board.
+    const semFiltro = { de: null, ate: null }
+    const naMesa = temMesa && modoMesa
+    const fe = naMesa ? semFiltro : faixaData(filtroEntrada, entradaDe, entradaAte)
+    const fa = naMesa ? semFiltro : faixaData(filtroAtividade, ativDe, ativAte)
+    const fg = naMesa ? semFiltro : faixaData(filtroEntrega, entregaDe, entregaAte)
     // 16/09 — mae_board2 = a mae_board de sempre com DUAS mudanças:
     //   1) Atividade voltou a olhar SÓ ultima_interacao (a conversa da cliente).
     //      O GREATEST que estava lá incluía bf_atribuido_em, que a supervisora move
@@ -682,7 +801,13 @@ export default function RevisaoIARetroativo() {
     // em 19/10: nos 33 campos antigos as duas devolvem linha por linha o mesmo
     // resultado (192 = 192, zero diferença). A mae_board2 segue intacta —
     // reverter = trocar o nome aqui de volta.
-    const data = await buscarBoardCompleto('mae_board3', {
+    // 19/10 — mae_board4 = a mae_board3 MAIS cliente_status/cliente_em (o cadastro
+    // real daquele CPF, cruzado em CTE). Conferido: nos campos antigos as duas
+    // devolvem linha por linha o mesmo (193=193, zero diferenca nos dois sentidos).
+    // Criei funcao nova em vez de alterar a 3 porque trocar o tipo de retorno exige
+    // DROP, e DROP numa funcao que 13 pessoas chamam a cada 45s fica preso na fila
+    // de lock — foi o que travou a primeira tentativa. Reverter = voltar o nome aqui.
+    const data = await buscarBoardCompleto('mae_board4', {
       p_agente,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
@@ -709,6 +834,30 @@ export default function RevisaoIARetroativo() {
       (!soMeusLeads || l.bf_agente_id === profile?.id))
     setBoard(visiveis)
 
+    // 19/10 (Bruno) — AVISO DE CLIENTE NOVA.
+    // A tela ja recarregava sozinha a cada 45s, so que calada: a cliente caia e
+    // ninguem percebia. Nao precisa de servidor novo nem de push — basta comparar
+    // a lista que chegou com a de antes e avisar o que e novidade.
+    // A PRIMEIRA carga nunca avisa: senao a vendedora abriria a tela e levaria um
+    // alarme com os 150 leads que ja estavam la.
+    if (temMesa) {
+      const idsAgora = visiveis.filter(l => COLUNAS_MESA_ATIVA.includes(l.coluna)).map(l => l.id)
+      const antes = idsVistos.current
+      if (antes === null) {
+        idsVistos.current = new Set(idsAgora)
+      } else {
+        const novos = visiveis.filter(l => COLUNAS_MESA_ATIVA.includes(l.coluna) && !antes.has(l.id))
+        idsVistos.current = new Set(idsAgora)
+        if (novos.length) {
+          setAvisoNovos(novos.slice(0, 4))
+          setQtNovos(novos.length)
+          tocarAviso()
+          clearTimeout(timerAviso.current)
+          timerAviso.current = setTimeout(() => setAvisoNovos(null), 10000)
+        }
+      }
+    }
+
     // 07/10 — a lista do seletor saía do próprio board. Ao filtrar por uma
     // vendedora o board só tinha os leads dela, então o seletor passava a listar
     // só ela e não dava pra trocar direto pra outra: tinha que voltar em "Todos
@@ -723,7 +872,10 @@ export default function RevisaoIARetroativo() {
       })
       if (completos.length) setAgentesConhecidos(completos.sort((a, b) => a.nome.localeCompare(b.nome)))
     }
-  }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte, filtroEntrega, entregaDe, entregaAte])
+    // 19/10 — temMesa/modoMesa entraram aqui porque o carregar passou a decidir por
+    // eles se manda os filtros de data pra RPC. Sem estas duas deps, trocar pro
+    // board antigo nao refazia a busca e a tela ficava com os dados sem filtro.
+  }, [profile?.id, ehAdmin, minhaOp, soMeusLeads, filtroAgente, filtroEntrada, filtroAtividade, entradaDe, entradaAte, ativDe, ativAte, filtroEntrega, entregaDe, entregaAte, temMesa, modoMesa])
 
   useEffect(() => {
     carregar()
@@ -1015,6 +1167,12 @@ export default function RevisaoIARetroativo() {
   // caiu hoje ou está atrasado. Sem marcação nenhuma = fila, que é o estado de
   // 100% dos leads até esta tela subir.
   function abaDoLead(l) {
+    // 19/10 — o CADASTRO decide primeiro, antes da coluna do board. Se existe
+    // cliente com esse CPF, o que vale é o que aconteceu com o contrato dela:
+    // fechou (venda) ou caiu (recuperar). A coluna do board só opina sobre quem
+    // ainda não virou cadastro nenhum.
+    if (CLIENTE_FECHADO.includes(l.cliente_status)) return 'fechou'
+    if (CLIENTE_PERDIDO.includes(l.cliente_status)) return 'recuperar'
     if (COLUNAS_MESA_FECHOU.includes(l.coluna)) return 'fechou'
     if (!COLUNAS_MESA_ATIVA.includes(l.coluna)) return null   // reprovado/negado não é da mesa
     if (l.vend_status === 'sem_direito') return 'sem_direito'
@@ -1029,15 +1187,45 @@ export default function RevisaoIARetroativo() {
   const mesa = board
     .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
     .filter(l => l._aba)
-  const mesaDa = (aba) => mesa.filter(l => l._aba === aba).sort((a, b) => {
-    if (aba === 'fechou') return (b._h ?? -1) - (a._h ?? -1)   // venda: mais recente em cima
-    return (b._h ?? -1) - (a._h ?? -1)                          // fila: mais parado em cima
+  // O filtro de periodo vale pra LISTA, nao pros numeros do cabecalho: o cabecalho
+  // tem que continuar dizendo a verdade da mesa inteira mesmo com filtro ligado,
+  // senao ela liga "hoje" e acha que zerou os atrasados.
+  const mesaFiltrada = periodoMesa === 'tudo'
+    ? mesa
+    : mesa.filter(l => dentroDoPeriodo(l.entregue_vendedora_em, periodoMesa))
+  const mesaDa = (aba) => mesaFiltrada.filter(l => l._aba === aba).sort((a, b) => {
+    // Recuperar: a mais RECENTE em cima — quanto mais fresca a perda, maior a
+    // chance de trazer de volta. Nas outras, o mais parado em cima.
+    if (aba === 'recuperar') return new Date(b.cliente_em || 0) - new Date(a.cliente_em || 0)
+    return (b._h ?? -1) - (a._h ?? -1)
   })
-  const contaAba = (aba) => mesa.filter(l => l._aba === aba).length
+  const contaAba = (aba) => mesaFiltrada.filter(l => l._aba === aba).length
   // "Atrasado" = na fila sem ninguém ter encostado há 48h+. É o número que o
   // Bruno vai cobrar, então fica em cima, em vermelho, e não escondido numa aba.
+  // contaTudo ignora o filtro de periodo: e o que o CABECALHO usa. contaAba (acima)
+  // respeita o filtro e e o que as ABAS usam. Os dois numeros sao diferentes de
+  // proposito — o de cima e a verdade da mesa, o da aba e o recorte que ela pediu.
+  const contaTudo = (aba) => mesa.filter(l => l._aba === aba).length
   const paradosGraves = mesa.filter(l => (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48).length
-  const mesaViva = contaAba('hoje') + contaAba('represado') + contaAba('contato') + contaAba('retomar')
+  const mesaViva = contaTudo('hoje') + contaTudo('represado') + contaTudo('contato') + contaTudo('retomar')
+
+  // ===== numeros do cabecalho =====
+  // "Falou hoje" conta vend_contato_em caindo no dia de HOJE em Sao Paulo, nao
+  // "tem vend_contato_em": o que importa e o trabalho de hoje, nao o historico.
+  const caiuHoje = mesa.filter(l =>
+    l._aba !== 'fechou' && l._aba !== 'recuperar'
+    && diaBR(l.entregue_vendedora_em) === hojeBR()).length
+  const falouHoje = mesa.filter(l => diaBR(l.vend_contato_em) === hojeBR()).length
+  const novasSemContato = mesa.filter(l =>
+    diaBR(l.entregue_vendedora_em) === hojeBR() && !l.vend_contato_em
+    && l._aba !== 'fechou' && l._aba !== 'recuperar').length
+  const vendasPeriodo = contaTudo('fechou')
+  const aRecuperar = contaTudo('recuperar')
+  const pctDia = caiuHoje > 0 ? Math.round(100 * Math.min(falouHoje, caiuHoje) / caiuHoje) : 0
+  const iniciaisNome = (profile?.nome || '?').trim().split(/\s+/)
+    .slice(0, 2).map(p => p[0] || '').join('').toUpperCase() || '?'
+  const hojeExtenso = new Date().toLocaleDateString('pt-BR',
+    { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' })
 
   // Marca a ação do vendedor. Quem decide o que pode é o BANCO
   // (retroativo_vendedor_marcar); a tela só manda e recarrega.
@@ -1320,14 +1508,78 @@ export default function RevisaoIARetroativo() {
           que respondem. O board antigo não saiu do lugar: está logo abaixo. */}
       {temMesa && modoMesa && (
         <div>
-          <div style={s.mesaResumo}>
-            <span style={s.mesaKpi('#0f172a', 'rgba(15,23,42,.06)')}>Na sua mesa: <b>{mesaViva}</b></span>
-            <span style={s.mesaKpi('#065f46', 'rgba(52,211,153,.14)')}>Vendas fechadas: <b>{contaAba('fechou')}</b></span>
-            {paradosGraves > 0 && (
-              <span style={s.mesaKpi('#991b1b', 'rgba(248,113,113,.14)')}>⏰ Parados 48h+: <b>{paradosGraves}</b></span>
-            )}
-            <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
-            <button style={s.mesaTrocar} onClick={() => setModoMesa(false)}>ver board antigo</button>
+          {/* 19/10 (Bruno) — CABEÇALHO DA MESA. Os cinco números antes de qualquer
+              lista, pra ela abrir a tela e já saber o tamanho do dia. Nenhum deles
+              é conta nova: tudo sai do board que já está carregado. */}
+          <div style={s.cab}>
+            <div style={s.cabTopo}>
+              <div style={s.cabQuem}>
+                <div style={s.cabAv}>{iniciaisNome}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={s.cabNome}>{profile?.nome || 'Minha mesa'}</div>
+                  <div style={s.cabSub}>Retroativo · {hojeExtenso}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {qtNovos > 0 && (
+                  <span style={s.cabSino}>
+                    <span style={s.cabPonto} />
+                    {qtNovos} {qtNovos === 1 ? 'cliente nova hoje' : 'clientes novas hoje'}
+                  </span>
+                )}
+                <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
+                <button style={s.mesaTrocar} onClick={() => setModoMesa(false)}>ver board antigo</button>
+              </div>
+            </div>
+
+            <div style={s.cabKpis}>
+              <div style={s.cabKpi('rgba(52,211,153,.12)', 'rgba(5,150,105,.28)')}>
+                <div style={s.cabKpiTit('#047857')}>Caíram hoje</div>
+                <div style={s.cabKpiNum('#047857')}>{caiuHoje}</div>
+                <div style={s.cabKpiPe}>
+                  {novasSemContato > 0 ? `${novasSemContato} ainda sem contato` : 'todas já contatadas'}
+                </div>
+              </div>
+              <div style={s.cabKpi()}>
+                <div style={s.cabKpiTit()}>Na sua mesa</div>
+                <div style={s.cabKpiNum()}>{mesaViva}</div>
+                <div style={s.cabKpiPe}>clientes em aberto</div>
+              </div>
+              <div style={s.cabKpi(
+                paradosGraves > 0 ? 'rgba(248,113,113,.11)' : '#f8fafc',
+                paradosGraves > 0 ? 'rgba(220,38,38,.26)' : null)}>
+                <div style={s.cabKpiTit(paradosGraves > 0 ? '#991b1b' : null)}>Parados +48h</div>
+                <div style={s.cabKpiNum(paradosGraves > 0 ? '#991b1b' : null)}>{paradosGraves}</div>
+                <div style={s.cabKpiPe}>
+                  {paradosGraves > 0 ? 'ninguém falou ainda' : 'nada atrasado 🎉'}
+                </div>
+              </div>
+              <div style={s.cabKpi()}>
+                <div style={s.cabKpiTit()}>Você falou hoje</div>
+                <div style={s.cabKpiNum()}>{falouHoje}</div>
+                <div style={s.cabKpiPe}>{caiuHoje > 0 ? `de ${caiuHoje} que caíram` : 'contatos de hoje'}</div>
+              </div>
+              <div style={s.cabKpi()}>
+                <div style={s.cabKpiTit()}>Vendas fechadas</div>
+                <div style={s.cabKpiNum()}>{vendasPeriodo}</div>
+                <div style={s.cabKpiPe}>contrato assinado</div>
+              </div>
+              {aRecuperar > 0 && (
+                <div style={s.cabKpi('rgba(251,191,36,.13)', 'rgba(180,83,9,.26)')}>
+                  <div style={s.cabKpiTit('#92400e')}>Pra recuperar</div>
+                  <div style={s.cabKpiNum('#92400e')}>{aRecuperar}</div>
+                  <div style={s.cabKpiPe}>fecharam e caíram</div>
+                </div>
+              )}
+            </div>
+
+            {caiuHoje > 0 && (<>
+              <div style={s.cabBarra}><div style={s.cabBarraIn(pctDia)} /></div>
+              <div style={s.cabBarraTxt}>
+                <span>Você já falou com <b style={{ color: '#0f172a' }}>{Math.min(falouHoje, caiuHoje)} de {caiuHoje}</b> que caíram hoje</span>
+                <span><b style={{ color: '#0f172a' }}>{pctDia}%</b> do dia</span>
+              </div>
+            </>)}
           </div>
 
           {paradosGraves > 0 && (
@@ -1347,7 +1599,23 @@ export default function RevisaoIARetroativo() {
                 </button>
               )
             })}
+            {/* 19/10 — filtro por QUANDO a advogada te entregou. Fica do lado das
+                abas, não em cima: é recorte dentro da aba, não troca de aba. */}
+            <select style={s.chip} value={periodoMesa} onChange={e => setPeriodoMesa(e.target.value)}
+              title="Quando a advogada te entregou a cliente">
+              {PERIODOS_MESA.map(([v, l]) => <option key={v} value={v}>📅 {l}</option>)}
+            </select>
+            {periodoMesa !== 'tudo' && (
+              <button style={s.mesaTrocar} onClick={() => setPeriodoMesa('tudo')}>limpar filtro</button>
+            )}
           </div>
+
+          {periodoMesa !== 'tudo' && (
+            <div style={{ ...s.blocoPe, marginTop: -4, marginBottom: 10 }}>
+              Mostrando só o que te entregaram em <b>{(PERIODOS_MESA.find(p => p[0] === periodoMesa) || [,''])[1].toLowerCase()}</b>.
+              Os números lá de cima continuam contando a mesa inteira.
+            </div>
+          )}
 
           <div style={s.mesaLista}>
             {mesaDa(abaMesa).length === 0 ? (
@@ -1358,12 +1626,16 @@ export default function RevisaoIARetroativo() {
                   : abaMesa === 'retomar' ? 'Ninguém marcado como "não respondeu".'
                   : abaMesa === 'tel' ? 'Nenhum telefone errado pendente.'
                   : abaMesa === 'sem_direito' ? 'Nenhuma cliente marcada como sem direito.'
-                  : 'Nenhuma venda fechada no período carregado.'}
+                  : abaMesa === 'recuperar' ? '🎉 Nenhuma cliente sua caiu depois de fechar.'
+                  : 'Nenhuma venda fechada ainda.'}
+                {periodoMesa !== 'tudo' && ' (com o filtro de data ligado)'}
               </div>
             ) : mesaDa(abaMesa).map(l => {
               const urgente = (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48
               const fechou = l._aba === 'fechou'
+              const perdeu = l._aba === 'recuperar'
               const zap = linkChatwoot(l)
+              const perda = MOTIVO_PERDA[l.cliente_status] || ['❔', 'Caiu', '']
               return (
                 <div key={l.id} style={s.mesaCard(urgente)}>
                   <div style={s.mesaCardTopo}>
@@ -1378,10 +1650,23 @@ export default function RevisaoIARetroativo() {
                     )}
                     {fechou && (
                       <span style={s.mesaIdade(false)}>
-                        {l.coluna === 'FINALIZADO' ? '🎉 finalizada' : '✍️ aguardando assinatura'}
+                        {l.cliente_em ? '🎉 vendida em ' + fmtCarimbo(l.cliente_em) : '🎉 vendida'}
+                      </span>
+                    )}
+                    {perdeu && (
+                      <span style={{ ...s.mesaIdade(false), background: 'rgba(251,191,36,.18)', color: '#92400e' }}>
+                        {perda[0]} {l.cliente_em ? fmtCarimbo(l.cliente_em) : ''}
                       </span>
                     )}
                   </div>
+
+                  {/* 19/10 — por que caiu, em portugues. Sem isso a aba vira uma
+                      lista de nomes sem explicacao e a vendedora nao sabe o que fazer. */}
+                  {perdeu && (
+                    <div style={{ ...s.mesaObs, background: 'rgba(251,191,36,.12)' }}>
+                      <b>{perda[1]}</b>{perda[2] ? ' — ' + perda[2] : ''}
+                    </div>
+                  )}
 
                   {/* O vínculo é o argumento da ligação: sem ele a vendedora liga
                       sem saber por que a cliente tem direito. Vem do GERID, é o
@@ -1415,7 +1700,7 @@ export default function RevisaoIARetroativo() {
 
                   {l.vend_obs && <div style={s.mesaObs}>📝 {l.vend_obs}</div>}
 
-                  {!fechou && l._aba !== 'sem_direito' && (
+                  {!fechou && !perdeu && l._aba !== 'sem_direito' && (
                     <div style={s.mesaAcoes}>
                       {l._aba !== 'contato' && (
                         <button style={s.mesaPegar} disabled={marcando === l.id}
@@ -1456,6 +1741,17 @@ export default function RevisaoIARetroativo() {
                   {fechou && (
                     <div style={s.mesaAcoes}>
                       {zap && <a href={zap} target="_blank" rel="noreferrer" style={s.mesaZap}>💬 WhatsApp</a>}
+                      <button style={s.mesaFicha} onClick={() => abrirLead(l)}>abrir ficha</button>
+                    </div>
+                  )}
+
+                  {/* 19/10 — RECUPERAR. Por enquanto só falar com a cliente: o botão
+                      de reemitir contrato entra aqui quando o Bruno validar que é
+                      viável. Emitir contrato mexe em dinheiro de advogado, então
+                      não sobe sem o aval dele. */}
+                  {perdeu && (
+                    <div style={s.mesaAcoes}>
+                      {zap && <a href={zap} target="_blank" rel="noreferrer" style={s.mesaZap}>💬 Falar com ela</a>}
                       <button style={s.mesaFicha} onClick={() => abrirLead(l)}>abrir ficha</button>
                     </div>
                   )}
@@ -1930,6 +2226,46 @@ export default function RevisaoIARetroativo() {
                 {transferindo ? '⏳ passando...' : 'Confirmar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 19/10 (Bruno) — AVISO DE CLIENTE NOVA.
+          Sai sozinho em 10s. Fica por ultimo no JSX, com position fixed, pra nao
+          empurrar nada da tela. Clicar leva pra aba "Caiu hoje", que e onde a
+          cliente nova esta — avisar sem levar pro lugar certo nao resolve nada. */}
+      {temMesa && modoMesa && avisoNovos && avisoNovos.length > 0 && (
+        <div style={s.aviso}>
+          <div style={s.avisoTopo}>
+            <span style={s.avisoTit}>
+              🔔 {qtNovos === 1 ? '1 cliente nova pra você' : `${qtNovos} clientes novas pra você`}
+            </span>
+            <button style={s.avisoX} onClick={() => setAvisoNovos(null)} title="fechar">✕</button>
+          </div>
+          <div style={s.avisoCorpo}>
+            {avisoNovos.map(l => (
+              <div key={l.id} style={s.avisoLin}>
+                <span style={s.avisoTag}>
+                  {l.vinculo_direito && l.vinculo_direito.meses_antes_do_parto != null
+                    ? `${l.vinculo_direito.meses_antes_do_parto}m do parto` : 'nova'}
+                </span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {l.nome || 'Sem nome'}
+                </span>
+              </div>
+            ))}
+            {qtNovos > avisoNovos.length && (
+              <div style={{ ...s.avisoLin, color: '#5b6b84', fontSize: 11.5 }}>
+                e mais {qtNovos - avisoNovos.length}…
+              </div>
+            )}
+            <button style={s.avisoBtn}
+              onClick={() => {
+                setAbaMesa('hoje'); setAvisoNovos(null); setQtNovos(0)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}>
+              Ver agora →
+            </button>
           </div>
         </div>
       )}
