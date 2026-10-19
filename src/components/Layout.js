@@ -27,6 +27,29 @@ const IDS_SUPERVISOR_BOARD = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela
 ]
 
+// 19/10 (Bruno) — SO RETROATIVO. MESMA lista do App.js (IDS_SO_RETROATIVO): se as
+// duas nao baterem, o item aparece no menu e a pagina nega (bug de 02/09).
+// Quem esta aqui tem o menu SUBSTITUIDO pelo pacote do vendedor do retroativo.
+// O porque de cada nome esta no App.js, junto da lista — inclusive quem ficou de
+// fora de proposito (Maryana, Agatha, Duda, Sthefany e o time de 24).
+const IDS_SO_RETROATIVO = [
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
+]
+// A ordem aqui e a ordem do dia dela: a mesa primeiro, o numero dela depois,
+// e por fim o que ela usa quando a cliente fecha.
+// 'fila_digitacao' NAO entra: e a tela da supervisao, com 718 notificacoes de
+// admin/supervisor dentro. Quem digita cliente usa 'novo_cliente'.
+const NAV_SO_RETROATIVO = [
+  { key: 'revisao_ia_retroativo', label: '🤱 Minha mesa' },
+  { key: 'painel_vendas', label: '💵 Painel de vendas' },
+  { key: 'novo_cliente', label: '➕ Novo cliente' },
+  { key: 'meus_clientes', label: '📋 Meus clientes' },
+  { key: 'meu_desempenho', label: '🏆 Meu desempenho' },
+  { key: 'devolucoes', label: '⚠️ Meus devolvidos' },
+]
+
 // Revisao IA Gestante por ID: entra SO nessa revisao, sem o pacote das quatro
 // que o time da Maryana recebe (IDS_TIME_MARYANA)
 const IDS_REVISAO_GESTANTE = [
@@ -519,6 +542,15 @@ export default function Layout({ children, page, setPage }) {
   // Revisao IA Gestante por ID: uma revisao so, sem o pacote das quatro
   if (IDS_REVISAO_GESTANTE.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_gestante')) {
     nav = [...nav, { key: 'revisao_ia_gestante', label: '🤰 Revisão IA Gestante' }]
+  }
+
+  // 19/10 (Bruno) — SO RETROATIVO: menu SUBSTITUIDO pelo pacote do vendedor.
+  // Fica no FIM de proposito, depois de TODAS as injecoes por ID acima — e um
+  // corte, e qualquer linha que rode depois dele voltaria a empilhar item no menu.
+  // Leticia e Gislaine estao em IDS_TIME_MARYANA e em IDS_VENDAS_RETROATIVO: se
+  // este bloco subisse, elas continuariam com BF, Gestante e CLT no menu.
+  if (IDS_SO_RETROATIVO.includes(profile?.id)) {
+    nav = NAV_SO_RETROATIVO
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
