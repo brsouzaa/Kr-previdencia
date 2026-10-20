@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import UploadDocumento from '../components/UploadDocumento'
+import ValidacaoVendaIA from '../components/ValidacaoVendaIA'
 
 const s = {
   card: { background: '#ffffff', border: '0.5px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '1.5rem', marginBottom: 14 },
@@ -124,6 +125,9 @@ export default function NovoCliente({ onSucesso }) {
   const { profile } = useAuth()
   const [enviando, setEnviando] = useState(false)
   const [salvo, setSalvo] = useState(null)
+  // 20/10 — resultado da validacao da venda pela I.A. So vale no Maternidade Mae.
+  // Sem { resultado: 'aprovado' } aqui, o botao de cadastrar nao libera.
+  const [validacao, setValidacao] = useState(null)
 
   const [c, setC] = useState({
     produto: '', // vazio inicialmente — vendedor escolhe primeiro
@@ -284,6 +288,12 @@ export default function NovoCliente({ onSucesso }) {
     // eslint-disable-next-line
   }, [cidadesUF])
 
+  // 20/10 — a I.A analisou UM conjunto de dados. Se o vendedor mexer no CPF, na
+  // data de nascimento do bebe ou no motivo da aprovacao depois de aprovado, o
+  // parecer nao vale mais pro que esta na tela agora: zera e obriga validar de novo.
+  useEffect(() => { setValidacao(null) },
+    [c.cpf, c.data_nascimento_bebe, c.motivo_aprovacao])
+
   const camposBasicosOk = c.nome.trim() && c.cpf && c.rg && c.telefone &&
                           c.email.trim() && c.cep &&
                           c.rua.trim() && c.numero.trim() && c.bairro.trim() &&
@@ -326,7 +336,11 @@ export default function NovoCliente({ onSucesso }) {
   // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
   const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
 
-  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && docsOk
+  // 20/10 — validacao da venda pela I.A: obrigatoria SO no Maternidade Mae.
+  // Nos outros produtos nada muda (o componente nem aparece).
+  const validacaoIaOk = !ehMae || validacao?.resultado === 'aprovado'
+
+  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && docsOk && validacaoIaOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
@@ -363,6 +377,11 @@ export default function NovoCliente({ onSucesso }) {
           motivo_aprovacao_por: (profile && profile.nome) || null,
           ...(jaClt && !trabNasc && c.saida_emprego_mes_ano.trim()
             ? { saida_emprego_mes_ano: c.saida_emprego_mes_ano.trim() } : {}),
+          // 20/10 — rastro da validacao da I.A que liberou esta venda. O id aponta
+          // pra linha em public.venda_validacao_ia (documentos analisados, motivos
+          // e parecer), entao da pra auditar depois por que a venda passou.
+          ...(validacao?.id ? { validacao_ia_id: validacao.id } : {}),
+          ...(validacao?.perfil ? { validacao_ia_perfil: validacao.perfil } : {}),
         }
       }
 
@@ -374,6 +393,11 @@ export default function NovoCliente({ onSucesso }) {
           const msgAmigavel = error.message.replace(/.*CPF_DUPLICADO:\s*/i, '').trim()
           setDuplicado({ nome: 'um cliente', status: 'cadastro_existente', setor: null, vendedorNome: 'outro vendedor', vendedorMesmo: false })
           alert('❌ ' + (msgAmigavel || 'Este CPF já está cadastrado e em atendimento. Aguarde a finalização.'))
+        } else if (/VALIDACAO_IA/i.test(error.message)) {
+          // 20/10 — trava do banco (trigger trg_venda_validacao_ia_gate). O erro
+          // tecnico nao ajuda quem esta na tela: traduz pra acao.
+          alert('Esta venda ainda não foi aprovada pela I.A. Valide os documentos antes de enviar.')
+          setValidacao(null)
         } else if (error.code === '23505' || /unique|duplicat/i.test(error.message)) {
           setDuplicado({ nome: 'um cliente', status: 'aguardando_emissao', setor: null, vendedorNome: 'no sistema', vendedorMesmo: false })
           alert('Este CPF já está cadastrado no sistema.')
@@ -391,7 +415,7 @@ export default function NovoCliente({ onSucesso }) {
     setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'', motivo_aprovacao:'' })
     setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null, extrato_fgts: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
-    setCepSemRua(false); setCepSemBairro(false)
+    setCepSemRua(false); setCepSemBairro(false); setValidacao(null)
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
 
@@ -511,6 +535,7 @@ export default function NovoCliente({ onSucesso }) {
     if (!docs.comprovante_2) f.push('anexar Comprovante 2')
     if (ctpsObrigatorio && !docs.ctps_digital) f.push('anexar CTPS digital em PDF')
     if (fgtsObrigatorio && !docs.extrato_fgts) f.push('anexar Extrato FGTS em PDF')
+    if (!validacaoIaOk) f.push('validar a venda com a I.A')
     return f
   }
   const faltando = tudoOk ? [] : listaFaltando()
@@ -879,6 +904,29 @@ export default function NovoCliente({ onSucesso }) {
           placeholder="Ex.: cliente prefere ser contatado à tarde, observação sobre os documentos, etc." />
       </div>
 
+      {/* === VALIDAÇÃO DA VENDA PELA I.A — só Maternidade Mãe === */}
+      {/* 20/10 — fica logo antes do botao de cadastrar, que so libera com
+          resultado 'aprovado'. Os uploads daqui sao os DA I.A (bucket
+          documentos-clientes, pasta validacao/<cpf>/) e convivem com os
+          uploads antigos la de cima — um nao substitui o outro. */}
+      {ehMae && (
+        <div style={{ marginBottom: 14 }}>
+          <ValidacaoVendaIA
+            supabase={supabase}
+            cpf={c.cpf}
+            clienteId={null}
+            ficha={{
+              nome: c.nome,
+              data_nascimento_bebe: c.data_nascimento_bebe,
+              motivo_aprovacao: c.motivo_aprovacao,
+              trabalhava_no_nascimento: c.trabalhava_no_nascimento,
+              recebeu_seguro_desemprego: c.recebeu_seguro_desemprego,
+            }}
+            onResultado={setValidacao}
+          />
+        </div>
+      )}
+
       <button style={tudoOk && !enviando ? s.btn : s.btnDisabled}
         onClick={salvar} disabled={!tudoOk || enviando}>
         {enviando ? '⏳ Salvando...' : '✅ Cadastrar cliente'}
@@ -904,6 +952,11 @@ export default function NovoCliente({ onSucesso }) {
                 <span key={f}><strong>{f}</strong>{i < faltando.length - 1 ? ' · ' : ''}</span>
               ))}
             </div>
+            {!validacaoIaOk && (
+              <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,.4)', fontWeight: 600 }}>
+                👆 Valide a venda com a I.A antes de enviar.
+              </div>
+            )}
             {(precisaDigitarRua || precisaDigitarBairro) && (
               <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,.4)' }}>
                 👆 {cepIncompleto
