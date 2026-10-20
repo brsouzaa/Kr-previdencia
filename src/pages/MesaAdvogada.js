@@ -635,17 +635,18 @@ export default function MesaAdvogada() {
     // entrou_em junto com o resto, entao continua sendo 3 chamadas, nao 4.
     // 14/10 — entrou a 4a: mesa_advogada_filhos, o mapa data -> [nomes] dos
     // filhos, pra linha do grupo sair com o nome completo e nao so a data.
-    // 20/10: o comentario abaixo estava errado — a mesa_advogada_filhos CHAMA
-    // mesa_advogada dentro, sim. So que o planner faz inline e ela sai barata
-    // (medido: 619ms contra 4.970ms da donos). Ela
+    // Ela NAO chama a mesa_advogada dentro (custa ~420ms, nao 1.590ms) e
     // devolve UMA linha por lead de proposito — ver o comentario do rpcTudo.
     const [r, d, e, fl] = await Promise.all([
-      // 20/10 (Bruno): 5000 -> 10000. A mesa passou de 6.400 leads e o limite
-      // da propria funcao (limit p_limite) cortava o excedente — a tela mostrava
-      // 5000 e o resto nao existia pra ninguem. Subiram JUNTO, no banco, os
-      // mesa_advogada(5000) de dentro da mesa_advogada_donos e da
-      // mesa_advogada_filhos: se so este aqui subisse, os leads alem de 5000
-      // viriam sem dono e sem nome de filho.
+      // 20/10 (Bruno): 5000 -> 10000. A mesa passou de 6.400 leads e o limit
+      // p_limite da propria funcao cortava o excedente — a tela mostrava 5000 e
+      // o resto nao existia pra ninguem.
+      // Subiu JUNTO, no banco, o mesa_advogada(5000) de dentro da
+      // mesa_advogada_donos (agora 10000). Sem isso a lista vinha completa mas o
+      // mapa de donos so ia ate 5000, e 1.377 leads apareciam como "sem dono"
+      // com zero sem dono no banco — aconteceu de verdade em 20/10.
+      // A mesa_advogada_filhos NAO precisou: ela nao tem limite (o filtro dela e
+      // copia do criterio, direto na tabela — ver o comentario dentro dela).
       rpcTudo('mesa_advogada', { p_limite: 10000 }),
       rpcTudo('mesa_advogada_donos'),
       rpcTudo('mesa_advogada_espera_v2'),
