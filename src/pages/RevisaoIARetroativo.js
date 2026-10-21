@@ -201,6 +201,25 @@ const IDS_VENDEDORAS_RETROATIVO = [
   '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS (Ronaldo Arcari) — faixa 'rt', parceria
 ]
 
+// 21/10 (Bruno) — BOARD ENXUTO. Quem esta nesta lista chama a mae_board5 no lugar
+// da mae_board4. A mae_board5 NAO e board novo: e a propria mae_board4 por dentro,
+// so que devolvendo apenas o que a tela da vendedora de fato EXIBE (COLUNAS_VENDEDOR
+// + quem ja virou cadastro, que a aba Recuperar/Fechou precisa). Reverter = tirar
+// o id daqui; a mae_board4 continua intacta no banco e todo mundo segue nela.
+//
+// POR QUE A DUDA: ela e dona de 29.644 leads (a carteira do retroativo inteira fica
+// na mao dela antes de distribuir), entao filtrar "so os meus" nao filtra nada. O
+// board dela vinha com 19.736 linhas; o PostgREST corta a resposta em 1.000, e CADA
+// pagina reexecuta a consulta inteira no banco — 14s por ida. 21 idas = ~5 minutos,
+// e como o refresh e de 45s ela empilhava busca sobre busca e a tela nunca terminava
+// de carregar. Medido em 21/10: mae_board4 = 19.736 linhas / 21 idas; mae_board5 =
+// 338 linhas / 1 ida. Conferido lead a lead: as duas devolvem EXATAMENTE o mesmo
+// conjunto do que a tela mostra (338 = 338, zero diferenca nos dois sentidos) — o
+// que sai sao as 19.398 linhas que o navegador ja jogava fora sozinho.
+const IDS_BOARD_ENXUTO = [
+  '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda (supervisoraeduarda25)
+]
+
 // Painel do dia: SO o Bruno ve. Deliberadamente por ID e nao por role='admin' —
 // ele pediu "so para eu ver", e admin e um papel que outras pessoas podem receber.
 const ID_DONO_PAINEL = '906f9a57-bd4a-4b0e-9973-0968ef4f1e15' // Bruno Souza
@@ -807,7 +826,9 @@ export default function RevisaoIARetroativo() {
     // Criei funcao nova em vez de alterar a 3 porque trocar o tipo de retorno exige
     // DROP, e DROP numa funcao que 13 pessoas chamam a cada 45s fica preso na fila
     // de lock — foi o que travou a primeira tentativa. Reverter = voltar o nome aqui.
-    const data = await buscarBoardCompleto('mae_board4', {
+    // 21/10 — quem esta em IDS_BOARD_ENXUTO vai pela mae_board5 (ver nota la em cima).
+    const rpcBoard = IDS_BOARD_ENXUTO.includes(profile?.id) ? 'mae_board5' : 'mae_board4'
+    const data = await buscarBoardCompleto(rpcBoard, {
       p_agente,
       p_entrada_de: fe.de ? fe.de.toISOString() : null,
       p_entrada_ate: fe.ate ? fe.ate.toISOString() : null,
