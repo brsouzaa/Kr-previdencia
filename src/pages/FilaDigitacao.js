@@ -41,6 +41,32 @@ function tempoNaFila(dt) {
   return `${Math.floor(h/24)}d`
 }
 
+// 21/10 — HISTORICO DA FILA. Le a tabela fila_digitacao_log, que e alimentada por
+// GATILHO NO BANCO (trg_fila_digitacao_log em clientes) e por dentro da
+// fila_definir_ordem_manual — nao por esta tela. Entao o que aparece aqui e o que
+// REALMENTE aconteceu no banco, inclusive se alguem chamar a API por fora.
+// Motivo de existir: ate 21/10 nao havia autor de nada. Dos 96 clientes barrados
+// na fila desde 01/09, so 1 tinha cancelado_por preenchido — o botao Barrar
+// gravava status e motivo e mais nada.
+const ACOES_LOG = {
+  barrou:          { icone: '🚫', texto: 'Barrou',                cor: '#dc2626', bg: 'rgba(248,113,113,.14)' },
+  emitiu:          { icone: '🚀', texto: 'Emitiu contrato',       cor: '#059669', bg: 'rgba(52,211,153,.14)' },
+  voltou_pra_fila: { icone: '↩️', texto: 'Voltou para a fila',    cor: '#b45309', bg: 'rgba(251,191,36,.12)' },
+  reordenou:       { icone: '🔢', texto: 'Reordenou os advogados', cor: '#2563eb', bg: 'rgba(96,165,250,.12)' },
+}
+function quandoFoi(dt) {
+  const t = tempoNaFila(dt)
+  return t === 'agora' ? 'agora mesmo' : `há ${t}`
+}
+function dataCompleta(dt) {
+  try { return new Date(dt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch (e) { return '' }
+}
+// A reordenacao guarda a ordem ANTES e DEPOIS em detalhe. Aqui vira texto de gente.
+function ordemEmTexto(lista) {
+  if (!Array.isArray(lista) || !lista.length) return 'nenhum advogado fixado'
+  return lista.map((x, i) => `${i + 1}º ${x.advogado || '—'}`).join('  ·  ')
+}
+
 // 19/10 — POR QUE ESTA FUNCAO EXISTE:
 // supabase.functions.invoke NAO entrega a mensagem da edge function. Quando a
 // resposta nao e 2xx ele devolve um FunctionsHttpError cujo .message e sempre
@@ -103,6 +129,11 @@ export default function FilaDigitacao() {
   const [motivoBarra, setMotivoBarra] = useState('')
   const [barrando, setBarrando] = useState(false)
   const [filtroProduto, setFiltroProduto] = useState('Maternidade')  // fila por produto (default Maternidade)
+  // 21/10 — histórico (quem barrou, quem emitiu, quem reordenou)
+  const [histAberto, setHistAberto] = useState(false)
+  const [historico, setHistorico] = useState([])
+  const [histCarregando, setHistCarregando] = useState(false)
+  const [histExpandido, setHistExpandido] = useState(null)   // id da linha com a ordem aberta
 
   const fetchTudo = useCallback(async () => {
     setLoading(true)
@@ -133,6 +164,26 @@ export default function FilaDigitacao() {
     const id = setInterval(fetchTudo, 45000)
     return () => clearInterval(id)
   }, [fetchTudo])
+
+  // 21/10 — só busca o histórico quando a pessoa abre o bloco. Fechado não gasta
+  // requisição nenhuma, e o bloco nasce fechado.
+  const fetchHistorico = useCallback(async (produto) => {
+    setHistCarregando(true)
+    const { data } = await supabase.from('fila_digitacao_log')
+      .select('id, acao, cliente_nome, cpf, produto, quem_nome, de_status, para_status, motivo, detalhe, criado_em')
+      .eq('produto', produto)
+      .order('criado_em', { ascending: false })
+      .limit(40)
+    setHistorico(data || [])
+    setHistCarregando(false)
+  }, [])
+
+  useEffect(() => {
+    if (!histAberto) return
+    fetchHistorico(filtroProduto)
+    const id = setInterval(() => fetchHistorico(filtroProduto), 45000)
+    return () => clearInterval(id)
+  }, [histAberto, filtroProduto, fetchHistorico])
 
   async function emitir(cliente) {
     if (emitindo) return
@@ -298,6 +349,69 @@ export default function FilaDigitacao() {
           })
         )}
         {salvandoOrdem && <div style={{ fontSize: 11, color: '#2563eb', marginTop: 6 }}>⏳ salvando ordem...</div>}
+      </div>
+
+      {/* === Histórico: quem barrou, quem emitiu, quem reordenou === */}
+      <div style={s.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ ...s.sectionTitle, marginBottom: 0 }}>🧾 Histórico da fila · {filtroProduto}</div>
+          <button onClick={() => setHistAberto(v => !v)} style={s.btnSec}>
+            {histAberto ? 'esconder' : 'ver quem fez o quê'}
+          </button>
+        </div>
+
+        {histAberto && (
+          <div style={{ marginTop: 12 }}>
+            {histCarregando && !historico.length ? (
+              <div style={{ fontSize: 12, color: '#5b6b84' }}>Carregando…</div>
+            ) : !historico.length ? (
+              <div style={{ fontSize: 12, color: '#5b6b84' }}>
+                Nada registrado ainda neste produto. O registro começou em 21/10/2026 — o que aconteceu antes disso não foi guardado.
+              </div>
+            ) : historico.map(l => {
+              const a = ACOES_LOG[l.acao] || { icone: '•', texto: l.acao, cor: '#5b6b84', bg: '#f2f5fa' }
+              const ehReordem = l.acao === 'reordenou'
+              const aberto = histExpandido === l.id
+              return (
+                <div key={l.id} style={{ display: 'flex', gap: 10, padding: '9px 10px', background: a.bg, borderRadius: 8, marginBottom: 6 }}>
+                  <div style={{ fontSize: 15, lineHeight: '18px' }}>{a.icone}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: '#0f172a' }}>
+                      <strong style={{ color: a.cor }}>{a.texto}</strong>
+                      {!ehReordem && l.cliente_nome && <> · {l.cliente_nome}</>}
+                      {!ehReordem && l.cpf && <span style={{ color: '#5b6b84' }}> · {l.cpf}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>
+                      {l.quem_nome || 'autor não identificado'} · <span title={dataCompleta(l.criado_em)}>{quandoFoi(l.criado_em)}</span>
+                    </div>
+                    {l.motivo && !ehReordem && (
+                      <div style={{ fontSize: 12, color: '#0f172a', marginTop: 4, fontStyle: 'italic' }}>"{l.motivo}"</div>
+                    )}
+                    {ehReordem && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#0f172a', marginTop: 4 }}>
+                          {ordemEmTexto(l.detalhe?.depois)}
+                        </div>
+                        <button onClick={() => setHistExpandido(aberto ? null : l.id)}
+                          style={{ marginTop: 4, fontSize: 11, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                          {aberto ? 'esconder como estava antes' : 'ver como estava antes'}
+                        </button>
+                        {aberto && (
+                          <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 4, padding: '6px 8px', background: '#ffffff', borderRadius: 6 }}>
+                            {ordemEmTexto(l.detalhe?.antes)}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {historico.length >= 40 && (
+              <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 2 }}>Mostrando as 40 ações mais recentes.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {addAberto && (
