@@ -308,7 +308,17 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [carregando, setCarregando] = useState(true)
   const [aba, setAba] = useState('hoje')
   const [periodo, setPeriodo] = useState('tudo')
-  const [vendedorSel, setVendedorSel] = useState(null)   // null = ainda não escolhido
+  // 22/10 — vendedor escolhido. Começa no que ficou guardado da última visita;
+  // '' (string vazia) é uma escolha válida e quer dizer "toda a operação".
+  const [vendedorSel, setVendedorSel] = useState(() => {
+    try { const v = window.localStorage.getItem('kr_mesa_vendedor'); return v === null ? null : v } catch (_) { return null }
+  })
+  // 22/10 — A LISTA DO SELETOR TEM VIDA PRÓPRIA — NÃO DERIVAR DO BOARD.
+  // Bug encontrado pelo Bruno em 22/10: eu montava a lista a partir do board já
+  // filtrado, então ao escolher um vendedor o board só trazia os leads dele, a
+  // lista encolhia para um nome só e o seletor ficava preso nesse vendedor.
+  // Agora ela é preenchida só na carga SEM filtro e não é mais sobrescrita.
+  const [listaVendedores, setListaVendedores] = useState([])
   const [busca, setBusca] = useState('')
   const [buscaAtiva, setBuscaAtiva] = useState('')
   const [obsAberta, setObsAberta] = useState(null)       // `${leadId}:${acao}`
@@ -345,9 +355,19 @@ export default function RevisaoIARetroativo({ setPage }) {
     // Descarta resposta atrasada (senão a lenta sobrescreve a rápida).
     if (meuReq !== reqAtual.current) return
 
-    setBoard((todos || []).filter(l =>
+    const visiveis = (todos || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
-      (!meuTime || meuTime.includes(l.bf_agente_id))))
+      (!meuTime || meuTime.includes(l.bf_agente_id)))
+    setBoard(visiveis)
+
+    // Só a carga SEM filtro tem o direito de montar a lista do seletor — ver a
+    // nota do bug lá em cima. Uma carga filtrada enxerga um vendedor só.
+    if (!p_agente) {
+      const m = new Map()
+      visiveis.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
+      const nova = [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+      if (nova.length > 0) setListaVendedores(nova)
+    }
     setCarregando(false)
   }, [profile?.id, vendedorSel, vejoMaisDeUm, minhaOp, meuTime])
 
@@ -411,21 +431,22 @@ export default function RevisaoIARetroativo({ setPage }) {
   const naMesa = contaTudo('hoje') + contaTudo('represado') + contaTudo('contato') + contaTudo('retomar')
   const pctDia = caiuHoje > 0 ? Math.round(100 * Math.min(falouHoje, caiuHoje) / caiuHoje) : 0
 
-  const vendedores = useMemo(() => {
-    const m = new Map()
-    board.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [board])
-
-  // 22/10 (Bruno) — admin/supervisão ABRE JÁ NUM VENDEDOR, não em "todos".
-  // Com 778 numa fila só os números do topo não dizem o que fazer.
+  // 22/10 (Bruno) — admin/supervisão ABRE JÁ NUM VENDEDOR, não em "todos": com
+  // 778 numa fila só os números do topo não dizem o que fazer. Só vale na
+  // PRIMEIRA visita (vendedorSel === null). Depois disso manda o que ficou
+  // guardado, inclusive '' = toda a operação, que é escolha legítima.
   useEffect(() => {
-    if (!vejoMaisDeUm || vendedorSel !== null || vendedores.length === 0) return
-    setVendedorSel(vendedores[0][0])
-  }, [vejoMaisDeUm, vendedorSel, vendedores])
+    if (!vejoMaisDeUm || vendedorSel !== null || listaVendedores.length === 0) return
+    escolherVendedor(listaVendedores[0][0])
+  }, [vejoMaisDeUm, vendedorSel, listaVendedores])
+
+  function escolherVendedor(id) {
+    setVendedorSel(id)
+    try { window.localStorage.setItem('kr_mesa_vendedor', id ?? '') } catch (_) {}
+  }
 
   const nomeDaMesa = vejoMaisDeUm
-    ? (vendedores.find(v => v[0] === vendedorSel)?.[1] || 'Toda a operação')
+    ? (listaVendedores.find(v => v[0] === vendedorSel)?.[1] || 'Toda a operação')
     : (profile?.nome || '')
   const iniciais = (nomeDaMesa || '?').trim().split(/\s+/).slice(0, 2)
     .map(p => p[0] || '').join('').toUpperCase() || '?'
@@ -499,10 +520,10 @@ export default function RevisaoIARetroativo({ setPage }) {
           <button style={s.btnGhost} onClick={carregar} disabled={carregando}>
             {carregando ? '⏳ Atualizando…' : '🔄 Atualizar'}
           </button>
-          {vejoMaisDeUm && vendedores.length > 0 && (
-            <select style={s.select} value={vendedorSel || ''} onChange={e => setVendedorSel(e.target.value || null)}>
-              {vendedores.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
-              <option value="">Toda a operação</option>
+          {vejoMaisDeUm && listaVendedores.length > 0 && (
+            <select style={s.select} value={vendedorSel ?? ''} onChange={e => escolherVendedor(e.target.value)}>
+              <option value="">👥 Toda a operação</option>
+              {listaVendedores.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
             </select>
           )}
         </div>
