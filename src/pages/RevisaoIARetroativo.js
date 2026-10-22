@@ -336,8 +336,15 @@ export default function RevisaoIARetroativo({ setPage }) {
     const meuReq = ++reqAtual.current
     setCarregando(true)
 
-    // Admin/supervisão pode olhar o de outro; vendedor vê só o próprio.
-    const p_agente = vejoMaisDeUm ? (vendedorSel || null) : profile.id
+    // 22/10 — QUEM VÊ MAIS DE UM BAIXA A MESA INTEIRA E FILTRA NA TELA.
+    // Medido em 22/10: a mae_board6 inteira são 903 linhas / 922 kB / ~600ms —
+    // com a mae_board4 (19.736 linhas) isso era impensável, com a 6 é barato.
+    // Por que não filtrar no servidor: filtrando lá, a resposta só traz UM
+    // vendedor, e era de lá que eu montava a lista do seletor — resultado, o
+    // seletor sumia assim que a tela lembrava a escolha anterior (bug que o
+    // Bruno pegou em 22/10). Baixando tudo, a lista está sempre completa e
+    // trocar de vendedor não vai mais ao servidor.
+    const p_agente = vejoMaisDeUm ? null : profile.id
 
     let todos = []
     for (let p = 0; p < MAX_PAGINAS; p++) {
@@ -360,16 +367,14 @@ export default function RevisaoIARetroativo({ setPage }) {
       (!meuTime || meuTime.includes(l.bf_agente_id)))
     setBoard(visiveis)
 
-    // Só a carga SEM filtro tem o direito de montar a lista do seletor — ver a
-    // nota do bug lá em cima. Uma carga filtrada enxerga um vendedor só.
-    if (!p_agente) {
-      const m = new Map()
-      visiveis.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
-      const nova = [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-      if (nova.length > 0) setListaVendedores(nova)
-    }
+    // A lista do seletor sai da mesa inteira, que é o que sempre chega aqui.
+    const m = new Map()
+    visiveis.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
+    setListaVendedores([...m.entries()].sort((a, b) => a[1].localeCompare(b[1])))
     setCarregando(false)
-  }, [profile?.id, vendedorSel, vejoMaisDeUm, minhaOp, meuTime])
+    // vendedorSel NÃO entra aqui: trocar de vendedor é filtro de tela, não
+    // recarregamento. Se entrar, cada troca vira uma ida ao servidor de novo.
+  }, [profile?.id, vejoMaisDeUm, minhaOp, meuTime])
 
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => {
@@ -392,22 +397,34 @@ export default function RevisaoIARetroativo({ setPage }) {
     return diaBR(l.entregue_vendedora_em) === hojeBR() ? 'hoje' : 'represado'
   }
 
+  // O recorte por vendedor é aqui, na tela — ver a nota no carregar(). '' ou
+  // null = toda a operação. Tudo abaixo (abas, KPIs, alerta de 48h) já sai
+  // recortado, então o topo fala sempre da mesa que está sendo exibida.
   const mesa = useMemo(() => board
+    .filter(l => !vendedorSel || l.bf_agente_id === vendedorSel)
     .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
-    .filter(l => l._aba), [board])
+    .filter(l => l._aba), [board, vendedorSel])
 
-  // O filtro de período vale pra LISTA, não pros números do topo: o topo tem que
-  // dizer a verdade da mesa inteira mesmo com filtro ligado, senão ela filtra
-  // "hoje" e acha que zerou os atrasados.
+  // 22/10 (Bruno) — O FILTRO DE PERÍODO MANDA EM TUDO: cards do topo, abas,
+  // alerta de 48h e lista. A versão antiga fazia o contrário de propósito (o
+  // topo ignorava o filtro) e isso dava dois números diferentes na mesma tela
+  // sem ninguém saber qual valia. Agora a tela inteira fala do mesmo recorte.
+  // CONSEQUÊNCIA ESPERADA, NÃO É BUG: com período "Hoje", "Parados +48h" dá
+  // zero — lead que chegou hoje não tem 48h. Por isso o período escolhido fica
+  // escrito no topo, do lado da data.
   const mesaFiltrada = useMemo(() => periodo === 'tudo'
     ? mesa : mesa.filter(l => dentroDoPeriodo(l.entregue_vendedora_em, periodo)), [mesa, periodo])
 
-  const contaAba = (a) => mesaFiltrada.filter(l => l._aba === a).length
-  const contaTudo = (a) => mesa.filter(l => l._aba === a).length
+  const conta = (a) => mesaFiltrada.filter(l => l._aba === a).length
 
   const lista = useMemo(() => {
     const q = buscaAtiva.trim()
     if (q) {
+      // A BUSCA É A ÚNICA COISA QUE IGNORA O PERÍODO, de propósito: quem cola um
+      // CPF quer achar AQUELA cliente, e não saber em que recorte ela caiu. Se a
+      // busca respeitasse o filtro, procurar alguém de 10 dias atrás com o
+      // período em "Hoje" devolveria "não encontrada" — e a pessoa concluiria
+      // que a cliente não existe. A tela avisa que está fora do filtro.
       const d = soDigitos(q)
       return mesa.filter(l =>
         (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
@@ -420,16 +437,18 @@ export default function RevisaoIARetroativo({ setPage }) {
     })
   }, [mesa, mesaFiltrada, aba, buscaAtiva])
 
-  // ===== NÚMEROS DO TOPO =====
-  const caiuHoje = mesa.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
+  // ===== NÚMEROS DO TOPO — todos sobre mesaFiltrada (ver nota acima) =====
+  const caiuHoje = mesaFiltrada.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
     && diaBR(l.entregue_vendedora_em) === hojeBR()).length
-  const falouHoje = mesa.filter(l => diaBR(l.vend_contato_em) === hojeBR()).length
-  const semContatoHoje = mesa.filter(l => diaBR(l.entregue_vendedora_em) === hojeBR()
+  const falouHoje = mesaFiltrada.filter(l => diaBR(l.vend_contato_em) === hojeBR()).length
+  const semContatoHoje = mesaFiltrada.filter(l => diaBR(l.entregue_vendedora_em) === hojeBR()
     && !l.vend_contato_em && l._aba !== 'fechou' && l._aba !== 'recuperar').length
   // "Atrasado" = na fila sem ninguém encostar há 48h+. É o número que se cobra.
-  const parados48 = mesa.filter(l => (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48).length
-  const naMesa = contaTudo('hoje') + contaTudo('represado') + contaTudo('contato') + contaTudo('retomar')
+  const parados48 = mesaFiltrada.filter(l => (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48).length
+  const naMesa = conta('hoje') + conta('represado') + conta('contato') + conta('retomar')
   const pctDia = caiuHoje > 0 ? Math.round(100 * Math.min(falouHoje, caiuHoje) / caiuHoje) : 0
+  const periodoRotulo = (PERIODOS.find(p => p[0] === periodo) || [])[1] || ''
+  const filtroLigado = periodo !== 'tudo'
 
   // 22/10 (Bruno) — admin/supervisão ABRE JÁ NUM VENDEDOR, não em "todos": com
   // 778 numa fila só os números do topo não dizem o que fazer. Só vale na
@@ -515,7 +534,12 @@ export default function RevisaoIARetroativo({ setPage }) {
           <div style={s.avatar}>{iniciais}</div>
           <div style={{ flex: 1, minWidth: 180 }}>
             <div style={s.quem}>{nomeDaMesa}</div>
-            <div style={s.quando}>Retroativo · {hojeExtenso}</div>
+            <div style={s.quando}>
+              Retroativo · {hojeExtenso}
+              {filtroLigado && (
+                <> · <b style={{ color: cores.azul }}>mostrando: {periodoRotulo.toLowerCase()}</b></>
+              )}
+            </div>
           </div>
           <button style={s.btnGhost} onClick={carregar} disabled={carregando}>
             {carregando ? '⏳ Atualizando…' : '🔄 Atualizar'}
@@ -551,27 +575,41 @@ export default function RevisaoIARetroativo({ setPage }) {
           </div>
           <div style={s.kpi(cores.ok)}>
             <div style={s.kpiLab}>Vendas fechadas</div>
-            <div style={s.kpiNum(cores.ok)}>{contaTudo('fechou')}</div>
+            <div style={s.kpiNum(cores.ok)}>{conta('fechou')}</div>
             <div style={s.kpiSub}>contrato assinado</div>
           </div>
-          <div style={s.kpi(cores.alerta, contaTudo('recuperar') > 0)}>
+          <div style={s.kpi(cores.alerta, conta('recuperar') > 0)}>
             <div style={s.kpiLab}>Pra recuperar</div>
-            <div style={s.kpiNum(cores.alerta)}>{contaTudo('recuperar')}</div>
+            <div style={s.kpiNum(cores.alerta)}>{conta('recuperar')}</div>
             <div style={s.kpiSub}>fecharam e caíram</div>
           </div>
         </div>
 
+        {/* Com um período que não inclui hoje (ex.: "Ontem"), caiuHoje é 0 e a
+            barra não tem o que medir — aí ela dá lugar ao total do recorte, em
+            vez de mostrar "0 de 0 · 0% do dia", que parece defeito. */}
         <div style={s.barraWrap}>
-          <div style={s.barra}><div style={{ ...s.barraFill, width: `${pctDia}%` }} /></div>
-          <div style={{ fontSize: 11.5, color: cores.suave, whiteSpace: 'nowrap' }}>
-            <b style={{ color: cores.texto }}>{falouHoje} de {caiuHoje}</b> que caíram hoje · {pctDia}% do dia
-          </div>
+          {caiuHoje > 0 ? (
+            <>
+              <div style={s.barra}><div style={{ ...s.barraFill, width: `${pctDia}%` }} /></div>
+              <div style={{ fontSize: 11.5, color: cores.suave, whiteSpace: 'nowrap' }}>
+                <b style={{ color: cores.texto }}>{falouHoje} de {caiuHoje}</b> que caíram hoje · {pctDia}% do dia
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 11.5, color: cores.suave }}>
+              {filtroLigado
+                ? <>Nenhuma cliente caiu hoje dentro de <b style={{ color: cores.texto }}>{periodoRotulo.toLowerCase()}</b> · {mesaFiltrada.length} {mesaFiltrada.length === 1 ? 'cliente' : 'clientes'} nesse recorte</>
+                : 'Nenhuma cliente nova caiu hoje.'}
+            </div>
+          )}
         </div>
       </div>
 
       {parados48 > 0 && (
         <div style={s.alerta}>
-          <b style={{ color: cores.perigo }}>{parados48} {parados48 === 1 ? 'cliente está' : 'clientes estão'} há mais de 48h sem ninguém falar.</b>{' '}
+          <b style={{ color: cores.perigo }}>{parados48} {parados48 === 1 ? 'cliente está' : 'clientes estão'} há mais de 48h sem ninguém falar
+          {filtroLigado ? ` (dentro de ${periodoRotulo.toLowerCase()})` : ''}.</b>{' '}
           Cada dia parado é uma chance de ela fechar com outro escritório. Comece pela aba Atrasados.
         </div>
       )}
@@ -581,13 +619,22 @@ export default function RevisaoIARetroativo({ setPage }) {
         {ABAS.map(([k, rot]) => (
           <button key={k} style={s.aba(aba === k && !buscaAtiva)}
             onClick={() => { setAba(k); setBuscaAtiva(''); setBusca('') }}>
-            {rot} {contaAba(k)}
+            {rot} {conta(k)}
           </button>
         ))}
         <select style={s.select} value={periodo} onChange={e => setPeriodo(e.target.value)}>
           {PERIODOS.map(([v, l]) => <option key={v} value={v}>📅 {l}</option>)}
         </select>
       </div>
+
+      {/* Busca ignora o período e as abas — a tela diz isso em vez de deixar a
+          pessoa achar que o filtro quebrou. */}
+      {buscaAtiva && lista.length > 0 && (
+        <div style={{ ...s.alerta, background: `${cores.azul}0d`, border: `1px solid ${cores.azul}33` }}>
+          <b>{lista.length} {lista.length === 1 ? 'resultado' : 'resultados'} para "{buscaAtiva}"</b> —
+          a busca procura na mesa inteira{filtroLigado ? `, ignorando o filtro "${periodoRotulo.toLowerCase()}"` : ''} e em todas as abas.
+        </div>
+      )}
 
       {/* ===== LISTA ===== */}
       {carregando && lista.length === 0 ? (
@@ -599,7 +646,11 @@ export default function RevisaoIARetroativo({ setPage }) {
             {buscaAtiva ? 'Ninguém encontrado' : 'Nada nesta aba'}
           </div>
           <div style={{ fontSize: 13, color: cores.suave }}>
-            {buscaAtiva ? 'Nenhuma cliente com esse CPF, telefone ou nome nesta mesa.' : 'Quando cair cliente nova aqui, ela aparece sozinha.'}
+            {buscaAtiva
+              ? `Nenhuma cliente com esse CPF, telefone ou nome na mesa${vendedorSel ? ' de ' + nomeDaMesa : ''}.`
+              : filtroLigado
+                ? <>Nada nesta aba dentro de <b>{periodoRotulo.toLowerCase()}</b>. Experimente "Todo o período".</>
+                : 'Quando cair cliente nova aqui, ela aparece sozinha.'}
           </div>
         </div>
       ) : lista.map(l => {
