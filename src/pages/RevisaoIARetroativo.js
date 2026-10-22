@@ -1,36 +1,30 @@
 // ============================================================================
-// MINHA MESA — RETROATIVO   (antigo "Revisão IA — Retroativo")
-// 22/10/2026 (Bruno) — REDESENHO COMPLETO DA TELA.
+// MESA DO RETROATIVO   (menu: "Revisão IA Retroativo")
+// 22/10/2026 (Bruno) — desenho da mesa antiga + tema do CRM.
 //
-// POR QUE: medido em 22/10, dos 2.168 leads entregues ao vendedor, 2.043 (94%)
-// nunca receberam UM clique de registro, e só 9 tinham observação escrita. A RPC
-// retroativo_vendedor_marcar existe desde 19/10 e funciona — o que faltava era
-// uma tela que fizesse o vendedor usá-la. A tela antiga tinha 2.306 linhas, 19
-// RPCs, kanban, painel do dia, conferência do funil e fechamento: o vendedor
-// abria, olhava e fechava sem marcar nada.
+// POR QUE: medido em 22/10, dos 2.168 leads entregues ao vendedor 2.043 (94%)
+// nunca receberam um clique de registro e só 9 tinham observação escrita. A RPC
+// retroativo_vendedor_marcar existe e funciona desde 19/10 — faltava tela.
 //
 // COMO FUNCIONA HOJE (Bruno, 21/10): a máquina simula a listagem, o lead passa
 // no GERID, os pré-aprovados o advogado confirma, e aí vai pro vendedor, que
 // liga pra um lead FRIO — a cliente NÃO sabe que tem direito e nunca procurou a
-// KR. Não existe mais tráfego, não existe KR Chat, não existe mensagem
-// automática. A tela serve pra UMA coisa: o vendedor recebe o lead do dia, fala
-// com a cliente e registra o que aconteceu.
+// KR. Não existe mais tráfego, KR Chat nem mensagem automática.
 //
-// O QUE SAIU (tudo isso existia e não servia mais a esse fluxo):
-//   - board kanban de 11 colunas          - painel do dia / distribuição
-//   - conferência do funil (PromoBank)    - fechamento do dia
-//   - filtros de entrada/atividade/entrega- auto-refresh do Chatwoot (8s)
-//   - leitura de conversa do Chatwoot     - aprovar/reprovar CNIS (é da advogada)
+// O QUE SAIU da versão de 2.306 linhas: board kanban de 11 colunas, painel do
+// dia, conferência do funil (PromoBank), fechamento do dia, filtros de
+// entrada/atividade/entrega, auto-refresh e leitura de conversa do Chatwoot,
+// aprovar/reprovar CNIS (é trabalho da advogada, tem tela própria).
 //
-// O QUE ENTROU:
-//   - FILA: um cliente por vez, com o próximo entrando sozinho ao marcar
-//   - mensagem de abordagem pronta, com botão que já abre o WhatsApp escrito
-//   - as 4 ações do RPC em botões grandes, com observação inline (sem prompt())
-//   - progresso do dia e tempo de espera por cliente
+// O QUE FICOU (o desenho que o Bruno aprovou em 22/10): KPIs do dia, abas por
+// estado do lead, cards em lista com ação na própria linha, alerta de parados
+// +48h, e o seletor de vendedor abrindo JÁ num vendedor (não em "todos").
 //
-// DESIGN: esta é a primeira tela do CRM a importar ../lib/tema. Antes só o
-// Layout.js usava — por isso a sidebar era bonita e o miolo parecia outro
-// sistema. Toda cor, raio, sombra e fonte daqui vem do tema.
+// O QUE ENTROU: mensagem de abordagem pronta, com botão que abre o WhatsApp já
+// escrito, e observação inline (sem window.prompt).
+//
+// DESIGN: importa ../lib/tema. Antes só o Layout.js usava — por isso a sidebar
+// era bonita e o miolo parecia outro sistema.
 // ============================================================================
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
@@ -40,25 +34,28 @@ import { cores, sombras, raio, fonte, ui } from '../lib/tema'
 
 // ===== BOARD =====
 // 21/10 — mae_board6 = a mae_board4 por dentro, com DOIS cortes: só
-// cnis_aprovado='true' (o que a advogada liberou) e só os últimos N dias
-// (app_config.retroativo_board_dias, hoje 15). Medido em 21/10: mae_board4 =
-// 19.736 linhas / 21 idas / 14s; mae_board6 = 145 linhas / 1 ida / 627ms.
+// cnis_aprovado='true' e só os últimos N dias (app_config.retroativo_board_dias).
+// Medido: mae_board4 = 19.736 linhas / 21 idas / 14s; mae_board6 = 627ms.
 // A mae_board4 segue intacta no banco — reverter = trocar o nome aqui.
 const RPC_BOARD = 'mae_board6'
 const PAGINA_BOARD = 1000
 const MAX_PAGINAS = 25
 
-// Colunas que contam como lead VIVO na mão do vendedor. Fechou (assinatura /
-// finalizado) sai da fila e vira número no placar.
-const COLUNAS_ATIVAS = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL']
+const COLUNAS_MESA_ATIVA = ['PITCH_LIBERADO', 'CAD_ENDERECO', 'CAD_RG', 'CAD_COMPROVANTE', 'CAD_FINAL']
+const COLUNAS_MESA_FECHOU = ['AGUARDANDO_ASSINATURA', 'FINALIZADO']
 
 // 19/10 — a VENDA vem da tabela clientes, não da coluna do board. Medido: das
 // 370 vendas fechadas, só 176 tinham o lead em FINALIZADO; as outras 194 foram
 // digitadas no Novo Cliente, que cria o cliente e não mexe no estado do lead.
 const CLIENTE_FECHADO = ['validado', 'entregue', 'assinado']
+const CLIENTE_PERDIDO = ['cancelado', 'expirado', 'barrado_pos_venda']
+const MOTIVO_PERDA = {
+  expirado: ['⏳', 'Não assinou a tempo', 'O link de assinatura venceu antes de ela assinar.'],
+  cancelado: ['🚫', 'Cancelada', 'O contrato foi cancelado depois de emitido.'],
+  barrado_pos_venda: ['🛑', 'Barrada no pós-venda', 'A conferência do pós-venda não aprovou.'],
+}
 
-// ===== PERMISSÃO (copiado da tela antiga, sem alteração de regra) =====
-// Operações LICENCIADAS: o usuário só enxerga leads da própria operação.
+// ===== PERMISSÃO (copiado sem alteração de regra) =====
 const OPERACAO_USUARIOS = {
   '72fa4914-e8de-4c0c-a954-b05241e9d1bd': 'ronaldo', // Thamires (supervisora)
   '8bff997b-e43f-4b65-bafc-b4e7e704b14b': 'ronaldo', // Brenda
@@ -73,12 +70,10 @@ const SUPERVISORAS_OPERACAO = [
   '72fa4914-e8de-4c0c-a954-b05241e9d1bd', // Thamires (Ronaldo)
   'cf6444f5-7e03-4cc7-9442-9b0cb963695a', // Isabelle (Leandro)
 ]
-
-// Retroativo = dois times por faixa. A supervisora NÃO recebe lead: ela olha o
-// time. Entra na própria lista porque pode ter lead antigo na mão.
+// Supervisora NÃO recebe lead: olha o time. Entra na própria lista porque pode
+// ter lead antigo na mão.
 const SUPERVISORAS_TIME = {
-  // Agatha Barreto — time 12 meses
-  '0a5958b9-d43b-4bac-a01d-af60247dd721': [
+  '0a5958b9-d43b-4bac-a01d-af60247dd721': [ // Agatha Barreto — time 12 meses
     '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda
     'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
     '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
@@ -89,34 +84,77 @@ const SUPERVISORAS_TIME = {
   ],
 }
 
-// ===== HELPERS =====
-function soDigitos(v) { return String(v || '').replace(/\D/g, '') }
+// ===== ABAS (mesma lógica da mesa antiga) =====
+const ABAS = [
+  ['hoje', '🔥 Caiu hoje'],
+  ['represado', '📦 Atrasados'],
+  ['contato', '📞 Em contato'],
+  ['retomar', '🔁 Não respondeu'],
+  ['tel', '📵 Telefone errado'],
+  ['sem_direito', '🚫 Sem direito'],
+  ['fechou', '✅ Venda fechada'],
+  ['recuperar', '♻️ Recuperar'],
+]
+const PERIODOS = [
+  ['tudo', 'Todo o período'], ['hoje', 'Hoje'], ['ontem', 'Ontem'],
+  ['7d', 'Últimos 7 dias'], ['30d', 'Últimos 30 dias'],
+]
 
+// ===== HELPERS DE DATA =====
+// Dia no fuso de São Paulo (en-CA dá yyyy-mm-dd). Comparar com toISOString()
+// erraria a virada: em UTC o dia vira às 21h daqui, e o "caiu hoje" sairia com
+// os leads da noite anterior dentro.
+function diaBR(iso) {
+  if (!iso) return null
+  try { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) } catch (_) { return null }
+}
+function hojeBR() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) }
+function horasDe(iso) {
+  if (!iso) return null
+  const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000)
+  return h >= 0 ? h : 0
+}
+function fmtHoras(h) {
+  if (h === null || h === undefined) return '—'
+  if (h < 1) return 'agora'
+  if (h < 24) return h + 'h'
+  const d = Math.floor(h / 24)
+  return d + (d === 1 ? ' dia' : ' dias')
+}
+function dentroDoPeriodo(iso, periodo) {
+  if (periodo === 'tudo') return true
+  const d = diaBR(iso)
+  if (!d) return false
+  const hoje = hojeBR()
+  if (periodo === 'hoje') return d === hoje
+  const dias = Math.round((new Date(hoje + 'T12:00:00') - new Date(d + 'T12:00:00')) / 86400000)
+  if (periodo === 'ontem') return dias === 1
+  if (periodo === '7d') return dias >= 0 && dias <= 6
+  if (periodo === '30d') return dias >= 0 && dias <= 29
+  return true
+}
+
+// ===== FORMATAÇÃO =====
+function soDigitos(v) { return String(v || '').replace(/\D/g, '') }
 function primeiroNome(n) {
   const p = String(n || '').trim().split(/\s+/)[0] || ''
   return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : ''
 }
-
-// "MARIA APARECIDA DA SILVA" -> "Maria Aparecida da Silva"
 function nomeBonito(n) {
-  const minusculas = ['da', 'de', 'do', 'das', 'dos', 'e']
+  const min = ['da', 'de', 'do', 'das', 'dos', 'e']
   return String(n || '').trim().toLowerCase().split(/\s+/)
-    .map((p, i) => (i > 0 && minusculas.includes(p)) ? p : p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ')
+    .map((p, i) => (i > 0 && min.includes(p)) ? p : p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 }
-
 function fmtTel(t) {
   const d = soDigitos(t).replace(/^55/, '')
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return t || '—'
 }
-
 function fmtCPF(c) {
   const d = soDigitos(c)
   return d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}` : (c || '—')
 }
-
 function fmtData(v) {
   if (!v) return ''
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(String(v))) return v
@@ -124,31 +162,18 @@ function fmtData(v) {
   return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR')
 }
 
-// "3 dias", "5h", "40 min" — quanto tempo essa cliente está esperando.
-function fmtEspera(min) {
-  if (min == null) return ''
-  if (min < 60) return `${min} min`
-  if (min < 1440) return `${Math.floor(min / 60)}h`
-  const d = Math.floor(min / 1440)
-  return `${d} ${d === 1 ? 'dia' : 'dias'}`
-}
-
-function diasDesde(iso) {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return null
-  return Math.floor((Date.now() - d.getTime()) / 86400000)
-}
-
-function ehHoje(iso) { return diasDesde(iso) === 0 }
-
 // ===== O VÍNCULO QUE DEU O DIREITO =====
-// vinculo_direito vem do GERID (public.gerid_vinculo_decisivo). É o argumento
-// da ligação: a cliente não sabe que tem direito, o vendedor precisa chegar
-// sabendo onde ela trabalhou e quando.
-// Estrutura real conferida no banco em 22/10 (public.gerid_vinculo_decisivo):
+// Estrutura conferida no banco em 22/10 (public.gerid_vinculo_decisivo):
 // { fim, tipo, regra, inicio, empresa, filho_dn, filho_nome, eh_beneficio,
 //   dn_aproximada, total_vinculos, filhos_no_gerid, meses_antes_do_parto }
+//
+// ATENÇÃO (comentário do próprio mae_board6, 19/10): o filho_nome NÃO vem do
+// GERID — o board injeta de public.detetive_fila, e LIMPA a marcação que a
+// detetive cola no fim do nome ("... Óbito", "... Indicativo criminal": 543 e
+// 572 nomes na base). Quando o nome não casa com segurança, vem vazio de
+// propósito — dizer o nome errado na ligação é pior do que não dizer nome.
+// Por isso o vinculo_direito pode vir SÓ com filho_nome, sem empresa: o bloco
+// "empresa que deu o direito" tem que checar empresa, não o objeto inteiro.
 function lerVinculo(v) {
   if (!v) return null
   const d = Array.isArray(v) ? v[0] : v
@@ -156,8 +181,7 @@ function lerVinculo(v) {
   const tipo = String(d.tipo || '')
   return {
     empresa: String(d.empresa || '').trim() || null,
-    // o próprio GERID já classifica — não adivinhar por regex o que vem pronto
-    ehBeneficio: d.eh_beneficio === true,
+    ehBeneficio: d.eh_beneficio === true,   // o GERID já classifica; não adivinhar por regex
     tipo: /domest/i.test(tipo) ? 'Empregada doméstica'
       : /empregad/i.test(tipo) ? 'Empregada'
       : /facultativ/i.test(tipo) ? 'Facultativa'
@@ -167,128 +191,107 @@ function lerVinculo(v) {
     fim: d.fim || null,
     meses: d.meses_antes_do_parto,
     filhoDn: d.filho_dn || null,
-    // 22/10 — data de parto APROXIMADA (o GERID não achou o dia exato). O
-    // vendedor NÃO pode afirmar a data na ligação: se ele erra o dia, a cliente
-    // desconfia e a ligação morre. Por isso vira aviso na tela e sai da mensagem.
+    // data de parto APROXIMADA: o vendedor NÃO pode afirmar o dia na ligação.
     dnAproximada: d.dn_aproximada === true,
-    // 22/10 — o campo existe e o gerid_texto_venda já lê, mas a extensão do
-    // GERID ainda não grava: medido em 22/10, 1 de 13.858 consultas em 15 dias.
-    // Fica lido aqui pra que, no dia em que a extensão gravar, a mensagem de
-    // abordagem passe a usar o nome da criança sozinha, sem mexer nesta tela.
     filhoNome: String(d.filho_nome || '').trim() || null,
   }
 }
 
 // ===== MENSAGEM DE ABORDAGEM =====
-// 22/10 (Bruno) — o atendimento é 100% WhatsApp e o vendedor precisa de um
-// texto pronto pra copiar, não de um campo a mais pra ler.
-// Ordem de preferência do "com quem eu quero falar":
-//   1. nome da criança  (ideal — hoje só 1 lead em 2.168 tem; ver nota acima)
-//   2. nome da mãe      (83% dos leads)
-//   3. data do parto    (100% — ninguém fica sem mensagem)
+// 22/10 (Bruno) — atendimento é 100% WhatsApp; o vendedor precisa de texto
+// pronto, não de mais um campo pra ler. Cobertura medida em 22/10 na mesa:
+// nome do bebê 819/852 (96%), nome da mãe 26, data do parto 7.
 function montarAbordagem(lead, vinc) {
   const filho = vinc?.filhoNome
   if (filho) return `Olá, tudo bem?\n\nGostaria de falar com a responsável do ${nomeBonito(filho)}?`
   const mae = nomeBonito(lead?.nome || '')
   if (mae) return `Olá, tudo bem?\n\nGostaria de falar com a ${mae}?`
-  // Só cita a data quando o GERID achou o dia EXATO. Data aproximada na
-  // mensagem queima a ligação: a cliente vê o dia errado e desconfia.
+  // Só cita a data quando o GERID achou o dia EXATO.
   const dn = vinc?.dnAproximada ? null : fmtData(vinc?.filhoDn || lead?.data_nascimento_filho)
   if (dn) return `Olá, tudo bem?\n\nGostaria de falar com a mãe do bebê que nasceu em ${dn}?`
   return 'Olá, tudo bem?\n\nGostaria de falar com a responsável pela família?'
 }
-
-// wa.me já com o texto escrito: 1 clique em vez de copiar, trocar de aba, colar.
 function linkWhats(tel, texto) {
   const d = soDigitos(tel)
   if (!d) return null
-  const num = d.startsWith('55') ? d : `55${d}`
-  return `https://wa.me/${num}?text=${encodeURIComponent(texto)}`
+  return `https://wa.me/${d.startsWith('55') ? d : '55' + d}?text=${encodeURIComponent(texto)}`
 }
 
-// ===== AS 4 AÇÕES =====
-// Espelham exatamente o que retroativo_vendedor_marcar aceita. Não invente ação
-// aqui: a RPC rejeita o que não está nesta lista.
-const ACOES = [
-  { id: 'pegar', rotulo: 'Falei com ela', ajuda: 'Consegui contato — segue na minha mão', cor: cores.ok, icone: '✓' },
-  { id: 'sem_resposta', rotulo: 'Não respondeu', ajuda: 'Conta uma tentativa e volta pra fila', cor: cores.alerta, icone: '↻' },
-  { id: 'tel_errado', rotulo: 'Telefone errado', ajuda: 'Sai da minha mesa e vai pro resgate', cor: cores.roxo, icone: '📵' },
-  { id: 'sem_direito', rotulo: 'Sem direito', ajuda: 'Tira da mesa — exige motivo', cor: cores.perigo, icone: '✕', exigeObs: true },
+// Códigos TÊM que bater com retroativo_vendedor_marcar — a RPC rejeita o resto.
+const ACOES_SECUNDARIAS = [
+  { id: 'sem_resposta', rotulo: 'Não respondeu', cor: cores.alerta },
+  { id: 'tel_errado', rotulo: 'Telefone errado', cor: cores.perigo },
+  { id: 'sem_direito', rotulo: 'Não tem direito', cor: cores.suave, exigeObs: true },
 ]
-
-const ST = {
-  contato: { rotulo: 'Em contato', cor: cores.ok },
-  sem_resposta: { rotulo: 'Não respondeu', cor: cores.alerta },
-  tel_errado: { rotulo: 'Telefone errado', cor: cores.roxo },
-  sem_direito: { rotulo: 'Sem direito', cor: cores.perigo },
-}
 
 // ===== ESTILOS (100% derivados de ../lib/tema) =====
 const s = {
-  topo: { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 },
-  h1: { fontSize: 26, fontWeight: 800, color: cores.texto, letterSpacing: '-0.02em', fontFamily: fonte.familia },
-  sub: { fontSize: 13, color: cores.suave, marginTop: 4 },
+  h1: { fontSize: 24, fontWeight: 800, color: cores.texto, letterSpacing: '-0.02em', margin: 0 },
+  sub: { fontSize: 13, color: cores.suave, marginTop: 4, lineHeight: 1.5 },
 
-  placar: { display: 'flex', gap: 10, flexWrap: 'wrap' },
-  kpi: { ...ui.card, padding: '10px 16px', minWidth: 92 },
-  kpiNum: { fontSize: 22, fontWeight: 800, color: cores.texto, lineHeight: 1, fontFamily: fonte.familia },
-  kpiLab: { fontSize: 10.5, fontWeight: 600, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 5 },
+  buscaWrap: { display: 'flex', gap: 8, margin: '16px 0' },
+  buscaInput: { flex: 1, maxWidth: 380, padding: '10px 13px', fontSize: 13, borderRadius: raio.botao, fontFamily: 'inherit' },
+  btn: { padding: '10px 18px', borderRadius: raio.botao, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', background: cores.azul, color: '#fff' },
+  btnGhost: { padding: '8px 14px', borderRadius: raio.botao, border: `1px solid ${cores.cardBorda}`, background: cores.card, color: cores.texto, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
 
-  barra: { height: 6, borderRadius: raio.pill, background: cores.chipBg, overflow: 'hidden', marginBottom: 20 },
-  barraFill: { height: '100%', borderRadius: raio.pill, background: `linear-gradient(90deg, ${cores.azul}, ${cores.roxo})`, transition: 'width .4s ease' },
+  painel: { ...ui.card, padding: 18, marginBottom: 14 },
+  painelTopo: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 },
+  avatar: { width: 42, height: 42, borderRadius: raio.pill, display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', background: `linear-gradient(135deg, ${cores.azul}, ${cores.roxo})` },
+  quem: { fontSize: 16, fontWeight: 800, color: cores.texto },
+  quando: { fontSize: 12, color: cores.suave, marginTop: 1 },
 
-  palco: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 18, alignItems: 'start' },
-  card: { ...ui.card, padding: 24, position: 'relative' },
-
-  passo: { fontSize: 11, fontWeight: 700, color: cores.suave, letterSpacing: '.06em', textTransform: 'uppercase' },
-  nome: { fontSize: 25, fontWeight: 800, color: cores.texto, letterSpacing: '-0.02em', margin: '10px 0 2px', lineHeight: 1.15 },
-  linhaDados: { display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 },
-  tel: { fontSize: 17, fontWeight: 700, color: cores.texto, fontFamily: fonte.mono },
-  cpf: { fontSize: 12.5, color: cores.suave, fontFamily: fonte.mono },
-
-  bloco: { marginTop: 18, borderRadius: raio.cartao, padding: 16, background: cores.chipBg, border: `1px solid ${cores.cardBorda}` },
-  blocoTit: { fontSize: 10.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  dir1: { fontSize: 15, fontWeight: 700, color: cores.texto },
-  dir2: { fontSize: 13, color: cores.suave, marginTop: 3, lineHeight: 1.5 },
-
-  msgBox: { marginTop: 18, borderRadius: raio.cartao, border: `1.5px solid ${cores.azul}33`, background: `${cores.azul}0a`, padding: 16 },
-  msgTexto: { fontSize: 14.5, color: cores.texto, lineHeight: 1.65, whiteSpace: 'pre-wrap', fontFamily: fonte.familia },
-  btnCopiar: { fontSize: 11, fontWeight: 700, padding: '5px 11px', borderRadius: raio.botao, border: `1px solid ${cores.azul}44`, background: cores.card, color: cores.azul, cursor: 'pointer', fontFamily: 'inherit' },
-  btnWhats: { ...ui.btnPrimario, width: '100%', marginTop: 12, padding: '13px 16px', fontSize: 14, display: 'block', textAlign: 'center', textDecoration: 'none', background: 'linear-gradient(135deg,#22c55e,#16a34a)', boxShadow: '0 4px 14px rgba(22,163,74,.35)' },
-
-  pergunta: { fontSize: 12.5, fontWeight: 700, color: cores.texto, marginTop: 22, marginBottom: 10 },
-  acoes: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 9 },
-  acao: (cor) => ({
-    padding: '13px 12px', borderRadius: raio.botao, cursor: 'pointer', textAlign: 'left',
-    border: `1.5px solid ${cor}33`, background: `${cor}0d`, fontFamily: 'inherit', transition: 'all .15s',
+  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10 },
+  kpi: (cor, destaque) => ({
+    padding: '12px 14px', borderRadius: raio.cartao,
+    background: destaque ? `${cor}0f` : cores.chipBg,
+    border: `1px solid ${destaque ? cor + '40' : cores.cardBorda}`,
   }),
-  acaoTit: (cor) => ({ fontSize: 13, fontWeight: 700, color: cor }),
-  acaoSub: { fontSize: 10.5, color: cores.suave, marginTop: 3, lineHeight: 1.35 },
+  kpiLab: { fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave },
+  kpiNum: (cor) => ({ fontSize: 26, fontWeight: 800, color: cor, lineHeight: 1.1, marginTop: 3 }),
+  kpiSub: { fontSize: 10.5, color: cores.suave, marginTop: 2, lineHeight: 1.3 },
 
-  obsArea: { width: '100%', marginTop: 10, padding: 11, fontSize: 13, borderRadius: raio.botao, border: `1px solid ${cores.cardBorda}`, minHeight: 64, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
+  barraWrap: { marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 },
+  barra: { flex: 1, height: 6, borderRadius: raio.pill, background: cores.chipBg, overflow: 'hidden' },
+  barraFill: { height: '100%', borderRadius: raio.pill, background: `linear-gradient(90deg, ${cores.ok}, ${cores.okVivo})`, transition: 'width .4s ease' },
 
-  vender: { ...ui.btnPrimario, width: '100%', marginTop: 14, padding: '14px 16px', fontSize: 14.5 },
+  alerta: { padding: '12px 16px', borderRadius: raio.cartao, background: `${cores.perigo}0f`, border: `1px solid ${cores.perigo}33`, marginBottom: 14, fontSize: 12.5, color: cores.texto, lineHeight: 1.55 },
 
-  nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, gap: 10 },
-  navBtn: { padding: '9px 16px', borderRadius: raio.botao, border: `1px solid ${cores.cardBorda}`, background: cores.card, color: cores.texto, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-
-  lado: { ...ui.card, padding: 16, position: 'sticky', top: 16 },
-  ladoTit: { fontSize: 10.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginBottom: 11 },
-  buscaInput: { width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: raio.botao, boxSizing: 'border-box', fontFamily: 'inherit' },
-  mini: (ativo) => ({
-    padding: '9px 11px', borderRadius: raio.botao, cursor: 'pointer', marginBottom: 6,
-    border: `1px solid ${ativo ? cores.azul : cores.cardBorda}`,
-    background: ativo ? `${cores.azul}0f` : cores.card, textAlign: 'left', width: '100%', fontFamily: 'inherit',
+  abas: { display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' },
+  aba: (ativo) => ({
+    padding: '7px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', borderRadius: raio.pill,
+    border: `1px solid ${ativo ? cores.texto : cores.cardBorda}`,
+    background: ativo ? cores.texto : cores.card, color: ativo ? '#fff' : cores.suave, fontFamily: 'inherit',
   }),
-  miniNome: { fontSize: 12.5, fontWeight: 700, color: cores.texto, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  miniMeta: { fontSize: 10.5, color: cores.suave, marginTop: 2 },
+  select: { padding: '7px 11px', fontSize: 12.5, borderRadius: raio.botao, fontFamily: 'inherit' },
 
-  vazio: { ...ui.card, padding: 48, textAlign: 'center' },
-  vazioTit: { fontSize: 19, fontWeight: 800, color: cores.texto, marginBottom: 6 },
-  vazioSub: { fontSize: 13.5, color: cores.suave, lineHeight: 1.6 },
+  card: { ...ui.card, padding: 18, marginBottom: 10 },
+  cardTopo: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' },
+  nome: { fontSize: 17, fontWeight: 800, color: cores.texto, letterSpacing: '-0.01em' },
+  meta: { fontSize: 12.5, color: cores.suave, marginTop: 3, fontFamily: fonte.mono },
 
-  select: { padding: '8px 11px', fontSize: 12.5, borderRadius: raio.botao, fontFamily: 'inherit' },
+  bloco: { marginTop: 12, borderRadius: raio.cartao, padding: 13, background: cores.chipBg, border: `1px solid ${cores.cardBorda}` },
+  blocoTit: { fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginBottom: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  dir1: { fontSize: 14, fontWeight: 700, color: cores.texto },
+  dir2: { fontSize: 12.5, color: cores.suave, marginTop: 2, lineHeight: 1.5 },
+  bebe: { fontSize: 13, color: cores.texto, marginTop: 9, fontWeight: 600 },
+
+  msgBox: { marginTop: 12, borderRadius: raio.cartao, border: `1.5px solid ${cores.azul}33`, background: `${cores.azul}0a`, padding: 13 },
+  msgTexto: { fontSize: 13.5, color: cores.texto, lineHeight: 1.6, whiteSpace: 'pre-wrap' },
+  btnCopiar: { fontSize: 10.5, fontWeight: 700, padding: '4px 10px', borderRadius: raio.botao, border: `1px solid ${cores.azul}44`, background: cores.card, color: cores.azul, cursor: 'pointer', fontFamily: 'inherit' },
+
+  acoes: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'stretch' },
+  btnPegar: { flex: '1 1 260px', padding: '13px 16px', borderRadius: raio.botao, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff', fontFamily: 'inherit', background: 'linear-gradient(135deg,#22c55e,#16a34a)', boxShadow: '0 4px 14px rgba(22,163,74,.3)', textAlign: 'center', textDecoration: 'none', display: 'block' },
+  btnAcao: (cor) => ({ padding: '11px 13px', borderRadius: raio.botao, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', border: `1.5px solid ${cor}44`, background: `${cor}0d`, color: cor }),
+
+  obsArea: { width: '100%', marginTop: 10, padding: 11, fontSize: 13, borderRadius: raio.botao, border: `1px solid ${cores.cardBorda}`, minHeight: 58, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
+
+  vazio: { ...ui.card, padding: 40, textAlign: 'center' },
   toast: { position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', padding: '12px 22px', borderRadius: raio.botao, background: cores.texto, color: '#fff', fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: sombras.cardHover },
+
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', zIndex: 900, padding: 16 },
+  modal: { ...ui.card, padding: 22, maxWidth: 560, width: '100%', maxHeight: '86vh', overflowY: 'auto' },
+  linha: { display: 'flex', fontSize: 13, padding: '6px 0', borderBottom: `1px solid ${cores.cardBorda}` },
+  linhaLab: { width: 150, color: cores.suave, flexShrink: 0 },
 }
 
 // ============================================================================
@@ -303,13 +306,16 @@ export default function RevisaoIARetroativo({ setPage }) {
 
   const [board, setBoard] = useState([])
   const [carregando, setCarregando] = useState(true)
-  const [i, setI] = useState(0)
-  const [obs, setObs] = useState('')
-  const [acaoAberta, setAcaoAberta] = useState(null)
-  const [marcando, setMarcando] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [aba, setAba] = useState('hoje')
+  const [periodo, setPeriodo] = useState('tudo')
+  const [vendedorSel, setVendedorSel] = useState(null)   // null = ainda não escolhido
   const [busca, setBusca] = useState('')
-  const [filtroAgente, setFiltroAgente] = useState('')
+  const [buscaAtiva, setBuscaAtiva] = useState('')
+  const [obsAberta, setObsAberta] = useState(null)       // `${leadId}:${acao}`
+  const [obs, setObs] = useState('')
+  const [marcando, setMarcando] = useState(null)
+  const [ficha, setFicha] = useState(null)
+  const [toast, setToast] = useState(null)
   const reqAtual = useRef(0)
 
   function avisar(t) { setToast(t); setTimeout(() => setToast(null), 2600) }
@@ -321,333 +327,442 @@ export default function RevisaoIARetroativo({ setPage }) {
     setCarregando(true)
 
     // Admin/supervisão pode olhar o de outro; vendedor vê só o próprio.
-    const p_agente = vejoMaisDeUm ? (filtroAgente || null) : profile.id
+    const p_agente = vejoMaisDeUm ? (vendedorSel || null) : profile.id
 
     let todos = []
     for (let p = 0; p < MAX_PAGINAS; p++) {
       const de = p * PAGINA_BOARD
-      const { data, error } = await supabase
-        .rpc(RPC_BOARD, {
-          p_agente,
-          p_entrada_de: null, p_entrada_ate: null,
-          p_ativ_de: null, p_ativ_ate: null,
-          p_entrega_de: null, p_entrega_ate: null,
-        })
-        .range(de, de + PAGINA_BOARD - 1)
+      const { data, error } = await supabase.rpc(RPC_BOARD, {
+        p_agente,
+        p_entrada_de: null, p_entrada_ate: null,
+        p_ativ_de: null, p_ativ_ate: null,
+        p_entrega_de: null, p_entrega_ate: null,
+      }).range(de, de + PAGINA_BOARD - 1)
       if (error || !data || data.length === 0) break
       todos = todos.concat(data)
       if (data.length < PAGINA_BOARD) break
     }
-
     // Descarta resposta atrasada (senão a lenta sobrescreve a rápida).
     if (meuReq !== reqAtual.current) return
 
-    const visiveis = (todos || []).filter(l =>
+    setBoard((todos || []).filter(l =>
       (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
-      (!meuTime || meuTime.includes(l.bf_agente_id)))
-
-    setBoard(visiveis)
+      (!meuTime || meuTime.includes(l.bf_agente_id))))
     setCarregando(false)
-  }, [profile?.id, filtroAgente, vejoMaisDeUm, minhaOp, meuTime])
+  }, [profile?.id, vendedorSel, vejoMaisDeUm, minhaOp, meuTime])
 
   useEffect(() => { carregar() }, [carregar])
-
-  // Recarrega sozinho a cada 60s — sem Chatwoot, sem polling de conversa.
   useEffect(() => {
-    const t = setInterval(carregar, 60000)
+    const t = setInterval(carregar, 60000)   // sem Chatwoot, sem polling de conversa
     return () => clearInterval(t)
   }, [carregar])
 
-  // ===== A FILA =====
-  // Quem o vendedor tem que chamar: lead vivo, sem venda fechada, que ele ainda
-  // não encostou OU que não respondeu (volta pra fila). Ordem: quem espera há
-  // mais tempo primeiro — é o que estava sumindo na tela antiga.
-  const fila = useMemo(() => {
-    const vivos = board.filter(l =>
-      COLUNAS_ATIVAS.includes(l.coluna) &&
-      !CLIENTE_FECHADO.includes(l.cliente_status) &&
-      !['tel_errado', 'sem_direito'].includes(l.vend_status))
-    const semToque = vivos.filter(l => !l.vend_status)
-    const retomar = vivos.filter(l => l.vend_status === 'sem_resposta')
-    const emContato = vivos.filter(l => l.vend_status === 'contato')
-    const porEspera = (a, b) => (b.minutos_parado || 0) - (a.minutos_parado || 0)
-    return [...semToque.sort(porEspera), ...retomar.sort(porEspera), ...emContato.sort(porEspera)]
-  }, [board])
+  // ===== QUEM É A MESA =====
+  // 19/10 — o CADASTRO decide primeiro, antes da coluna do board: se existe
+  // cliente com esse CPF, vale o que aconteceu com o contrato dela.
+  function abaDoLead(l) {
+    if (CLIENTE_FECHADO.includes(l.cliente_status)) return 'fechou'
+    if (CLIENTE_PERDIDO.includes(l.cliente_status)) return 'recuperar'
+    if (COLUNAS_MESA_FECHOU.includes(l.coluna)) return 'fechou'
+    if (!COLUNAS_MESA_ATIVA.includes(l.coluna)) return null
+    if (l.vend_status === 'sem_direito') return 'sem_direito'
+    if (l.vend_status === 'tel_errado') return 'tel'
+    if (l.vend_status === 'sem_resposta') return 'retomar'
+    if (l.vend_status === 'contato') return 'contato'
+    return diaBR(l.entregue_vendedora_em) === hojeBR() ? 'hoje' : 'represado'
+  }
 
-  const achados = useMemo(() => {
-    const q = busca.trim()
-    if (q.length < 3) return null
-    const d = soDigitos(q)
-    return board.filter(l =>
-      (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
-      (!d && String(l.nome || '').toLowerCase().includes(q.toLowerCase()))
-    ).slice(0, 25)
-  }, [busca, board])
+  const mesa = useMemo(() => board
+    .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
+    .filter(l => l._aba), [board])
 
-  const lista = achados || fila
-  const lead = lista[Math.min(i, Math.max(0, lista.length - 1))] || null
-  const vinc = useMemo(() => lerVinculo(lead?.vinculo_direito), [lead])
-  const abordagem = useMemo(() => lead ? montarAbordagem(lead, vinc) : '', [lead, vinc])
+  // O filtro de período vale pra LISTA, não pros números do topo: o topo tem que
+  // dizer a verdade da mesa inteira mesmo com filtro ligado, senão ela filtra
+  // "hoje" e acha que zerou os atrasados.
+  const mesaFiltrada = useMemo(() => periodo === 'tudo'
+    ? mesa : mesa.filter(l => dentroDoPeriodo(l.entregue_vendedora_em, periodo)), [mesa, periodo])
 
-  useEffect(() => { setI(0); setObs(''); setAcaoAberta(null) }, [busca, filtroAgente])
+  const contaAba = (a) => mesaFiltrada.filter(l => l._aba === a).length
+  const contaTudo = (a) => mesa.filter(l => l._aba === a).length
 
-  // ===== PLACAR DO DIA =====
-  const placar = useMemo(() => {
-    const vivos = board.filter(l => COLUNAS_ATIVAS.includes(l.coluna))
-    return {
-      fila: fila.length,
-      falados: board.filter(l => l.vend_status === 'contato').length,
-      hoje: board.filter(l => ehHoje(l.vend_contato_em)).length,
-      vendas: board.filter(l => CLIENTE_FECHADO.includes(l.cliente_status) && ehHoje(l.cliente_em)).length,
-      novos: vivos.filter(l => ehHoje(l.entregue_vendedora_em)).length,
+  const lista = useMemo(() => {
+    const q = buscaAtiva.trim()
+    if (q) {
+      const d = soDigitos(q)
+      return mesa.filter(l =>
+        (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
+        (!d && String(l.nome || '').toLowerCase().includes(q.toLowerCase())))
     }
-  }, [board, fila])
+    return mesaFiltrada.filter(l => l._aba === aba).sort((a, b) => {
+      // Recuperar: a mais RECENTE em cima — perda fresca tem mais chance de voltar.
+      if (aba === 'recuperar') return new Date(b.cliente_em || 0) - new Date(a.cliente_em || 0)
+      return (b._h ?? -1) - (a._h ?? -1)   // nas outras, o mais parado em cima
+    })
+  }, [mesa, mesaFiltrada, aba, buscaAtiva])
 
-  const totalDia = placar.novos || fila.length + placar.hoje
-  const pct = totalDia > 0 ? Math.min(100, Math.round((placar.hoje / totalDia) * 100)) : 0
+  // ===== NÚMEROS DO TOPO =====
+  const caiuHoje = mesa.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
+    && diaBR(l.entregue_vendedora_em) === hojeBR()).length
+  const falouHoje = mesa.filter(l => diaBR(l.vend_contato_em) === hojeBR()).length
+  const semContatoHoje = mesa.filter(l => diaBR(l.entregue_vendedora_em) === hojeBR()
+    && !l.vend_contato_em && l._aba !== 'fechou' && l._aba !== 'recuperar').length
+  // "Atrasado" = na fila sem ninguém encostar há 48h+. É o número que se cobra.
+  const parados48 = mesa.filter(l => (l._aba === 'hoje' || l._aba === 'represado') && (l._h ?? 0) >= 48).length
+  const naMesa = contaTudo('hoje') + contaTudo('represado') + contaTudo('contato') + contaTudo('retomar')
+  const pctDia = caiuHoje > 0 ? Math.round(100 * Math.min(falouHoje, caiuHoje) / caiuHoje) : 0
 
-  const agentes = useMemo(() => {
+  const vendedores = useMemo(() => {
     const m = new Map()
     board.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [board])
 
+  // 22/10 (Bruno) — admin/supervisão ABRE JÁ NUM VENDEDOR, não em "todos".
+  // Com 778 numa fila só os números do topo não dizem o que fazer.
+  useEffect(() => {
+    if (!vejoMaisDeUm || vendedorSel !== null || vendedores.length === 0) return
+    setVendedorSel(vendedores[0][0])
+  }, [vejoMaisDeUm, vendedorSel, vendedores])
+
+  const nomeDaMesa = vejoMaisDeUm
+    ? (vendedores.find(v => v[0] === vendedorSel)?.[1] || 'Toda a operação')
+    : (profile?.nome || '')
+  const iniciais = (nomeDaMesa || '?').trim().split(/\s+/).slice(0, 2)
+    .map(p => p[0] || '').join('').toUpperCase() || '?'
+  const hojeExtenso = new Date().toLocaleDateString('pt-BR',
+    { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' })
+
   // ===== AÇÕES =====
-  async function marcar(acaoId) {
-    if (!lead || marcando) return
-    const acao = ACOES.find(a => a.id === acaoId)
-    if (acao?.exigeObs && !obs.trim()) { avisar('Escreva o motivo antes de tirar da mesa'); return }
+  // Quem decide o que pode é o BANCO (retroativo_vendedor_marcar); a tela manda.
+  async function marcar(l, acao) {
+    if (marcando) return
+    const def = ACOES_SECUNDARIAS.find(a => a.id === acao)
+    const chave = `${l.id}:${acao}`
+    const texto = obsAberta === chave ? obs.trim() : ''
+    if (def?.exigeObs && !texto) { setObsAberta(chave); setObs(''); avisar('Escreva o motivo antes de tirar da mesa'); return }
 
-    setMarcando(true)
+    setMarcando(l.id)
     const { data, error } = await supabase.rpc('retroativo_vendedor_marcar', {
-      p_lead_id: lead.id, p_acao: acaoId, p_obs: obs.trim() || null,
+      p_lead_id: l.id, p_acao: acao, p_obs: texto || null,
     })
-    setMarcando(false)
-
+    setMarcando(null)
     if (error || !data?.ok) { avisar('Não gravou: ' + (error?.message || data?.erro || 'erro')); return }
 
-    avisar(`${primeiroNome(lead.nome)} · ${acao?.rotulo?.toLowerCase()}`)
-    setObs(''); setAcaoAberta(null)
-
-    // Tira da lista na hora e já mostra o próximo (sem esperar o recarregamento).
-    setBoard(b => b.map(x => x.id === lead.id
-      ? { ...x, vend_status: data.status, vend_obs: obs.trim() || x.vend_obs, vend_contato_em: x.vend_contato_em || new Date().toISOString() }
+    avisar(`${primeiroNome(l.nome) || 'Cliente'} · ${data.status === 'contato' ? 'na sua mão' : (def?.rotulo || '').toLowerCase()}`)
+    setObsAberta(null); setObs('')
+    setBoard(b => b.map(x => x.id === l.id
+      ? { ...x, vend_status: data.status, vend_obs: texto || x.vend_obs, vend_tentativas: data.tentativas ?? x.vend_tentativas, vend_contato_em: x.vend_contato_em || new Date().toISOString() }
       : x))
     carregar()
   }
 
-  function copiar() {
-    navigator.clipboard?.writeText(abordagem)
-      .then(() => avisar('Mensagem copiada'))
+  function copiar(txt) {
+    navigator.clipboard?.writeText(txt).then(() => avisar('Mensagem copiada'))
       .catch(() => avisar('Não consegui copiar — selecione o texto'))
   }
 
-  // 22/10 — o botão "Vender" leva pro Novo Cliente com o CPF já na mão.
-  // setPage vem do App.js. Enquanto o App não passar a prop, o botão copia o
-  // CPF e avisa — a tela funciona dos dois jeitos, sem quebrar.
-  function vender() {
-    if (!lead) return
-    try { window.localStorage.setItem('kr_venda_cpf', soDigitos(lead.cpf)) } catch (_) {}
+  // 22/10 — o botão Vender leva pro Novo Cliente com o CPF na mão. setPage vem
+  // do App.js; sem a prop, copia o CPF e avisa — a tela funciona dos dois jeitos.
+  function vender(l) {
+    try { window.localStorage.setItem('kr_venda_cpf', soDigitos(l.cpf)) } catch (_) {}
     if (typeof setPage === 'function') { setPage('novo_cliente'); return }
-    navigator.clipboard?.writeText(fmtCPF(lead.cpf))
+    navigator.clipboard?.writeText(fmtCPF(l.cpf))
     avisar('CPF copiado — abra "Novo cliente (digitar)"')
   }
 
   // ===== RENDER =====
   return (
     <div style={{ fontFamily: fonte.familia }}>
-      <div style={s.topo}>
-        <div>
-          <div style={s.h1}>Minha mesa</div>
-          <div style={s.sub}>
-            {carregando ? 'Carregando suas clientes…'
-              : fila.length === 0 ? 'Nenhuma cliente esperando você agora.'
-              : `${fila.length} ${fila.length === 1 ? 'cliente esperando' : 'clientes esperando'} o seu contato.`}
+      <h1 style={s.h1}>📋 Mesa do Retroativo</h1>
+      <div style={s.sub}>
+        Clientes já pré-aprovadas pela advogada, prontas para a ligação. Marque o que
+        aconteceu em cada uma — é assim que nenhuma fica esquecida. Venda fechada vai
+        para o Painel de vendas.
+      </div>
+
+      <div style={s.buscaWrap}>
+        <input style={s.buscaInput} value={busca} placeholder="🔎 Achar cliente: cole o CPF ou o telefone"
+          onChange={e => setBusca(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') setBuscaAtiva(busca) }} />
+        <button style={s.btn} onClick={() => setBuscaAtiva(busca)}>Buscar</button>
+        {buscaAtiva && <button style={s.btnGhost} onClick={() => { setBusca(''); setBuscaAtiva('') }}>Limpar</button>}
+      </div>
+
+      {/* ===== PAINEL DO DIA ===== */}
+      <div style={s.painel}>
+        <div style={s.painelTopo}>
+          <div style={s.avatar}>{iniciais}</div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={s.quem}>{nomeDaMesa}</div>
+            <div style={s.quando}>Retroativo · {hojeExtenso}</div>
+          </div>
+          <button style={s.btnGhost} onClick={carregar} disabled={carregando}>
+            {carregando ? '⏳ Atualizando…' : '🔄 Atualizar'}
+          </button>
+          {vejoMaisDeUm && vendedores.length > 0 && (
+            <select style={s.select} value={vendedorSel || ''} onChange={e => setVendedorSel(e.target.value || null)}>
+              {vendedores.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+              <option value="">Toda a operação</option>
+            </select>
+          )}
+        </div>
+
+        <div style={s.kpis}>
+          <div style={s.kpi(cores.ok, true)}>
+            <div style={s.kpiLab}>Caíram hoje</div>
+            <div style={s.kpiNum(cores.ok)}>{caiuHoje}</div>
+            <div style={s.kpiSub}>{semContatoHoje} ainda sem contato</div>
+          </div>
+          <div style={s.kpi(cores.azul)}>
+            <div style={s.kpiLab}>Na mesa</div>
+            <div style={s.kpiNum(cores.texto)}>{naMesa}</div>
+            <div style={s.kpiSub}>clientes em aberto</div>
+          </div>
+          <div style={s.kpi(cores.perigo, parados48 > 0)}>
+            <div style={s.kpiLab}>Parados +48h</div>
+            <div style={s.kpiNum(parados48 > 0 ? cores.perigo : cores.texto)}>{parados48}</div>
+            <div style={s.kpiSub}>ninguém falou ainda</div>
+          </div>
+          <div style={s.kpi(cores.azul)}>
+            <div style={s.kpiLab}>Falou hoje</div>
+            <div style={s.kpiNum(cores.azul)}>{falouHoje}</div>
+            <div style={s.kpiSub}>de {caiuHoje} que caíram</div>
+          </div>
+          <div style={s.kpi(cores.ok)}>
+            <div style={s.kpiLab}>Vendas fechadas</div>
+            <div style={s.kpiNum(cores.ok)}>{contaTudo('fechou')}</div>
+            <div style={s.kpiSub}>contrato assinado</div>
+          </div>
+          <div style={s.kpi(cores.alerta, contaTudo('recuperar') > 0)}>
+            <div style={s.kpiLab}>Pra recuperar</div>
+            <div style={s.kpiNum(cores.alerta)}>{contaTudo('recuperar')}</div>
+            <div style={s.kpiSub}>fecharam e caíram</div>
           </div>
         </div>
-        <div style={s.placar}>
-          <div style={s.kpi}><div style={s.kpiNum}>{placar.fila}</div><div style={s.kpiLab}>Na fila</div></div>
-          <div style={s.kpi}><div style={{ ...s.kpiNum, color: cores.ok }}>{placar.hoje}</div><div style={s.kpiLab}>Falei hoje</div></div>
-          <div style={s.kpi}><div style={{ ...s.kpiNum, color: cores.azul }}>{placar.vendas}</div><div style={s.kpiLab}>Vendas hoje</div></div>
+
+        <div style={s.barraWrap}>
+          <div style={s.barra}><div style={{ ...s.barraFill, width: `${pctDia}%` }} /></div>
+          <div style={{ fontSize: 11.5, color: cores.suave, whiteSpace: 'nowrap' }}>
+            <b style={{ color: cores.texto }}>{falouHoje} de {caiuHoje}</b> que caíram hoje · {pctDia}% do dia
+          </div>
         </div>
       </div>
 
-      <div style={s.barra}><div style={{ ...s.barraFill, width: `${pct}%` }} /></div>
+      {parados48 > 0 && (
+        <div style={s.alerta}>
+          <b style={{ color: cores.perigo }}>{parados48} {parados48 === 1 ? 'cliente está' : 'clientes estão'} há mais de 48h sem ninguém falar.</b>{' '}
+          Cada dia parado é uma chance de ela fechar com outro escritório. Comece pela aba Atrasados.
+        </div>
+      )}
 
-      <div style={s.palco}>
-        {/* ===== PALCO: UMA CLIENTE POR VEZ ===== */}
-        <div>
-          {!lead ? (
-            <div style={s.vazio}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>{carregando ? '⏳' : '🎉'}</div>
-              <div style={s.vazioTit}>{carregando ? 'Carregando…' : achados ? 'Ninguém encontrado' : 'Fila zerada'}</div>
-              <div style={s.vazioSub}>
-                {carregando ? 'Buscando as clientes que a advogada liberou pra você.'
-                  : achados ? 'Nenhuma cliente com esse CPF, telefone ou nome na sua mesa.'
-                  : 'Você falou com todo mundo que estava esperando. Quando a advogada liberar mais, elas aparecem aqui sozinhas.'}
+      {/* ===== ABAS ===== */}
+      <div style={s.abas}>
+        {ABAS.map(([k, rot]) => (
+          <button key={k} style={s.aba(aba === k && !buscaAtiva)}
+            onClick={() => { setAba(k); setBuscaAtiva(''); setBusca('') }}>
+            {rot} {contaAba(k)}
+          </button>
+        ))}
+        <select style={s.select} value={periodo} onChange={e => setPeriodo(e.target.value)}>
+          {PERIODOS.map(([v, l]) => <option key={v} value={v}>📅 {l}</option>)}
+        </select>
+      </div>
+
+      {/* ===== LISTA ===== */}
+      {carregando && lista.length === 0 ? (
+        <div style={s.vazio}><div style={{ fontSize: 15, color: cores.suave }}>Carregando a mesa…</div></div>
+      ) : lista.length === 0 ? (
+        <div style={s.vazio}>
+          <div style={{ fontSize: 38, marginBottom: 10 }}>{buscaAtiva ? '🔎' : '✅'}</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: cores.texto, marginBottom: 5 }}>
+            {buscaAtiva ? 'Ninguém encontrado' : 'Nada nesta aba'}
+          </div>
+          <div style={{ fontSize: 13, color: cores.suave }}>
+            {buscaAtiva ? 'Nenhuma cliente com esse CPF, telefone ou nome nesta mesa.' : 'Quando cair cliente nova aqui, ela aparece sozinha.'}
+          </div>
+        </div>
+      ) : lista.map(l => {
+        const vinc = lerVinculo(l.vinculo_direito)
+        const msg = montarAbordagem(l, vinc)
+        const perda = MOTIVO_PERDA[l.cliente_status]
+        const chaveObs = obsAberta && obsAberta.startsWith(`${l.id}:`) ? obsAberta : null
+        return (
+          <div key={l.id} style={s.card}>
+            <div style={s.cardTopo}>
+              <div style={{ minWidth: 0 }}>
+                <div style={s.nome}>{nomeBonito(l.nome) || 'Sem nome'}</div>
+                <div style={s.meta}>{fmtTel(l.tel)} · CPF {fmtCPF(l.cpf)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {l.vend_tentativas > 0 && <span style={ui.pill(cores.alerta)}>{l.vend_tentativas}ª tentativa</span>}
+                {vejoMaisDeUm && l.agente_nome && <span style={ui.pill(cores.roxo)}>{primeiroNome(l.agente_nome)}</span>}
+                <span style={ui.pill((l._h ?? 0) >= 48 ? cores.perigo : cores.suave)}>
+                  {l._aba === 'recuperar' ? 'caiu' : 'na mesa há'} {fmtHoras(l._h)}
+                </span>
               </div>
             </div>
-          ) : (
-            <div style={s.card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div style={s.passo}>{achados ? 'Resultado da busca' : `${Math.min(i + 1, lista.length)} de ${lista.length}`}</div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {lead.vend_status && ST[lead.vend_status] && (
-                    <span style={ui.pill(ST[lead.vend_status].cor)}>{ST[lead.vend_status].rotulo}</span>
-                  )}
-                  {lead.vend_tentativas > 0 && <span style={ui.pill(cores.alerta)}>{lead.vend_tentativas}ª tentativa</span>}
-                  {lead.minutos_parado != null && (
-                    <span style={ui.pill(lead.minutos_parado > 2880 ? cores.perigo : cores.suave)}>
-                      esperando {fmtEspera(lead.minutos_parado)}
-                    </span>
-                  )}
+
+            {/* por que ela tem direito */}
+            {vinc?.empresa && (
+              <div style={s.bloco}>
+                <div style={s.blocoTit}><span>{vinc.ehBeneficio ? 'Benefício que deu o direito' : 'Empresa que deu o direito'}</span></div>
+                <div style={s.dir1}>{vinc.empresa}</div>
+                <div style={s.dir2}>
+                  {[vinc.tipo,
+                    vinc.inicio && vinc.fim ? `${vinc.inicio} a ${vinc.fim}` : vinc.fim ? `até ${vinc.fim}` : null,
+                    vinc.meses === 0 ? 'saiu no mês do parto'
+                      : vinc.meses != null ? `${vinc.meses} ${vinc.meses === 1 ? 'mês' : 'meses'} antes do parto` : null]
+                    .filter(Boolean).join(' · ')}
                 </div>
               </div>
+            )}
 
-              <div style={s.nome}>{nomeBonito(lead.nome) || 'Sem nome'}</div>
-              <div style={s.linhaDados}>
-                <span style={s.tel}>{fmtTel(lead.tel)}</span>
-                <span style={s.cpf}>{fmtCPF(lead.cpf)}</span>
-                {/* 22/10 — o selo "tem WhatsApp" saiu daqui de propósito: medido no
-                    board, whats_tem vem nulo em 995 dos 996 leads ativos. Mostrar
-                    ausência como "não tem" seria mentira; o vendedor clica no botão
-                    verde e descobre em 1 segundo. */}
-                {vejoMaisDeUm && lead.agente_nome && <span style={ui.pill(cores.roxo)}>{primeiroNome(lead.agente_nome)}</span>}
-              </div>
-
-              {/* POR QUE ELA TEM DIREITO — o argumento da ligação */}
-              {(vinc || lead.data_nascimento_filho) && (
-                <div style={s.bloco}>
-                  <div style={s.blocoTit}><span>Por que ela tem direito</span></div>
-                  <div style={s.dir1}>
-                    👶 {vinc?.filhoNome ? `${nomeBonito(vinc.filhoNome)} · ` : ''}
-                    nasceu em {fmtData(vinc?.filhoDn || lead.data_nascimento_filho)}
-                  </div>
-                  {vinc?.dnAproximada && (
-                    <div style={{ ...s.dir2, color: cores.alerta, fontWeight: 600 }}>
-                      ⚠️ Data aproximada — não afirme o dia na ligação, pergunte a ela.
-                    </div>
-                  )}
-                  {vinc?.empresa && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={s.dir1}>{vinc.ehBeneficio ? '📄' : '🏢'} {vinc.empresa}</div>
-                      <div style={s.dir2}>
-                        {[vinc.tipo, vinc.inicio && vinc.fim ? `${vinc.inicio} a ${vinc.fim}` : vinc.fim ? `até ${vinc.fim}` : null,
-                          vinc.meses === 0 ? 'saiu no mês do parto' : vinc.meses != null ? `saiu ${vinc.meses} ${vinc.meses === 1 ? 'mês' : 'meses'} antes do parto` : null]
-                          .filter(Boolean).join(' · ')}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* O QUE ELE JÁ ANOTOU — sem isso a observação não serve pra nada */}
-              {lead.vend_obs && (
-                <div style={{ ...s.bloco, background: `${cores.alerta}0d`, border: `1px solid ${cores.alerta}33` }}>
-                  <div style={s.blocoTit}><span>Da última vez você anotou</span></div>
-                  <div style={{ fontSize: 13.5, color: cores.texto, lineHeight: 1.55 }}>{lead.vend_obs}</div>
-                </div>
-              )}
-
-              {/* MENSAGEM PRONTA */}
-              <div style={s.msgBox}>
-                <div style={s.blocoTit}>
-                  <span>Mande essa mensagem</span>
-                  <button style={s.btnCopiar} onClick={copiar}>Copiar</button>
-                </div>
-                <div style={s.msgTexto}>{abordagem}</div>
-                {linkWhats(lead.tel, abordagem) && (
-                  <a style={s.btnWhats} href={linkWhats(lead.tel, abordagem)} target="_blank" rel="noreferrer">
-                    Abrir o WhatsApp já com a mensagem escrita
-                  </a>
+            {/* o bebê */}
+            {(vinc?.filhoNome || vinc?.filhoDn || l.data_nascimento_filho) && (
+              <div style={s.bebe}>
+                👶 {vinc?.filhoNome ? <b>{nomeBonito(vinc.filhoNome)}</b> : 'Filho(a)'}
+                {(vinc?.filhoDn || l.data_nascimento_filho) && ` · nasceu em ${fmtData(vinc?.filhoDn || l.data_nascimento_filho)}`}
+                {l.idade_bebe ? ` · ${l.idade_bebe}` : ''}
+                {vinc?.dnAproximada && (
+                  <span style={{ color: cores.alerta, fontWeight: 600 }}> · ⚠️ data aproximada, não afirme o dia</span>
                 )}
               </div>
+            )}
 
-              {/* AÇÕES */}
-              <div style={s.pergunta}>O que aconteceu?</div>
-              <div style={s.acoes}>
-                {ACOES.map(a => (
-                  <button key={a.id} style={s.acao(a.cor)}
-                    onClick={() => setAcaoAberta(acaoAberta === a.id ? null : a.id)}>
-                    <div style={s.acaoTit(a.cor)}>{a.icone} {a.rotulo}</div>
-                    <div style={s.acaoSub}>{a.ajuda}</div>
-                  </button>
-                ))}
+            {/* o que ele já anotou */}
+            {l.vend_obs && (
+              <div style={{ ...s.bloco, background: `${cores.alerta}0d`, border: `1px solid ${cores.alerta}33` }}>
+                <div style={s.blocoTit}><span>Você anotou da última vez</span></div>
+                <div style={{ fontSize: 13, color: cores.texto, lineHeight: 1.5 }}>{l.vend_obs}</div>
               </div>
+            )}
 
-              {acaoAberta && (
-                <div style={{ marginTop: 12 }}>
-                  <textarea style={s.obsArea} value={obs} onChange={e => setObs(e.target.value)}
-                    placeholder={ACOES.find(a => a.id === acaoAberta)?.exigeObs
-                      ? 'Por que ela não tem direito? (obrigatório)'
-                      : 'Anote o que ela disse — você lê isso na próxima ligação. Pode deixar vazio.'} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button style={{ ...ui.btnPrimario, flex: 1, opacity: marcando ? .6 : 1 }}
-                      disabled={marcando} onClick={() => marcar(acaoAberta)}>
-                      {marcando ? 'Gravando…' : `Confirmar: ${ACOES.find(a => a.id === acaoAberta)?.rotulo}`}
-                    </button>
-                    <button style={s.navBtn} onClick={() => { setAcaoAberta(null); setObs('') }}>Cancelar</button>
+            {/* por que caiu (aba recuperar) */}
+            {l._aba === 'recuperar' && perda && (
+              <div style={{ ...s.bloco, background: `${cores.perigo}0d`, border: `1px solid ${cores.perigo}33` }}>
+                <div style={s.dir1}>{perda[0]} {perda[1]}</div>
+                <div style={s.dir2}>{perda[2]}</div>
+              </div>
+            )}
+
+            {/* ===== abas de trabalho: mensagem + ações ===== */}
+            {['hoje', 'represado', 'contato', 'retomar'].includes(l._aba) && (
+              <>
+                <div style={s.msgBox}>
+                  <div style={s.blocoTit}>
+                    <span>Mande essa mensagem</span>
+                    <button style={s.btnCopiar} onClick={() => copiar(msg)}>Copiar</button>
                   </div>
+                  <div style={s.msgTexto}>{msg}</div>
                 </div>
-              )}
 
-              <button style={s.vender} onClick={vender}>Fechou! Cadastrar a venda</button>
+                <div style={s.acoes}>
+                  {linkWhats(l.tel, msg) && (
+                    <a style={s.btnPegar} href={linkWhats(l.tel, msg)} target="_blank" rel="noreferrer"
+                      onClick={() => { if (l.vend_status !== 'contato') marcar(l, 'pegar') }}>
+                      💬 Abrir o WhatsApp já com a mensagem
+                    </a>
+                  )}
+                  {l.vend_status !== 'contato' && (
+                    <button style={{ ...s.btnAcao(cores.ok), fontSize: 12.5 }} disabled={marcando === l.id}
+                      onClick={() => marcar(l, 'pegar')}>
+                      {marcando === l.id ? '⏳' : '✋ Peguei esta cliente'}
+                    </button>
+                  )}
+                  {ACOES_SECUNDARIAS.map(a => (
+                    <button key={a.id} style={s.btnAcao(a.cor)} disabled={marcando === l.id}
+                      onClick={() => {
+                        const ch = `${l.id}:${a.id}`
+                        if (a.exigeObs && obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
+                        marcar(l, a.id)
+                      }}>
+                      {a.rotulo}
+                    </button>
+                  ))}
+                  <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
+                </div>
 
-              <div style={s.nav}>
-                <button style={{ ...s.navBtn, opacity: i === 0 ? .4 : 1 }}
-                  disabled={i === 0} onClick={() => { setI(n => Math.max(0, n - 1)); setObs(''); setAcaoAberta(null) }}>
-                  ← Anterior
-                </button>
-                <span style={{ fontSize: 11.5, color: cores.suave }}>
-                  {lead.entregue_vendedora_em && `recebida ${fmtData(lead.entregue_vendedora_em)}`}
-                </span>
-                <button style={{ ...s.navBtn, opacity: i >= lista.length - 1 ? .4 : 1 }}
-                  disabled={i >= lista.length - 1} onClick={() => { setI(n => n + 1); setObs(''); setAcaoAberta(null) }}>
-                  Pular por ora →
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ===== LADO: BUSCA + PRÓXIMAS ===== */}
-        <div style={s.lado}>
-          {vejoMaisDeUm && agentes.length > 0 && (
-            <>
-              <div style={s.ladoTit}>Vendedor</div>
-              <select style={{ ...s.select, width: '100%', marginBottom: 16 }}
-                value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
-                <option value="">Todos</option>
-                {agentes.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
-              </select>
-            </>
-          )}
-
-          <div style={s.ladoTit}>Achar cliente</div>
-          <input style={s.buscaInput} value={busca} onChange={e => setBusca(e.target.value)}
-            placeholder="CPF, telefone ou nome" />
-
-          <div style={{ ...s.ladoTit, marginTop: 18 }}>
-            {achados ? `${achados.length} encontradas` : `Próximas (${Math.max(0, fila.length - i - 1)})`}
-          </div>
-          <div style={{ maxHeight: 420, overflowY: 'auto', margin: '0 -4px', padding: '0 4px' }}>
-            {lista.slice(achados ? 0 : i, (achados ? 0 : i) + 14).map((l, k) => {
-              const idx = (achados ? 0 : i) + k
-              return (
-                <button key={l.id} style={s.mini(idx === i)} onClick={() => { setI(idx); setObs(''); setAcaoAberta(null) }}>
-                  <div style={s.miniNome}>{nomeBonito(l.nome) || 'Sem nome'}</div>
-                  <div style={s.miniMeta}>
-                    {fmtTel(l.tel)}
-                    {l.minutos_parado != null && ` · ${fmtEspera(l.minutos_parado)}`}
-                    {l.vend_tentativas > 0 && ` · ${l.vend_tentativas}ª`}
+                {chaveObs && (
+                  <div>
+                    <textarea style={s.obsArea} value={obs} onChange={e => setObs(e.target.value)}
+                      placeholder={chaveObs.endsWith(':sem_direito')
+                        ? 'Por que ela não tem direito? (obrigatório)'
+                        : 'Anote o que ela disse — você lê isso na próxima ligação.'} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button style={{ ...ui.btnPrimario, opacity: marcando === l.id ? .6 : 1 }}
+                        disabled={marcando === l.id}
+                        onClick={() => marcar(l, chaveObs.split(':')[1])}>
+                        {marcando === l.id ? 'Gravando…' : 'Confirmar'}
+                      </button>
+                      <button style={s.btnGhost} onClick={() => { setObsAberta(null); setObs('') }}>Cancelar</button>
+                    </div>
                   </div>
+                )}
+
+                <button style={{ ...ui.btnPrimario, width: '100%', marginTop: 10, padding: '12px' }}
+                  onClick={() => vender(l)}>
+                  Fechou! Cadastrar a venda
                 </button>
-              )
-            })}
-            {lista.length === 0 && <div style={{ fontSize: 12, color: cores.suave, padding: '8px 2px' }}>Nada por aqui.</div>}
+              </>
+            )}
+
+            {/* abas de leitura: só a ficha */}
+            {!['hoje', 'represado', 'contato', 'retomar'].includes(l._aba) && (
+              <div style={s.acoes}>
+                <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
+                {l._aba === 'recuperar' && (
+                  <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} onClick={() => vender(l)}>
+                    Cadastrar de novo
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* ===== FICHA ===== */}
+      {ficha && (
+        <div style={s.overlay} onClick={() => setFicha(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
+              <div style={{ fontSize: 19, fontWeight: 800, color: cores.texto }}>{nomeBonito(ficha.nome)}</div>
+              <button style={s.btnGhost} onClick={() => setFicha(null)}>Fechar</button>
+            </div>
+            {[
+              ['Telefone', fmtTel(ficha.tel)],
+              ['CPF', fmtCPF(ficha.cpf)],
+              ['Nascimento do filho', fmtData(ficha.data_nascimento_filho) + (ficha.idade_bebe ? ` (${ficha.idade_bebe})` : '')],
+              ['Entregue a você em', fmtData(ficha.entregue_vendedora_em)],
+              ['Na mesa há', fmtHoras(ficha._h)],
+              ['Tentativas', String(ficha.vend_tentativas || 0)],
+              ['Último contato', ficha.vend_contato_em ? fmtData(ficha.vend_contato_em) : 'nunca'],
+              ['Vendedor', ficha.agente_nome || '—'],
+              ['Estado no sistema', `${ficha.coluna || '—'} / ${ficha.estado || '—'}`],
+              ['Cadastro', ficha.cliente_status || 'ainda não cadastrada'],
+              ['Trabalhava no nascimento', ficha.trabalhava_no_nascimento || '—'],
+              ['Já trabalhou CLT', ficha.ja_trabalhou_clt || '—'],
+            ].map(([lab, val]) => (
+              <div key={lab} style={s.linha}>
+                <div style={s.linhaLab}>{lab}</div>
+                <div style={{ flex: 1, color: cores.texto }}>{val || '—'}</div>
+              </div>
+            ))}
+            {ficha.vend_obs && (
+              <div style={{ ...s.bloco, marginTop: 14 }}>
+                <div style={s.blocoTit}><span>Sua observação</span></div>
+                <div style={{ fontSize: 13, color: cores.texto, lineHeight: 1.5 }}>{ficha.vend_obs}</div>
+              </div>
+            )}
+            {ficha.gerid_vendedor && (
+              <div style={{ ...s.bloco, marginTop: 10 }}>
+                <div style={s.blocoTit}><span>Resumo do GERID</span></div>
+                <div style={{ fontSize: 12.5, color: cores.texto, whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{ficha.gerid_vendedor}</div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {toast && <div style={s.toast}>{toast}</div>}
     </div>
