@@ -715,12 +715,22 @@ export default function RevisaoIARetroativo() {
   const [transferindo, setTransferindo] = useState(false)
   const podeTransferir = ehSupervisorTime || ehAdmin
 
-  // 19/10 (Bruno) — MESA DO VENDEDOR. Só quem tem carteira própria entra no modo
-  // CRM; supervisora e admin continuam caindo no board kanban, que é a ferramenta
-  // de quem olha o time inteiro. O modo fica salvo no navegador: se a vendedora
-  // preferir o board antigo, a escolha dela vale no dia seguinte.
-  const temMesa = soMeusLeads && !veTodasColunas
-  const [modoMesa, setModoMesa] = usarFiltro('modoMesa', true)
+  // 22/10/2026 (Bruno) — A TELA É SÓ A MESA. Para todo mundo, inclusive admin.
+  //
+  // "a revisao retroativo tem tudo isso, é ridiculo, nao precisa de nada disso.
+  //  Como funciona hoje: a maquina faz a simulação da nossa listagem, o lead passa
+  //  no gerid, os pré-aprovados o advogado confirma e depois vai pro vendedor, que
+  //  vai chamar esse lead FRIO e vender. Entao a revisão IA retroativo só tem que
+  //  servir pro vendedor receber os leads dele do dia e acompanhar as vendas."
+  //
+  // O que saiu daqui em 22/10: o board kanban de colunas (mostrava etapa anterior —
+  // PromoBank, fila GERID, com a advogada — que o vendedor nao trabalha), a barra de
+  // filtros de funil, o painel do dia, a conferencia do funil e o fechamento do dia.
+  // Nada disso e trabalho de vendedor. Venda fechada vai pro Painel de vendas, que
+  // e outra tela.
+  // O que ficou: a mesa do dia, a busca por CPF/telefone e a ficha do lead.
+  const temMesa = true
+  const modoMesa = true
   const [abaMesa, setAbaMesa] = usarFiltro('abaMesa', 'hoje')
   const [marcando, setMarcando] = useState(null)   // lead_id em processamento
   // Padrao 'tudo': a mesa NUNCA esconde lead por conta propria. Ver nota em PERIODOS_MESA.
@@ -1013,16 +1023,19 @@ export default function RevisaoIARetroativo() {
     carregarVenda(l && l.id)
     setMensagens([])
     setAnexos([])
-    setCarregandoAnexos(true)
-    try { await recarregarConversa(l, false) } finally { setCarregandoAnexos(false) }
+    // 22/10/2026 (Bruno) — a conversa NAO e mais puxada do Chatwoot ao abrir a ficha.
+    // O que a vendedora precisa pra ligar e o vinculo e o CNIS, que vem do GERID logo
+    // acima. A conversa so e buscada se ela clicar em "Atualizar conversa" — assim
+    // abrir uma ficha deixou de ser uma ida a VPS.
   }
 
-  // Auto-refresh da conversa aberta: recarrega a cada 8s enquanto o modal estiver aberto
-  useEffect(() => {
-    if (!lead) return
-    const t = setInterval(() => { recarregarConversa(lead, false) }, 8000)
-    return () => clearInterval(t)
-  }, [lead, recarregarConversa])
+  // 22/10/2026 (Bruno) — AUTO-REFRESH DA CONVERSA DESLIGADO.
+  // "nao precisa estar conectado em tempo real ao KR chat".
+  // Era um clique no Chatwoot a cada 8 SEGUNDOS por ficha aberta, direto na VPS —
+  // e isso fazia sentido quando a cliente chegava pelo chat e respondia na hora.
+  // Hoje o lead e FRIO: a cliente nem sabe que foi analisada, nao ha conversa
+  // acontecendo pra acompanhar ao vivo. Quem quiser ver a conversa clica em
+  // "Atualizar conversa" ou abre direto no Chatwoot, pelos botoes que continuam ali.
 
   const fechar = () => { setLead(null); setMensagens([]); setAnexos([]); setGerid(null); setVenda(null) }
 
@@ -1276,57 +1289,11 @@ export default function RevisaoIARetroativo() {
 
   return (
     <div>
-      <div style={s.title}>{temMesa && modoMesa ? '📋 Minha mesa — Retroativo' : '🤱 Revisão IA — Retroativo'}</div>
-      <div style={s.sub}>{temMesa && modoMesa
-        ? 'Suas clientes pré-aprovadas. Marque o que aconteceu em cada ligação — é assim que nenhuma fica esquecida.'
-        : ehVendedor && !veTodasColunas
-        ? 'Seus clientes: CNIS já enviado em diante. 🤖 = pré-aprovada pela máquina (confira de perto). Em "A analisar" aparecem só os que travaram e precisam de você.'
-        : 'Funil das mães do retroativo. Vermelho = travou agora; cinza = backlog frio.'}</div>
-
-      {/* 19/10 — no modo Mesa os filtros de board ficam fora: a vendedora não
-          filtra por cor nem por data de atividade, ela zera a fila do dia. Os
-          filtros voltam inteiros no board antigo, que segue a um clique. */}
-      <div style={{ ...s.topo, display: temMesa && modoMesa ? 'none' : s.topo.display }}>
-        <button style={{ ...s.chip, ...(soVermelhos ? s.chipOn : {}) }} onClick={() => setSoVermelhos(v => !v)}>
-          🔴 Só vermelhos ({totalVermelhos})
-        </button>
-        <select style={s.chip} value={filtroEntrada} onChange={e => setFiltroEntrada(e.target.value)} title="Data de entrada do lead">
-          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Entrada: {l}</option>)}
-        </select>
-        {filtroEntrada === 'custom' && (<>
-          <input type="date" style={s.chip} value={entradaDe} onChange={e => setEntradaDe(e.target.value)} />
-          <input type="date" style={s.chip} value={entradaAte} onChange={e => setEntradaAte(e.target.value)} />
-        </>)}
-        <select style={s.chip} value={filtroAtividade} onChange={e => setFiltroAtividade(e.target.value)} title="Última atividade">
-          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>Atividade: {l}</option>)}
-        </select>
-        {filtroAtividade === 'custom' && (<>
-          <input type="date" style={s.chip} value={ativDe} onChange={e => setAtivDe(e.target.value)} />
-          <input type="date" style={s.chip} value={ativAte} onChange={e => setAtivAte(e.target.value)} />
-        </>)}
-        <select style={s.chip} value={filtroEntrega} onChange={e => setFiltroEntrega(e.target.value)} title="Quando a advogada entregou o lead para a vendedora">
-          {OPCOES_DATA.map(([v, l]) => <option key={v} value={v}>⚖️ Entregue: {l}</option>)}
-        </select>
-        {filtroEntrega === 'custom' && (<>
-          <input type="date" style={s.chip} value={entregaDe} onChange={e => setEntregaDe(e.target.value)} />
-          <input type="date" style={s.chip} value={entregaAte} onChange={e => setEntregaAte(e.target.value)} />
-        </>)}
-        <select style={s.chip} value={filtroAtendimento} onChange={e => setFiltroAtendimento(e.target.value)} title="Atendimento humano">
-          <option value="todos">Atendimento: todos</option>
-          <option value="respondido">✅ Já respondido</option>
-          <option value="sem">⚠️ Sem resposta</option>
-        </select>
-        <span style={s.kpi}>🔍 Fila do analista: <b>{filaAnalista}</b></span>
-        <span style={s.kpi}>Total: <b>{board.length}</b></span>
-        <span style={s.kpi}>Finalizadas: <b>{finalizadas}</b></span>
-        {ehSupervisor && <span style={s.kpi}>⚪ Sem ninguém: <b>{semDono}</b></span>}
-        {ehAdmin && (
-          <select style={s.chip} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
-            <option value="">Todos os agentes</option>
-            {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-          </select>
-        )}
-        <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
+      <div style={s.title}>📋 Mesa do Retroativo</div>
+      <div style={s.sub}>
+        Clientes já pré-aprovadas pela advogada, prontas para a ligação. Marque o que
+        aconteceu em cada uma — é assim que nenhuma fica esquecida. Venda fechada vai
+        para o Painel de vendas.
       </div>
 
       {/* Busca por CPF ou telefone — varre o funil inteiro, ignora os filtros acima */}
@@ -1378,156 +1345,6 @@ export default function RevisaoIARetroativo() {
         </div>
       )}
 
-      {/* PAINEL DO DIA — só o Bruno. Distribuição conta pelo dia em que a advogada
-          aprovou e o rodízio entregou (bf_atribuido_em), NÃO pela chegada do lead.
-          Venda conta por venda_fechada_em e credita quem fechou. */}
-      {ehDono && (
-        <div style={s.confWrap}>
-          <button style={s.painelBtn} onClick={abrirPainelDia}>
-            {painelAberto ? '▾' : '▸'} 📊 Meu painel do dia — distribuição e vendas
-          </button>
-          {painelAberto && (
-            <div style={s.painelCorpo}>
-              <div style={s.painelTopo}>
-                <input type="date" style={s.chip} value={painelData}
-                  onChange={e => { setPainelData(e.target.value); carregarPainelDia(e.target.value) }} />
-                {painelData && (
-                  <button style={s.chip} onClick={() => { setPainelData(''); carregarPainelDia('') }}>hoje</button>
-                )}
-                <button style={s.chip} onClick={() => carregarPainelDia(painelData)}>🔄 Atualizar</button>
-                {painelCarregando && <span style={{ fontSize: 12, color: '#5b6b84' }}>carregando...</span>}
-              </div>
-
-              {painelDia && (() => {
-                const d = painelDia.distribuicao, v = painelDia.vendas
-                const totalDist = d.reduce((s2, x) => s2 + Number(x.recebidos || 0), 0)
-                const totalPegou = d.reduce((s2, x) => s2 + Number(x.pegou || 0), 0)
-                const totalVendas = v.reduce((s2, x) => s2 + Number(x.vendas || 0), 0)
-                const vendasDe = n => (v.find(x => x.vendedora === n) || {}).vendas || 0
-                return (
-                  <>
-                    <div style={s.painelKpis}>
-                      <span style={s.kpi}>📥 Distribuídos hoje: <b>{totalDist}</b></span>
-                      <span style={s.kpi}>✋ Pegaram: <b>{totalPegou}</b>{totalDist ? ' (' + Math.round(100 * totalPegou / totalDist) + '%)' : ''}</span>
-                      <span style={{ ...s.kpi, background: 'rgba(52,211,153,.16)', color: '#065f46', fontWeight: 700 }}>
-                        💰 Vendas: <b>{totalVendas}</b>
-                      </span>
-                      <span style={s.kpi}>📈 Conversão: <b>{totalDist ? (100 * totalVendas / totalDist).toFixed(1) + '%' : '—'}</b></span>
-                    </div>
-
-                    {d.length === 0 && <div style={s.painelVazio}>Nada distribuído nesse dia.</div>}
-                    {d.length > 0 && (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={s.tab}>
-                          <thead><tr>
-                            <th style={s.th}>vendedora</th>
-                            <th style={s.thNum}>recebeu</th>
-                            <th style={s.thNum}>pegou</th>
-                            <th style={s.thNum}>não pegou</th>
-                            <th style={s.thNum}>h até pegar</th>
-                            <th style={s.thNum}>vendas</th>
-                            <th style={s.thNum}>conversão</th>
-                            <th style={s.thNum}>em aberto</th>
-                            <th style={s.thNum}>1ª → última</th>
-                          </tr></thead>
-                          <tbody>
-                            {d.map(x => {
-                              const vd = Number(vendasDe(x.vendedora))
-                              const rec = Number(x.recebidos || 0)
-                              const naoPegou = Number(x.ninguem_pegou || 0)
-                              return (
-                                <tr key={x.vendedora}>
-                                  <td style={s.td}>{x.vendedora}</td>
-                                  <td style={s.tdNum}>{rec}</td>
-                                  <td style={s.tdNum}>{x.pegou}</td>
-                                  {/* quem recebeu e não pegou nada é o que trava o funil */}
-                                  <td style={{ ...s.tdNum, ...(naoPegou === rec && rec > 0 ? s.tdRuim : {}) }}>{naoPegou}</td>
-                                  <td style={s.tdNum}>{x.h_ate_pegar != null ? Number(x.h_ate_pegar).toFixed(1) + 'h' : '—'}</td>
-                                  <td style={{ ...s.tdNum, ...(vd > 0 ? s.tdBom : {}) }}>{vd}</td>
-                                  <td style={s.tdNum}>{rec ? (100 * vd / rec).toFixed(0) + '%' : '—'}</td>
-                                  <td style={s.tdNum}>{x.em_aberto}</td>
-                                  <td style={s.tdNum}>{String(x.primeiro || '').slice(0, 5)} → {String(x.ultimo || '').slice(0, 5)}</td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* vendas de quem NAO recebeu no dia nao aparecem na tabela acima */}
-                    {v.filter(x => !d.some(y => y.vendedora === x.vendedora)).map(x => (
-                      <div key={x.vendedora} style={s.painelNota}>
-                        💰 {x.vendedora}: {x.vendas} venda(s) hoje de cliente recebido em outro dia
-                      </div>
-                    ))}
-                    <div style={s.painelPe}>
-                      Distribuição conta pelo dia em que a advogada aprovou e o rodízio entregou — não pela data de chegada do lead.
-                      Venda conta por quem fechou.
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-      )}
-
-      {ehAdmin && (
-        <div style={s.confWrap}>
-          <button style={s.confBtn} onClick={abrirConferencia}>
-            {confAberta ? '▾' : '▸'} 🔍 Conferência do funil — o que passou no PromoBank e o que falta
-          </button>
-          {confAberta && (
-            confCarregando ? (
-              <div style={s.confVazio}>Carregando…</div>
-            ) : (
-              <div style={s.confBox}>
-                {(conferencia || []).map(l => (
-                  <div key={l.ordem} style={s.confLinha(l.grupo)}>
-                    <span>{l.etapa}</span>
-                    <b>{l.qtd}</b>
-                  </div>
-                ))}
-                <div style={s.confNota}>
-                  A cliente só chega na advogada depois de passar no PromoBank.
-                  Se a linha do <b>furo</b> for maior que zero, tem gente com CPF que o robô deixou pra trás.
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      <div style={s.confWrap}>
-        <button style={s.confBtn} onClick={abrirFechamento}>
-          {fechAberto ? '▾' : '▸'} 📒 Fechamento do dia — fechou / negou / sem resposta
-        </button>
-        {fechAberto && (
-          fechCarregando ? (
-            <div style={s.confVazio}>Carregando…</div>
-          ) : !(fechamento || []).length ? (
-            <div style={s.confVazio}>Nada registrado hoje ainda.</div>
-          ) : (
-            <div style={{ ...s.confBox, maxWidth: 780 }}>
-              {(fechamento || []).map((f, i) => (
-                <div key={i} style={s.fechLinha(f.resultado)}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                    <span><b>{f.vendedora}</b> · {f.resultado === 'FECHOU' ? '✅' : f.resultado === 'NEGOU' ? '❌' : '🔁'} {f.resultado}</span>
-                    <b>{f.qtd}</b>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#5b6b84', marginTop: 2 }}>{f.motivo}</div>
-                  <div style={{ fontSize: 11, color: '#8b9bb4', marginTop: 3 }}>{f.nomes}</div>
-                </div>
-              ))}
-              <div style={s.confNota}>
-                🔁 <b>Sem resposta</b> sai separado de propósito: é a lista de retrabalho.
-              </div>
-            </div>
-          )
-        )}
-      </div>
-
       {/* ===== 19/10 (Bruno) — MESA DO VENDEDOR =====
           Nasceu de um número: 840 leads entregues em 14 dias, ZERO com registro de
           contato. O board mostra o estado do robô, não o trabalho dela — então
@@ -1556,7 +1373,14 @@ export default function RevisaoIARetroativo() {
                   </span>
                 )}
                 <button style={s.chip} onClick={carregar}>🔄 Atualizar</button>
-                <button style={s.mesaTrocar} onClick={() => setModoMesa(false)}>ver board antigo</button>
+                {/* 22/10 — admin/supervisão escolhe de quem é a mesa que está vendo.
+                    Era o único filtro da barra antiga que fazia falta aqui. */}
+                {ehAdmin && (
+                  <select style={s.chip} value={filtroAgente} onChange={e => setFiltroAgente(e.target.value)}>
+                    <option value="">Todos os vendedores</option>
+                    {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -1806,93 +1630,6 @@ export default function RevisaoIARetroativo() {
           </div>
         </div>
       )}
-
-      {/* Board kanban original. Continua a ferramenta da supervisão e de quem
-          quiser a visão de funil — nada foi retirado dele. */}
-      {temMesa && !modoMesa && (
-        <div style={{ marginBottom: 10 }}>
-          <button style={s.chip} onClick={() => setModoMesa(true)}>← voltar pra minha mesa</button>
-        </div>
-      )}
-      <div style={{ ...s.board, display: temMesa && modoMesa ? 'none' : s.board.display }}>
-        {colunasVisiveis.map(([col, titulo]) => {
-          const cards = cardsDe(col)
-          const podeSoltar = col !== 'OUTROS'
-          return (
-            <div key={col}
-              style={{ ...s.col, ...(podeSoltar && arrastando ? { outline: '2px dashed #60a5fa' } : {}) }}
-              onDragOver={podeSoltar ? (e => e.preventDefault()) : undefined}
-              onDrop={podeSoltar ? (e => { e.preventDefault(); soltarNaColuna(col) }) : undefined}>
-              <div style={s.colTitulo}><span>{titulo}</span><span>{totalDe(col)}</span></div>
-              {cards.map(l => (
-                <div key={l.id} draggable
-                  onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', String(l.id)); e.dataTransfer.effectAllowed = 'move' } catch (_) {} setArrastando(l.id) }}
-                  onDragEnd={() => setArrastando(null)}
-                  style={{ ...s.card, ...(CORES[l.cor] || CORES.normal), cursor: 'grab' }}
-                  onClick={() => abrirLead(l)}>
-                  <div style={s.cardNome}>{l.nome || 'Sem nome'}</div>
-                  {l.coluna === 'PITCH_LIBERADO' && l.cnis_aprovado !== 'true' && (
-                    <div style={s.seloMaquina}>🤖 pré-aprovada máquina</div>
-                  )}
-                  {l.coluna === 'PITCH_LIBERADO' && l.cnis_aprovado === 'true' && l.advogada_motivo && (
-                    <div style={s.seloAdvogada}>⚖️ {l.advogada_motivo}</div>
-                  )}
-                  {l.coluna === 'PITCH_LIBERADO' && (l.advogada_motivo || '').indexOf('seguro-desemprego') >= 0 && (
-                    <div style={s.seloSeguro}>⚠️ perguntar do seguro-desemprego</div>
-                  )}
-                  {/* 21/09 — DOIS dados distintos, nessa ordem:
-                      1) o carimbo da ATENDENTE (o que uma pessoa constatou)
-                      2) o selo do ROBO validador (o que a Evolution respondeu)
-                      O carimbo vem primeiro porque vale mais: é observação direta.
-                      Quem nao tem nem um nem outro nao mostra nada — sao 7 mil
-                      leads sem validacao e o card viraria um mar de cinza. */}
-                  {l.whats_marcado === 'iniciado' && (
-                    <div style={s.seloCarimbo('#065f46', 'rgba(52,211,153,.14)', 'rgba(5,150,105,.25)')}
-                      title="alguém da equipe já iniciou o atendimento por WhatsApp">
-                      📲 Atendimento iniciado no WhatsApp{fmtCarimbo(l.whats_iniciado_em) ? ' · ' + fmtCarimbo(l.whats_iniciado_em) : ''}
-                    </div>
-                  )}
-                  {l.whats_marcado === 'sem_whats' && (
-                    <div style={s.seloCarimbo('#991b1b', 'rgba(220,38,38,.12)', 'rgba(220,38,38,.32)')}
-                      title="a equipe constatou que esse número não tem WhatsApp — ligar">
-                      📵 Não tem WhatsApp (conferido){fmtCarimbo(l.whats_iniciado_em) ? ' · ' + fmtCarimbo(l.whats_iniciado_em) : ''}
-                    </div>
-                  )}
-                  {/* selo do robo. So aparece quando a pessoa NAO carimbou — se
-                      carimbou, quem manda e ela, e dois selos dizendo a mesma
-                      coisa so ocupam espaco. A comparacao entre os dois fica na
-                      ficha, onde ha lugar pra mostrar os dois lado a lado. */}
-                  {!l.whats_marcado && l.whats_tem === 'false' && (
-                    <div style={s.seloSemWhats}>📵 Sem WhatsApp — ligar, não mandar mensagem</div>
-                  )}
-                  {!l.whats_marcado && l.whats_tem === 'true' && (
-                    <div><span style={s.seloTemWhats}>✅ WhatsApp</span></div>
-                  )}
-                  <div style={s.cardMeta}>
-                    {l.cor === 'vermelho' ? '🔴 ' : ''}{l.cor === 'amarelo' ? '🟡 ' : ''}parada há {fmtParado(l.minutos_parado)}
-                    {ehSupervisor && l.agente_nome ? ` · ${l.agente_nome}` : ''}
-                  </div>
-                  {(l.coluna === 'REPROVADO' || l.coluna === 'NEGADO') && l.cnis_reprovado_motivo && (
-                    <div style={s.cardMeta}>❌ {l.cnis_reprovado_motivo}</div>
-                  )}
-                  {l.chatwoot_conversation_id && (
-                    <a href={linkChatwoot(l)} target="_blank" rel="noreferrer" draggable={false} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}
-                      style={{ fontSize: 12, textDecoration: 'none', background: 'rgba(52,211,153,.14)', color: '#059669', borderRadius: 6, padding: '1px 7px', fontWeight: 700, display: 'inline-block', marginTop: 4 }}
-                      title="Abrir conversa no Chatwoot">💬</a>
-                  )}
-                  {seloTratamento(l)}
-                </div>
-              ))}
-              {/* 07/10 — aviso de corte no pé da coluna, em texto, longe do contador */}
-              {totalDe(col) > LIMITE_CARDS && (
-                <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', padding: '8px 4px' }}>
-                  + {totalDe(col) - LIMITE_CARDS} não exibidos · use os filtros para reduzir a lista
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
 
       {lead && (
         <div style={s.overlay} onClick={fechar}>
