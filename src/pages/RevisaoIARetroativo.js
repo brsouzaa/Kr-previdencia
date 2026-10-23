@@ -647,10 +647,22 @@ export default function RevisaoIARetroativo({ setPage }) {
 
   // 22/10 — o botão Vender leva pro Novo Cliente com o CPF na mão. setPage vem
   // do App.js; sem a prop, copia o CPF e avisa — a tela funciona dos dois jeitos.
+  // 23/10 — o App.js só manda o setPage para quem TEM a tela Novo Cliente
+  // (paginaPermitida). Sem a prop — quem não digita cliente — fica como antes:
+  // copia o CPF e avisa. Com a prop, o CPF também vai pra área de transferência
+  // ANTES de trocar de tela: se o Novo Cliente ainda não ler o kr_venda_cpf, é
+  // só colar.
+  // O recado pro Novo Cliente leva a HORA: ele só aceita se tiver menos de 5
+  // minutos. Sem isso, um CPF deixado aqui reapareceria preenchido sozinho num
+  // cadastro qualquer dias depois. E só é gravado quando a tela vai mesmo trocar.
   function vender(l) {
-    try { window.localStorage.setItem('kr_venda_cpf', soDigitos(l.cpf)) } catch (_) {}
-    if (typeof setPage === 'function') { setPage('novo_cliente'); return }
     const cpf = fmtCPF(l.cpf)
+    if (typeof setPage === 'function') {
+      try { window.localStorage.setItem('kr_venda_cpf', JSON.stringify({ cpf: soDigitos(l.cpf), em: Date.now() })) } catch (_) {}
+      try { navigator.clipboard?.writeText(cpf)?.catch?.(() => {}) } catch (_) {}
+      setPage('novo_cliente')
+      return
+    }
     if (!navigator.clipboard) { avisar(`CPF ${cpf} — abra "Novo cliente (digitar)"`); return }
     navigator.clipboard.writeText(cpf)
       .then(() => avisar('CPF copiado — abra "Novo cliente (digitar)"'))
