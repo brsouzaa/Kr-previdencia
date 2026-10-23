@@ -108,6 +108,22 @@ function diaBR(iso) {
   if (!iso) return null
   try { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) } catch (_) { return null }
 }
+// 23/10 (Bruno) — A MESA É SEMPRE DO MAIS RECENTE PARA O MAIS ANTIGO, em todas
+// as abas e na busca. Antes era o contrário (o mais parado em cima). A data que
+// conta é a do fato da aba: nas abas de venda fechada e recuperar, a data do
+// cadastro da cliente (cliente_em); nas outras, quando o lead caiu na mesa
+// (entregue_vendedora_em). Sem data vai pro fim.
+function dataDaOrdem(l) {
+  const iso = (l._aba === 'fechou' || l._aba === 'recuperar')
+    ? (l.cliente_em || l.entregue_vendedora_em) : l.entregue_vendedora_em
+  const t = iso ? new Date(iso).getTime() : NaN
+  return Number.isFinite(t) ? t : -Infinity
+}
+function maisRecenteEmCima(a, b) {
+  const da = dataDaOrdem(a), db = dataDaOrdem(b)
+  if (da === db) return 0
+  return db > da ? 1 : -1
+}
 function hojeBR() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) }
 function horasDe(iso) {
   if (!iso) return null
@@ -500,12 +516,9 @@ export default function RevisaoIARetroativo({ setPage }) {
       return mesa.filter(l =>
         (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
         (!d && String(l.nome || '').toLowerCase().includes(q.toLowerCase())))
+        .sort(maisRecenteEmCima)
     }
-    return mesaFiltrada.filter(l => l._aba === aba).sort((a, b) => {
-      // Recuperar: a mais RECENTE em cima — perda fresca tem mais chance de voltar.
-      if (aba === 'recuperar') return new Date(b.cliente_em || 0) - new Date(a.cliente_em || 0)
-      return (b._h ?? -1) - (a._h ?? -1)   // nas outras, o mais parado em cima
-    })
+    return mesaFiltrada.filter(l => l._aba === aba).sort(maisRecenteEmCima)
   }, [mesa, mesaFiltrada, aba, buscaAtiva])
 
   // ===== NÚMEROS DO TOPO — todos sobre mesaFiltrada (ver nota acima) =====
