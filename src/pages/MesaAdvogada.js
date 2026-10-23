@@ -521,6 +521,8 @@ export default function MesaAdvogada() {
   const { profile } = useAuth()
   const [copiado, setCopiado] = useState('')
   const [fila, setFila] = useState([])
+  // 23/10 — lead_id -> [direitos] para quem tem 2+ filhos aprovados (ver carregar)
+  const [direitosExtra, setDireitosExtra] = useState({})
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
   // 21/09 — resultado das verificacoes feitas AQUI, no clique da advogada.
@@ -685,6 +687,22 @@ export default function MesaAdvogada() {
       }
     }))
     setLoading(false)
+
+    // 23/10 (Bruno) — TODOS OS FILHOS COM DIREITO, não só o decisivo.
+    // vinculo_direito vem de gerid_vinculo_decisivo (um filho, o mais novo). Com
+    // dois aprovados o segundo sumia do card — a advogada via um direito onde
+    // havia dois (Fernanda de Almeida Ribeiro, 587890). Uma chamada, depois da
+    // mesa já estar na tela; só volta quem tem 2+ aprovados. Se falhar, o card
+    // mostra o filho decisivo como sempre — nunca segura o carregamento.
+    try {
+      const ids = r.map(c => c.id).filter(Boolean)
+      if (ids.length) {
+        const { data: dx } = await supabase.rpc('gerid_direitos_dos_leads', { p_lead_ids: ids })
+        const mapa = {}
+        for (const x of (dx || [])) if (Array.isArray(x.direitos) && x.direitos.length >= 2) mapa[x.lead_id] = x.direitos
+        setDireitosExtra(mapa)
+      } else setDireitosExtra({})
+    } catch (_) { /* segue sem os extras */ }
   }, [rpcTudo])
 
   useEffect(() => { carregar() }, [carregar])
@@ -930,8 +948,24 @@ export default function MesaAdvogada() {
       // direito é assunto da advogada, não da vendedora: na mão dela só cria
       // conversa que derruba a venda.
       const vinc = lead.vinculo_direito
-      const trechoVinculo = lead.gerid_venda
-        ? `\n\n${lead.gerid_venda}`
+      // 23/10 (Bruno) — O TEXTO DO GRUPO RESPEITA O QUE A ADVOGADA MARCOU.
+      // lead.gerid_venda (gerid_texto_venda) corta o filho de 24 meses com seguro
+      // IMPROVÁVEL — regra de 19/10 — sem saber que a advogada aprovou. Caso:
+      // Fernanda de Almeida Ribeiro, dois filhos aprovados, grupo recebeu um.
+      // Agora: retroativo_texto_grupo(lead, filhos marcados) devolve um bloco por
+      // filho que ELA marcou, com os mesmos avisos da função antiga e um aviso
+      // próprio para o 24 meses improvável. Se a RPC falhar, cai no texto antigo
+      // — a linha do grupo nunca sai vazia por causa disto.
+      let textoVinc = lead.gerid_venda || null
+      try {
+        const tg = await supabase.rpc('retroativo_texto_grupo', {
+          p_lead_id: lead.id,
+          p_filhos_dn: filhos.length ? filhos : null,
+        })
+        if (!tg.error && typeof tg.data === 'string' && tg.data.trim()) textoVinc = tg.data
+      } catch (_) { /* fica com lead.gerid_venda */ }
+      const trechoVinculo = textoVinc
+        ? `\n\n${textoVinc}`
         : vinc ? `\n${vinc.eh_beneficio ? '📄' : '🏢'} ${rotuloVinculo(vinc)}: ${textoVinculo(vinc)}` : ''
       setAviso({
         tipo: 'ok',
@@ -1531,40 +1565,67 @@ export default function MesaAdvogada() {
               const reps = filhosReprovados(c)
               const aviso = avisoNome(c)
               const n = qtdVinculos(c)
+              // 23/10 — com 2+ filhos aprovados, a lista completa vem da RPC
+              // gerid_direitos_dos_leads (mesma forma do vinculo_direito, mais
+              // filho_nome limpo e faixa 12/24). Com um só, nada muda aqui.
+              const todos = direitosExtra[c.id]
+              const varios = Array.isArray(todos) && todos.length >= 2 ? todos : null
+              const linhaVinculo = (vv) => (
+                <>
+                  <div style={s.pqLinha}>
+                    {vv.eh_beneficio ? '📄' : '🏢'}{' '}
+                    <span style={s.pqForte}>{vv.empresa}</span>
+                    {vv.tipo ? ' · ' + vv.tipo : ''}
+                    {vv.inicio || vv.fim ? ' · ' + (vv.inicio || '?') + ' → ' + (vv.fim || '?') : ''}
+                  </div>
+                  {vv.meses_antes_do_parto != null && (
+                    <div style={s.pqLinha}>
+                      Saiu <span style={s.pqForte}>
+                        {vv.meses_antes_do_parto === 0
+                          ? 'no mês do parto'
+                          : vv.meses_antes_do_parto + (vv.meses_antes_do_parto === 1 ? ' mês' : ' meses') + ' antes do parto'}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )
               return (
                 <div style={s.pqBox(abaGerid(c) === 'neg')}>
                   <div style={s.pqTit}>
                     {abaGerid(c) === 'neg' ? 'Por que o assistente não viu direito' : 'Por que tem direito'}
+                    {varios ? ` · ${varios.length} filhos com direito` : ''}
                     {c.gerid_em ? ' · consultado ' + fmtQuando(c.gerid_em) : ''}
                   </div>
 
-                  {fl && fl.dn && (
+                  {/* ===== UM filho (o comum): igual ao que era ===== */}
+                  {!varios && fl && fl.dn && (
                     <div style={s.pqLinha}>
                       Filho: <span style={s.pqForte}>{brDeIso(fl.dn)}</span>
                     </div>
                   )}
+                  {!varios && v && linhaVinculo(v)}
+                  {!varios && fl && fl.motivo && <div style={s.pqMotivo}>{fl.motivo}</div>}
 
-                  {v && (
-                    <>
+                  {/* ===== DOIS OU MAIS (23/10): um bloco por filho aprovado ===== */}
+                  {varios && varios.map((vv, k) => (
+                    <div key={vv.filho_dn || k} style={{
+                      marginTop: k ? 10 : 2, paddingLeft: 10,
+                      borderLeft: `3px solid ${vv.faixa === '24' ? '#b45309' : '#059669'}`,
+                    }}>
                       <div style={s.pqLinha}>
-                        {v.eh_beneficio ? '📄' : '🏢'}{' '}
-                        <span style={s.pqForte}>{v.empresa}</span>
-                        {v.tipo ? ' · ' + v.tipo : ''}
-                        {v.inicio || v.fim ? ' · ' + (v.inicio || '?') + ' → ' + (v.fim || '?') : ''}
-                      </div>
-                      {v.meses_antes_do_parto != null && (
-                        <div style={s.pqLinha}>
-                          Saiu <span style={s.pqForte}>
-                            {v.meses_antes_do_parto === 0
-                              ? 'no mês do parto'
-                              : v.meses_antes_do_parto + (v.meses_antes_do_parto === 1 ? ' mês' : ' meses') + ' antes do parto'}
+                        Filho {k + 1}: <span style={s.pqForte}>
+                          {vv.filho_nome ? vv.filho_nome + ' · ' : ''}{vv.filho_dn ? brDeIso(vv.filho_dn) : '?'}
+                        </span>
+                        {vv.faixa && (
+                          <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: vv.faixa === '24' ? '#b45309' : '#059669' }}>
+                            {vv.faixa === '24' ? '24 meses · confirmar seguro' : '12 meses'}
                           </span>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {fl && fl.motivo && <div style={s.pqMotivo}>{fl.motivo}</div>}
+                        )}
+                      </div>
+                      {vv.empresa && linhaVinculo(vv)}
+                      {vv.regra && <div style={s.pqMotivo}>{vv.regra}</div>}
+                    </div>
+                  ))}
 
                   {/* so no 24 meses que depende de seguro-desemprego */}
                   {(c.seguro_classe === 'provavel' || c.seguro_classe === 'improvavel') && (
