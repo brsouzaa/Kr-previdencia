@@ -194,7 +194,29 @@ function lerVinculo(v) {
     // data de parto APROXIMADA: o vendedor NÃO pode afirmar o dia na ligação.
     dnAproximada: d.dn_aproximada === true,
     filhoNome: String(d.filho_nome || '').trim() || null,
+    // 23/10 — '12' ou '24'. Só vem da RPC gerid_direitos_dos_leads; o
+    // vinculo_direito do board não traz, e aí fica null (a tela não mostra).
+    faixa: d.faixa === '12' || d.faixa === '24' ? d.faixa : null,
   }
+}
+
+// "Empregada · 23/09/2025 a 18/10/2025 · 8 meses antes do parto"
+function descVinculo(v) {
+  return [v.tipo,
+    v.inicio && v.fim ? `${v.inicio} a ${v.fim}` : v.fim ? `até ${v.fim}` : null,
+    v.meses === 0 ? 'saiu no mês do parto'
+      : v.meses != null ? `${v.meses} ${v.meses === 1 ? 'mês' : 'meses'} antes do parto` : null]
+    .filter(Boolean).join(' · ')
+}
+
+// 23/10 (Bruno) — FICHA DO CNIS. Mesma rota /ficha/<cpf> do App.js e mesma RPC
+// ficha_cnis que a Fila de Entregas e a tela antiga já usavam; nada novo no
+// banco. Tinha saído no redesenho de 22/10 junto com o modal antigo — erro meu.
+// Só com CPF de 11 dígitos: sem isso a ficha abre em tela de erro, e botão que
+// abre erro treina o vendedor a não clicar.
+function linkFichaCnis(cpf) {
+  const d = soDigitos(cpf)
+  return d.length === 11 ? `/ficha/${d}` : null
 }
 
 // ===== MENSAGEM DE ABORDAGEM =====
@@ -326,6 +348,15 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [marcando, setMarcando] = useState(null)
   const [ficha, setFicha] = useState(null)
   const [toast, setToast] = useState(null)
+  // 23/10 (Bruno) — TODOS OS FILHOS COM DIREITO, não só o mais novo.
+  // O vinculo_direito do board vem de gerid_vinculo_decisivo, que faz
+  // "order by filho_dn desc limit 1" de propósito — um argumento de ligação. Com
+  // dois filhos aprovados (35 leads na mesa em 23/10) o segundo sumia. Caso:
+  // Fernanda de Almeida Ribeiro — filho 2026 por 12 meses E filho 2022 por 24,
+  // a tela mostrava só o de 2026. Agora, depois do board, UMA chamada à RPC
+  // gerid_direitos_dos_leads traz os leads com 2+ filhos; os outros ficam como
+  // estão. Mapa lead_id -> [direitos]. Vazio = tela igual à de antes.
+  const [direitosExtra, setDireitosExtra] = useState({})
   const reqAtual = useRef(0)
 
   function avisar(t) { setToast(t); setTimeout(() => setToast(null), 2600) }
@@ -372,6 +403,19 @@ export default function RevisaoIARetroativo({ setPage }) {
     visiveis.forEach(l => { if (l.bf_agente_id && l.agente_nome) m.set(l.bf_agente_id, l.agente_nome) })
     setListaVendedores([...m.entries()].sort((a, b) => a[1].localeCompare(b[1])))
     setCarregando(false)
+
+    // 23/10 — filhos extras, em segundo plano. Se falhar, a tela segue como
+    // antes (um filho por card) — nunca trava a mesa por causa disto.
+    try {
+      const ids = visiveis.map(l => l.id).filter(Boolean)
+      if (ids.length) {
+        const { data: dx } = await supabase.rpc('gerid_direitos_dos_leads', { p_lead_ids: ids })
+        if (meuReq !== reqAtual.current) return
+        const mapa = {}
+        for (const r of (dx || [])) if (Array.isArray(r.direitos) && r.direitos.length >= 2) mapa[r.lead_id] = r.direitos
+        setDireitosExtra(mapa)
+      } else setDireitosExtra({})
+    } catch (_) { /* fica sem os extras; o card mostra o filho decisivo como sempre */ }
     // vendedorSel NÃO entra aqui: trocar de vendedor é filtro de tela, não
     // recarregamento. Se entrar, cada troca vira uma ida ao servidor de novo.
   }, [profile?.id, vejoMaisDeUm, minhaOp, meuTime])
@@ -658,6 +702,11 @@ export default function RevisaoIARetroativo({ setPage }) {
         const msg = montarAbordagem(l, vinc)
         const perda = MOTIVO_PERDA[l.cliente_status]
         const chaveObs = obsAberta && obsAberta.startsWith(`${l.id}:`) ? obsAberta : null
+        // 23/10 — com 2+ filhos aprovados, a lista completa vem da RPC; cada item
+        // tem a mesma forma do vinculo_direito, então passa pelo mesmo lerVinculo.
+        const extras = direitosExtra[l.id]
+        const direitos = Array.isArray(extras) && extras.length >= 2 ? extras.map(lerVinculo).filter(Boolean) : null
+        const cpfLimpo = soDigitos(l.cpf)
         return (
           <div key={l.id} style={s.card}>
             <div style={s.cardTopo}>
@@ -666,6 +715,7 @@ export default function RevisaoIARetroativo({ setPage }) {
                 <div style={s.meta}>{fmtTel(l.tel)} · CPF {fmtCPF(l.cpf)}</div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {direitos && <span style={ui.pill(cores.azul)}>{direitos.length} filhos com direito</span>}
                 {l.vend_tentativas > 0 && <span style={ui.pill(cores.alerta)}>{l.vend_tentativas}ª tentativa</span>}
                 {vejoMaisDeUm && l.agente_nome && <span style={ui.pill(cores.roxo)}>{primeiroNome(l.agente_nome)}</span>}
                 <span style={ui.pill((l._h ?? 0) >= 48 ? cores.perigo : cores.suave)}>
@@ -674,23 +724,15 @@ export default function RevisaoIARetroativo({ setPage }) {
               </div>
             </div>
 
-            {/* por que ela tem direito */}
-            {vinc?.empresa && (
+            {/* ===== UM filho (o comum): igual ao desenho aprovado em 22/10 ===== */}
+            {!direitos && vinc?.empresa && (
               <div style={s.bloco}>
                 <div style={s.blocoTit}><span>{vinc.ehBeneficio ? 'Benefício que deu o direito' : 'Empresa que deu o direito'}</span></div>
                 <div style={s.dir1}>{vinc.empresa}</div>
-                <div style={s.dir2}>
-                  {[vinc.tipo,
-                    vinc.inicio && vinc.fim ? `${vinc.inicio} a ${vinc.fim}` : vinc.fim ? `até ${vinc.fim}` : null,
-                    vinc.meses === 0 ? 'saiu no mês do parto'
-                      : vinc.meses != null ? `${vinc.meses} ${vinc.meses === 1 ? 'mês' : 'meses'} antes do parto` : null]
-                    .filter(Boolean).join(' · ')}
-                </div>
+                <div style={s.dir2}>{descVinculo(vinc)}</div>
               </div>
             )}
-
-            {/* o bebê */}
-            {(vinc?.filhoNome || vinc?.filhoDn || l.data_nascimento_filho) && (
+            {!direitos && (vinc?.filhoNome || vinc?.filhoDn || l.data_nascimento_filho) && (
               <div style={s.bebe}>
                 👶 {vinc?.filhoNome ? <b>{nomeBonito(vinc.filhoNome)}</b> : 'Filho(a)'}
                 {(vinc?.filhoDn || l.data_nascimento_filho) && ` · nasceu em ${fmtData(vinc?.filhoDn || l.data_nascimento_filho)}`}
@@ -700,6 +742,31 @@ export default function RevisaoIARetroativo({ setPage }) {
                 )}
               </div>
             )}
+
+            {/* ===== DOIS OU MAIS filhos (23/10): um bloco por direito ===== */}
+            {direitos && direitos.map((v, i) => (
+              <div key={v.filhoDn || i} style={{ ...s.bloco, borderLeft: `3px solid ${v.faixa === '24' ? cores.alerta : cores.ok}` }}>
+                <div style={s.blocoTit}>
+                  <span>Direito {i + 1} de {direitos.length}</span>
+                  {v.faixa && (
+                    <span style={ui.pill(v.faixa === '24' ? cores.alerta : cores.ok)}>
+                      {v.faixa === '24' ? '24 meses · confirmar seguro' : '12 meses'}
+                    </span>
+                  )}
+                </div>
+                <div style={{ ...s.bebe, marginTop: 0 }}>
+                  👶 {v.filhoNome ? <b>{nomeBonito(v.filhoNome)}</b> : 'Filho(a)'}
+                  {v.filhoDn && ` · nasceu em ${fmtData(v.filhoDn)}`}
+                  {v.dnAproximada && <span style={{ color: cores.alerta, fontWeight: 600 }}> · ⚠️ data aproximada</span>}
+                </div>
+                {v.empresa && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={s.dir1}>{v.ehBeneficio ? '📄' : '🏢'} {v.empresa}</div>
+                    <div style={s.dir2}>{descVinculo(v)}</div>
+                  </div>
+                )}
+              </div>
+            ))}
 
             {/* o que ele já anotou */}
             {l.vend_obs && (
@@ -752,6 +819,12 @@ export default function RevisaoIARetroativo({ setPage }) {
                     </button>
                   ))}
                   <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
+                  {linkFichaCnis(l.cpf) && (
+                    <a style={{ ...s.btnAcao(cores.azul), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                      href={linkFichaCnis(l.cpf)} target="_blank" rel="noreferrer" title="Vínculos do CNIS, qual deu o direito, carência e fundamento legal. Dá pra mandar o link pra cliente.">
+                      📄 Ficha CNIS
+                    </a>
+                  )}
                 </div>
 
                 {chaveObs && (
@@ -782,6 +855,10 @@ export default function RevisaoIARetroativo({ setPage }) {
             {!['hoje', 'represado', 'contato', 'retomar'].includes(l._aba) && (
               <div style={s.acoes}>
                 <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
+                {linkFichaCnis(l.cpf) && (
+                  <a style={{ ...s.btnAcao(cores.azul), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                    href={linkFichaCnis(l.cpf)} target="_blank" rel="noreferrer">📄 Ficha CNIS</a>
+                )}
                 {l._aba === 'recuperar' && (
                   <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} onClick={() => vender(l)}>
                     Cadastrar de novo
@@ -801,6 +878,23 @@ export default function RevisaoIARetroativo({ setPage }) {
               <div style={{ fontSize: 19, fontWeight: 800, color: cores.texto }}>{nomeBonito(ficha.nome)}</div>
               <button style={s.btnGhost} onClick={() => setFicha(null)}>Fechar</button>
             </div>
+            {linkFichaCnis(ficha.cpf) && (
+              <a href={linkFichaCnis(ficha.cpf)} target="_blank" rel="noreferrer"
+                style={{ ...ui.btnPrimario, display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 14 }}>
+                📄 Abrir a ficha do CNIS — por que ela tem direito
+              </a>
+            )}
+            {Array.isArray(direitosExtra[ficha.id]) && direitosExtra[ficha.id].length >= 2 && (
+              <div style={{ ...s.bloco, marginTop: 0, marginBottom: 12, background: `${cores.azul}0a`, border: `1px solid ${cores.azul}33` }}>
+                <div style={s.blocoTit}><span>{direitosExtra[ficha.id].length} filhos com direito</span></div>
+                {direitosExtra[ficha.id].map(lerVinculo).filter(Boolean).map((v, i) => (
+                  <div key={i} style={{ fontSize: 13, color: cores.texto, marginTop: i ? 6 : 0 }}>
+                    👶 <b>{v.filhoNome ? nomeBonito(v.filhoNome) : 'Filho(a)'}</b>{v.filhoDn ? ` · ${fmtData(v.filhoDn)}` : ''}
+                    {v.faixa ? ` · ${v.faixa} meses` : ''}{v.empresa ? ` · ${v.empresa}` : ''}
+                  </div>
+                ))}
+              </div>
+            )}
             {[
               ['Telefone', fmtTel(ficha.tel)],
               ['CPF', fmtCPF(ficha.cpf)],
