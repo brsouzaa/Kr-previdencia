@@ -246,6 +246,24 @@ const ACOES_SECUNDARIAS = [
   { id: 'sem_direito', rotulo: 'Não tem direito', cor: cores.suave, exigeObs: true },
 ]
 
+// 23/10 (Bruno) — PASSAR O LEAD PARA OUTRA VENDEDORA. Existia na mesa antiga
+// (01/10) e ficou de fora no redesenho de 22/10. A gravação é a mesma RPC de
+// sempre, retroativo_transferir_lead (troca os DOIS campos de dono, limpa o
+// "estou nesse", grava log e notifica quem recebe). Os códigos TÊM que ser os
+// mesmos da função do banco — fora da lista ela recusa.
+// Quem pode: admin (todas as faixas) e supervisora do retroativo (só a faixa
+// dela). A lista de destino vem de retroativo_vendedoras_transferencia, que usa
+// a MESMA regra — se ela volta vazia, o botão nem aparece.
+const MOTIVOS_TRANSF = [
+  ['venda_fora', '💰 Venda por fora — ela já fechou'],
+  ['cliente_pediu', '🗣️ Cliente pediu outra atendente'],
+  ['folga', '🏖️ Vendedora de folga / afastada'],
+  ['carga', '⚖️ Reequilibrar a carga do time'],
+  ['sem_contato', '📵 Não conseguiu contato com a cliente'],
+  ['ja_atendeu', '🤝 Já atendeu essa cliente antes'],
+  ['outro', '✏️ Outro — escrever'],
+]
+
 // ===== ESTILOS (100% derivados de ../lib/tema) =====
 const s = {
   h1: { fontSize: 24, fontWeight: 800, color: cores.texto, letterSpacing: '-0.02em', margin: 0 },
@@ -357,6 +375,15 @@ export default function RevisaoIARetroativo({ setPage }) {
   // gerid_direitos_dos_leads traz os leads com 2+ filhos; os outros ficam como
   // estão. Mapa lead_id -> [direitos]. Vazio = tela igual à de antes.
   const [direitosExtra, setDireitosExtra] = useState({})
+  // 23/10 — passar para outra vendedora (ver MOTIVOS_TRANSF no topo)
+  const [vendsTransf, setVendsTransf] = useState([])     // [{profile_id, nome, faixa}]
+  const [transf, setTransf] = useState(null)             // lead sendo passado
+  const [transfPara, setTransfPara] = useState('')
+  const [transfCod, setTransfCod] = useState('')
+  const [transfTxt, setTransfTxt] = useState('')
+  const [transfHoje, setTransfHoje] = useState(false)
+  const [transferindo, setTransferindo] = useState(false)
+  const podeTransferir = vendsTransf.length > 0
   const reqAtual = useRef(0)
 
   function avisar(t) { setToast(t); setTimeout(() => setToast(null), 2600) }
@@ -540,6 +567,40 @@ export default function RevisaoIARetroativo({ setPage }) {
     carregar()
   }
 
+  // 23/10 — lista de quem pode receber. Uma ida só, na abertura da tela. Para
+  // vendedora comum a RPC devolve vazio e o botão "passar" não aparece.
+  useEffect(() => {
+    if (!profile?.id) return
+    let vivo = true
+    supabase.rpc('retroativo_vendedoras_transferencia')
+      .then(({ data }) => { if (vivo) setVendsTransf(Array.isArray(data) ? data : []) })
+      .catch(() => { if (vivo) setVendsTransf([]) })
+    return () => { vivo = false }
+  }, [profile?.id])
+
+  function abrirTransf(l) {
+    setTransf(l); setTransfPara(''); setTransfCod(''); setTransfTxt(''); setTransfHoje(false)
+  }
+  // só "Outro" exige texto — nos demais o código já diz tudo (o banco cobra igual)
+  const transfOk = !!(transfPara && transfCod && (transfCod !== 'outro' || transfTxt.trim()))
+
+  async function confirmarTransf() {
+    if (!transf || !transfOk || transferindo) return
+    setTransferindo(true)
+    const { data, error } = await supabase.rpc('retroativo_transferir_lead', {
+      p_lead_id: transf.id,
+      p_para: transfPara,
+      p_motivo_codigo: transfCod,
+      p_motivo_texto: transfTxt.trim() || null,
+      p_marcar_entregue_hoje: transfHoje,
+    })
+    setTransferindo(false)
+    if (error || !data?.ok) { avisar('Não passou: ' + (error?.message || data?.erro || 'erro')); return }
+    avisar(`${primeiroNome(transf.nome) || 'Cliente'} passou de ${data.de || 'sem dona'} para ${data.para}`)
+    setTransf(null); setFicha(null)
+    carregar()
+  }
+
   function copiar(txt) {
     navigator.clipboard?.writeText(txt).then(() => avisar('Mensagem copiada'))
       .catch(() => avisar('Não consegui copiar — selecione o texto'))
@@ -718,6 +779,12 @@ export default function RevisaoIARetroativo({ setPage }) {
                 {direitos && <span style={ui.pill(cores.azul)}>{direitos.length} filhos com direito</span>}
                 {l.vend_tentativas > 0 && <span style={ui.pill(cores.alerta)}>{l.vend_tentativas}ª tentativa</span>}
                 {vejoMaisDeUm && l.agente_nome && <span style={ui.pill(cores.roxo)}>{primeiroNome(l.agente_nome)}</span>}
+                {podeTransferir && (
+                  <button style={{ ...s.btnCopiar, color: cores.roxo, borderColor: `${cores.roxo}44` }}
+                    title="Passar esta cliente para outra vendedora" onClick={() => abrirTransf(l)}>
+                    🔄 passar
+                  </button>
+                )}
                 <span style={ui.pill((l._h ?? 0) >= 48 ? cores.perigo : cores.suave)}>
                   {l._aba === 'recuperar' ? 'caiu' : 'na mesa há'} {fmtHoras(l._h)}
                 </span>
@@ -876,7 +943,13 @@ export default function RevisaoIARetroativo({ setPage }) {
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
               <div style={{ fontSize: 19, fontWeight: 800, color: cores.texto }}>{nomeBonito(ficha.nome)}</div>
-              <button style={s.btnGhost} onClick={() => setFicha(null)}>Fechar</button>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {podeTransferir && (
+                  <button style={{ ...s.btnGhost, color: cores.roxo, borderColor: `${cores.roxo}55` }}
+                    onClick={() => abrirTransf(ficha)}>🔄 Passar para outra</button>
+                )}
+                <button style={s.btnGhost} onClick={() => setFicha(null)}>Fechar</button>
+              </div>
             </div>
             {linkFichaCnis(ficha.cpf) && (
               <a href={linkFichaCnis(ficha.cpf)} target="_blank" rel="noreferrer"
@@ -926,6 +999,65 @@ export default function RevisaoIARetroativo({ setPage }) {
                 <div style={{ fontSize: 12.5, color: cores.texto, whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{ficha.gerid_vendedor}</div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== PASSAR PARA OUTRA VENDEDORA (23/10) =====
+          Motivo obrigatório dos DOIS lados: o botão fica apagado sem ele e o
+          banco recusa se vier vazio. zIndex acima da ficha, que pode estar aberta. */}
+      {transf && (
+        <div style={{ ...s.overlay, zIndex: 950 }} onClick={() => !transferindo && setTransf(null)}>
+          <div style={{ ...s.modal, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: cores.texto }}>🔄 Passar para outra vendedora</div>
+            <div style={{ fontSize: 13, color: cores.suave, marginTop: 4 }}>
+              {nomeBonito(transf.nome) || 'Cliente'}
+              {transf.agente_nome ? <> · hoje com <b>{transf.agente_nome}</b></> : ' · sem dona'}
+            </div>
+
+            <div style={{ ...s.blocoTit, marginTop: 16 }}><span>Para quem vai *</span></div>
+            <select style={{ ...s.select, width: '100%', padding: '10px 11px', fontSize: 13 }}
+              value={transfPara} onChange={e => setTransfPara(e.target.value)}>
+              <option value="">escolha a vendedora…</option>
+              {vendsTransf.filter(v => v.profile_id !== transf.bf_agente_id).map(v => (
+                <option key={v.profile_id} value={v.profile_id}>
+                  {v.nome}{v.faixa === '12' || v.faixa === '24' ? ` · time ${v.faixa} meses` : v.faixa ? ` · ${v.faixa}` : ''}
+                </option>
+              ))}
+            </select>
+
+            <div style={{ ...s.blocoTit, marginTop: 14 }}><span>Por quê? *</span></div>
+            <select style={{ ...s.select, width: '100%', padding: '10px 11px', fontSize: 13 }}
+              value={transfCod} onChange={e => setTransfCod(e.target.value)}>
+              <option value="">escolha o motivo…</option>
+              {MOTIVOS_TRANSF.map(([cod, txt]) => <option key={cod} value={cod}>{txt}</option>)}
+            </select>
+            {transfCod === 'outro' && (
+              <textarea style={s.obsArea} value={transfTxt} onChange={e => setTransfTxt(e.target.value)}
+                placeholder="Escreva o motivo *" />
+            )}
+            {transfCod === 'venda_fora' && (
+              <div style={{ ...s.bloco, background: `${cores.azul}0a`, border: `1px solid ${cores.azul}33`, fontSize: 12.5, color: cores.texto, lineHeight: 1.5 }}>
+                💡 Marque <b>"entregue hoje"</b> abaixo para a cliente voltar ao topo da mesa de quem recebe.
+              </div>
+            )}
+
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 14, fontSize: 13, color: cores.texto, cursor: 'pointer' }}>
+              <input type="checkbox" checked={transfHoje} onChange={e => setTransfHoje(e.target.checked)} style={{ marginTop: 3 }} />
+              <span><b>Marcar como entregue hoje</b><br />
+                <span style={{ fontSize: 12, color: cores.suave }}>
+                  A cliente cai como "caiu hoje" para quem recebe. Desmarcado, fica a data de entrega original.
+                </span>
+              </span>
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button style={{ ...s.btnGhost, flex: 1 }} disabled={transferindo} onClick={() => setTransf(null)}>Cancelar</button>
+              <button style={{ ...s.btn, flex: 2, opacity: transfOk && !transferindo ? 1 : 0.5 }}
+                disabled={!transfOk || transferindo} onClick={confirmarTransf}>
+                {transferindo ? '⏳ Passando…' : 'Confirmar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
