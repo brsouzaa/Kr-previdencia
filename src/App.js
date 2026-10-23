@@ -428,6 +428,13 @@ function AppInner() {
   // Fica FORA do Layout de proposito: na impressao o documento sai limpo, sem menu.
   if (window.location.pathname.startsWith('/ficha/')) return <FichaCNIS />
 
+  // 23/10 (Bruno) — botao "Fechou! Cadastrar a venda" da Mesa do Retroativo leva
+  // direto pro Novo Cliente. O setPage SO vai pra quem tem a tela novo_cliente
+  // (mesma regra paginaPermitida de baixo). Sem isso, quem nao tem a tela (ex.:
+  // Agatha, coordenador_b2c) clicava e o paginaSegura devolvia pra tela inicial
+  // sem aviso — o mesmo bug de 02/09. Sem a prop, a mesa copia o CPF e avisa.
+  const setPageMesaRetro = paginaPermitida(profile, 'novo_cliente') ? setPage : undefined
+
   const pages = {
     dashboard: <Dashboard />,
     painel_financeiro: <PainelFinanceiro />,
@@ -469,7 +476,7 @@ function AppInner() {
     recebimentos: <RecebimentosAdvogados />,
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
-    revisao_ia_retroativo: <RevisaoIARetroativo />,
+    revisao_ia_retroativo: <RevisaoIARetroativo setPage={setPageMesaRetro} />,
     meu_planejamento: <MeuPlanejamento />,
     painel_vendas: <PainelVendas />,
     validacao_advogado: <ValidacaoAdvogado />,
