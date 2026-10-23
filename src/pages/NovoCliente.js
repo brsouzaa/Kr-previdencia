@@ -121,6 +121,29 @@ function emailValido(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((e || '').
 function telValido(t) { return (t || '').replace(/\D/g, '').length >= 10 }
 function normalizar(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() }
 
+// 23/10 (Bruno) — CPF QUE VEIO DA MESA DO RETROATIVO. O botao "Fechou! Cadastrar
+// a venda" grava { cpf, em } no localStorage (chave kr_venda_cpf) e troca pra
+// esta tela. Aqui le UMA vez e APAGA na hora — o recado nao pode sobrar pro
+// proximo cadastro. So vale se tiver menos de 5 minutos: um recado velho (a
+// pessoa clicou e nao veio pra ca) nao pode preencher sozinho um cadastro de
+// outra cliente dias depois.
+const RECADO_MESA_VALIDADE_MS = 5 * 60 * 1000
+function lerCpfDaMesa() {
+  let raw = null
+  try {
+    raw = window.localStorage.getItem('kr_venda_cpf')
+    window.localStorage.removeItem('kr_venda_cpf')
+  } catch (_) { return '' }
+  if (!raw) return ''
+  try {
+    const j = JSON.parse(raw)
+    if (!j || typeof j !== 'object') return ''
+    if (!(Date.now() - Number(j.em || 0) < RECADO_MESA_VALIDADE_MS)) return ''
+    const d = String(j.cpf || '').replace(/\D/g, '')
+    return d.length === 11 ? d : ''
+  } catch (_) { return '' }
+}
+
 export default function NovoCliente({ onSucesso }) {
   const { profile } = useAuth()
   const [enviando, setEnviando] = useState(false)
@@ -207,6 +230,20 @@ export default function NovoCliente({ onSucesso }) {
     } catch (e) { setDuplicado(null) }
     setVerificandoCpf(false)
   }
+
+  // 23/10 (Bruno) — veio da Mesa do Retroativo pelo botao "Fechou! Cadastrar a
+  // venda": ja abre no Maternidade Mae (a mesa so tem esse produto) com o CPF
+  // preenchido, e roda a mesma checagem de CPF repetido que o campo faz ao sair
+  // dele. O produto continua trocavel pelo "trocar" do topo. Sem recado valido
+  // (abriu a tela pelo menu), nada muda.
+  useEffect(() => {
+    const d = lerCpfDaMesa()
+    if (!d) return
+    const cpf = maskCPF(d)
+    setC(prev => ({ ...prev, produto: prev.produto || 'Maternidade Mãe', cpf }))
+    verificarCpfDuplicado(cpf)
+    // eslint-disable-next-line
+  }, [])
 
   async function buscarCep(cepRaw) {
     const cep = (cepRaw || '').replace(/\D/g, '')
