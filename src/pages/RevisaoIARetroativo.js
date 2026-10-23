@@ -113,9 +113,16 @@ function diaBR(iso) {
 // conta é a do fato da aba: nas abas de venda fechada e recuperar, a data do
 // cadastro da cliente (cliente_em); nas outras, quando o lead caiu na mesa
 // (entregue_vendedora_em). Sem data vai pro fim.
-function dataDaOrdem(l) {
-  const iso = (l._aba === 'fechou' || l._aba === 'recuperar')
+// 23/10 (Bruno) — A MESMA DATA VALE PARA O FILTRO DE PERÍODO. Bug que ele pegou:
+// a venda de hoje (492.913.378-54, lead de 16/10) mostrava "venda de hoje" mas
+// sumia no filtro "Hoje", porque o filtro olhava só a chegada do lead na mesa.
+// Ordem, filtro e selo agora usam esta função — uma data só por aba.
+function dataDoFato(l) {
+  return (l._aba === 'fechou' || l._aba === 'recuperar')
     ? (l.cliente_em || l.entregue_vendedora_em) : l.entregue_vendedora_em
+}
+function dataDaOrdem(l) {
+  const iso = dataDoFato(l)
   const t = iso ? new Date(iso).getTime() : NaN
   return Number.isFinite(t) ? t : -Infinity
 }
@@ -171,11 +178,19 @@ function fmtCPF(c) {
   const d = soDigitos(c)
   return d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}` : (c || '—')
 }
+// 23/10 — BUG CORRIGIDO: o filho_dn do GERID vem como '2024-05-03' (922 de 929
+// leads na mesa em 23/10). new Date('2024-05-03') é meia-noite em UTC, que no
+// Brasil é 21h do dia ANTERIOR — o card dizia "nasceu em 02/05/2024" para quem
+// nasceu em 03/05. Data pura (sem hora) agora é só remontada no texto, sem
+// passar por fuso. Data com hora usa o fuso de São Paulo.
 function fmtData(v) {
   if (!v) return ''
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(String(v))) return v
-  const d = new Date(v)
-  return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('pt-BR')
+  const s = String(v).trim()
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 }
 
 // ===== O VÍNCULO QUE DEU O DIREITO =====
@@ -500,7 +515,7 @@ export default function RevisaoIARetroativo({ setPage }) {
   // zero — lead que chegou hoje não tem 48h. Por isso o período escolhido fica
   // escrito no topo, do lado da data.
   const mesaFiltrada = useMemo(() => periodo === 'tudo'
-    ? mesa : mesa.filter(l => dentroDoPeriodo(l.entregue_vendedora_em, periodo)), [mesa, periodo])
+    ? mesa : mesa.filter(l => dentroDoPeriodo(dataDoFato(l), periodo)), [mesa, periodo])
 
   const conta = (a) => mesaFiltrada.filter(l => l._aba === a).length
 
@@ -538,9 +553,17 @@ export default function RevisaoIARetroativo({ setPage }) {
   // 778 numa fila só os números do topo não dizem o que fazer. Só vale na
   // PRIMEIRA visita (vendedorSel === null). Depois disso manda o que ficou
   // guardado, inclusive '' = toda a operação, que é escolha legítima.
+  // 23/10 — e se o vendedor guardado SUMIU da mesa (ficou sem lead, foi
+  // desligado, teve tudo transferido)? Antes a tela filtrava por um id que não
+  // está mais na lista: mesa vazia, seletor mostrando "Toda a operação" e o
+  // topo também — parecia que a operação inteira estava zerada. Agora volta pro
+  // primeiro vendedor da lista, igual à primeira visita.
   useEffect(() => {
-    if (!vejoMaisDeUm || vendedorSel !== null || listaVendedores.length === 0) return
-    escolherVendedor(listaVendedores[0][0])
+    if (!vejoMaisDeUm || listaVendedores.length === 0) return
+    if (vendedorSel === null) { escolherVendedor(listaVendedores[0][0]); return }
+    if (vendedorSel !== '' && !listaVendedores.some(v => v[0] === vendedorSel)) {
+      escolherVendedor(listaVendedores[0][0])
+    }
   }, [vejoMaisDeUm, vendedorSel, listaVendedores])
 
   function escolherVendedor(id) {
@@ -615,7 +638,10 @@ export default function RevisaoIARetroativo({ setPage }) {
   }
 
   function copiar(txt) {
-    navigator.clipboard?.writeText(txt).then(() => avisar('Mensagem copiada'))
+    // sem navigator.clipboard (navegador antigo / página sem https) o "?." devolvia
+    // undefined e o .then quebrava a tela; agora só avisa
+    if (!navigator.clipboard) { avisar('Não consegui copiar — selecione o texto'); return }
+    navigator.clipboard.writeText(txt).then(() => avisar('Mensagem copiada'))
       .catch(() => avisar('Não consegui copiar — selecione o texto'))
   }
 
@@ -624,8 +650,11 @@ export default function RevisaoIARetroativo({ setPage }) {
   function vender(l) {
     try { window.localStorage.setItem('kr_venda_cpf', soDigitos(l.cpf)) } catch (_) {}
     if (typeof setPage === 'function') { setPage('novo_cliente'); return }
-    navigator.clipboard?.writeText(fmtCPF(l.cpf))
-    avisar('CPF copiado — abra "Novo cliente (digitar)"')
+    const cpf = fmtCPF(l.cpf)
+    if (!navigator.clipboard) { avisar(`CPF ${cpf} — abra "Novo cliente (digitar)"`); return }
+    navigator.clipboard.writeText(cpf)
+      .then(() => avisar('CPF copiado — abra "Novo cliente (digitar)"'))
+      .catch(() => avisar(`CPF ${cpf} — abra "Novo cliente (digitar)"`))
   }
 
   // ===== RENDER =====
@@ -694,7 +723,7 @@ export default function RevisaoIARetroativo({ setPage }) {
           <div style={s.kpi(cores.ok)}>
             <div style={s.kpiLab}>Vendas fechadas</div>
             <div style={s.kpiNum(cores.ok)}>{conta('fechou')}</div>
-            <div style={s.kpiSub}>contrato assinado</div>
+            <div style={s.kpiSub}>assinado ou validado</div>
           </div>
           <div style={s.kpi(cores.alerta, conta('recuperar') > 0)}>
             <div style={s.kpiLab}>Pra recuperar</div>
@@ -805,7 +834,8 @@ export default function RevisaoIARetroativo({ setPage }) {
                 {l._aba === 'fechou' ? (
                   <span style={ui.pill(cores.ok)}>
                     {l.cliente_em
-                      ? (diaBR(l.cliente_em) === hojeBR() ? 'venda de hoje' : `venda de ${fmtData(l.cliente_em)}`)
+                      ? (diaBR(l.cliente_em) === hojeBR() ? 'venda de hoje'
+                        : `venda de ${new Date(l.cliente_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`)
                       : 'venda fechada'}
                   </span>
                 ) : (
