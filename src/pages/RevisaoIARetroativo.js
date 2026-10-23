@@ -798,9 +798,21 @@ export default function RevisaoIARetroativo({ setPage }) {
                     🔄 passar
                   </button>
                 )}
-                <span style={ui.pill((l._h ?? 0) >= 48 ? cores.perigo : cores.suave)}>
-                  {l._aba === 'recuperar' ? 'caiu' : 'na mesa há'} {fmtHoras(l._h)}
-                </span>
+                {/* 23/10 (Bruno) — na aba Venda fechada o selo fala da VENDA, não de
+                    quando o lead caiu na mesa. Antes mostrava "na mesa há 7 dias" numa
+                    venda feita hoje (ex.: 492.913.378-54, lead de 16/10, venda 23/10).
+                    cliente_em = data do cadastro da cliente no CRM. */}
+                {l._aba === 'fechou' ? (
+                  <span style={ui.pill(cores.ok)}>
+                    {l.cliente_em
+                      ? (diaBR(l.cliente_em) === hojeBR() ? 'venda de hoje' : `venda de ${fmtData(l.cliente_em)}`)
+                      : 'venda fechada'}
+                  </span>
+                ) : (
+                  <span style={ui.pill((l._h ?? 0) >= 48 ? cores.perigo : cores.suave)}>
+                    {l._aba === 'recuperar' ? 'caiu' : 'na mesa há'} {fmtHoras(l._h)}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -992,6 +1004,7 @@ export default function RevisaoIARetroativo({ setPage }) {
               ['Vendedor', ficha.agente_nome || '—'],
               ['Estado no sistema', `${ficha.coluna || '—'} / ${ficha.estado || '—'}`],
               ['Cadastro', ficha.cliente_status || 'ainda não cadastrada'],
+              ['Venda cadastrada em', ficha.cliente_em ? new Date(ficha.cliente_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'],
               ['Trabalhava no nascimento', ficha.trabalhava_no_nascimento || '—'],
               ['Já trabalhou CLT', ficha.ja_trabalhou_clt || '—'],
             ].map(([lab, val]) => (
