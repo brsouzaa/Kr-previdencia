@@ -988,6 +988,35 @@ export default function RevisaoIARetroativo({ setPage }) {
             {/* abas de leitura: só a ficha */}
             {!['hoje', 'represado', 'contato', 'retomar'].includes(l._aba) && (
               <div style={s.acoes}>
+                {/* 26/10 (Bruno) — A ABA "TELEFONE ERRADO" ERA BECO SEM SAÍDA. Caso:
+                    Francine Paiva (429.670.428-11) — marcada tel errado, acharam o número,
+                    falaram com ela e viram que não tinha direito, mas a tela não tinha
+                    botão nenhum aqui. O banco (retroativo_vendedor_marcar) sempre aceitou
+                    'reabrir' e 'sem_direito' de qualquer situação; faltava só a tela.
+                    · Achei o telefone -> 'reabrir': volta pra "Em contato" e marca o
+                      pedido de resgate de telefone como resolvido. O número novo vai na
+                      observação (o lead não tem campo de telefone pra trocar aqui).
+                    · Não tem direito -> 'sem_direito', motivo obrigatório como nas outras abas. */}
+                {l._aba === 'tel' && (
+                  <>
+                    <button style={s.btnAcao(cores.ok)} disabled={marcando === l.id}
+                      onClick={() => {
+                        const ch = `${l.id}:reabrir`
+                        if (obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
+                        marcar(l, 'reabrir')
+                      }}>
+                      📞 Achei o telefone — voltar pra mesa
+                    </button>
+                    <button style={s.btnAcao(cores.suave)} disabled={marcando === l.id}
+                      onClick={() => {
+                        const ch = `${l.id}:sem_direito`
+                        if (obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
+                        marcar(l, 'sem_direito')
+                      }}>
+                      🚫 Não tem direito
+                    </button>
+                  </>
+                )}
                 <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
                 {linkFichaCnis(l.cpf) && (
                   <a style={{ ...s.btnAcao(cores.azul), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
@@ -998,6 +1027,25 @@ export default function RevisaoIARetroativo({ setPage }) {
                     Cadastrar de novo
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* 26/10 — caixa de observação da aba "Telefone errado". Mesmo
+                comportamento das abas de trabalho: abre no 1º clique, grava no Confirmar. */}
+            {l._aba === 'tel' && chaveObs && (
+              <div>
+                <textarea style={s.obsArea} value={obs} onChange={e => setObs(e.target.value)}
+                  placeholder={chaveObs.endsWith(':sem_direito')
+                    ? 'Por que ela não tem direito? (obrigatório)'
+                    : 'Escreva o telefone novo e como achou (fica anotado no card).'} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button style={{ ...ui.btnPrimario, opacity: marcando === l.id ? .6 : 1 }}
+                    disabled={marcando === l.id}
+                    onClick={() => marcar(l, chaveObs.split(':')[1])}>
+                    {marcando === l.id ? 'Gravando…' : 'Confirmar'}
+                  </button>
+                  <button style={s.btnGhost} onClick={() => { setObsAberta(null); setObs('') }}>Cancelar</button>
+                </div>
               </div>
             )}
           </div>
