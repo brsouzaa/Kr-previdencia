@@ -67,6 +67,7 @@ const IDS_VENDAS_RETROATIVO = [
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
   '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: entrou no time de 12 da KR
+  '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza (leandrosouza) — 27/10: time de 12 da KR
   // 19/10 — RT CRÉDITOS (Ronaldo Arcari), a parceria. O acesso dele foi criado no
   // BANCO em 17/10 (bf_agentes faixa 'rt') e o front ficou de fora: ele recebeu
   // 2 leads em 19/10 e nao conseguia abrir a tela pra ver nenhum dos dois.
@@ -103,6 +104,7 @@ const IDS_SO_RETROATIVO = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
   '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: entra ja so no retroativo
+  '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza — 27/10: entra ja so no retroativo
 ]
 // O pacote completo do vendedor do retroativo: a mesa, o proprio numero e o que
 // ele precisa pra digitar a cliente que fechou.
