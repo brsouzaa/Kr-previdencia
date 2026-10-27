@@ -39,6 +39,7 @@ const IDS_SO_RETROATIVO = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
   '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10
+  '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza — 27/10
 ]
 // A ordem aqui e a ordem do dia dela: a mesa primeiro, o numero dela depois,
 // e por fim o que ela usa quando a cliente fecha.
@@ -494,6 +495,7 @@ export default function Layout({ children, page, setPage }) {
     '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
     '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
     '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: time de 12 da KR
+    '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza (leandrosouza) — 27/10: time de 12 da KR
     // 19/10 — RT CRÉDITOS (Ronaldo Arcari): o acesso dele foi criado no banco em
     // 17/10 e o menu ficou de fora, entao ele recebeu 2 leads em 19/10 sem ter
     // como abrir a tela. MESMA lista do App.js.
