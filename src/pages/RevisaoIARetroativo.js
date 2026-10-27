@@ -80,6 +80,7 @@ const SUPERVISORAS_TIME = {
     'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
     'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
     '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves)
+    '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza — 27/10
     '0a5958b9-d43b-4bac-a01d-af60247dd721', // a própria Agatha
   ],
 }
