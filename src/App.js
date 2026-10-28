@@ -56,6 +56,8 @@ import CentralRetorno from './pages/CentralRetorno'
 import RevisaoCrefaz from './pages/RevisaoCrefaz'
 import MesaAdvogada from './pages/MesaAdvogada'
 import FichaCNIS from './pages/FichaCNIS'
+import Protocolo from './pages/Protocolo'
+import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -313,6 +315,11 @@ function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
   if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // 28/10 (Bruno) — SETOR DE PROTOCOLO: libera quem tem profiles.protocolo_papel
+  // (Jessica = advogada, Sthefany = acompanhamento) e o admin. Fica no TOPO porque
+  // a advogada so tem a mesa no papel dela (a linha do role advogada viria antes).
+  // Nao tem id fixo aqui: entrar ou sair do setor e so mudar a coluna no banco.
+  if (page === 'protocolo') return role === 'admin' || !!profile.protocolo_papel
   // 19/10 (Bruno) — SO RETROATIVO. Fica no TOPO de proposito: e um corte, nao uma
   // adicao, e tem que vencer tudo que vem depois — inclusive a regra do
   // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
@@ -354,9 +361,10 @@ function paginaPermitida(profile, page) {
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
-  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae','confere_cnis'].includes(page)) return true
-  // Sthefany (analista): valida direito na etapa de analise do Acompanhamento Mae
-  if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
+  // 28/10 (Bruno): 'acompanhamento_mae' saiu — a tela foi substituida pelo setor de Protocolo.
+  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','confere_cnis'].includes(page)) return true
+  // 28/10 (Bruno): a Sthefany saiu do Acompanhamento Mae — agora acompanha pelo setor de
+  // Protocolo (regra 'protocolo' no topo). Os dados do acompanhamento_mae ficam no banco.
   // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): a tela nao faz parte do papel delas
   if (IDS_SIMULACAO_EMPRESTIMO.includes(profile.id) && page === 'simulacao_emprestimo') return true
   // Digitacao por ID (Joana, Pamela): cadastrar cliente e ver a propria producao
@@ -430,6 +438,11 @@ function AppInner() {
   // Fica FORA do Layout de proposito: na impressao o documento sai limpo, sem menu.
   if (window.location.pathname.startsWith('/ficha/')) return <FichaCNIS />
 
+  // 28/10 (Bruno) — FICHA DO PROTOCOLO: /protocolo/<cpf> abre a ficha do caso em aba
+  // propria (mesmo esquema da /ficha/: depois do login, fora do Layout). A propria
+  // pagina confere se a pessoa tem acesso ao setor.
+  if (window.location.pathname.startsWith('/protocolo/')) return <ProtocoloFichaPagina />
+
   // 23/10 (Bruno) — botao "Fechou! Cadastrar a venda" da Mesa do Retroativo leva
   // direto pro Novo Cliente. O setPage SO vai pra quem tem a tela novo_cliente
   // (mesma regra paginaPermitida de baixo). Sem isso, quem nao tem a tela (ex.:
@@ -486,6 +499,7 @@ function AppInner() {
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
     mesa_advogada: <MesaAdvogada />,
+    protocolo: <Protocolo />,
     revisao_crefaz: <RevisaoCrefaz />,
   }
 
