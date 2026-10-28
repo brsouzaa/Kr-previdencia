@@ -42,6 +42,16 @@ const cpfBonito = (c) => {
   const n = String(c || '').replace(/\D/g, '')
   return n.length === 11 ? n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : (c || '—')
 }
+const soDig = (v) => String(v || '').replace(/\D/g, '')
+const telBonito = (t) => {
+  const n = soDig(t)
+  if (n.length === 11) return n.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  if (n.length === 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  return t || '—'
+}
+const refsDe = (cli) => (Array.isArray(cli?.contatos_referencia) ? cli.contatos_referencia : [])
+  .filter(r => r && (r.nome || r.telefone))
+const parentescoDe = (r) => (r.parentesco === 'Outro' && r.parentesco_outro ? r.parentesco_outro : r.parentesco) || 'parentesco não informado'
 const dinheiro = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const dataBR = (v) => {
   if (!v) return '—'
@@ -239,6 +249,30 @@ export default function FichaCliente({ vendaId, aoFechar, aoAceitar, aoBarrar, a
               {cli.observacao && (
                 <div style={{ marginTop: 9 }}><Campo rot="Observação">{cli.observacao}</Campo></div>
               )}
+
+              {/* 28/10 (Bruno) — 2 contatos de referencia, obrigatorios no Novo cliente
+                  desde 28/10. Cadastro anterior nao tem: a ficha diz isso. */}
+              {!cli.fora_do_crm && (<>
+                <div style={s.secao}>Contatos de referência</div>
+                {refsDe(cli).length ? (
+                  <div style={s.grade}>
+                    {refsDe(cli).map((r, i) => (
+                      <Campo key={i} rot={`Referência ${i + 1} · ${parentescoDe(r)}`}>
+                        <b>{r.nome || '—'}</b>
+                        <div>
+                          {telBonito(r.telefone)}
+                          {soDig(r.telefone).length >= 10 && (
+                            <a href={`https://wa.me/55${soDig(r.telefone)}`} target="_blank" rel="noreferrer"
+                              style={{ marginLeft: 8, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>WhatsApp</a>
+                          )}
+                        </div>
+                      </Campo>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12.5, color: COR.fraca }}>Sem referências — cadastro feito antes da regra de 28/10.</div>
+                )}
+              </>)}
 
               <div style={s.secao}>A venda</div>
               <div style={s.grade}>
