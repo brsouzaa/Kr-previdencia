@@ -818,6 +818,32 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
     </div>
   )
 
+  // 28/10 (Bruno) — contatos de referencia do cadastro (obrigatorios desde 28/10).
+  // Pra Sthefany achar a cliente quando o numero dela nao responde. Cadastro
+  // anterior a regra nao tem: o bloco simplesmente nao aparece.
+  const refs = (Array.isArray(f.referencias) ? f.referencias : []).filter(r => r && (r.nome || r.telefone))
+  const blocoRefs = refs.length ? (
+    <div style={{ ...card, padding: 18 }}>
+      <div style={tituloSecao}>📞 Contatos de referência</div>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {refs.map((r, i) => {
+          const tel = soDig(r.telefone)
+          const parent = r.parentesco === 'Outro' && r.parentesco_outro ? r.parentesco_outro : r.parentesco
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', border: `1px solid ${cores.cardBorda}`, borderRadius: 12, background: '#fff' }}>
+              <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: cores.texto, overflowWrap: 'anywhere' }}>{r.nome || 'Sem nome'}</div>
+                <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 2 }}>{parent || 'Parentesco não informado'} · {fmtTel(tel) || '—'}</div>
+              </div>
+              {tel && <button onClick={() => copiar('Telefone', tel)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>⧉ Copiar</button>}
+              {tel && <a href={`https://wa.me/55${tel}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 10px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  ) : null
+
   const blocoProtocolo = (caso.numero_protocolo || caso.resposta_inss_url || caso.exigencia_texto || caso.data_resultado) ? (
     <div style={{ ...card, padding: 18 }}>
       <div style={tituloSecao}>🏛️ INSS</div>
@@ -1049,6 +1075,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
         <div style={{ display: 'grid', gap: 16, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 12 }}>
           {painelIA}
           {blocoPend}
+          {blocoRefs}
           {blocoTempo}
         </div>
       </div>
