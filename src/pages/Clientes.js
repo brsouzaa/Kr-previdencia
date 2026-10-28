@@ -215,6 +215,7 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
   const endereco = [c.rua, c.numero, c.bairro].filter(Boolean).join(', ') || c.endereco || ''
   const adv = advogadoDe(c)
   const dadosProd = c.dados_produto && typeof c.dados_produto === 'object' ? c.dados_produto : {}
+  const refsCli = (Array.isArray(c.contatos_referencia) ? c.contatos_referencia : []).filter(r => r && (r.nome || r.telefone))
   const LABELS_DADOS = {
     data_nascimento_bebe: '👶 Nascimento do bebê',
     ja_trabalhou_clt: '💼 Já trabalhou CLT',
@@ -281,6 +282,34 @@ function DetalhesModal({ c, prints, onClose, onSalvarDoc }) {
             </div>
           )}
         </div>
+
+        {/* 28/10 (Bruno) — contatos de referencia (obrigatorios no Novo cliente desde 28/10) */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: cores.suave, textTransform: 'uppercase', letterSpacing: '.06em', margin: '16px 0 8px' }}>📞 Contatos de referência</div>
+        {refsCli.length ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 16px' }}>
+            {refsCli.map((r, i) => {
+              const tel = String(r.telefone || '').replace(/\D/g, '')
+              const telFmt = tel.length === 11 ? tel.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+                : tel.length === 10 ? tel.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3') : (r.telefone || '—')
+              const parent = (r.parentesco === 'Outro' && r.parentesco_outro ? r.parentesco_outro : r.parentesco) || 'parentesco não informado'
+              return (
+                <div key={i} style={{ fontSize: 13, color: '#334155', minWidth: 0 }}>
+                  <div style={{ color: cores.suave, fontSize: 11, marginBottom: 1 }}>Referência {i + 1} · {parent}</div>
+                  <div style={{ wordBreak: 'break-word', fontWeight: 600 }}>{r.nome || '—'}</div>
+                  <div>
+                    {telFmt}
+                    {tel.length >= 10 && (
+                      <a href={`https://wa.me/55${tel}`} target="_blank" rel="noreferrer"
+                        style={{ marginLeft: 8, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>WhatsApp</a>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: cores.suave }}>Sem referências — cadastro feito antes da regra de 28/10.</div>
+        )}
 
         {Object.keys(dadosProd).length > 0 && (
           <>
