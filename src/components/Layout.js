@@ -254,7 +254,7 @@ const NAV_ADMIN = [
   { key: 'confere_cnis', label: '🔬 Confere CNIS' },
   { key: 'central_retorno', label: '📣 Central de Retorno' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
-  { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' },
+  { key: 'protocolo', label: '📑 Protocolo INSS' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
@@ -277,7 +277,7 @@ const GRUPO_DE = {
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
   revisao_crefaz: 'Operação IA',
-  mesa_advogada: 'Operação IA',
+  mesa_advogada: 'Operação IA', protocolo: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -375,17 +375,16 @@ export default function Layout({ children, page, setPage }) {
   if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'pos_venda')) {
     nav = [...nav, { key: 'pos_venda', label: '📞 Pós-venda (Mãe)' }]
   }
-  // Karol: setor de acompanhamento Maternidade Mae
-  if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'acompanhamento_mae')) {
-    nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
-  }
+  // 28/10 (Bruno): o item 'Acompanhamento Mãe' da Karol saiu — substituido pelo setor de Protocolo.
   // Karol: acesso ao Confere CNIS (conferir CNIS das clientes Maternidade Mae)
   if (profile?.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && !nav.some(n => n.key === 'confere_cnis')) {
     nav = [...nav, { key: 'confere_cnis', label: '🔬 Confere CNIS' }]
   }
-  // Sthefany: valida direito na etapa de analise do Acompanhamento Mae
-  if (profile?.id === '88929e81-7223-4754-a17b-1cd08f46195d' && !nav.some(n => n.key === 'acompanhamento_mae')) {
-    nav = [...nav, { key: 'acompanhamento_mae', label: '🍼 Acompanhamento Mãe' }]
+  // 28/10 (Bruno) — SETOR DE PROTOCOLO: quem tem profiles.protocolo_papel (Jessica,
+  // Sthefany) ganha o item no TOPO do menu. Mesma regra do App.js (paginaPermitida).
+  // O 'Acompanhamento Mãe' da Sthefany saiu: ela acompanha os protocolos por aqui.
+  if (profile?.protocolo_papel && !nav.some(n => n.key === 'protocolo')) {
+    nav = [{ key: 'protocolo', label: '📑 Protocolo INSS' }, ...nav]
   }
   // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): o papel delas nao tem essa tela
   if (IDS_SIMULACAO_EMPRESTIMO.includes(profile?.id) && !nav.some(n => n.key === 'simulacao_emprestimo')) {
