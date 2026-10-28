@@ -64,6 +64,18 @@ const MOTIVOS_APROVACAO_MAE = [
   'Cliente 24 meses de contribuição por ter 120 contribuições',
 ]
 
+// ===== CONTATOS DE REFERENCIA (28/10, Bruno) =====
+// Obrigatorios em TODO cadastro novo: 2 pessoas que conhecem a cliente, com o
+// parentesco. Servem pra achar a cliente quando o numero dela some ou para de
+// responder (assinatura, pos-venda, exigencia do INSS). Vai pra coluna nova
+// clientes.contatos_referencia. Cadastro antigo fica como esta (nulo).
+const PARENTESCOS = [
+  'Mãe', 'Pai', 'Irmão / Irmã', 'Marido / Esposa / Companheiro(a)', 'Filho / Filha',
+  'Avô / Avó', 'Tio / Tia', 'Primo / Prima', 'Sogro / Sogra', 'Cunhado / Cunhada',
+  'Amigo / Amiga', 'Vizinho / Vizinha', 'Outro',
+]
+const REF_VAZIA = { nome: '', telefone: '', parentesco: '', parentesco_outro: '' }
+
 function maskCPF(v) {
   v = (v || '').replace(/\D/g, '').slice(0, 11)
   if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2}).*/, '$1.$2.$3-$4')
@@ -171,6 +183,11 @@ export default function NovoCliente({ onSucesso }) {
     comprovante_endereco: null,
     extrato_fgts: null,
   })
+
+  const [refs, setRefs] = useState([{ ...REF_VAZIA }, { ...REF_VAZIA }])
+  function setRef(i, campo, valor) {
+    setRefs(rs => rs.map((r, j) => (j === i ? { ...r, [campo]: valor } : r)))
+  }
 
   const [duplicado, setDuplicado] = useState(null)
   const [verificandoCpf, setVerificandoCpf] = useState(false)
@@ -377,7 +394,24 @@ export default function NovoCliente({ onSucesso }) {
   // Nos outros produtos nada muda (o componente nem aparece).
   const validacaoIaOk = !ehMae || validacao?.resultado === 'aprovado'
 
-  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && docsOk && validacaoIaOk
+  // 28/10 — contatos de referencia: nome, telefone valido e parentesco nos dois.
+  // O telefone nao pode ser o da propria cliente nem repetir entre os dois:
+  // referencia que cai no mesmo numero nao serve pra nada.
+  const telCliente = (c.telefone || '').replace(/\D/g, '')
+  const refsInfo = refs.map((r, i) => {
+    const tel = (r.telefone || '').replace(/\D/g, '')
+    const outroTel = (refs[1 - i].telefone || '').replace(/\D/g, '')
+    return {
+      nomeOk: r.nome.trim().length >= 3,
+      telOk: telValido(r.telefone),
+      telIgualCliente: tel.length >= 10 && tel === telCliente,
+      telRepetido: i === 1 && tel.length >= 10 && tel === outroTel,
+      parentescoOk: !!r.parentesco && (r.parentesco !== 'Outro' || r.parentesco_outro.trim().length >= 3),
+    }
+  })
+  const refsOk = refsInfo.every(x => x.nomeOk && x.telOk && !x.telIgualCliente && !x.telRepetido && x.parentescoOk)
+
+  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && refsOk && docsOk && validacaoIaOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
@@ -392,6 +426,13 @@ export default function NovoCliente({ onSucesso }) {
         produto: c.produto, observacao: c.observacao || null,
         documentos: docs,
         status: 'aguardando_emissao',
+        // 28/10 — 2 contatos de referencia (obrigatorios na tela)
+        contatos_referencia: refs.map(r => ({
+          nome: r.nome.trim(),
+          telefone: r.telefone.replace(/\D/g, ''),
+          parentesco: r.parentesco,
+          parentesco_outro: r.parentesco === 'Outro' ? r.parentesco_outro.trim() : null,
+        })),
       }
       // Campos extras pra Maternidade e Gestante até 5 meses (ambas grávidas)
       if (c.produto === 'Maternidade' || c.produto === 'Gestante até 5 meses') {
@@ -453,6 +494,7 @@ export default function NovoCliente({ onSucesso }) {
     setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null, extrato_fgts: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
     setCepSemRua(false); setCepSemBairro(false); setValidacao(null)
+    setRefs([{ ...REF_VAZIA }, { ...REF_VAZIA }])
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
 
@@ -566,6 +608,16 @@ export default function NovoCliente({ onSucesso }) {
         f.push('Mês/ano que saiu do último emprego')
       if (!c.motivo_aprovacao) f.push('Por que essa cliente foi aprovada?')
     }
+    refsInfo.forEach((x, i) => {
+      const n = `Referência ${i + 1}`
+      if (!x.nomeOk) f.push(`${n}: nome`)
+      if (!refs[i].telefone) f.push(`${n}: telefone`)
+      else if (!x.telOk) f.push(`${n}: telefone (incompleto)`)
+      else if (x.telIgualCliente) f.push(`${n}: telefone igual ao da cliente`)
+      else if (x.telRepetido) f.push(`${n}: telefone igual ao da referência 1`)
+      if (!refs[i].parentesco) f.push(`${n}: parentesco`)
+      else if (!x.parentescoOk) f.push(`${n}: escreva qual é o parentesco`)
+    })
     if (!docs.rg_frente) f.push('anexar RG Frente')
     if (!docs.rg_verso) f.push('anexar RG Verso')
     if (!docs.comprovante_1) f.push('anexar Comprovante 1')
@@ -783,6 +835,57 @@ export default function NovoCliente({ onSucesso }) {
             </div>
           </>
         )}
+      </div>
+
+      {/* === CONTATOS DE REFERENCIA (28/10, obrigatorio) === */}
+      <div style={s.card}>
+        <div style={s.sectionTitle}>Contatos de referência (2 obrigatórios)</div>
+        <div style={{ ...s.hint, marginTop: 0, marginBottom: 12 }}>
+          Duas pessoas que conhecem a cliente, para falarmos com ela se o número dela parar de responder.
+          Não pode ser o telefone da própria cliente.
+        </div>
+        {refs.map((r, i) => {
+          const x = refsInfo[i]
+          const telErro = r.telefone && (!x.telOk || x.telIgualCliente || x.telRepetido)
+          return (
+            <div key={i} style={{ paddingTop: i ? 12 : 0, marginTop: i ? 4 : 0, borderTop: i ? '0.5px dashed rgba(15,23,42,0.15)' : 'none' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Referência {i + 1}</div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={s.label}>Nome *</label>
+                <input style={s.input} value={r.nome}
+                  onChange={e => setRef(i, 'nome', e.target.value.toUpperCase())}
+                  placeholder="NOME DA PESSOA" />
+              </div>
+              <div style={s.grid2}>
+                <div>
+                  <label style={s.label}>Telefone *</label>
+                  <input style={telErro ? s.inputErr : s.input} value={r.telefone}
+                    onChange={e => setRef(i, 'telefone', maskTel(e.target.value))}
+                    placeholder="(11) 99999-0000" inputMode="numeric" />
+                  {r.telefone && !x.telOk && <div style={s.hintErr}>Telefone incompleto</div>}
+                  {x.telIgualCliente && <div style={s.hintErr}>É o mesmo telefone da cliente</div>}
+                  {x.telRepetido && <div style={s.hintErr}>É o mesmo telefone da referência 1</div>}
+                </div>
+                <div>
+                  <label style={s.label}>Parentesco *</label>
+                  <select style={s.input} value={r.parentesco}
+                    onChange={e => setRef(i, 'parentesco', e.target.value)}>
+                    <option value="">Selecione</option>
+                    {PARENTESCOS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              {r.parentesco === 'Outro' && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={s.label}>Qual é o parentesco? *</label>
+                  <input style={s.input} value={r.parentesco_outro}
+                    onChange={e => setRef(i, 'parentesco_outro', e.target.value)}
+                    placeholder="Ex.: madrinha, patroa, colega de trabalho" />
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* === CAMPOS EXTRAS DO PRODUTO === */}
