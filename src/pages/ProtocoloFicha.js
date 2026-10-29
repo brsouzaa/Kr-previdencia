@@ -647,7 +647,8 @@ const ICONE_EVENTO = {
 // ago/2025) o Mercantil e o 1o em 14 dos 26 lotes. O banco (protocolo_cep_mercantil) devolve o
 // lote da cliente e ate 4 pontos fisicos do Mercantil em regiao onde ele e o 1o: mesma cidade >
 // mesma regiao do INSS > cidade vizinha (SP capital, por zona do CEP) > outra regiao do Mercantil
-// na UF. O ENDERECO DA CLIENTE NAO MUDA: este CEP vai so no campo do banco de preferencia.
+// na UF — fora da cidade dela, so cidade vizinha (raio em app_config cep_sugestao_raio_km).
+// O ENDERECO DA CLIENTE NAO MUDA: este CEP vai so no campo do banco de preferencia.
 function CepMercantil({ cpf, copiar }) {
   const [r, setR] = useState(null)
   const [verTodos, setVerTodos] = useState(false)
@@ -696,11 +697,11 @@ function CepMercantil({ cpf, copiar }) {
         </div>
       ) : (
         <div style={{ fontSize: 13.5, color: '#7f1d1d', fontWeight: 600 }}>
-          {r.aviso ? 'Cadastro sem cidade/UF — confira o endereço da cliente.' : `Não tem região do Mercantil em ${r.uf || 'neste estado'} — não há CEP para sugerir. Deixe o banco que o INSS indicar.`}
+          {r.aviso ? 'Cadastro sem cidade/UF — confira o endereço da cliente.' : `Não tem ponto do Mercantil em ${cidade} nem em cidade vizinha (até ${r.raio_km || 60} km) numa região onde ele é o 1º — não sugerir CEP. Deixe o banco que o INSS indicar.`}
         </div>
       )}
       <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 10 }}>
-        Fontes: leilão da folha do INSS (Pregão 90005/2024{r.crefisa_fora === false ? '' : ', considerando a Crefisa fora'}) e Banco Central{r.posicao_bcb ? ` (pontos do Mercantil em ${fmtData(r.posicao_bcb)})` : ''}.
+        {pts.some(p => p.distancia_km > 0) ? `Fora da cidade da cliente, só cidades a até ${r.raio_km || 60} km (distância entre os centros das cidades). ` : ''}Fontes: leilão da folha do INSS (Pregão 90005/2024{r.crefisa_fora === false ? '' : ', considerando a Crefisa fora'}) e Banco Central{r.posicao_bcb ? ` (pontos do Mercantil em ${fmtData(r.posicao_bcb)})` : ''}.
       </div>
     </div>
   )
