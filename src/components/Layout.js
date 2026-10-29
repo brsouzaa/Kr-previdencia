@@ -255,6 +255,7 @@ const NAV_ADMIN = [
   { key: 'central_retorno', label: '📣 Central de Retorno' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
   { key: 'protocolo', label: '📑 Protocolo INSS' },
+  { key: 'posdef', label: '💰 Pós-deferimento' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
@@ -277,7 +278,7 @@ const GRUPO_DE = {
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
   revisao_crefaz: 'Operação IA',
-  mesa_advogada: 'Operação IA', protocolo: 'Operação IA',
+  mesa_advogada: 'Operação IA', protocolo: 'Operação IA', posdef: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -560,6 +561,12 @@ export default function Layout({ children, page, setPage }) {
   // este bloco subisse, elas continuariam com BF, Gestante e CLT no menu.
   if (IDS_SO_RETROATIVO.includes(profile?.id)) {
     nav = NAV_SO_RETROATIVO
+  }
+  // 29/10 (Bruno) — POS-DEFERIMENTO: quem tem profiles.posdef_papel ganha o item.
+  // Fica DEPOIS do corte do SO RETROATIVO de proposito: o Leandro Souza esta nesse
+  // corte e acompanha as proprias vendas. Mesma regra do App.js (paginaPermitida).
+  if (profile?.posdef_papel && !nav.some(n => n.key === 'posdef')) {
+    nav = [...nav, { key: 'posdef', label: '💰 Pós-deferimento' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
