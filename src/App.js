@@ -58,6 +58,7 @@ import MesaAdvogada from './pages/MesaAdvogada'
 import FichaCNIS from './pages/FichaCNIS'
 import Protocolo from './pages/Protocolo'
 import ProtocoloFichaPagina from './pages/ProtocoloFicha'
+import PosDeferimento from './pages/PosDeferimento'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -320,6 +321,10 @@ function paginaPermitida(profile, page) {
   // a advogada so tem a mesa no papel dela (a linha do role advogada viria antes).
   // Nao tem id fixo aqui: entrar ou sair do setor e so mudar a coluna no banco.
   if (page === 'protocolo') return role === 'admin' || !!profile.protocolo_papel
+  // 29/10 (Bruno) — POS-DEFERIMENTO: quem tem profiles.posdef_papel (time que acompanha
+  // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
+  // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
+  if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
   // 19/10 (Bruno) — SO RETROATIVO. Fica no TOPO de proposito: e um corte, nao uma
   // adicao, e tem que vencer tudo que vem depois — inclusive a regra do
   // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
@@ -500,6 +505,7 @@ function AppInner() {
     central_retorno: <CentralRetorno />,
     mesa_advogada: <MesaAdvogada />,
     protocolo: <Protocolo />,
+    posdef: <PosDeferimento />,
     revisao_crefaz: <RevisaoCrefaz />,
   }
 
