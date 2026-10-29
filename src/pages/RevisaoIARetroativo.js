@@ -412,6 +412,10 @@ export default function RevisaoIARetroativo({ setPage }) {
   // gerid_direitos_dos_leads traz os leads com 2+ filhos; os outros ficam como
   // estão. Mapa lead_id -> [direitos]. Vazio = tela igual à de antes.
   const [direitosExtra, setDireitosExtra] = useState({})
+  // 29/10/2026 (Bruno) — telefone certo pela Assertiva (edge function assertiva-telefone)
+  const [telNovo, setTelNovo] = useState({})              // lead_id -> telefone escolhido
+  const [busTel, setBusTel] = useState(null)              // { l, msg, st, telefones, erro, de_cache }
+  const [usandoTel, setUsandoTel] = useState('')
   // 23/10 — passar para outra vendedora (ver MOTIVOS_TRANSF no topo)
   const [vendsTransf, setVendsTransf] = useState([])     // [{profile_id, nome, faixa}]
   const [transf, setTransf] = useState(null)             // lead sendo passado
@@ -480,6 +484,17 @@ export default function RevisaoIARetroativo({ setPage }) {
         setDireitosExtra(mapa)
       } else setDireitosExtra({})
     } catch (_) { /* fica sem os extras; o card mostra o filho decisivo como sempre */ }
+    // 29/10 — telefone que a vendedora escolheu na Assertiva (o original do lead nao e apagado)
+    try {
+      const ids = visiveis.map(l => l.id).filter(Boolean)
+      if (ids.length) {
+        const { data: tx } = await supabase.rpc('retroativo_tel_assertiva_dos_leads', { p_lead_ids: ids })
+        if (meuReq !== reqAtual.current) return
+        const mapa = {}
+        for (const r of (tx || [])) if (r.tel) mapa[r.lead_id] = r.tel
+        setTelNovo(mapa)
+      }
+    } catch (_) { /* segue com o telefone original */ }
     // vendedorSel NÃO entra aqui: trocar de vendedor é filtro de tela, não
     // recarregamento. Se entrar, cada troca vira uma ida ao servidor de novo.
   }, [profile?.id, vejoMaisDeUm, minhaOp, meuTime])
@@ -635,6 +650,33 @@ export default function RevisaoIARetroativo({ setPage }) {
     setBoard(b => b.map(x => x.id === l.id
       ? { ...x, vend_status: data.status, vend_obs: texto || x.vend_obs, vend_tentativas: data.tentativas ?? x.vend_tentativas, vend_contato_em: x.vend_contato_em || new Date().toISOString() }
       : x))
+    carregar()
+  }
+
+  // ===== TELEFONE CERTO (Assertiva) =====
+  // "Telefone errado" agora primeiro procura o número atualizado da cliente. Só se nenhum
+  // servir é que o lead vai pro resgate, como antes. Cada consulta nova é paga: o mesmo CPF
+  // dentro de 30 dias reaproveita o resultado guardado (sem custo).
+  async function buscarTelefone(l, msg) {
+    setBusTel({ l, msg, st: 'buscando', telefones: [] })
+    try {
+      const { data, error } = await supabase.functions.invoke('assertiva-telefone', { body: { lead_id: l.id } })
+      if (error || !data?.ok) { setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'erro', erro: (data && data.erro) || (error && error.message) || 'não consegui buscar' } : b); return }
+      setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'ok', telefones: data.telefones || [], de_cache: data.de_cache } : b)
+    } catch (e) {
+      setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'erro', erro: String(e.message || e) } : b)
+    }
+  }
+  async function usarTelefone(l, t) {
+    if (usandoTel) return
+    setUsandoTel(t.digitos)
+    const { data, error } = await supabase.rpc('retroativo_tel_usar', { p_lead_id: l.id, p_tel: t.digitos })
+    setUsandoTel('')
+    if (error || !data?.ok) { avisar('Não gravou: ' + (error?.message || data?.erro || 'erro')); return }
+    setTelNovo(m => ({ ...m, [l.id]: data.tel }))
+    setBoard(b => b.map(x => x.id === l.id ? { ...x, vend_status: 'contato', vend_contato_em: x.vend_contato_em || new Date().toISOString() } : x))
+    setBusTel(null)
+    avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, ela continua com você`)
     carregar()
   }
 
@@ -862,7 +904,9 @@ export default function RevisaoIARetroativo({ setPage }) {
             <div style={s.cardTopo}>
               <div style={{ minWidth: 0 }}>
                 <div style={s.nome}>{nomeBonito(l.nome) || 'Sem nome'}</div>
-                <div style={s.meta}>{fmtTel(l.tel)} · CPF {fmtCPF(l.cpf)}</div>
+                <div style={s.meta}>
+                  {telNovo[l.id] ? <><b style={{ color: cores.ok }}>📞 {fmtTel(telNovo[l.id])}</b> <span style={{ textDecoration: 'line-through' }}>{fmtTel(l.tel)}</span></> : fmtTel(l.tel)} · CPF {fmtCPF(l.cpf)}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {direitos && <span style={ui.pill(cores.azul)}>{direitos.length} filhos com direito</span>}
@@ -965,8 +1009,8 @@ export default function RevisaoIARetroativo({ setPage }) {
                 </div>
 
                 <div style={s.acoes}>
-                  {linkWhats(l.tel, msg) && (
-                    <a style={s.btnPegar} href={linkWhats(l.tel, msg)} target="_blank" rel="noreferrer"
+                  {linkWhats(telNovo[l.id] || l.tel, msg) && (
+                    <a style={s.btnPegar} href={linkWhats(telNovo[l.id] || l.tel, msg)} target="_blank" rel="noreferrer"
                       onClick={() => { if (l.vend_status !== 'contato') marcar(l, 'pegar') }}>
                       💬 Abrir o WhatsApp já com a mensagem
                     </a>
@@ -981,6 +1025,7 @@ export default function RevisaoIARetroativo({ setPage }) {
                     <button key={a.id} style={s.btnAcao(a.cor)} disabled={marcando === l.id}
                       onClick={() => {
                         const ch = `${l.id}:${a.id}`
+                        if (a.id === 'tel_errado') { buscarTelefone(l, msg); return }
                         if (a.exigeObs && obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
                         marcar(l, a.id)
                       }}>
@@ -1034,6 +1079,7 @@ export default function RevisaoIARetroativo({ setPage }) {
                     · Não tem direito -> 'sem_direito', motivo obrigatório como nas outras abas. */}
                 {l._aba === 'tel' && (
                   <>
+                    <button style={s.btnAcao(cores.azul)} onClick={() => buscarTelefone(l, msg)}>🔎 Buscar telefone certo</button>
                     <button style={s.btnAcao(cores.ok)} disabled={marcando === l.id}
                       onClick={() => {
                         const ch = `${l.id}:reabrir`
@@ -1086,6 +1132,68 @@ export default function RevisaoIARetroativo({ setPage }) {
           </div>
         )
       })}
+
+      {/* ===== TELEFONE CERTO (Assertiva) ===== */}
+      {busTel && (
+        <div style={{ ...s.overlay, zIndex: 960 }} onClick={() => !usandoTel && setBusTel(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: cores.texto }}>📞 Telefone certo</div>
+                <div style={{ fontSize: 13, color: cores.suave, marginTop: 2 }}>{nomeBonito(busTel.l.nome)} · número que não deu: {fmtTel(busTel.l.tel)}</div>
+              </div>
+              <button style={s.btnGhost} onClick={() => setBusTel(null)}>Fechar</button>
+            </div>
+            {busTel.st === 'buscando' && <div style={{ padding: '22px 0', fontSize: 14, color: cores.suave }}>🔎 Procurando os telefones atualizados dela…</div>}
+            {busTel.st === 'erro' && (
+              <div style={{ marginTop: 14, fontSize: 13.5, color: cores.perigo }}>
+                Não consegui buscar: {busTel.erro}
+                <div style={{ marginTop: 8 }}><button style={s.btnAcao(cores.azul)} onClick={() => buscarTelefone(busTel.l, busTel.msg)}>Tentar de novo</button></div>
+              </div>
+            )}
+            {busTel.st === 'ok' && (
+              <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
+                {busTel.telefones.length === 0 && <div style={{ fontSize: 13.5, color: cores.suave }}>Nenhum outro telefone encontrado para esse CPF.</div>}
+                {busTel.telefones.slice(0, 6).map((t, i) => (
+                  <div key={t.digitos} style={{ border: `1px solid ${i === 0 && !t.e_o_atual && !t.nao_perturbe ? cores.ok + '66' : 'rgba(15,23,42,.1)'}`, background: i === 0 && !t.e_o_atual && !t.nao_perturbe ? cores.ok + '0d' : '#fff', borderRadius: 12, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <div style={{ fontSize: 15.5, fontWeight: 800, color: cores.texto }}>{t.numero}{i === 0 && !t.e_o_atual && !t.nao_perturbe ? <span style={{ ...ui.pill(cores.ok), marginLeft: 8 }}>mais provável</span> : null}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4, fontSize: 12, color: cores.suave }}>
+                        <span>{t.tipo === 'movel' ? 'celular' : 'fixo'}</span>
+                        {t.whatsapp && <span style={{ color: cores.ok, fontWeight: 700 }}>· tem WhatsApp</span>}
+                        {t.operadora && <span>· {t.operadora}</span>}
+                        {t.ultimo_contato && <span>· {t.ultimo_contato.toLowerCase()}</span>}
+                        {t.relacao && !/direto/i.test(t.relacao) && <span>· {t.relacao}</span>}
+                      </div>
+                      {t.e_o_atual && <div style={{ fontSize: 12, fontWeight: 700, color: cores.alerta, marginTop: 3 }}>é o número que já está no lead</div>}
+                      {t.nao_perturbe && <div style={{ fontSize: 12, fontWeight: 700, color: cores.perigo, marginTop: 3 }}>⚠️ cadastrado no "Não perturbe" — evite</div>}
+                    </div>
+                    {!t.e_o_atual && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {t.tipo === 'movel' && linkWhats(t.digitos, busTel.msg) && (
+                          <a style={{ ...s.btnAcao(cores.ok), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }} href={linkWhats(t.digitos, busTel.msg)} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+                        )}
+                        <button style={s.btnAcao(cores.azul)} disabled={!!usandoTel} onClick={() => usarTelefone(busTel.l, t)}>
+                          {usandoTel === t.digitos ? 'Salvando…' : '✓ Esse é o certo'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div style={{ fontSize: 11.5, color: cores.suave }}>Fonte: Assertiva{busTel.de_cache ? ' (consulta guardada, sem custo)' : ''}. Mande a mensagem e, quando ela responder, marque "Esse é o certo".</div>
+              </div>
+            )}
+            {busTel.l.vend_status !== 'tel_errado' && busTel.st !== 'buscando' && (
+              <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(15,23,42,.08)' }}>
+                <button style={s.btnAcao(cores.perigo)} disabled={marcando === busTel.l.id}
+                  onClick={() => { const l = busTel.l; setBusTel(null); marcar(l, 'tel_errado') }}>
+                  Nenhum serve — mandar pro resgate (telefone errado)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ===== FICHA ===== */}
       {ficha && (
