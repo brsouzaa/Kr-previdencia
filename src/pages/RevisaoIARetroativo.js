@@ -416,6 +416,7 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [telNovo, setTelNovo] = useState({})              // lead_id -> telefone escolhido
   const [busTel, setBusTel] = useState(null)              // { l, msg, st, telefones, erro, de_cache }
   const [usandoTel, setUsandoTel] = useState('')
+  const [telManual, setTelManual] = useState('')          // "Achei por outro meio": numero digitado
   // 23/10 — passar para outra vendedora (ver MOTIVOS_TRANSF no topo)
   const [vendsTransf, setVendsTransf] = useState([])     // [{profile_id, nome, faixa}]
   const [transf, setTransf] = useState(null)             // lead sendo passado
@@ -677,6 +678,26 @@ export default function RevisaoIARetroativo({ setPage }) {
     setBoard(b => b.map(x => x.id === l.id ? { ...x, vend_status: 'contato', vend_contato_em: x.vend_contato_em || new Date().toISOString() } : x))
     setBusTel(null)
     avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, ela continua com você`)
+    carregar()
+  }
+
+  // 29/10 (Bruno) — "Achei por outro meio": o numero veio por fora da Assertiva (referencia,
+  // a cliente chamou, resgate). Grava igual ao "Esse e o certo" (card e WhatsApp passam a usar o
+  // numero novo, sai de Telefone errado) e, se tiver anotacao, registra junto.
+  async function acheiPorFora(l) {
+    const d = soDigitos(telManual)
+    if (d.length < 10 || d.length > 13) { avisar('Digite o telefone com DDD'); return }
+    if (marcando) return
+    setMarcando(l.id)
+    const { data, error } = await supabase.rpc('retroativo_tel_usar', { p_lead_id: l.id, p_tel: d })
+    if (error || !data?.ok) { setMarcando(null); avisar('Não gravou: ' + (error?.message || data?.erro || 'erro')); return }
+    const nota = obs.trim()
+    if (nota) await supabase.rpc('retroativo_vendedor_marcar', { p_lead_id: l.id, p_acao: 'reabrir', p_obs: `Telefone novo ${fmtTel(d)} — ${nota}` })
+    setMarcando(null)
+    setTelNovo(m => ({ ...m, [l.id]: data.tel }))
+    setBoard(b => b.map(x => x.id === l.id ? { ...x, vend_status: 'contato', vend_obs: nota ? `Telefone novo ${fmtTel(d)} — ${nota}` : x.vend_obs } : x))
+    setObsAberta(null); setObs(''); setTelManual('')
+    avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, voltou pra sua mesa`)
     carregar()
   }
 
@@ -1073,20 +1094,20 @@ export default function RevisaoIARetroativo({ setPage }) {
                     falaram com ela e viram que não tinha direito, mas a tela não tinha
                     botão nenhum aqui. O banco (retroativo_vendedor_marcar) sempre aceitou
                     'reabrir' e 'sem_direito' de qualquer situação; faltava só a tela.
-                    · Achei o telefone -> 'reabrir': volta pra "Em contato" e marca o
-                      pedido de resgate de telefone como resolvido. O número novo vai na
-                      observação (o lead não tem campo de telefone pra trocar aqui).
+                    · 29/10: virou "Achei por outro meio" — pede o TELEFONE (obrigatório) e grava
+                      igual ao "Esse é o certo" da Assertiva (retroativo_tel_usar): o card e o
+                      WhatsApp passam a usar o número novo e o resgate fica resolvido.
                     · Não tem direito -> 'sem_direito', motivo obrigatório como nas outras abas. */}
                 {l._aba === 'tel' && (
                   <>
-                    <button style={s.btnAcao(cores.azul)} onClick={() => buscarTelefone(l, msg)}>🔎 Buscar telefone certo</button>
-                    <button style={s.btnAcao(cores.ok)} disabled={marcando === l.id}
+                    <button style={{ ...s.btnAcao(cores.azul), fontWeight: 800, background: `${cores.azul}14` }} onClick={() => buscarTelefone(l, msg)}>🔎 Buscar telefone certo</button>
+                    <button style={s.btnAcao(cores.suave)} disabled={marcando === l.id}
                       onClick={() => {
                         const ch = `${l.id}:reabrir`
-                        if (obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
-                        marcar(l, 'reabrir')
+                        if (obsAberta !== ch) { setObsAberta(ch); setObs(''); setTelManual(''); return }
+                        setObsAberta(null); setObs(''); setTelManual('')
                       }}>
-                      📞 Achei o telefone — voltar pra mesa
+                      📞 Achei por outro meio
                     </button>
                     <button style={s.btnAcao(cores.suave)} disabled={marcando === l.id}
                       onClick={() => {
@@ -1115,14 +1136,19 @@ export default function RevisaoIARetroativo({ setPage }) {
                 comportamento das abas de trabalho: abre no 1º clique, grava no Confirmar. */}
             {l._aba === 'tel' && chaveObs && (
               <div>
+                {chaveObs.endsWith(':reabrir') && (
+                  <input value={telManual} onChange={e => setTelManual(e.target.value)} inputMode="tel"
+                    placeholder="Telefone novo com DDD (obrigatório) — ex.: (11) 98765-4321"
+                    style={{ ...s.obsArea, minHeight: 0, height: 44, marginBottom: 8, fontWeight: 700 }} />
+                )}
                 <textarea style={s.obsArea} value={obs} onChange={e => setObs(e.target.value)}
                   placeholder={chaveObs.endsWith(':sem_direito')
                     ? 'Por que ela não tem direito? (obrigatório)'
-                    : 'Escreva o telefone novo e como achou (fica anotado no card).'} />
+                    : 'Como achou o número? (opcional — ex.: contato de referência, ela chamou)'} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button style={{ ...ui.btnPrimario, opacity: marcando === l.id ? .6 : 1 }}
-                    disabled={marcando === l.id}
-                    onClick={() => marcar(l, chaveObs.split(':')[1])}>
+                  <button style={{ ...ui.btnPrimario, opacity: marcando === l.id || (chaveObs.endsWith(':reabrir') && soDigitos(telManual).length < 10) ? .6 : 1 }}
+                    disabled={marcando === l.id || (chaveObs.endsWith(':reabrir') && soDigitos(telManual).length < 10)}
+                    onClick={() => (chaveObs.endsWith(':reabrir') ? acheiPorFora(l) : marcar(l, chaveObs.split(':')[1]))}>
                     {marcando === l.id ? 'Gravando…' : 'Confirmar'}
                   </button>
                   <button style={s.btnGhost} onClick={() => { setObsAberta(null); setObs('') }}>Cancelar</button>
