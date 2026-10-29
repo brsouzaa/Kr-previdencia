@@ -59,19 +59,186 @@ const primeiroNome = (n) => { const p = String(n || '').trim().split(/\s+/)[0] |
 const bancoCurto = (b) => { const s = String(b || ''); if (/mercantil/i.test(s)) return 'Mercantil'; if (/caixa/i.test(s)) return 'Caixa'; if (/banco do brasil/i.test(s)) return 'Banco do Brasil'; return s.replace(/^Banco\s+/i, '').slice(0, 18) }
 const telWa = (t) => { let d = soDig(t); if (d.startsWith('55') && d.length > 11) d = d.slice(2); return d.length >= 10 ? '55' + d : null }
 
-const msgDeferido = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! 🎉 Temos uma ótima notícia: o seu salário-maternidade foi *APROVADO (deferido) pelo INSS*.\n\nAgora o próximo passo é a carta de concessão, que informa o banco e a data do pagamento. Assim que ela sair, te avisamos por aqui.\n\nQualquer dúvida, é só chamar! — KR Previdência`
-// 29/10 (Bruno) — o lembrete muda com o tipo de cobranca. Textos provisorios: o Bruno
-// vai mandar as mensagens oficiais de cada etapa.
 const ehAutomatico = (c) => c.prevsempre && c.prevsempre_honorario_auto === true
-const msgPagamentoAuto = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! Passando para lembrar: o pagamento do seu salário-maternidade está previsto para *${fmtData(c.data_pagamento)}* na sua conta *PrevSempre (Mercantil)*.\n\nComo combinamos, os honorários são descontados automaticamente — você não precisa fazer nada. Quando cair, me avisa por aqui, por favor! — KR Previdência`
-const msgPagamento = (c) => ehAutomatico(c) ? msgPagamentoAuto(c) : msgPagamentoCobrar(c)
-const msgPagamentoCobrar = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! Passando para lembrar: o pagamento do seu salário-maternidade está previsto para *${fmtData(c.data_pagamento)}*${c.banco ? ` no *${c.banco}*` : ''}.\n\nQuando cair, me avisa por aqui, por favor. Qualquer dúvida, estou à disposição! — KR Previdência`
+
+// ---------------------------------------------------------------- guia de mensagens (29/10, Bruno)
+// Cada etapa tem o seu roteiro de WhatsApp. Passo 1 = CHAMAR a cliente (o texto varia de
+// cliente para cliente, pra nao parecer automatico) e ESPERAR ela responder; depois vem o
+// texto da etapa. A REVISAO DO INSS entra so como expectativa: nunca falar valor nem prometer.
+// Se a cliente perguntar: "estou confirmando com a advogada".
+// O "como pagar o honorario" vem do banco (app_config posdef_como_pagar_honorario) para o
+// Bruno ajustar sem mexer no codigo.
+const COMO_PAGAR_PADRAO = 'eu te passo o valor certinho e a forma de pagamento para você fazer o nosso pagamento (os honorários)'
+const DIAS_RAPIDO = 30   // deferiu em ate 30 dias do protocolo = mensagem "saiu rapidinho"
+const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'bom dia' : h < 18 ? 'boa tarde' : 'boa noite' }
+const maiusc = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
+const diaLongo = (iso) => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) } catch (_) { return '' } }
+const quandoPag = (c) => { const d = c.data_pagamento ? -diasApos(c.data_pagamento) : null; return d === 0 ? 'hoje' : d === 1 ? 'amanhã' : c.data_pagamento ? `dia ${fmtData(c.data_pagamento)}` : 'no dia do pagamento' }
+const hashTxt = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h }
+
+// tudo o que os textos usam, ja pronto
+function ctxMsg(c, eu, comoPagar) {
+  const dias = c.data_protocolo && c.data_deferimento ? Math.round((new Date(c.data_deferimento + 'T12:00:00') - new Date(String(c.data_protocolo).slice(0, 10) + 'T12:00:00')) / 86400000) : null
+  return {
+    n: primeiroNome(c.nome) || 'tudo bem',
+    s: saudacao(),
+    aqui: eu ? `Aqui é ${eu}, da KR Previdência` : 'Aqui é da KR Previdência',
+    banco: c.prevsempre ? 'Banco Mercantil' : (c.banco || 'banco'),
+    data: c.data_pagamento ? `${fmtData(c.data_pagamento)} (${diaLongo(c.data_pagamento)})` : 'a data da carta',
+    quando: quandoPag(c),
+    comoPagar: comoPagar || COMO_PAGAR_PADRAO,
+    dias,
+    rapido: dias != null && dias >= 0 && dias <= DIAS_RAPIDO,
+  }
+}
+
+const CHAMAR_CARTA = [
+  x => `${x.n}, ${x.s}! Você tá por aí? Chegou a sua *carta de concessão* e queria alinhar uns detalhes com você 😊`,
+  x => `Oi, ${x.n}! ${x.aqui}. Saiu a sua carta de concessão!! Me chama quando puder que te explico como vai ser o pagamento 🙏`,
+  x => `Dona ${x.n}, novidade boa do seu processo de novo 👀 Tem um minutinho pra eu te contar como vai ser o seu pagamento?`,
+]
+const NOVIDADE = x => `Ahh, ${x.n}, e uma coisa de cada vez… mas não aguentei: tenho *mais uma novidade boa* pra você 🤭\n\nAinda estou confirmando uns detalhes com a nossa advogada, então por enquanto não posso falar muito… Primeiro a gente resolve o seu maternidade e logo te conto tudo! 💛`
+const DICA_REVISAO = 'Se ela perguntar o que é: "estou confirmando com a advogada e te conto assim que o maternidade estiver resolvido". Não fale valor e não prometa nada.'
+
+export const GUIAS = {
+  deferido: {
+    titulo: 'Avisar do deferimento', icone: '🎉', cor: '#16a34a',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: [
+        x => `Oi, ${x.n}! Tudo bem? ${x.aqui}. Tenho novidades do seu processo, pode falar agora? 😊`,
+        x => `Dona ${x.n}, ${x.s}! Novidades do seu processo do salário-maternidade por aqui 👀 Você tá por aí?`,
+        x => `${x.n}, ${x.s}! Chegou uma resposta do INSS sobre o seu processo. Me dá um retorno quando puder ver? 🙏`,
+        x => `Oi, ${x.n}! Tudo certo com você e o bebê? Tenho uma atualização importante do seu processo, me chama aqui quando puder 💛`,
+      ] },
+      { k: 'noticia', rot: 'Contar a notícia (com empolgação!)', dica: 'Saiu em até 30 dias do protocolo: o texto destaca a rapidez. Demorou mais: destaca o trabalho da equipe.', var: [
+        x => `${x.n}, o seu salário-maternidade foi *APROVADO* pelo INSS!!! 🎉🎉🎉\n\n${x.rapido
+          ? `E olha que notícia boa: saiu *rapidinho*, em só *${x.dias} dia${x.dias === 1 ? '' : 's'}* desde que demos entrada! A gente preparou o seu processo com muito cuidado pra ele andar sem travar, e o resultado veio rápido 🙌`
+          : 'Foi um processo que exigiu bastante da nossa equipe: acompanhamos cada passo lá no INSS, de perto, até sair essa aprovação. E valeu cada minuto! 🙌'}\n\nA equipe toda vibrou aqui com o seu resultado, de verdade 💛\n\nAgora o próximo passo é a *carta de concessão*: é ela que mostra o banco e a data em que o dinheiro vai cair. Assim que ela sair eu te chamo aqui e te explico tudo, tá bom?`,
+      ] },
+    ],
+  },
+  carta_prev: {
+    titulo: 'Carta chegou · Mercantil (PrevSempre)', icone: '📜', cor: AZUL_PREV,
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
+      { k: 'carta', rot: 'Explicar a PrevSempre e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago pelo *Banco Mercantil*, com previsão para *${x.data}* 💰\n\nE o melhor: você vai receber pela *PrevSempre*, a conta do Mercantil. Você abre a conta pelo celular, *não precisa ir em agência nenhuma*, e o dinheiro cai direto na sua conta.\n\nFunciona assim: o link para abrir a conta chega no seu WhatsApp, pelo *número oficial do Mercantil/PrevSempre*. Na abertura também aparece o *aceite dos nossos honorários*, que são descontados automaticamente — assim você não precisa se preocupar em fazer pagamento nenhum depois.\n\nFica tranquila: *no dia eu te aviso e te ligo* pra te ajudar em cada etapa, do começo ao fim. Combinado? 😊`,
+      ] },
+      { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
+    ],
+  },
+  carta_outro: {
+    titulo: 'Carta chegou · outro banco', icone: '📜', cor: '#0891b2',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
+      { k: 'carta', rot: 'Explicar o pagamento e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago no *${x.banco}*, com previsão para *${x.data}* 💰\n\nNa véspera eu te chamo aqui pra te explicar direitinho como vai funcionar o pagamento, e no dia *eu te aviso e te ligo* pra te acompanhar em cada etapa, pra você ficar tranquila. Combinado? 😊`,
+      ] },
+      { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
+    ],
+  },
+  abrir_conta: {
+    titulo: 'PrevSempre · abrir a conta e aceitar o honorário', icone: '🏦', cor: AZUL_PREV,
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: [
+        x => `${x.n}, ${x.s}! Chegou a hora 🎉 Você tá podendo falar agora? Vou te ajudar a abrir a sua conta pra receber`,
+        x => `Oi, ${x.n}! ${x.aqui}. Como combinamos, vou te ajudar a abrir a sua conta PrevSempre 😊 Me avisa quando estiver com o celular na mão?`,
+        x => `Dona ${x.n}, tudo bem? O link do Mercantil já deve ter chegado no seu WhatsApp 👀 Me chama aqui que a gente faz junto, passo a passo`,
+      ] },
+      { k: 'guiar', rot: 'Guiar a abertura e o aceite', espera: true, dica: 'Se ela travar em alguma tela, ligue na hora. Depois confirme aqui em "PrevSempre" se abriu a conta e aceitou.', var: [
+        x => `Perfeito, ${x.n}! Vamos lá, é rapidinho:\n\n1️⃣ Procure no seu WhatsApp a mensagem do *número oficial do Mercantil/PrevSempre* com o link\n2️⃣ Abra o link e siga os passos para abrir a sua conta\n3️⃣ Quando aparecer o *aceite dos honorários*, é só aceitar — assim os nossos honorários são descontados automaticamente e você não precisa fazer pagamento nenhum depois 🙌\n\nFicou com dúvida em alguma tela? Me manda o print aqui ou me fala que eu te ligo agora mesmo.\n\nE lembra: recebendo pelo Mercantil você *não precisa ir à agência*, o dinheiro cai direto na sua conta no dia ${x.data} 💰`,
+      ] },
+      { k: 'revisao', rot: 'Fechar com a revisão', dica: DICA_REVISAO, var: [
+        x => `Prontinho, ${x.n}! 🙏🏼 Agora é só esperar o dia ${x.data}.\n\nE lembra da novidade que eu te falei? Ainda estou confirmando com a advogada, mas se tudo der certo, além do maternidade você ainda pode receber um *valor a mais com uma revisão do INSS* que estamos analisando pra você 🤩\n\nUma coisa de cada vez: primeiro o maternidade, e logo te conto tudo! 💛`,
+      ] },
+    ],
+  },
+  vespera: {
+    titulo: 'Véspera do pagamento', icone: '💰', cor: '#7c3aed',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: [
+        x => `${x.n}, ${x.s}! ${maiusc(x.quando)} é o grande dia 🎉 Tem um minutinho pra eu te explicar como vai funcionar?`,
+        x => `Oi, ${x.n}! ${x.aqui}. O seu pagamento está previsto pra ${x.quando} 💰 Pode falar agora?`,
+        x => `Dona ${x.n}, tudo certo por aí? ${maiusc(x.quando)} cai o seu maternidade! Queria alinhar uns detalhes com você, me chama quando puder 🙏`,
+      ] },
+      { k: 'como', rot: 'Explicar como funciona e como paga a KR', espera: true, var: [
+        (x, c) => ehAutomatico(c)
+          ? `Então, ${x.n}: o seu salário-maternidade está previsto para *${x.quando}, ${x.data}*, na sua conta *PrevSempre do Mercantil* 💰\n\nComo você já fez o aceite, os nossos honorários são *descontados automaticamente* — você não precisa fazer pagamento nenhum 🙌 O restante fica na sua conta.\n\nNo dia eu te acompanho: quando cair, me avisa aqui que eu confiro tudo com você, combinado?`
+          : `Então, ${x.n}, vamos lá: o seu salário-maternidade está previsto para *${x.quando}, ${x.data}*, no *${x.banco}* 💰\n\nComo funciona:\n• Quando o dinheiro cair, me manda uma mensagem aqui avisando 🙏\n• Aí ${x.comoPagar}.\n\nFicou com dúvida no app do banco ou no saque? Me chama que eu te ajudo — no dia eu te acompanho de perto, combinado?`,
+      ] },
+      { k: 'revisao', rot: 'A revisão (com naturalidade)', dica: DICA_REVISAO, var: [
+        x => `E ${x.n}, assim que a gente fechar o seu maternidade, já vamos partir pra próxima: a *revisão do INSS* que estamos analisando pra você 🤩 A equipe tá bem animada com ela! Mas uma coisa de cada vez 😉`,
+      ] },
+    ],
+  },
+  atrasado: {
+    titulo: 'Pagamento atrasado', icone: '⏰', cor: '#dc2626',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: [
+        x => `${x.n}, ${x.s}! Tudo bem? Conseguiu ver se o seu maternidade caiu? 😊`,
+        x => `Oi, ${x.n}! ${x.aqui}. Passando pra saber se deu tudo certo com o seu pagamento 🙏`,
+        x => `Dona ${x.n}, tudo certo por aí? Me conta: o dinheiro do maternidade já caiu na sua conta?`,
+      ] },
+      { k: 'caiu', rot: 'Se já caiu: cobrar com leveza', var: [
+        x => `Que bom, ${x.n}! 🎉 Agora só falta a nossa parte pra gente fechar o seu processo com chave de ouro: ${x.comoPagar}.\n\nE assim que fechar o maternidade, a gente já parte pra *revisão do INSS* que estamos analisando pra você 🤩`,
+      ] },
+      { k: 'nao_caiu', rot: 'Se ainda não caiu', dica: 'Confira a data no extrato/carta e, se mudou, use "Mudar data do pagamento".', var: [
+        x => `Entendi, ${x.n}! Fica tranquila que eu vou verificar aqui o que aconteceu e já te dou um retorno, tá bom? 🙏`,
+      ] },
+    ],
+  },
+  pagou: {
+    titulo: 'Cliente pagou · agradecer e pedir indicação', icone: '🤝', cor: '#15803d',
+    passos: [
+      { k: 'obrigado', rot: 'Agradecer (emocionante)', var: [
+        x => `Recebemos aqui, ${x.n}! A equipe toda da KR te agradece de coração 💛\n\nFoi uma alegria enorme cuidar do seu processo e ver o seu salário-maternidade aprovado e pago. Que esse dinheiro traga muita tranquilidade pra você e pro seu bebê nesse momento tão especial 🙏🏼\n\nTe peço uma coisinha: *salva o nosso contato* aqui — é por ele que vamos te avisar das próximas novidades.\n\nE sobre a revisão do INSS: seguimos analisando por aqui e, dando certo, *te avisamos na hora*! 🤩`,
+      ] },
+      { k: 'indicacao', rot: 'Pedir indicação', var: [
+        x => `${x.n}, e um pedido especial 🙏🏼: muita mãe não sabe que tem direito ao salário-maternidade. Se você conhece alguém — amiga, prima, vizinha, colega — que teve bebê ou está grávida, *me passa o contato ou encaminha o nosso*? A gente cuida dela com o mesmo carinho que cuidou de você 💛`,
+      ] },
+    ],
+  },
+}
+
+// quais roteiros valem para o caso, e qual e o da vez
+function guiasDoCaso(c) {
+  const e = c.etapa
+  if (e === 'deferido' || e === 'carta') return ['deferido']
+  if (e === 'prevsempre') return ['carta_prev', 'abrir_conta']
+  if (ESPERANDO.includes(e)) {
+    const g = c.prevsempre ? ['carta_prev', 'abrir_conta', 'vespera'] : ['carta_outro', 'vespera']
+    if (atrasado(c)) g.push('atrasado')
+    return g
+  }
+  if (e === 'baixado') return ['pagou']
+  return []
+}
+const enviadoEm = (c, g, k) => (c.msgs_enviadas || {})[`${g}:${k}`] || null
+function guiaDaVez(c) {
+  const gs = guiasDoCaso(c)
+  if (gs.includes('atrasado')) return 'atrasado'
+  if (gs.includes('vespera') && c.data_pagamento && diasApos(c.data_pagamento) >= -1) return 'vespera'
+  return gs.find(g => !GUIAS[g].passos.every(p => enviadoEm(c, g, p.k)) && g !== 'vespera') || gs[gs.length - 1] || null
+}
+
+// texto de "como pagar" (configuravel no banco), carregado uma vez
+let textosPromessa = null
+function useTextosPD() {
+  const [t, setT] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    if (!textosPromessa) textosPromessa = supabase.rpc('posdef_textos').then(r => r.data || {}, () => ({}))
+    textosPromessa.then(d => { if (vivo) setT(d || {}) })
+    return () => { vivo = false }
+  }, [])
+  return t
+}
 
 // ---------------------------------------------------------------- acoes
 const ACOES_PD = {
   avisar_cliente: {
-    titulo: 'Cliente avisada do deferimento', icone: '📣', cor: '#16a34a', mensagem: msgDeferido,
-    nota: 'Copie a mensagem, mande para a cliente e salve. O caso vai para "Carta de concessão".',
+    titulo: 'Cliente avisada do deferimento', icone: '📣', cor: '#16a34a', guia: 'deferido',
+    nota: 'Mande as mensagens abaixo (uma de cada vez) e depois salve. O caso vai para "Carta de concessão".',
     campos: [{ k: 'texto', l: 'Como foi avisada / observação (opcional)', tipo: 'textarea' }],
   },
   carta: {
@@ -200,6 +367,104 @@ function Tags({ c, grande }) {
   )
 }
 
+// ---------------------------------------------------------------- guia de mensagens (bloco)
+// so = mostra um roteiro so (ex.: 'deferido' dentro de "Cliente avisada")
+function GuiaMensagens({ caso, so, podeAgir, onMarcou }) {
+  const { profile } = useAuth()
+  const textos = useTextosPD()
+  const [toast, mostrar] = useToast()
+  const lista = so ? [so] : guiasDoCaso(caso)
+  const vez = so || guiaDaVez(caso)
+  const [aberta, setAberta] = useState(vez)
+  const [versao, setVersao] = useState({})      // `${guia}:${passo}` -> qual variacao
+  const [marcados, setMarcados] = useState({})  // enviados nesta tela (antes de recarregar)
+  const [salvando, setSalvando] = useState('')
+  if (!lista.length) return null
+  const g = lista.includes(aberta) ? aberta : lista[0]
+  const G = GUIAS[g]
+  const x = ctxMsg(caso, primeiroNome(profile?.nome), textos?.como_pagar_honorario)
+  const wa = telWa(caso.telefone)
+  const quandoEnviou = (gg, k) => marcados[`${gg}:${k}`] || enviadoEm(caso, gg, k)
+  const completo = (gg) => GUIAS[gg].passos.every(p => quandoEnviou(gg, p.k))
+
+  async function marcar(p) {
+    const ch = `${g}:${p.k}`
+    if (!podeAgir || salvando || quandoEnviou(g, p.k)) return
+    setSalvando(ch)
+    const { data, error } = await supabase.rpc('posdef_acao', { p_id: caso.id, p_acao: 'mensagem', p: { chave: ch, rotulo: `${G.titulo} · ${p.rot}` } })
+    setSalvando('')
+    if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'Não consegui registrar', 'erro'); return }
+    setMarcados(m => ({ ...m, [ch]: new Date().toISOString() }))
+    onMarcou && onMarcou()
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {toast}
+      {lista.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {lista.map(gg => {
+            const on = gg === g
+            const cor = GUIAS[gg].cor
+            return (
+              <button key={gg} type="button" onClick={() => setAberta(gg)} style={{ padding: '6px 11px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: on ? 800 : 600, border: `1.5px solid ${on ? cor : hexA('#0f172a', 0.12)}`, background: on ? hexA(cor, 0.1) : '#fff', color: on ? cor : cores.texto }}>
+                {completo(gg) ? '✓ ' : ''}{GUIAS[gg].icone} {GUIAS[gg].titulo}{gg === vez && !completo(gg) ? <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 800, color: '#fff', background: cor, borderRadius: 999, padding: '1px 7px' }}>AGORA</span> : null}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: cores.suave }}>Uma mensagem de cada vez: mande o passo 1 e <b>espere a cliente responder</b> antes do próximo. Pode ajustar o texto no WhatsApp antes de enviar.</div>
+      {G.passos.map((p, i) => {
+        const ch = `${g}:${p.k}`
+        const n = p.var.length
+        const iv = (hashTxt(caso.id + ch) + (versao[ch] || 0)) % n
+        const txt = p.var[iv](x, caso)
+        const env = quandoEnviou(g, p.k)
+        return (
+          <div key={ch} style={{ border: `1px solid ${env ? hexA(cores.ok, 0.35) : hexA(G.cor, 0.3)}`, background: env ? hexA(cores.ok, 0.04) : hexA(G.cor, 0.04), borderRadius: 12, padding: 12, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ width: 22, height: 22, borderRadius: 999, background: env ? cores.ok : G.cor, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{env ? '✓' : i + 1}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: cores.texto }}>{p.rot}</span>
+              {p.espera && <span style={{ fontSize: 11.5, color: cores.suave }}>→ espere ela responder</span>}
+              {env && <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: cores.ok }}>enviada {fmtDataHora(env)}</span>}
+            </div>
+            <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: cores.texto, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{txt}</div>
+            {p.dica && <div style={{ fontSize: 12, color: '#92400e', background: hexA('#f59e0b', 0.1), borderRadius: 8, padding: '6px 9px', marginTop: 8 }}>💡 {p.dica}</div>}
+            <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+              <button type="button" onClick={async () => mostrar((await copiarTexto(txt)) ? 'Mensagem copiada' : 'Não consegui copiar', 'ok')} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>⧉ Copiar</button>
+              {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(txt)}`} target="_blank" rel="noreferrer" onClick={() => marcar(p)} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12, textDecoration: 'none' }}>Enviar no WhatsApp</a>}
+              {n > 1 && <button type="button" onClick={() => setVersao(v => ({ ...v, [ch]: (v[ch] || 0) + 1 }))} style={{ ...btn(G.cor, false), padding: '6px 10px', fontSize: 12 }}>🔀 Outra versão ({iv + 1}/{n})</button>}
+              {podeAgir && !env && <button type="button" disabled={!!salvando} onClick={() => marcar(p)} style={{ ...btn(cores.ok, false), padding: '6px 10px', fontSize: 12 }}>{salvando === ch ? 'Salvando…' : '✓ Já enviei'}</button>}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ModalGuia({ caso, podeAgir, onClose, onMarcou }) {
+  const isMobile = useIsMobile()
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', backdropFilter: 'blur(3px)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ ...card, width: '100%', maxWidth: 620, maxHeight: isMobile ? '92vh' : '88vh', overflow: 'auto', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: 0 }}>
+        <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${cores.cardBorda}`, display: 'flex', gap: 12, alignItems: 'center', background: `linear-gradient(135deg, ${hexA('#16a34a', 0.10)}, transparent)` }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: hexA('#16a34a', 0.15), display: 'grid', placeItems: 'center', fontSize: 20 }}>💬</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 16.5, fontWeight: 800, color: cores.texto }}>Mensagens para a cliente</div>
+            <div style={{ fontSize: 12.5, color: cores.suave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caso.nome} · {fmtTel(caso.telefone)}</div>
+          </div>
+          <button onClick={onClose} aria-label="Fechar" style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: cores.suave }}>✕</button>
+        </div>
+        <div style={{ padding: 16 }}>
+          <GuiaMensagens caso={caso} podeAgir={podeAgir} onMarcou={onMarcou} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- modal de acao
 function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
   const cfg = ACOES_PD[acao]
@@ -316,9 +581,6 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
     )
   }
 
-  const mensagem = cfg.mensagem ? cfg.mensagem(caso) : null
-  const wa = telWa(caso.telefone)
-
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', backdropFilter: 'blur(3px)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 20 }}>
       {toast}
@@ -333,16 +595,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
         </div>
         <div style={{ padding: 20, display: 'grid', gap: 14 }}>
           {cfg.nota && <div style={{ fontSize: 12.5, color: cores.suave, background: cores.chipBg, borderRadius: 10, padding: '8px 12px' }}>{cfg.nota}</div>}
-          {mensagem && (
-            <div style={{ border: `1px solid ${hexA('#16a34a', 0.3)}`, background: hexA('#16a34a', 0.05), borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 6 }}>MENSAGEM PRONTA</div>
-              <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: cores.texto, lineHeight: 1.5 }}>{mensagem}</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                <button type="button" onClick={async () => mostrar((await copiarTexto(mensagem)) ? 'Mensagem copiada' : 'Não consegui copiar', 'ok')} style={{ ...btn('#15803d', false), padding: '6px 11px', fontSize: 12 }}>⧉ Copiar mensagem</button>
-                {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(mensagem)}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), padding: '6px 11px', fontSize: 12, textDecoration: 'none' }}>Abrir no WhatsApp</a>}
-              </div>
-            </div>
-          )}
+          {cfg.guia && <GuiaMensagens caso={caso} so={cfg.guia} podeAgir={caso.pode_agir !== false} />}
           {cfg.anexo && (
             <div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>{cfg.anexo}{cfg.anexoObrig && <span style={{ color: cores.perigo }}> *</span>}</div>
@@ -386,7 +639,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
 // ---------------------------------------------------------------- ficha (gaveta)
 const ICONE_EV = {
   entrada: '📥', avisar_cliente: '📣', carta: '📜', prevsempre: '🏦', reagendar: '🗓️', pago: '💸', baixa: '🏁', cliente_pagou: '🤝',
-  atividade: '📅', atividade_feita: '☑️', observacao: '💬', voltar: '↩️', cancelar: '🚫',
+  atividade: '📅', atividade_feita: '☑️', observacao: '💬', voltar: '↩️', cancelar: '🚫', mensagem: '✉️',
 }
 
 function FichaPD({ id, onFechar, onMudou }) {
@@ -465,6 +718,12 @@ function FichaPD({ id, onFechar, onMudou }) {
             <div style={{ ...card, padding: 16, border: `1.5px solid ${hexA('#0f766e', 0.4)}`, background: hexA('#0f766e', 0.05) }}>
               <div style={{ ...tituloSecao, color: '#0f766e', margin: 0 }}>📅 Próxima atividade · {fmtData(c.proxima_atividade_em)} ({diaSemana(c.proxima_atividade_em)})</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: cores.texto, marginTop: 6 }}>{c.proxima_atividade}</div>
+            </div>
+          )}
+          {guiasDoCaso(c).length > 0 && (
+            <div style={{ ...card, padding: 18 }}>
+              <div style={tituloSecao}>💬 Mensagens para a cliente</div>
+              <GuiaMensagens caso={{ ...c, data_protocolo: pr.data_protocolo }} podeAgir={c.pode_agir !== false} onMarcou={carregar} />
             </div>
           )}
           <div style={{ ...card, padding: 18 }}>
@@ -687,6 +946,7 @@ export default function PosDeferimento() {
   const [aberto, setAberto] = useState(null)
   const [modal, setModal] = useState(null)
   const [resolver, setResolver] = useState(null)
+  const [guiaDe, setGuiaDe] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [colHover, setColHover] = useState(null)
   const [mes, setMes] = useState(() => hojeISO().slice(0, 7))
@@ -705,10 +965,10 @@ export default function PosDeferimento() {
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { const t = setInterval(carregar, 60000); return () => clearInterval(t) }, [carregar])
   useEffect(() => {
-    const f = (e) => { if (e.key === 'Escape' && !modal && !resolver) setAberto(null) }
+    const f = (e) => { if (e.key === 'Escape' && !modal && !resolver && !guiaDe) setAberto(null) }
     window.addEventListener('keydown', f)
     return () => window.removeEventListener('keydown', f)
-  }, [modal, resolver])
+  }, [modal, resolver, guiaDe])
 
   const responsaveis = useMemo(() => [...new Set([...(lista || []), ...inss, ...pends].flatMap(c => c.responsaveis || []))].sort(), [lista, inss, pends])
   const bancos = useMemo(() => [...new Set((lista || []).map(c => c.banco).filter(Boolean))].sort(), [lista])
@@ -897,7 +1157,7 @@ export default function PosDeferimento() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {it.tipo === 'pagamento' && <button title="Copiar lembrete para a cliente" onClick={async () => mostrar((await copiarTexto(msgPagamento(c))) ? 'Lembrete copiado' : 'Não consegui copiar')} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>⧉ Lembrete</button>}
+          {!ehPend && guiasDoCaso(c).length > 0 && <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>}
           {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
           {ehPend && <button onClick={() => setAba('pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
           {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : 'Feito'}</button>}
@@ -1218,11 +1478,11 @@ export default function PosDeferimento() {
           <div style={{ fontSize: 12.5, color: cores.texto, marginTop: 3 }}>
             <b>{bancoCurto(c.banco) || 'banco?'}</b>{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · {fmtTel(c.telefone)}{!soLeitura ? ` · ${(c.responsaveis || []).join(', ')}` : ''}
           </div>
-          <div style={{ fontSize: 12, color: t.cor, fontWeight: 700, marginTop: 2 }}>→ {t.faz}</div>
+          <div style={{ fontSize: 12, color: t.cor, fontWeight: 700, marginTop: 2 }}>→ {t.faz}{enviadoEm(c, 'vespera', 'como') ? <span style={{ color: cores.ok, marginLeft: 8 }}>✓ véspera avisada</span> : null}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-          <button title="Copiar lembrete para a cliente" onClick={async () => mostrar((await copiarTexto(msgPagamento(c))) ? 'Lembrete copiado' : 'Não consegui copiar')} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>⧉ Lembrete</button>
-          {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(msgPagamento(c))}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
+          <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>
+          {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
           {podeAgir && <button onClick={() => abrirAcao(c, acao)} style={{ ...btn(acao === 'prevsempre' ? AZUL_PREV : '#15803d'), padding: '6px 10px', fontSize: 12 }}>{acao === 'prevsempre' ? '🏦 Confirmar PrevSempre' : ehAutomatico(c) ? '🤝 Descontou' : '🤝 Pagou'}</button>}
         </div>
       </div>
@@ -1453,6 +1713,7 @@ export default function PosDeferimento() {
       )}
 
       {modal && <ModalPD caso={modal.caso} acao={modal.acao} inicial={modal.inicial} onClose={() => setModal(null)} onFeito={() => { setModal(null); mostrar('Salvo'); carregar() }} />}
+      {guiaDe && <ModalGuia caso={guiaDe} podeAgir={!soLeitura && guiaDe.pode_agir !== false} onClose={() => setGuiaDe(null)} onMarcou={carregar} />}
       {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
     </div>
   )
