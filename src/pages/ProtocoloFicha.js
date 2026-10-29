@@ -45,6 +45,71 @@ export const MOTIVOS = [
 
 export const BUCKET = 'protocolo-inss'
 
+// 29/10 (Bruno) — CATEGORIA DA PENDENCIA e as ALTERNATIVAS para resolver. A advogada escolhe
+// a categoria ao abrir a pendencia; o time de Acompanhamento de clientes resolve escolhendo
+// uma das alternativas (o banco valida o que cada uma exige: anexo, data ou explicacao).
+// 'andamento' = fica aberta com data combinada; 'negativa' = volta para a advogada decidir.
+export const CATEGORIAS_PEND = {
+  complementacao_guia: {
+    rot: 'Complementação de guia', icone: '🧾', cor: '#b45309',
+    explica: 'A cliente precisa pagar a complementação da guia indicada pela advogada para a contribuição valer.',
+    opcoes: [
+      { v: 'pagou', rot: 'Cliente pagou', dica: 'Anexe a guia e o comprovante de pagamento.', anexo: true },
+      { v: 'vai_pagar', rot: 'Vai pagar', dica: 'Combine com a cliente o dia em que ela vai pagar.', data: true, andamento: true },
+      { v: 'nao_paga', rot: 'Não vai pagar', dica: 'Explique o motivo. A advogada decide o que fazer.', texto: true, negativa: true },
+    ],
+  },
+  requerimento_aberto: {
+    rot: 'Pedido anterior aberto no INSS', icone: '⏸️', cor: '#7c3aed',
+    explica: 'A cliente já tem um pedido em andamento no INSS. Enquanto ele estiver aberto, não dá para protocolar outro.',
+    opcoes: [
+      { v: 'desistiu', rot: 'Cliente desistiu do pedido', dica: 'Anexe o print da desistência/cancelamento no Meu INSS.', anexo: true },
+      { v: 'aguardar', rot: 'Aguardar terminar', dica: 'Informe a data prevista para o pedido anterior terminar.', data: true, andamento: true },
+      { v: 'nao_desiste', rot: 'Não quer desistir', dica: 'Explique. A advogada decide o que fazer.', texto: true, negativa: true },
+    ],
+  },
+  documento: {
+    rot: 'Documento faltando', icone: '📄', cor: '#d97706',
+    explica: 'Falta documento para a advogada protocolar.',
+    opcoes: [
+      { v: 'enviou', rot: 'Consegui o documento', dica: 'Anexe o documento (foto ou PDF).', anexo: true },
+      { v: 'em_andamento', rot: 'Cliente vai mandar', dica: 'Informe até quando a cliente vai mandar.', data: true, andamento: true },
+      { v: 'nao_tem', rot: 'Cliente não tem', dica: 'Explique. A advogada decide o que fazer.', texto: true, negativa: true },
+    ],
+  },
+  exigencia_inss: {
+    rot: 'Exigência do INSS', icone: '⚠️', cor: '#ea580c',
+    explica: 'O INSS pediu documentos para continuar a análise. Atenção ao prazo.',
+    opcoes: [
+      { v: 'cumprida', rot: 'Consegui tudo que o INSS pediu', dica: 'Anexe os documentos pedidos.', anexo: true },
+      { v: 'em_andamento', rot: 'Cliente vai mandar', dica: 'Informe até quando (antes do prazo do INSS).', data: true, andamento: true },
+      { v: 'nao_consegue', rot: 'Não dá para cumprir', dica: 'Explique. A advogada decide o que fazer.', texto: true, negativa: true },
+    ],
+  },
+  dado_divergente: {
+    rot: 'Dado divergente', icone: '🔀', cor: '#0891b2', explica: 'Algum dado da cliente não bate e precisa ser corrigido.',
+    opcoes: [
+      { v: 'resolvido', rot: 'Resolvido', dica: 'Explique o que foi corrigido (anexo opcional).', texto: true, anexoOpcional: true },
+      { v: 'em_andamento', rot: 'Em andamento', dica: 'Informe até quando.', data: true, andamento: true },
+    ],
+  },
+  outro: {
+    rot: 'Outro', icone: '📌', cor: '#475569', explica: '',
+    opcoes: [
+      { v: 'resolvido', rot: 'Resolvido', dica: 'Explique o que foi feito (anexo opcional).', texto: true, anexoOpcional: true },
+      { v: 'em_andamento', rot: 'Em andamento', dica: 'Informe até quando.', data: true, andamento: true },
+    ],
+  },
+}
+export const catPend = (k) => CATEGORIAS_PEND[k] || CATEGORIAS_PEND.outro
+export const rotResolucao = (cat, v) => (catPend(cat).opcoes.find(o => o.v === v) || Object.values(CATEGORIAS_PEND).flatMap(c => c.opcoes).find(o => o.v === v) || { rot: v }).rot
+export const RESOLUCOES_NEGATIVAS = ['nao_paga', 'nao_desiste', 'nao_tem', 'nao_consegue']
+const OPCOES_CATEGORIA = [
+  { v: 'documento', l: 'Documento faltando' },
+  { v: 'complementacao_guia', l: 'Complementação de guia' },
+  { v: 'requerimento_aberto', l: 'Pedido anterior aberto no INSS' },
+]
+
 // ---------------------------------------------------------------- helpers
 export const soDig = (s) => String(s ?? '').replace(/\D/g, '')
 export const fmtCpf = (s) => {
@@ -247,10 +312,11 @@ export const ACOES = {
   },
   falta_documento: {
     titulo: 'Falta documento', icone: '📄', cor: '#d97706',
-    nota: 'Abre uma pendência para a vendedora da venda. Quando todas forem resolvidas, o caso volta sozinho para a fila.',
+    nota: 'Abre uma pendência para o time de Acompanhamento de clientes resolver. Quando todas forem resolvidas, o caso volta sozinho para a fila e aparece em "Resolvidas · refazer".',
     campos: [
-      { k: 'texto', l: 'Qual documento falta?', obrig: true, tipo: 'textarea', sugestoes: ['CNIS completo com data de pagamento', 'Extrato do FGTS em PDF', 'Certidão de nascimento legível', 'RG frente e verso', 'Print do seguro-desemprego', 'Comprovante de endereço'] },
-      { k: 'prazo', l: 'Prazo para a vendedora (opcional)', tipo: 'date' },
+      { k: 'subtipo', l: 'Categoria', obrig: true, tipo: 'select', padrao: 'documento', opcoes: OPCOES_CATEGORIA },
+      { k: 'texto', l: 'O que falta / o que a cliente precisa fazer?', obrig: true, tipo: 'textarea', sugestoes: ['Complementar a guia de MM/AAAA', 'Desistir do pedido anterior no Meu INSS', 'CNIS completo com data de pagamento', 'Extrato do FGTS em PDF', 'Certidão de nascimento legível', 'RG frente e verso', 'Print do seguro-desemprego', 'Comprovante de endereço'] },
+      { k: 'prazo', l: 'Prazo para resolver (opcional)', tipo: 'date' },
     ],
   },
   exigencia: {
@@ -306,8 +372,11 @@ export const ACOES = {
   },
   pendencia: {
     titulo: 'Abrir pendência', icone: '📌', cor: '#b45309',
+    nota: 'A pendência vai para o time de Acompanhamento de clientes resolver. Quando resolverem, o caso aparece na aba "Resolvidas · refazer".',
+    // o banco guarda tipo (4 valores) + categoria (subtipo): traduz aqui
+    mapear: (p) => ({ tipo: ['dado_divergente', 'outro'].includes(p.subtipo) ? p.subtipo : 'documento' }),
     campos: [
-      { k: 'tipo', l: 'Tipo', tipo: 'select', padrao: 'outro', opcoes: [{ v: 'documento', l: 'Documento' }, { v: 'dado_divergente', l: 'Dado divergente' }, { v: 'outro', l: 'Outro' }] },
+      { k: 'subtipo', l: 'Categoria', obrig: true, tipo: 'select', padrao: 'outro', opcoes: [...OPCOES_CATEGORIA, { v: 'dado_divergente', l: 'Dado divergente' }, { v: 'outro', l: 'Outro' }] },
       { k: 'texto', l: 'O que precisa ser resolvido?', obrig: true, tipo: 'textarea' },
       { k: 'prazo', l: 'Prazo (opcional)', tipo: 'date' },
     ],
@@ -390,6 +459,7 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
     try {
       const p = {}
       Object.entries(v).forEach(([k, val]) => { if (!k.startsWith('_') && val !== '' && val != null) p[k] = val })
+      if (cfg.mapear) Object.assign(p, cfg.mapear(p))
       if (arquivo) p.anexo = await enviarArquivo(arquivo, caso.cpf)
       const { data, error } = await supabase.rpc('protocolo_acao', { p_caso: caso.id, p_acao: acao, p })
       if (error) throw new Error(error.message)
@@ -541,7 +611,7 @@ const ATALHOS = [
   { r: 'Risco do caso', t: 'Qual o maior risco deste caso e como eu me protejo antes de protocolar?' },
 ]
 
-async function perguntarIA({ caso, historico, texto, anexos }) {
+export async function perguntarIA({ caso, historico, texto, anexos }) {
   // a API exige comecar pelo usuario e alternar os papeis: limpa o historico antes de mandar
   const msgs = []
   historico.filter(m => !m.erro && m.texto).slice(-10).forEach(m => {
@@ -1021,9 +1091,17 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
               <div key={p.id} style={{ border: `1px solid ${hexA(cor, 0.3)}`, background: hexA(cor, 0.05), borderRadius: 12, padding: '10px 12px', opacity: p.status === 'resolvida' ? 0.7 : 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Chip cor={cor} forte>{p.status === 'resolvida' ? 'RESOLVIDA' : p.status === 'avisado' ? 'AVISADO' : 'ABERTA'}</Chip>
-                  <span style={{ fontSize: 12, color: cores.suave }}>{p.tipo === 'exigencia_inss' ? 'Exigência INSS' : p.tipo === 'documento' ? 'Documento' : p.tipo === 'dado_divergente' ? 'Dado divergente' : 'Outro'} · aberta {fmtDataHora(p.aberta_em)}{p.prazo ? ` · prazo ${fmtData(p.prazo)}` : ''}</span>
+                  <span style={{ fontSize: 12, color: cores.suave }}>{catPend(p.categoria || (p.tipo === 'exigencia_inss' ? 'exigencia_inss' : p.tipo)).icone} {catPend(p.categoria || (p.tipo === 'exigencia_inss' ? 'exigencia_inss' : p.tipo)).rot} · aberta {fmtDataHora(p.aberta_em)}{p.prazo ? ` · prazo ${fmtData(p.prazo)}` : ''}</span>
                 </div>
                 <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 6 }}>{p.descricao}</div>
+                {p.resolucao && (
+                  <div style={{ marginTop: 6, fontSize: 12.5, borderRadius: 8, padding: '6px 9px', background: RESOLUCOES_NEGATIVAS.includes(p.resolucao) ? hexA(cores.perigo, 0.08) : hexA(cores.ok, 0.08), color: cores.texto }}>
+                    <b>Acompanhamento:</b> {rotResolucao(p.categoria, p.resolucao)}{p.resolucao_data ? ` · ${fmtData(p.resolucao_data)}` : ''}{p.resolucao_texto ? ` — ${p.resolucao_texto}` : ''}
+                    {(Array.isArray(p.resolucao_anexos) ? p.resolucao_anexos : []).map((u, i) => (
+                      <button key={i} onClick={() => abrirArquivo(u)} style={{ marginLeft: 8, border: 'none', background: 'none', color: cores.azul, cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: 0 }}>📎 anexo {i + 1}</button>
+                    ))}
+                  </div>
+                )}
                 <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>
                   Responsável: {p.responsavel || '—'}{p.avisado_em ? ` · avisado por ${p.avisado_por} em ${fmtDataHora(p.avisado_em)}` : ''}{p.resolvida_em ? ` · resolvida por ${p.resolvida_por} em ${fmtDataHora(p.resolvida_em)}` : ''}
                 </div>
