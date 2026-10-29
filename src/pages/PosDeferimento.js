@@ -5,9 +5,15 @@ import { cores, sombras } from '../lib/tema'
 import {
   Chip, hexA, estiloBotao as btn, estiloCard as card, fmtCpf, fmtTel, fmtData, fmtDataHora,
   diaBR, hojeISO, diasDesde, iniciais, useIsMobile, useToast, copiarTexto, abrirArquivo, enviarArquivo, soDig,
+  catPend, rotResolucao, RESOLUCOES_NEGATIVAS,
 } from './ProtocoloFicha'
 
-// ===== PÓS-DEFERIMENTO (29/10/2026, Bruno) — funil no estilo Pipedrive =====
+// ===== ACOMPANHAMENTO DE CLIENTES (29/10/2026, Bruno) — funil no estilo Pipedrive =====
+// (no banco tudo se chama posdef_*: o setor nasceu como "pós-deferimento")
+// 29/10 parte 2: o time tambem ve os contratos ainda no INSS (so leitura), RESOLVE as
+// pendencias da advogada/Sthefany escolhendo uma alternativa, "pago" + "baixa" viraram
+// um passo so (CLIENTE PAGOU) e a inadimplencia (data do pagamento + 4 dias sem pagar)
+// e contada no mes da data agendada. A VENDEDORA so le o pos das vendas dela.
 // Depois que a Dra. Jessica marca "Deferido" no Protocolo (com a carta do INSS), o
 // caso entra SOZINHO aqui (trigger no banco). A Jessica nao ve esta tela.
 // Deferido (avisar cliente) -> Carta de concessao (banco + data do pagamento)
@@ -23,14 +29,24 @@ export const ETAPAS_PD = [
   { key: 'deferido', label: 'Deferido · avisar cliente', curto: 'Deferido', cor: '#16a34a', icone: '✅' },
   { key: 'carta', label: 'Carta de concessão', curto: 'Carta', cor: '#0891b2', icone: '📜' },
   { key: 'prevsempre', label: 'PrevSempre', curto: 'PrevSempre', cor: '#2563eb', icone: '🏦' },
-  { key: 'aguardando_pagamento', label: 'Aguardando pagamento', curto: 'Aguardando', cor: '#7c3aed', icone: '⏳' },
-  { key: 'pago', label: 'Pago · dar baixa', curto: 'Pago', cor: '#d97706', icone: '💸' },
-  { key: 'baixado', label: 'Baixado', curto: 'Baixado', cor: '#475569', icone: '🏁' },
+  { key: 'aguardando_pagamento', label: 'Aguardando receber', curto: 'Aguardando', cor: '#7c3aed', icone: '⏳' },
+  { key: 'atrasado', label: 'Pagamento atrasado', curto: 'Atrasado', cor: '#dc2626', icone: '⏰' },  // virtual: aguardando com a data vencida
+  { key: 'pago', label: 'Aguardando receber', curto: 'Aguardando', cor: '#7c3aed', icone: '⏳' },  // etapa antiga (nao usada mais)
+  { key: 'baixado', label: 'Cliente pagou', curto: 'Pagou', cor: '#15803d', icone: '🤝' },
   { key: 'cancelado', label: 'Cancelado', curto: 'Cancelado', cor: '#94a3b8', icone: '🚫' },
 ]
 const etapaPD = (k) => ETAPAS_PD.find(e => e.key === k) || { key: k, label: k, curto: k, cor: '#64748b', icone: '•' }
-const COLUNAS_PD = ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento', 'pago', 'baixado']
+const COLUNAS_PD = ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']
 const ATIVAS = ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento', 'pago']
+const ESPERANDO = ['aguardando_pagamento', 'prevsempre', 'pago']   // ainda nao pagou
+const DIAS_INADIMPLENTE = 4
+// dias depois da data do pagamento (negativo = ainda vai cair)
+const diasApos = (iso) => (iso ? Math.round((new Date(hojeISO() + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000) : null)
+const atrasado = (c) => ESPERANDO.includes(c.etapa) && !!c.data_pagamento && diasApos(c.data_pagamento) > 0
+const inadimplente = (c) => ESPERANDO.includes(c.etapa) && !!c.data_pagamento && diasApos(c.data_pagamento) > DIAS_INADIMPLENTE
+// em que coluna do funil o card mora (o "atrasado" e automatico pela data)
+const colunaDe = (c) => c.etapa === 'baixado' ? 'baixado' : c.etapa === 'pago' ? (atrasado(c) ? 'atrasado' : 'aguardando_pagamento')
+  : c.etapa === 'aguardando_pagamento' && atrasado(c) ? 'atrasado' : c.etapa
 
 const BANCOS = ['Banco Mercantil do Brasil', 'Caixa Econômica Federal', 'Banco do Brasil', 'Bradesco', 'Itaú', 'Santander', 'Nubank', 'Outro']
 const FORMAS_HONORARIO = ['Desconto automático PrevSempre', 'PIX da cliente', 'Transferência', 'Boleto', 'Dinheiro', 'Outro']
@@ -82,21 +98,14 @@ const ACOES_PD = {
       { k: 'texto', l: 'Por que mudou?', obrig: true, tipo: 'textarea' },
     ],
   },
-  pago: {
-    titulo: 'Pagamento caiu', icone: '💸', cor: '#d97706', mensagem: null,
+  cliente_pagou: {
+    titulo: 'Cliente pagou', icone: '🤝', cor: '#15803d',
     anexo: 'Comprovante (opcional)',
+    nota: 'Marque quando a cliente pagar o honorário. Passou 4 dias da data do pagamento sem pagar, ela conta como inadimplente no mês da data agendada.',
     campos: [
-      { k: 'data', l: 'Data em que caiu', obrig: true, tipo: 'date', hoje: true },
-      { k: 'valor', l: 'Valor recebido pela cliente (opcional)', tipo: 'money' },
-      { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
-    ],
-  },
-  baixa: {
-    titulo: 'Dar baixa (honorário recebido)', icone: '🏁', cor: '#475569',
-    anexo: 'Comprovante do honorário (opcional)',
-    campos: [
-      { k: 'forma', l: 'Como o honorário foi recebido', obrig: true, tipo: 'select', opcoes: FORMAS_HONORARIO.map(b => ({ v: b, l: b })) },
-      { k: 'valor', l: 'Valor do honorário recebido', tipo: 'money' },
+      { k: 'data', l: 'Data em que a cliente pagou', obrig: true, tipo: 'date', hoje: true },
+      { k: 'forma', l: 'Como pagou o honorário', obrig: true, tipo: 'select', opcoes: FORMAS_HONORARIO.map(b => ({ v: b, l: b })) },
+      { k: 'valor', l: 'Valor do honorário', tipo: 'money' },
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
   },
@@ -118,7 +127,7 @@ const ACOES_PD = {
   voltar: {
     titulo: 'Voltar etapa', icone: '↩️', cor: '#64748b',
     campos: [
-      { k: 'etapa', l: 'Voltar para', obrig: true, tipo: 'select', opcoes: ETAPAS_PD.filter(e => !['baixado', 'cancelado'].includes(e.key)).map(e => ({ v: e.key, l: e.label })) },
+      { k: 'etapa', l: 'Voltar para', obrig: true, tipo: 'select', opcoes: ETAPAS_PD.filter(e => ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento'].includes(e.key)).map(e => ({ v: e.key, l: e.label })) },
       { k: 'texto', l: 'Motivo', obrig: true, tipo: 'textarea' },
     ],
   },
@@ -131,8 +140,8 @@ const ACOES_POR_ETAPA_PD = {
   deferido: ['avisar_cliente', 'carta', 'atividade', 'observacao', 'cancelar'],
   carta: ['carta', 'atividade', 'observacao', 'cancelar'],
   prevsempre: ['prevsempre', 'reagendar', 'atividade', 'observacao'],
-  aguardando_pagamento: ['pago', 'reagendar', 'atividade', 'observacao'],
-  pago: ['baixa', 'observacao', 'voltar'],
+  aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
+  pago: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
   baixado: ['observacao', 'voltar'],
   cancelado: ['voltar', 'observacao'],
 }
@@ -140,14 +149,14 @@ const ACOES_POR_ETAPA_PD = {
 // soltar o card numa coluna = qual formulario abrir
 function acaoDoDropPD(c, col) {
   const e = c.etapa
+  if (col === 'atrasado') return ['__auto']
   if (col === 'carta') return e === 'deferido' ? ['avisar_cliente'] : ['voltar', { etapa: 'carta' }]
   if (col === 'prevsempre' || col === 'aguardando_pagamento') {
     if (e === 'deferido' || e === 'carta') return ['carta']
     if (e === 'prevsempre' && col === 'aguardando_pagamento') return ['prevsempre']
     return ['voltar', { etapa: col }]
   }
-  if (col === 'pago') return (e === 'aguardando_pagamento' || e === 'prevsempre') ? ['pago'] : ['voltar', { etapa: 'pago' }]
-  if (col === 'baixado') return e === 'pago' ? ['baixa'] : [null]
+  if (col === 'baixado') return ESPERANDO.includes(e) ? ['cliente_pagou'] : [null]
   if (col === 'deferido') return ['voltar', { etapa: 'deferido' }]
   return [null]
 }
@@ -156,7 +165,7 @@ function acaoDoDropPD(c, col) {
 function itensAgenda(c) {
   const out = []
   if (c.etapa === 'deferido' && !c.cliente_avisada_em) out.push({ tipo: 'avisar', data: diaBR(c.etapa_desde) || hojeISO(), texto: 'Avisar a cliente do deferimento' })
-  if ((c.etapa === 'aguardando_pagamento' || c.etapa === 'prevsempre') && c.data_pagamento) out.push({ tipo: 'pagamento', data: c.data_pagamento, texto: `Recebe${c.banco ? ' no ' + c.banco : ''}` })
+  if (ESPERANDO.includes(c.etapa) && c.data_pagamento) out.push({ tipo: 'pagamento', data: c.data_pagamento, texto: `Recebe${c.banco ? ' no ' + c.banco : ''}${inadimplente(c) ? ' · INADIMPLENTE' : ''}` })
   if (c.proxima_atividade_em && ATIVAS.includes(c.etapa)) out.push({ tipo: 'atividade', data: c.proxima_atividade_em, texto: c.proxima_atividade })
   return out
 }
@@ -165,6 +174,7 @@ const TIPO_AGENDA = {
   atividade: { r: 'Atividade', cor: '#0f766e', icone: '📅' },
   avisar: { r: 'Avisar', cor: '#16a34a', icone: '📣' },
   sem_carta: { r: 'Sem carta', cor: '#0891b2', icone: '📜' },
+  pendencia: { r: 'Pendência', cor: '#b45309', icone: '📌' },
 }
 
 // ---------------------------------------------------------------- tags do card
@@ -180,6 +190,7 @@ function Tags({ c, grande }) {
       )}
       {c.prevsempre && c.prevsempre_honorario_auto === false && <Chip cor="#b45309">sem honorário automático</Chip>}
       {c.prevsempre && c.prevsempre_conta_aberta === false && <Chip cor={cores.perigo}>conta não aberta</Chip>}
+      {inadimplente(c) ? <Chip cor={cores.perigo} forte>INADIMPLENTE · {diasApos(c.data_pagamento)}d</Chip> : atrasado(c) ? <Chip cor="#ea580c" forte>ATRASADO · {diasApos(c.data_pagamento)}d</Chip> : null}
     </>
   )
 }
@@ -197,6 +208,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
     })
     if (acao === 'reagendar' && caso.data_pagamento) o.data_pagamento = caso.data_pagamento
     if (acao === 'carta' && caso.data_pagamento) o.data_pagamento = caso.data_pagamento
+    if (acao === 'cliente_pagou' && caso.prevsempre_honorario_auto) o.forma = 'Desconto automático PrevSempre'
     return { ...o, ...(inicial || {}) }
   })
   const [arquivo, setArquivo] = useState(null)
@@ -368,7 +380,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
 
 // ---------------------------------------------------------------- ficha (gaveta)
 const ICONE_EV = {
-  entrada: '📥', avisar_cliente: '📣', carta: '📜', prevsempre: '🏦', reagendar: '🗓️', pago: '💸', baixa: '🏁',
+  entrada: '📥', avisar_cliente: '📣', carta: '📜', prevsempre: '🏦', reagendar: '🗓️', pago: '💸', baixa: '🏁', cliente_pagou: '🤝',
   atividade: '📅', atividade_feita: '☑️', observacao: '💬', voltar: '↩️', cancelar: '🚫',
 }
 
@@ -391,7 +403,7 @@ function FichaPD({ id, onFechar, onMudou }) {
   const c = dados.caso
   const pr = dados.protocolo || {}
   const et = etapaPD(c.etapa)
-  const acoes = ACOES_POR_ETAPA_PD[c.etapa] || ['observacao']
+  const acoes = c.pode_agir === false ? [] : (ACOES_POR_ETAPA_PD[c.etapa] || ['observacao'])
   const wa = telWa(c.telefone)
   const refs = (Array.isArray(pr.referencias) ? pr.referencias : []).filter(r => r && (r.nome || r.telefone))
   const copiar = async (rot, val) => { if (await copiarTexto(String(val))) mostrar(`${rot} copiado`) }
@@ -406,7 +418,7 @@ function FichaPD({ id, onFechar, onMudou }) {
     ['Carta de deferimento (INSS)', c.carta_deferimento_url],
     ['Carta de concessão', c.carta_concessao_url],
     ['Comprovante do pagamento', c.pago_comprovante_url],
-    ['Comprovante do honorário', c.honorario_comprovante_url],
+    ['Comprovante da cliente', c.honorario_comprovante_url],
   ].filter(([, u]) => u)
   const diasPag = c.data_pagamento ? Math.round((new Date(c.data_pagamento + 'T12:00:00') - new Date(hojeISO() + 'T12:00:00')) / 86400000) : null
 
@@ -437,7 +449,8 @@ function FichaPD({ id, onFechar, onMudou }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
           {acoes.map((a, i) => <button key={a} onClick={() => setModal(a)} style={btn(ACOES_PD[a].cor, i === 0)}>{ACOES_PD[a].icone} {ACOES_PD[a].titulo}</button>)}
-          {c.proxima_atividade && <button onClick={() => setModal('atividade_feita')} style={btn('#0f766e', false)}>☑️ Atividade feita</button>}
+          {c.proxima_atividade && c.pode_agir !== false && <button onClick={() => setModal('atividade_feita')} style={btn('#0f766e', false)}>☑️ Atividade feita</button>}
+          {c.pode_agir === false && <span style={{ fontSize: 12.5, color: cores.suave }}>Só acompanhamento — quem atualiza este caso é {(c.responsaveis || []).join(', ') || 'o responsável'}.</span>}
         </div>
       </div>
 
@@ -456,8 +469,8 @@ function FichaPD({ id, onFechar, onMudou }) {
               <Info rot="Data do pagamento" val={c.data_pagamento ? `${fmtData(c.data_pagamento)} · ${diaSemana(c.data_pagamento)}` : null}
                 destaque={diasPag != null && ATIVAS.includes(c.etapa) && c.etapa !== 'pago' ? (diasPag < 0 ? cores.perigo : diasPag <= 1 ? '#d97706' : '#7c3aed') : null} />
               <Info rot="Valor do benefício" val={reais(c.valor_beneficio)} />
-              {c.pago_em && <Info rot="Caiu em" val={`${fmtData(c.pago_em)}${c.pago_valor ? ' · ' + reais(c.pago_valor) : ''}`} destaque={cores.ok} />}
-              {c.baixa_em && <Info rot="Honorário" val={`${c.honorario_forma || ''}${c.honorario_valor ? ' · ' + reais(c.honorario_valor) : ''}`} destaque="#475569" />}
+              {c.etapa === 'baixado' && <Info rot="Cliente pagou" val={`${fmtData(c.pago_em)} · ${c.honorario_forma || ''}${c.honorario_valor ? ' · ' + reais(c.honorario_valor) : ''}`} destaque={cores.ok} />}
+              {inadimplente(c) && <Info rot="Situação" val={`INADIMPLENTE há ${diasApos(c.data_pagamento)} dias`} destaque={cores.perigo} />}
             </div>
             {c.prevsempre && (
               <div style={{ marginTop: 12, borderRadius: 12, padding: '10px 12px', background: hexA(AZUL_PREV, 0.06), border: `1px solid ${hexA(AZUL_PREV, 0.25)}`, fontSize: 13.5, color: cores.texto, display: 'grid', gap: 4 }}>
@@ -528,14 +541,137 @@ function FichaPD({ id, onFechar, onMudou }) {
   )
 }
 
+// ---------------------------------------------------------------- resolver pendencia (time de acompanhamento)
+// A advogada/Sthefany escreveu O QUE PRECISA; aqui a pessoa escolhe COMO resolveu
+// (alternativas da categoria em CATEGORIAS_PEND) e o banco confere o que cada uma exige.
+function ModalResolver({ pend, opcao, onClose, onFeito }) {
+  const isMobile = useIsMobile()
+  const cat = catPend(pend.categoria)
+  const op = cat.opcoes.find(o => o.v === opcao) || cat.opcoes[0]
+  const [texto, setTexto] = useState('')
+  const [data, setData] = useState('')
+  const [arquivos, setArquivos] = useState([])
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+  const [arrastando, setArrastando] = useState(false)
+  const inputRef = useRef(null)
+
+  const juntar = useCallback((lista) => {
+    const ok = [...(lista || [])].filter(f => /^image\//.test(f.type) || f.type === 'application/pdf').filter(f => f.size <= 15 * 1024 * 1024)
+    if (!ok.length) { setErro('Envie imagem ou PDF (até 15 MB).'); return }
+    setErro(''); setArquivos(a => [...a, ...ok].slice(0, 6))
+  }, [])
+  useEffect(() => {
+    if (!op.anexo && !op.anexoOpcional) return
+    const f = (e) => { const fs = [...(e.clipboardData?.items || [])].filter(x => x.kind === 'file').map(x => x.getAsFile()); if (fs.length) juntar(fs) }
+    window.addEventListener('paste', f)
+    return () => window.removeEventListener('paste', f)
+  }, [op, juntar])
+
+  const falta = []
+  if (op.anexo && !arquivos.length) falta.push('anexo')
+  if (op.data && !data) falta.push('data')
+  if (op.texto && !texto.trim()) falta.push('explicação')
+  const pode = !falta.length && !salvando
+
+  async function salvar() {
+    if (!pode) return
+    setSalvando(true); setErro('')
+    try {
+      const anexos = []
+      for (const f of arquivos) anexos.push(await enviarArquivo(f, pend.cpf))
+      const { data: r, error } = await supabase.rpc('posdef_pendencia_resolver', { p_id: pend.id, p: { resolucao: op.v, texto: texto.trim() || null, data: data || null, anexos } })
+      if (error) throw new Error(error.message)
+      if (!r?.ok) throw new Error(r?.erro || 'não salvou')
+      onFeito && onFeito(r)
+    } catch (e) { setErro(String(e.message || e)); setSalvando(false) }
+  }
+
+  const st = { width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${hexA('#0f172a', 0.14)}`, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff' }
+  const cor = op.negativa ? cores.perigo : op.andamento ? '#2563eb' : cores.ok
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', backdropFilter: 'blur(3px)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ ...card, width: '100%', maxWidth: 560, maxHeight: isMobile ? '92vh' : '88vh', overflow: 'auto', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: 0 }}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${cores.cardBorda}`, display: 'flex', gap: 12, alignItems: 'center', background: `linear-gradient(135deg, ${hexA(cat.cor, 0.10)}, transparent)` }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: hexA(cat.cor, 0.15), display: 'grid', placeItems: 'center', fontSize: 20 }}>{cat.icone}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 16.5, fontWeight: 800, color: cores.texto }}>{op.rot}</div>
+            <div style={{ fontSize: 12.5, color: cores.suave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pend.nome} · {cat.rot}</div>
+          </div>
+          <button onClick={onClose} aria-label="Fechar" style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: cores.suave }}>✕</button>
+        </div>
+        <div style={{ padding: 20, display: 'grid', gap: 14 }}>
+          <div style={{ fontSize: 13, color: cores.texto, background: cores.chipBg, borderRadius: 10, padding: '9px 12px' }}><b>O que precisa:</b> {pend.descricao}</div>
+          <div style={{ fontSize: 13, color: cor, fontWeight: 700 }}>{op.dica}</div>
+          {(op.anexo || op.anexoOpcional) && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>Anexos{op.anexo && <span style={{ color: cores.perigo }}> *</span>} <span style={{ fontWeight: 500 }}>(até 6)</span></div>
+              <div onClick={() => inputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setArrastando(true) }} onDragLeave={() => setArrastando(false)}
+                onDrop={e => { e.preventDefault(); setArrastando(false); juntar(e.dataTransfer.files) }}
+                style={{ border: `2px dashed ${arrastando ? cat.cor : hexA('#0f172a', 0.18)}`, borderRadius: 14, padding: 14, background: arrastando ? hexA(cat.cor, 0.06) : '#fafbfd', cursor: 'pointer', textAlign: 'center', color: cores.suave, fontSize: 13 }}>
+                <b style={{ color: cores.texto }}>Arraste aqui, clique para escolher</b> ou cole com <b>Ctrl+V</b> · imagem ou PDF
+                <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => juntar(e.target.files)} />
+              </div>
+              {arquivos.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {arquivos.map((f, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, background: cores.chipBg, borderRadius: 999, padding: '4px 10px' }}>
+                      📎 {(f.name || 'imagem').slice(0, 24)}
+                      <button onClick={() => setArquivos(a => a.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: cores.suave, padding: 0 }}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {op.data && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>Data combinada<span style={{ color: cores.perigo }}> *</span></div>
+              <input type="date" value={data} onChange={e => setData(e.target.value)} style={st} />
+              {pend.exigencia_prazo && pend.categoria === 'exigencia_inss' && <div style={{ fontSize: 12, color: cores.perigo, marginTop: 4 }}>Prazo do INSS: {fmtData(pend.exigencia_prazo)}</div>}
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>{op.texto ? 'Explique' : 'Observação (opcional)'}{op.texto && <span style={{ color: cores.perigo }}> *</span>}</div>
+            <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={3} style={{ ...st, resize: 'vertical' }} />
+          </div>
+          {op.andamento && <div style={{ fontSize: 12.5, color: cores.suave }}>A pendência continua aberta e aparece na sua agenda nessa data.</div>}
+          {!op.andamento && <div style={{ fontSize: 12.5, color: cores.suave }}>Ao salvar, a pendência vai para a advogada refazer o caso{op.negativa ? ' e decidir o que fazer' : ''}.</div>}
+          {erro && <div style={{ color: cores.perigo, background: hexA(cores.perigo, 0.08), borderRadius: 10, padding: '9px 12px', fontSize: 13, fontWeight: 600 }}>{erro}</div>}
+          {!pode && !salvando && falta.length > 0 && <div style={{ fontSize: 12, color: cores.suave }}>Falta: {falta.join(' · ')}</div>}
+        </div>
+        <div style={{ padding: '14px 20px 20px', display: 'flex', gap: 10, justifyContent: 'flex-end', borderTop: `1px solid ${cores.cardBorda}`, position: 'sticky', bottom: 0, background: '#fff' }}>
+          <button onClick={onClose} style={btn('#475569', false)}>Cancelar</button>
+          <button onClick={salvar} disabled={!pode} style={{ ...btn(cor), opacity: pode ? 1 : 0.45, cursor: pode ? 'pointer' : 'not-allowed' }}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- tela principal
-const ABAS = [['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
+const ETAPAS_INSS = {
+  aguardando_protocolo: { rot: 'Na fila para protocolar', cor: '#3b82f6', icone: '🗂️', grupo: 'fila' },
+  protocolado: { rot: 'Em análise no INSS', cor: '#8b5cf6', icone: '📨', grupo: 'analise' },
+  recurso: { rot: 'Em recurso', cor: '#0891b2', icone: '⚖️', grupo: 'analise' },
+  pendencia_docs: { rot: 'Com pendência', cor: '#d97706', icone: '📌', grupo: 'problema' },
+  exigencia: { rot: 'Exigência do INSS', cor: '#ea580c', icone: '⚠️', grupo: 'problema' },
+  indeferido: { rot: 'Indeferido', cor: '#dc2626', icone: '⛔', grupo: 'problema' },
+  recurso_indeferido: { rot: 'Recurso indeferido', cor: '#b91c1c', icone: '✖️', grupo: 'problema' },
+}
+const nomeMesBR = (ym) => { const [a, m] = ym.split('-').map(Number); const n = new Date(a, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }); return `${n.charAt(0).toUpperCase()}${n.slice(1)}/${String(a).slice(2)}` }
+const mesDe = (c) => (c.data_pagamento || (c.pago_em || '')).slice(0, 7)
 
 export default function PosDeferimento() {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
   const [toast, mostrar] = useToast()
+  // vendedora (sem ser responsavel/admin): so le o pos das vendas dela
+  const soLeitura = profile?.role !== 'admin' && profile?.posdef_papel === 'vendedora'
   const [lista, setLista] = useState(null)
+  const [inss, setInss] = useState([])
+  const [pends, setPends] = useState([])
   const [aba, setAba] = useState('agenda')
   const [busca, setBusca] = useState('')
   const [fResp, setFResp] = useState('')
@@ -543,49 +679,63 @@ export default function PosDeferimento() {
   const [fTag, setFTag] = useState('')
   const [aberto, setAberto] = useState(null)
   const [modal, setModal] = useState(null)
+  const [resolver, setResolver] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [colHover, setColHover] = useState(null)
   const [mes, setMes] = useState(() => hojeISO().slice(0, 7))
   const [verFechados, setVerFechados] = useState(false)
+  const [verResolvidas, setVerResolvidas] = useState(false)
 
   const carregar = useCallback(async () => {
-    const { data, error } = await supabase.rpc('posdef_lista')
-    if (error) mostrar('Erro ao carregar: ' + error.message, 'erro')
-    setLista(Array.isArray(data) ? data : [])
-  }, [mostrar])
+    const reqs = [supabase.rpc('posdef_lista')]
+    if (!soLeitura) reqs.push(supabase.rpc('posdef_inss_lista'), supabase.rpc('posdef_pendencias_lista'))
+    const [l, i, p] = await Promise.all(reqs)
+    if (l.error) mostrar('Erro ao carregar: ' + l.error.message, 'erro')
+    setLista(Array.isArray(l.data) ? l.data : [])
+    if (i) setInss(Array.isArray(i.data) ? i.data : [])
+    if (p) setPends(Array.isArray(p.data) ? p.data : [])
+  }, [mostrar, soLeitura])
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { const t = setInterval(carregar, 60000); return () => clearInterval(t) }, [carregar])
   useEffect(() => {
-    const f = (e) => { if (e.key === 'Escape' && !modal) setAberto(null) }
+    const f = (e) => { if (e.key === 'Escape' && !modal && !resolver) setAberto(null) }
     window.addEventListener('keydown', f)
     return () => window.removeEventListener('keydown', f)
-  }, [modal])
+  }, [modal, resolver])
 
-  const responsaveis = useMemo(() => [...new Set((lista || []).flatMap(c => c.responsaveis || []))].sort(), [lista])
+  const responsaveis = useMemo(() => [...new Set([...(lista || []), ...inss, ...pends].flatMap(c => c.responsaveis || []))].sort(), [lista, inss, pends])
   const bancos = useMemo(() => [...new Set((lista || []).map(c => c.banco).filter(Boolean))].sort(), [lista])
 
-  const filtrada = useMemo(() => {
+  const casa = useCallback((c) => {
     const q = busca.trim().toLowerCase()
     const qd = soDig(busca)
-    return (lista || []).filter(c => {
-      if (q && !(String(c.nome || '').toLowerCase().includes(q) || (qd.length >= 3 && String(c.cpf || '').includes(qd)) || (qd.length >= 4 && soDig(c.telefone).includes(qd)))) return false
-      if (fResp && !(c.responsaveis || []).includes(fResp)) return false
-      if (fBanco && c.banco !== fBanco) return false
-      if (fTag === 'prevsempre' && !c.prevsempre) return false
-      if (fTag === 'honorario' && c.prevsempre_honorario_auto !== true) return false
-      if (fTag === 'normal' && c.prevsempre_honorario_auto === true) return false
-      return true
-    })
-  }, [lista, busca, fResp, fBanco, fTag])
+    if (q && !(String(c.nome || '').toLowerCase().includes(q) || (qd.length >= 3 && String(c.cpf || '').includes(qd)) || (qd.length >= 4 && soDig(c.telefone).includes(qd)))) return false
+    if (fResp && !(c.responsaveis || []).includes(fResp)) return false
+    return true
+  }, [busca, fResp])
+
+  const filtrada = useMemo(() => (lista || []).filter(c => {
+    if (!casa(c)) return false
+    if (fBanco && c.banco !== fBanco) return false
+    if (fTag === 'prevsempre' && !c.prevsempre) return false
+    if (fTag === 'honorario' && c.prevsempre_honorario_auto !== true) return false
+    if (fTag === 'normal' && c.prevsempre_honorario_auto === true) return false
+    if (fTag === 'inadimplente' && !inadimplente(c)) return false
+    return true
+  }), [lista, casa, fBanco, fTag])
+  const inssF = useMemo(() => inss.filter(casa), [inss, casa])
+  const pendsF = useMemo(() => pends.filter(casa), [pends, casa])
 
   const hoje = hojeISO()
   const amanha = somaDias(hoje, 1)
   const depois = somaDias(hoje, 2)
+  const fimSemana = somaDias(hoje, 6)
 
-  // agenda: cada caso pode ter mais de um item (pagamento + atividade)
   const agenda = useMemo(() => {
     const itens = []
     filtrada.forEach(c => itensAgenda(c).forEach(it => itens.push({ ...it, c })))
+    // pendencia com data combinada entra na agenda
+    pendsF.filter(p => p.status !== 'resolvida' && p.prazo).forEach(p => itens.push({ tipo: 'pendencia', data: p.prazo, texto: `${catPend(p.categoria).rot}: ${p.descricao}`, c: p, pend: p }))
     const ord = (a, b) => String(a.data).localeCompare(String(b.data)) || (a.tipo === 'pagamento' ? -1 : 1)
     return {
       atrasados: itens.filter(i => i.data < hoje).sort(ord),
@@ -595,32 +745,44 @@ export default function PosDeferimento() {
       semana: itens.filter(i => i.data > depois && i.data <= somaDias(hoje, 7)).sort(ord),
       futuro: itens.filter(i => i.data > somaDias(hoje, 7)).sort(ord),
     }
-  }, [filtrada, hoje, amanha, depois])
+  }, [filtrada, pendsF, hoje, amanha, depois])
 
-  const conta = useMemo(() => {
-    const L = filtrada
-    const mesAtual = hoje.slice(0, 7)
-    const pagAtrasado = L.filter(c => ['aguardando_pagamento', 'prevsempre'].includes(c.etapa) && c.data_pagamento && c.data_pagamento < hoje)
-    const baixadosMes = L.filter(c => c.etapa === 'baixado' && diaBR(c.baixa_em)?.slice(0, 7) === mesAtual)
-    return {
-      atrasados: agenda.atrasados.length,
-      pagAtrasado: pagAtrasado.length,
-      recebeHoje: L.filter(c => ['aguardando_pagamento', 'prevsempre'].includes(c.etapa) && c.data_pagamento === hoje).length,
-      recebeAmanha: L.filter(c => ['aguardando_pagamento', 'prevsempre'].includes(c.etapa) && c.data_pagamento === amanha).length,
-      semCarta: L.filter(c => c.etapa === 'deferido' || c.etapa === 'carta').length,
-      honorarioAuto: L.filter(c => c.prevsempre_honorario_auto === true && ATIVAS.includes(c.etapa)).length,
-      paraBaixa: L.filter(c => c.etapa === 'pago').length,
-      baixadosMes: baixadosMes.length,
-      honorarioMes: baixadosMes.reduce((s, c) => s + Number(c.honorario_valor || 0), 0),
-    }
-  }, [filtrada, agenda, hoje, amanha])
+  // inadimplencia: conta no MES DA DATA AGENDADA do pagamento (regra do Bruno, 29/10)
+  const porMes = useMemo(() => {
+    const m = {}
+    filtrada.filter(c => c.data_pagamento || c.etapa === 'baixado').forEach(c => {
+      const k = mesDe(c); if (!k) return
+      const r = m[k] || (m[k] = { mes: k, agendados: 0, pagos: 0, emDia: 0, inad: 0, aberto: 0, honor: 0 })
+      if (c.etapa === 'cancelado') return
+      r.agendados++
+      if (c.etapa === 'baixado') {
+        r.pagos++; r.honor += Number(c.honorario_valor || 0)
+        if (!c.data_pagamento || !c.pago_em || diasApos(c.data_pagamento) === null || (new Date(c.pago_em + 'T12:00:00') - new Date(c.data_pagamento + 'T12:00:00')) / 86400000 <= DIAS_INADIMPLENTE) r.emDia++
+      } else if (inadimplente(c)) r.inad++
+      else r.aberto++
+    })
+    return m
+  }, [filtrada])
+  const mesAtual = hoje.slice(0, 7)
+  const rm = porMes[mesAtual] || { pagos: 0, inad: 0, honor: 0 }
+  const taxa = (r) => ((r.pagos + r.inad) ? Math.round((r.inad / (r.pagos + r.inad)) * 100) : 0)
+
+  const conta = useMemo(() => ({
+    semCarta: filtrada.filter(c => c.etapa === 'deferido' || c.etapa === 'carta').length,
+    amanha: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento === amanha).length,
+    semana: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
+    atrasados: filtrada.filter(atrasado).length,
+    pendAbertas: pendsF.filter(p => p.status === 'aberta').length,
+  }), [filtrada, pendsF, hoje, amanha, fimSemana])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
   function soltar(col) {
     const c = (lista || []).find(x => x.id === arrastando)
     setArrastando(null); setColHover(null)
-    if (!c || c.etapa === col) return
+    if (!c || colunaDe(c) === col) return
+    if (c.pode_agir === false) { mostrar('Só o responsável atualiza este caso.', 'erro'); return }
     const [acao, inicial] = acaoDoDropPD(c, col)
+    if (acao === '__auto') { mostrar('"Pagamento atrasado" é automático: entra quando passa a data do pagamento.', 'erro'); return }
     if (acao) abrirAcao(c, acao, inicial)
     else mostrar('Esse movimento não existe — abra o card e use os botões.', 'erro')
   }
@@ -636,27 +798,30 @@ export default function PosDeferimento() {
   )
 
   const cartao = (c) => {
-    const et = etapaPD(c.etapa)
+    const col = colunaDe(c)
+    const et = etapaPD(col)
     const dias = diasDesde(c.etapa_desde)
-    const dPag = c.data_pagamento ? Math.round((new Date(c.data_pagamento + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 86400000) : null
-    const pagAtivo = ['aguardando_pagamento', 'prevsempre'].includes(c.etapa)
+    const dPag = c.data_pagamento ? -diasApos(c.data_pagamento) : null
+    const pagAtivo = ESPERANDO.includes(c.etapa)
+    const arrasta = !isMobile && !soLeitura && c.pode_agir !== false
     return (
-      <div key={c.id} draggable={!isMobile}
+      <div key={c.id} draggable={arrasta}
         onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setArrastando(c.id) }}
         onDragEnd={() => { setArrastando(null); setColHover(null) }}
         onClick={() => setAberto(c.id)} className="kr-cartao"
-        style={{ minWidth: 0, background: '#fff', borderRadius: 14, border: `1px solid ${c.prevsempre ? hexA(AZUL_PREV, 0.35) : cores.cardBorda}`, borderLeft: c.prevsempre ? `4px solid ${AZUL_PREV}` : `1px solid ${cores.cardBorda}`, padding: 12, boxShadow: arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)', cursor: isMobile ? 'pointer' : 'grab', opacity: arrastando === c.id ? 0.55 : 1, transition: 'box-shadow .15s, transform .15s' }}>
+        style={{ minWidth: 0, background: '#fff', borderRadius: 14, border: `1px solid ${c.prevsempre ? hexA(AZUL_PREV, 0.35) : cores.cardBorda}`, borderLeft: c.prevsempre ? `4px solid ${AZUL_PREV}` : `1px solid ${cores.cardBorda}`, padding: 12, boxShadow: arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)', cursor: arrasta ? 'grab' : 'pointer', opacity: arrastando === c.id ? 0.55 : 1, transition: 'box-shadow .15s, transform .15s' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <div style={{ width: 34, height: 34, borderRadius: 11, background: hexA(et.cor, 0.12), color: et.cor, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 12.5, flexShrink: 0 }}>{iniciais(c.nome)}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 750, color: cores.texto, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.nome || 'Sem nome'}</div>
-            <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 2 }}>{(c.responsaveis || []).join(', ') || '—'}</div>
+            <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 2 }}>{soLeitura ? (c.vendedora_nome || '') : ((c.responsaveis || []).join(', ') || '—')}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}><Tags c={c} /></div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: 11.5, color: cores.suave, gap: 6 }}>
           <span style={{ fontWeight: pagAtivo && dPag != null && dPag <= 1 ? 800 : 500, color: pagAtivo && dPag != null ? (dPag < 0 ? cores.perigo : dPag <= 1 ? '#d97706' : cores.suave) : cores.suave }}>
-            {pagAtivo && c.data_pagamento ? `💰 ${fmtData(c.data_pagamento)}${dPag === 0 ? ' · HOJE' : dPag === 1 ? ' · amanhã' : dPag < 0 ? ' · atrasado' : ''}`
+            {c.etapa === 'baixado' ? `🤝 pagou ${fmtData(c.pago_em)}`
+              : pagAtivo && c.data_pagamento ? `💰 ${fmtData(c.data_pagamento)}${dPag === 0 ? ' · HOJE' : dPag === 1 ? ' · amanhã' : ''}`
               : c.etapa === 'deferido' && !c.cliente_avisada_em ? '📣 avisar cliente'
               : `há ${dias} dia${dias === 1 ? '' : 's'}`}
           </span>
@@ -667,6 +832,8 @@ export default function PosDeferimento() {
     )
   }
 
+  const selectSt = { padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }
+  const filtroPos = ['agenda', 'funil', 'calendario', 'lista', 'inadimplencia'].includes(aba)
   const filtros = (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
@@ -674,25 +841,28 @@ export default function PosDeferimento() {
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou telefone"
           style={{ width: '100%', padding: '9px 12px 9px 30px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13.5, boxSizing: 'border-box', background: '#fff' }} />
       </div>
-      {responsaveis.length > 1 && (
-        <select value={fResp} onChange={e => setFResp(e.target.value)} style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }}>
+      {responsaveis.length > 1 && !soLeitura && (
+        <select value={fResp} onChange={e => setFResp(e.target.value)} style={selectSt}>
           <option value="">Todos os responsáveis</option>
           {responsaveis.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
       )}
-      {bancos.length > 0 && (
-        <select value={fBanco} onChange={e => setFBanco(e.target.value)} style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }}>
+      {filtroPos && bancos.length > 0 && (
+        <select value={fBanco} onChange={e => setFBanco(e.target.value)} style={selectSt}>
           <option value="">Todos os bancos</option>
           {bancos.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
       )}
-      <select value={fTag} onChange={e => setFTag(e.target.value)} style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }}>
-        <option value="">Todas as etiquetas</option>
-        <option value="prevsempre">Só PrevSempre</option>
-        <option value="honorario">Honorário automático</option>
-        <option value="normal">Acompanhamento normal</option>
-      </select>
-      {(busca || fResp || fBanco || fTag) && <button onClick={() => { setBusca(''); setFResp(''); setFBanco(''); setFTag('') }} style={{ ...btn('#475569', false), padding: '8px 11px', fontSize: 12 }}>Limpar</button>}
+      {filtroPos && (
+        <select value={fTag} onChange={e => setFTag(e.target.value)} style={{ ...selectSt, ...(fTag ? { border: `1.5px solid ${AZUL_PREV}`, color: AZUL_PREV, fontWeight: 700 } : {}) }}>
+          <option value="">Todas as etiquetas</option>
+          <option value="prevsempre">Só PrevSempre</option>
+          <option value="honorario">Honorário automático</option>
+          <option value="normal">Acompanhamento normal</option>
+          <option value="inadimplente">Inadimplentes</option>
+        </select>
+      )}
+      {(busca || fResp || fBanco || fTag) && <button onClick={() => { setBusca(''); setFResp(''); setFBanco(''); setFTag('') }} style={{ ...btn(cores.perigo, false), padding: '8px 11px', fontSize: 12 }}>✕ Limpar filtros</button>}
     </div>
   )
 
@@ -701,16 +871,18 @@ export default function PosDeferimento() {
     const c = it.c
     const t = TIPO_AGENDA[it.tipo]
     const wa = telWa(c.telefone)
-    const acaoRapida = it.tipo === 'pagamento' ? (c.etapa === 'prevsempre' ? 'prevsempre' : 'pago') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : 'atividade_feita'
-    const cfg = ACOES_PD[acaoRapida]
+    const ehPend = it.tipo === 'pendencia'
+    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : 'atividade_feita'
+    const cfg = acaoRapida ? ACOES_PD[acaoRapida] : null
+    const podeAgir = !soLeitura && !ehPend && c.pode_agir !== false
     return (
-      <div key={c.id + it.tipo + i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      <div key={(c.id || '') + it.tipo + i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: c.prevsempre ? AZUL_PREV : t.cor, flexShrink: 0 }} />
-        <div onClick={() => setAberto(c.id)} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
+        <div onClick={() => (ehPend ? setAba('pendencias') : setAberto(c.id))} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip cor={t.cor} forte>{t.icone} {t.r}</Chip>
             <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
-            <Tags c={c} />
+            {!ehPend && <Tags c={c} />}
           </div>
           <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
             {it.data && it.data < hoje && <b style={{ color: cores.perigo }}>{fmtData(it.data)} · </b>}
@@ -720,7 +892,8 @@ export default function PosDeferimento() {
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {it.tipo === 'pagamento' && <button title="Copiar lembrete para a cliente" onClick={async () => mostrar((await copiarTexto(msgPagamento(c))) ? 'Lembrete copiado' : 'Não consegui copiar')} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>⧉ Lembrete</button>}
           {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
-          <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'pago' ? 'Caiu' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : 'Feito'}</button>
+          {ehPend && <button onClick={() => setAba('pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
+          {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : 'Feito'}</button>}
         </div>
       </div>
     )
@@ -738,7 +911,7 @@ export default function PosDeferimento() {
   )
   const agendaView = (
     <div style={{ display: 'grid', gap: 14 }}>
-      {agenda.atrasados.length > 0 && blocoAgenda('Atrasados', agenda.atrasados, cores.perigo, '', 'pagamento que passou do dia sem baixa, atividade vencida ou cliente ainda não avisada')}
+      {agenda.atrasados.length > 0 && blocoAgenda('Atrasados', agenda.atrasados, cores.perigo, '', 'pagamento que passou do dia, atividade vencida, pendência vencida ou cliente ainda não avisada')}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0,1fr))', gap: 14, alignItems: 'start' }}>
         {blocoAgenda('Hoje', agenda.hoje, '#d97706', 'Nada para hoje.', `${diaSemana(hoje)} ${fmtData(hoje)}`)}
         {blocoAgenda('Amanhã', agenda.amanha, '#7c3aed', 'Nada para amanhã.', `${diaSemana(amanha)} ${fmtData(amanha)}`)}
@@ -758,12 +931,12 @@ export default function PosDeferimento() {
   // ------------------------------------------------------------ funil
   const funil = (
     <div style={{ overflowX: 'auto', paddingBottom: 8, margin: '0 -4px' }}>
-      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(235px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : COLUNAS_PD.length * 235 }}>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(225px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : COLUNAS_PD.length * 225 }}>
         {COLUNAS_PD.map(k => {
           const et = etapaPD(k)
-          let itens = filtrada.filter(c => c.etapa === k)
+          let itens = filtrada.filter(c => colunaDe(c) === k)
           if (k === 'baixado' && !verFechados) itens = itens.filter(c => diasDesde(c.baixa_em) <= 30)
-          itens = itens.sort((a, b) => (k === 'aguardando_pagamento' || k === 'prevsempre')
+          itens = itens.sort((a, b) => (['aguardando_pagamento', 'prevsempre', 'atrasado'].includes(k))
             ? String(a.data_pagamento || '9').localeCompare(String(b.data_pagamento || '9'))
             : new Date(b.ultima_movimentacao_em) - new Date(a.ultima_movimentacao_em))
           const alvo = arrastando && colHover === k
@@ -772,12 +945,13 @@ export default function PosDeferimento() {
               onDragOver={e => { if (arrastando) { e.preventDefault(); setColHover(k) } }}
               onDragLeave={() => setColHover(h => (h === k ? null : h))}
               onDrop={e => { e.preventDefault(); soltar(k) }}
-              style={{ background: alvo ? hexA(et.cor, 0.09) : 'rgba(241,245,249,.75)', borderRadius: 18, padding: 10, border: `1.5px ${alvo ? 'dashed' : 'solid'} ${alvo ? et.cor : 'rgba(15,23,42,.05)'}`, minHeight: 420, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              style={{ background: alvo ? hexA(et.cor, 0.09) : k === 'atrasado' && itens.length ? hexA(cores.perigo, 0.04) : 'rgba(241,245,249,.75)', borderRadius: 18, padding: 10, border: `1.5px ${alvo ? 'dashed' : 'solid'} ${alvo ? et.cor : 'rgba(15,23,42,.05)'}`, minHeight: 420, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 2px' }}>
                 <span style={{ width: 9, height: 9, borderRadius: 999, background: et.cor, boxShadow: `0 0 0 4px ${hexA(et.cor, 0.15)}` }} />
                 <span style={{ fontSize: 13, fontWeight: 800, color: cores.texto, flex: 1 }}>{et.label}</span>
                 <span style={{ fontSize: 12, fontWeight: 800, color: et.cor, background: hexA(et.cor, 0.12), borderRadius: 999, padding: '1px 9px' }}>{itens.length}</span>
               </div>
+              {k === 'atrasado' && <div style={{ fontSize: 11.5, color: cores.suave, padding: '0 4px' }}>Entra sozinho quando passa a data. Mais de {DIAS_INADIMPLENTE} dias = inadimplente.</div>}
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 9, alignContent: 'start', overflowY: 'auto', maxHeight: 'calc(100vh - 330px)', minHeight: 60, paddingRight: 2 }}>
                 {itens.map(cartao)}
                 {itens.length === 0 && <div style={{ fontSize: 12.5, color: cores.suave, textAlign: 'center', padding: '22px 8px', border: `1.5px dashed ${hexA('#0f172a', 0.1)}`, borderRadius: 14 }}>{arrastando ? 'Solte aqui' : 'Nenhum caso'}</div>}
@@ -786,9 +960,9 @@ export default function PosDeferimento() {
           )
         })}
       </div>
-      {!isMobile && <div style={{ fontSize: 12, color: cores.suave, marginTop: 10 }}>Arraste o card para a próxima etapa — o formulário abre pedindo o que é obrigatório (carta, banco, data…). Clique no card para abrir a ficha.</div>}
+      {!isMobile && !soLeitura && <div style={{ fontSize: 12, color: cores.suave, marginTop: 10 }}>Arraste o card para a próxima etapa — o formulário abre pedindo o que é obrigatório. Banco Mercantil vai sozinho para a PrevSempre. Clique no card para abrir a ficha.</div>}
       <label style={{ fontSize: 12.5, color: cores.suave, display: 'inline-flex', gap: 6, alignItems: 'center', marginTop: 8, cursor: 'pointer' }}>
-        <input type="checkbox" checked={verFechados} onChange={e => setVerFechados(e.target.checked)} /> mostrar baixados antigos e cancelados
+        <input type="checkbox" checked={verFechados} onChange={e => setVerFechados(e.target.checked)} /> mostrar pagos antigos e cancelados
       </label>
       {verFechados && filtrada.some(c => c.etapa === 'cancelado') && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10, marginTop: 10 }}>
@@ -802,7 +976,7 @@ export default function PosDeferimento() {
   const calendario = (() => {
     const [a, m] = mes.split('-').map(Number)
     const primeiro = new Date(a, m - 1, 1)
-    const ini = (primeiro.getDay() + 6) % 7  // segunda = 0
+    const ini = (primeiro.getDay() + 6) % 7
     const nDias = new Date(a, m, 0).getDate()
     const porDia = {}
     filtrada.forEach(c => itensAgenda(c).forEach(it => { if (it.data && it.data.startsWith(mes)) (porDia[it.data] = porDia[it.data] || []).push({ ...it, c }) }))
@@ -832,7 +1006,7 @@ export default function PosDeferimento() {
                 {isMobile ? (its.length > 0 && <div style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: '#7c3aed' }}>● {its.length}</div>) : (
                   <div style={{ display: 'grid', gap: 3, marginTop: 4 }}>
                     {its.slice(0, 4).map((it, j) => (
-                      <div key={j} onClick={() => setAberto(it.c.id)} title={`${it.c.nome} — ${it.texto}`} style={{ fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 6, padding: '2px 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff', background: it.c.prevsempre ? AZUL_PREV : TIPO_AGENDA[it.tipo].cor }}>
+                      <div key={j} onClick={() => setAberto(it.c.id)} title={`${it.c.nome} — ${it.texto}`} style={{ fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 6, padding: '2px 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff', background: inadimplente(it.c) && it.tipo === 'pagamento' ? cores.perigo : it.c.prevsempre ? AZUL_PREV : TIPO_AGENDA[it.tipo].cor }}>
                         {TIPO_AGENDA[it.tipo].icone} {primeiroNome(it.c.nome)}
                       </div>
                     ))}
@@ -844,8 +1018,203 @@ export default function PosDeferimento() {
           })}
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12, fontSize: 12, color: cores.suave }}>
-          {Object.entries(TIPO_AGENDA).filter(([k]) => k !== 'sem_carta').map(([k, t]) => <span key={k}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: t.cor, marginRight: 5 }} />{t.r}</span>)}
+          {['pagamento', 'atividade', 'avisar'].map(k => <span key={k}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: TIPO_AGENDA[k].cor, marginRight: 5 }} />{TIPO_AGENDA[k].r}</span>)}
           <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: AZUL_PREV, marginRight: 5 }} />PrevSempre</span>
+          <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: cores.perigo, marginRight: 5 }} />Inadimplente</span>
+        </div>
+      </div>
+    )
+  })()
+
+  // ------------------------------------------------------------ no INSS (so leitura)
+  const inssView = (() => {
+    const grupos = [
+      ['problema', 'Com problema', cores.perigo, 'pendência, exigência ou indeferimento — veja a aba Pendências'],
+      ['analise', 'Em análise no INSS', '#8b5cf6', 'protocolado, aguardando resposta'],
+      ['fila', 'Na fila para protocolar', '#3b82f6', 'contrato assinado, a advogada ainda vai protocolar'],
+    ]
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ ...card, padding: '11px 16px', fontSize: 13, color: cores.suave }}>🔒 <b style={{ color: cores.texto }}>Só acompanhamento.</b> Quem mexe nesta etapa é a advogada. Aqui você vê em que pé está cada contrato e há quanto tempo, para ir alinhando com a cliente.</div>
+        {grupos.map(([g, tit, cor, sub]) => {
+          const itens = inssF.filter(c => (ETAPAS_INSS[c.etapa] || {}).grupo === g)
+          return (
+            <div key={g} style={{ ...card, padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, background: hexA(cor, 0.06), borderBottom: `1px solid ${cores.cardBorda}`, flexWrap: 'wrap' }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
+                <span style={{ fontSize: 14, fontWeight: 800, color: cores.texto }}>{tit}</span>
+                <span style={{ fontSize: 12, color: cores.suave }}>{sub}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{itens.length}</span>
+              </div>
+              {itens.length === 0 && <div style={{ padding: '14px', fontSize: 13, color: cores.suave }}>Nenhum.</div>}
+              {itens.map((c, i) => {
+                const e = ETAPAS_INSS[c.etapa]
+                const d = diasDesde(c.etapa_desde)
+                const dProt = c.data_protocolo ? diasApos(c.data_protocolo) : null
+                return (
+                  <div key={c.id} className="kr-linha" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Chip cor={e.cor} forte>{e.icone} {e.rot}</Chip>
+                        <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+                        {c.pend_abertas > 0 && <button onClick={() => setAba('pendencias')} style={{ border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: '#b45309', background: hexA('#b45309', 0.1), borderRadius: 999, padding: '2px 9px' }}>📌 {c.pend_abertas} pendência{c.pend_abertas > 1 ? 's' : ''}</button>}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>
+                        {fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.perfil ? ` · ${c.perfil}` : ''}
+                        {c.etapa === 'exigencia' && c.exigencia_prazo ? <b style={{ color: cores.perigo }}> · prazo do INSS {fmtData(c.exigencia_prazo)}</b> : null}
+                        {c.motivo && ['indeferido', 'recurso_indeferido'].includes(c.etapa) ? ` · ${c.motivo}` : ''}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 12.5, color: cores.suave, minWidth: 140 }}>
+                      {c.numero_protocolo && <div>nº <b style={{ color: cores.texto }}>{c.numero_protocolo}</b></div>}
+                      <div style={{ fontWeight: 700, color: (g === 'fila' && d > 3) || (g === 'analise' && dProt > 45) ? cores.perigo : cores.texto }}>
+                        {g === 'analise' && dProt != null ? `em análise há ${dProt} dia${dProt === 1 ? '' : 's'}` : `há ${d} dia${d === 1 ? '' : 's'} nesta etapa`}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    )
+  })()
+
+  // ------------------------------------------------------------ pendencias para resolver
+  const cartaoPend = (p) => {
+    const cat = catPend(p.categoria)
+    const fechada = p.status === 'resolvida'
+    const andamento = p.status === 'avisado'
+    const venc = andamento && p.prazo && p.prazo < hoje
+    const wa = telWa(p.telefone)
+    return (
+      <div key={p.id} style={{ ...card, padding: 0, overflow: 'hidden', opacity: fechada ? 0.75 : 1, border: `1.5px solid ${fechada ? cores.cardBorda : venc ? hexA(cores.perigo, 0.5) : hexA(cat.cor, 0.35)}` }}>
+        <div style={{ padding: '11px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: hexA(cat.cor, 0.07) }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: '#fff', background: cat.cor, borderRadius: 999, padding: '3px 11px' }}>{cat.icone} {cat.rot}</span>
+          <span style={{ fontSize: 14.5, fontWeight: 800, color: cores.texto }}>{p.nome}</span>
+          <span style={{ fontSize: 12, color: cores.suave }}>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: cores.suave }}>aberta por <b>{p.aberta_por || '—'}</b> · há {p.dias_aberta} dia{p.dias_aberta === 1 ? '' : 's'}</span>
+        </div>
+        <div style={{ padding: 14, display: 'grid', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase' }}>O que precisa</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: cores.texto, marginTop: 3, whiteSpace: 'pre-wrap' }}>{p.descricao}</div>
+            {cat.explica && <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{cat.explica}</div>}
+            {p.categoria === 'exigencia_inss' && p.exigencia_prazo && <div style={{ fontSize: 12.5, color: cores.perigo, fontWeight: 700, marginTop: 3 }}>Prazo do INSS: {fmtData(p.exigencia_prazo)}</div>}
+          </div>
+          {(andamento || fechada) && p.resolucao && (
+            <div style={{ fontSize: 13, borderRadius: 10, padding: '8px 11px', background: venc ? hexA(cores.perigo, 0.08) : fechada ? hexA(cores.ok, 0.08) : hexA('#2563eb', 0.07), color: cores.texto }}>
+              <b>{fechada ? 'Resolvida' : venc ? 'Combinado e VENCIDO' : 'Combinado'}:</b> {rotResolucao(p.categoria, p.resolucao)}{p.resolucao_data ? ` · ${fmtData(p.resolucao_data)}` : ''}{p.resolucao_texto ? ` — ${p.resolucao_texto}` : ''}
+              {fechada && <span style={{ color: cores.suave }}> · {p.resolvida_por} {fmtDataHora(p.resolvida_em)}{RESOLUCOES_NEGATIVAS.includes(p.resolucao) ? ' · advogada vai decidir' : ' · com a advogada para refazer'}</span>}
+            </div>
+          )}
+          {!fechada && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase', marginBottom: 6 }}>Como resolver</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${cat.opcoes.length}, minmax(0,1fr))`, gap: 8 }}>
+                {cat.opcoes.map(o => {
+                  const cor = o.negativa ? cores.perigo : o.andamento ? '#2563eb' : cores.ok
+                  return (
+                    <button key={o.v} onClick={() => setResolver({ pend: p, opcao: o.v })} style={{ textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 12, padding: '10px 12px', border: `1.5px solid ${hexA(cor, 0.35)}`, background: hexA(cor, 0.05) }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 800, color: cor }}>{o.negativa ? '✕' : o.andamento ? '🗓️' : '✔'} {o.rot}</div>
+                      <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>{o.dica}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 11px', fontSize: 12, textDecoration: 'none', marginTop: 10 }}>WhatsApp da cliente · {fmtTel(p.telefone)}</a>}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+  const pendView = (() => {
+    const abertas = pendsF.filter(p => p.status === 'aberta')
+    const andamento = pendsF.filter(p => p.status === 'avisado')
+    const resolvidas = pendsF.filter(p => p.status === 'resolvida')
+    const titulo = (t, n, cor, sub) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 2px' }}>
+        <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
+        <span style={{ fontSize: 15, fontWeight: 800, color: cores.texto }}>{t}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{n}</span>
+        {sub && <span style={{ fontSize: 12, color: cores.suave }}>{sub}</span>}
+      </div>
+    )
+    return (
+      <div style={{ display: 'grid', gap: 12 }}>
+        {titulo('Para resolver', abertas.length, '#b45309', 'abertas pela advogada ou pela Sthefany')}
+        {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma pendência aberta. 🎉</div>}
+        {abertas.map(cartaoPend)}
+        {andamento.length > 0 && titulo('Em andamento', andamento.length, '#2563eb', 'com data combinada — aparecem na agenda')}
+        {andamento.map(cartaoPend)}
+        {resolvidas.length > 0 && (
+          <button onClick={() => setVerResolvidas(v => !v)} style={{ ...btn('#475569', false), justifySelf: 'start' }}>{verResolvidas ? 'Esconder' : 'Ver'} resolvidas nos últimos 7 dias ({resolvidas.length})</button>
+        )}
+        {verResolvidas && resolvidas.map(cartaoPend)}
+      </div>
+    )
+  })()
+
+  // ------------------------------------------------------------ inadimplencia
+  const inadView = (() => {
+    const meses = Object.values(porMes).sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 8)
+    const inadLista = filtrada.filter(inadimplente).sort((a, b) => String(a.data_pagamento).localeCompare(String(b.data_pagamento)))
+    const porResp = {}
+    filtrada.filter(c => mesDe(c) === mesAtual && c.etapa !== 'cancelado').forEach(c => (c.responsaveis || ['—']).forEach(r => {
+      const x = porResp[r] || (porResp[r] = { r, pagos: 0, inad: 0 })
+      if (c.etapa === 'baixado') x.pagos++; else if (inadimplente(c)) x.inad++
+    }))
+    const th = { padding: '9px 12px', fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: cores.suave, textAlign: 'right', whiteSpace: 'nowrap' }
+    const td = { padding: '9px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderTop: `1px solid ${cores.cardBorda}` }
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ ...card, padding: '11px 16px', fontSize: 13, color: cores.suave }}>
+          <b style={{ color: cores.texto }}>Regra:</b> inadimplente = passou <b>{DIAS_INADIMPLENTE} dias</b> da data do pagamento e a cliente não pagou. Conta sempre no <b>mês da data agendada</b> (se a data era 29/10 e virou inadimplente em 02/11, conta em outubro).
+        </div>
+        <div style={{ ...card, padding: 0, overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 620 }}>
+            <thead><tr style={{ background: '#f8fafc' }}>
+              <th style={{ ...th, textAlign: 'left' }}>Mês (data agendada)</th><th style={th}>Agendados</th><th style={th}>Pagaram</th><th style={th}>Em dia</th><th style={th}>Inadimplentes</th><th style={th}>Em aberto</th><th style={th}>Taxa</th><th style={th}>Honorário</th>
+            </tr></thead>
+            <tbody>
+              {meses.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: cores.suave }}>Ainda sem pagamentos agendados.</td></tr>}
+              {meses.map(r => (
+                <tr key={r.mes} style={{ background: r.mes === mesAtual ? hexA('#2563eb', 0.04) : 'transparent' }}>
+                  <td style={{ ...td, textAlign: 'left', fontWeight: 800 }}>{nomeMesBR(r.mes)}</td>
+                  <td style={td}>{r.agendados}</td>
+                  <td style={{ ...td, color: cores.ok, fontWeight: 700 }}>{r.pagos}</td>
+                  <td style={td}>{r.emDia}</td>
+                  <td style={{ ...td, color: r.inad ? cores.perigo : cores.texto, fontWeight: 800 }}>{r.inad}</td>
+                  <td style={{ ...td, color: cores.suave }}>{r.aberto}</td>
+                  <td style={{ ...td, fontWeight: 800, color: taxa(r) >= 20 ? cores.perigo : taxa(r) >= 10 ? '#d97706' : cores.ok }}>{(r.pagos + r.inad) ? taxa(r) + '%' : '—'}</td>
+                  <td style={td}>{r.honor ? reais(r.honor) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {Object.keys(porResp).length > 1 && (
+          <div style={{ ...card, padding: 14 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: cores.suave, marginBottom: 8 }}>{nomeMesBR(mesAtual)} por responsável</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 8 }}>
+              {Object.values(porResp).sort((a, b) => b.inad - a.inad).map(x => (
+                <div key={x.r} style={{ border: `1px solid ${cores.cardBorda}`, borderRadius: 12, padding: '9px 12px' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 800 }}>{x.r}</div>
+                  <div style={{ fontSize: 12.5, color: cores.suave }}><b style={{ color: cores.ok }}>{x.pagos}</b> pagaram · <b style={{ color: x.inad ? cores.perigo : cores.suave }}>{x.inad}</b> inadimplente{x.inad === 1 ? '' : 's'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 14px', display: 'flex', gap: 8, alignItems: 'center', background: hexA(cores.perigo, 0.06), borderBottom: `1px solid ${cores.cardBorda}` }}>
+            <span style={{ fontSize: 14, fontWeight: 800 }}>Inadimplentes agora</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: cores.perigo, background: hexA(cores.perigo, 0.12), borderRadius: 999, padding: '1px 10px' }}>{inadLista.length}</span>
+          </div>
+          {inadLista.length === 0 && <div style={{ padding: 14, fontSize: 13, color: cores.suave }}>Ninguém inadimplente. 👏</div>}
+          {inadLista.map((c, i) => linhaAgenda({ tipo: 'pagamento', data: c.data_pagamento, texto: `Recebia ${fmtData(c.data_pagamento)}${c.banco ? ' no ' + c.banco : ''} · ${diasApos(c.data_pagamento)} dias sem pagar`, c }, i))}
         </div>
       </div>
     )
@@ -856,12 +1225,12 @@ export default function PosDeferimento() {
     <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
       {!isMobile && (
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1.2fr 1fr 1.3fr', gap: 12, padding: '11px 16px', fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, background: '#f8fafc', borderBottom: `1px solid ${cores.cardBorda}` }}>
-          <div>Cliente</div><div>Etapa</div><div>Banco</div><div>Pagamento</div><div>Responsável</div>
+          <div>Cliente</div><div>Etapa</div><div>Banco</div><div>Pagamento</div><div>{soLeitura ? 'Vendedora' : 'Responsável'}</div>
         </div>
       )}
       {filtrada.length === 0 && <div style={{ padding: 36, textAlign: 'center', color: cores.suave }}>{lista ? 'Nenhum caso.' : 'Carregando…'}</div>}
-      {[...filtrada].sort((a, b) => ATIVAS.indexOf(a.etapa) - ATIVAS.indexOf(b.etapa) || String(a.data_pagamento || '9').localeCompare(String(b.data_pagamento || '9'))).map(c => {
-        const et = etapaPD(c.etapa)
+      {[...filtrada].sort((a, b) => COLUNAS_PD.indexOf(colunaDe(a)) - COLUNAS_PD.indexOf(colunaDe(b)) || String(a.data_pagamento || '9').localeCompare(String(b.data_pagamento || '9'))).map(c => {
+        const et = etapaPD(colunaDe(c))
         return (
           <div key={c.id} onClick={() => setAberto(c.id)} className="kr-linha" style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: '2fr 1.3fr 1.2fr 1fr 1.3fr', gap: 12, padding: '11px 16px', borderBottom: `1px solid ${cores.cardBorda}`, cursor: 'pointer', alignItems: 'center' }}>
             <div style={{ minWidth: 0 }}>
@@ -870,8 +1239,8 @@ export default function PosDeferimento() {
             </div>
             <div><Chip cor={et.cor} forte>{et.icone} {et.curto}</Chip></div>
             <div style={{ fontSize: 13, color: cores.texto }}>{c.banco || '—'}</div>
-            <div style={{ fontSize: 13, color: cores.texto }}>{c.pago_em ? `caiu ${fmtData(c.pago_em)}` : fmtData(c.data_pagamento)}</div>
-            <div style={{ fontSize: 12.5, color: cores.suave }}>{(c.responsaveis || []).join(', ')}</div>
+            <div style={{ fontSize: 13, color: cores.texto }}>{c.etapa === 'baixado' ? `pagou ${fmtData(c.pago_em)}` : fmtData(c.data_pagamento)}</div>
+            <div style={{ fontSize: 12.5, color: cores.suave }}>{soLeitura ? c.vendedora_nome : (c.responsaveis || []).join(', ')}</div>
           </div>
         )
       })}
@@ -880,6 +1249,10 @@ export default function PosDeferimento() {
 
   // ------------------------------------------------------------ render
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
+  const ABAS = soLeitura
+    ? [['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
+    : [['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
+  const badge = { agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -889,29 +1262,32 @@ export default function PosDeferimento() {
       `}</style>
       {toast}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ width: 48, height: 48, borderRadius: 15, background: 'linear-gradient(135deg,#16a34a,#2563eb)', display: 'grid', placeItems: 'center', fontSize: 22, boxShadow: sombras.glowAzul }}>💰</div>
+        <div style={{ width: 48, height: 48, borderRadius: 15, background: 'linear-gradient(135deg,#16a34a,#2563eb)', display: 'grid', placeItems: 'center', fontSize: 22, boxShadow: sombras.glowAzul }}>📋</div>
         <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-          <div style={{ fontSize: isMobile ? 21 : 25, fontWeight: 800, color: cores.texto, letterSpacing: '-.01em' }}>Pós-deferimento</div>
-          <div style={{ fontSize: 13, color: cores.suave }}>Carta de concessão, PrevSempre, pagamento e baixa · {lista ? `${totalAtivos} caso${totalAtivos === 1 ? '' : 's'} em acompanhamento` : 'carregando…'}{profile?.nome ? ` · ${profile.nome}` : ''}</div>
+          <div style={{ fontSize: isMobile ? 21 : 25, fontWeight: 800, color: cores.texto, letterSpacing: '-.01em' }}>Acompanhamento de clientes</div>
+          <div style={{ fontSize: 13, color: cores.suave }}>
+            {soLeitura ? 'Suas vendas depois do deferimento · só acompanhamento' : 'Carta de concessão, PrevSempre, pagamento e pendências'} · {lista ? `${totalAtivos} caso${totalAtivos === 1 ? '' : 's'} em acompanhamento` : 'carregando…'}{profile?.nome ? ` · ${profile.nome}` : ''}
+          </div>
         </div>
         <button onClick={carregar} style={btn('#475569', false)}>⟳ Atualizar</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(6, minmax(0,1fr))', gap: 12 }}>
-        {kpi({ rot: 'Atrasados', n: conta.atrasados, cor: cores.perigo, icone: '🔴', sub: conta.pagAtrasado ? `${conta.pagAtrasado} pagamento(s) sem baixa` : 'nada vencido', onClick: () => setAba('agenda') })}
-        {kpi({ rot: 'Recebem hoje', n: conta.recebeHoje, cor: '#d97706', icone: '💰', sub: fmtData(hoje), onClick: () => setAba('agenda') })}
-        {kpi({ rot: 'Recebem amanhã', n: conta.recebeAmanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => setAba('agenda') })}
         {kpi({ rot: 'Sem carta ainda', n: conta.semCarta, cor: '#0891b2', icone: '📜', sub: 'deferidos aguardando carta', onClick: () => setAba('funil') })}
-        {kpi({ rot: 'Honorário auto.', n: conta.honorarioAuto, cor: AZUL_PREV, icone: '🏦', sub: 'PrevSempre aceito', onClick: () => { setFTag('honorario'); setAba('lista') } })}
-        {kpi({ rot: 'Baixados no mês', n: conta.baixadosMes, cor: '#475569', icone: '🏁', sub: conta.honorarioMes ? reais(conta.honorarioMes) + ' de honorário' : `${conta.paraBaixa} esperando baixa` })}
+        {kpi({ rot: 'Recebem amanhã', n: conta.amanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => setAba('agenda') })}
+        {kpi({ rot: 'Recebem na semana', n: conta.semana, cor: '#2563eb', icone: '🗓️', sub: `até ${fmtData(fimSemana)}`, onClick: () => setAba('agenda') })}
+        {kpi({ rot: 'Pagamento atrasado', n: conta.atrasados, cor: '#ea580c', icone: '⏰', sub: 'passou da data e não pagou', onClick: () => setAba('funil') })}
+        {kpi({ rot: 'Pagaram no mês', n: rm.pagos, cor: cores.ok, icone: '🤝', sub: rm.honor ? reais(rm.honor) + ' de honorário' : nomeMesBR(mesAtual), onClick: soLeitura ? null : () => setAba('inadimplencia') })}
+        {kpi({ rot: 'Inadimplentes no mês', n: rm.inad, cor: cores.perigo, icone: '📉', sub: (rm.pagos + rm.inad) ? `${taxa(rm)}% de ${rm.pagos + rm.inad} vencidos` : `mais de ${DIAS_INADIMPLENTE} dias sem pagar`, onClick: soLeitura ? null : () => setAba('inadimplencia') })}
       </div>
 
       <div className="kr-aba" style={{ display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5 }}>
         {ABAS.map(([k, r]) => {
           const on = aba === k
+          const n = badge[k]
           return (
             <button key={k} onClick={() => setAba(k)} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? '#fff' : cores.texto, background: on ? 'linear-gradient(135deg,#16a34a,#2563eb)' : 'transparent' }}>
-              {r}{k === 'agenda' && (conta.atrasados + agenda.hoje.length) > 0 ? <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, opacity: on ? 0.95 : 0.7 }}>{conta.atrasados + agenda.hoje.length}</span> : null}
+              {r}{n ? <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, opacity: on ? 0.95 : 0.7 }}>{n}</span> : null}
             </button>
           )
         })}
@@ -920,8 +1296,10 @@ export default function PosDeferimento() {
       {filtros}
 
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
-        : lista.length === 0 ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Nenhum caso deferido na sua carteira ainda. Quando a advogada marcar "Deferido", o caso aparece aqui sozinho.</div>
-        : aba === 'agenda' ? agendaView : aba === 'funil' ? funil : aba === 'calendario' ? calendario : listaView}
+        : aba === 'pendencias' ? pendView
+        : aba === 'inss' ? inssView
+        : lista.length === 0 && aba !== 'inadimplencia' ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Nenhum caso deferido {soLeitura ? 'das suas vendas' : 'na sua carteira'} ainda. Quando a advogada marcar "Deferido", o caso aparece aqui sozinho.</div>
+        : aba === 'agenda' ? agendaView : aba === 'funil' ? funil : aba === 'calendario' ? calendario : aba === 'inadimplencia' ? inadView : listaView}
 
       {aberto && (
         <div onClick={() => setAberto(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.42)', backdropFilter: 'blur(2px)', zIndex: 1000 }}>
@@ -933,6 +1311,7 @@ export default function PosDeferimento() {
       )}
 
       {modal && <ModalPD caso={modal.caso} acao={modal.acao} inicial={modal.inicial} onClose={() => setModal(null)} onFeito={() => { setModal(null); mostrar('Salvo'); carregar() }} />}
+      {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
     </div>
   )
 }
