@@ -255,7 +255,7 @@ const NAV_ADMIN = [
   { key: 'central_retorno', label: '📣 Central de Retorno' },
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
   { key: 'protocolo', label: '📑 Protocolo INSS' },
-  { key: 'posdef', label: '💰 Pós-deferimento' },
+  { key: 'posdef', label: '📋 Acompanhamento de clientes' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
@@ -562,11 +562,12 @@ export default function Layout({ children, page, setPage }) {
   if (IDS_SO_RETROATIVO.includes(profile?.id)) {
     nav = NAV_SO_RETROATIVO
   }
-  // 29/10 (Bruno) — POS-DEFERIMENTO: quem tem profiles.posdef_papel ganha o item.
+  // 29/10 (Bruno) — ACOMPANHAMENTO DE CLIENTES (posdef): quem tem profiles.posdef_papel ganha o item
+  // (responsavel, ver_tudo ou vendedora — a vendedora so le o pos das vendas dela).
   // Fica DEPOIS do corte do SO RETROATIVO de proposito: o Leandro Souza esta nesse
   // corte e acompanha as proprias vendas. Mesma regra do App.js (paginaPermitida).
   if (profile?.posdef_papel && !nav.some(n => n.key === 'posdef')) {
-    nav = [...nav, { key: 'posdef', label: '💰 Pós-deferimento' }]
+    nav = [...nav, { key: 'posdef', label: '📋 Acompanhamento de clientes' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
