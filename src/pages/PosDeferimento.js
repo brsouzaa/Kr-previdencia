@@ -60,7 +60,12 @@ const bancoCurto = (b) => { const s = String(b || ''); if (/mercantil/i.test(s))
 const telWa = (t) => { let d = soDig(t); if (d.startsWith('55') && d.length > 11) d = d.slice(2); return d.length >= 10 ? '55' + d : null }
 
 const msgDeferido = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! 🎉 Temos uma ótima notícia: o seu salário-maternidade foi *APROVADO (deferido) pelo INSS*.\n\nAgora o próximo passo é a carta de concessão, que informa o banco e a data do pagamento. Assim que ela sair, te avisamos por aqui.\n\nQualquer dúvida, é só chamar! — KR Previdência`
-const msgPagamento = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! Passando para lembrar: o pagamento do seu salário-maternidade está previsto para *${fmtData(c.data_pagamento)}*${c.banco ? ` no *${c.banco}*` : ''}.\n\nQuando cair, me avisa por aqui, por favor. Qualquer dúvida, estou à disposição! — KR Previdência`
+// 29/10 (Bruno) — o lembrete muda com o tipo de cobranca. Textos provisorios: o Bruno
+// vai mandar as mensagens oficiais de cada etapa.
+const ehAutomatico = (c) => c.prevsempre && c.prevsempre_honorario_auto === true
+const msgPagamentoAuto = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! Passando para lembrar: o pagamento do seu salário-maternidade está previsto para *${fmtData(c.data_pagamento)}* na sua conta *PrevSempre (Mercantil)*.\n\nComo combinamos, os honorários são descontados automaticamente — você não precisa fazer nada. Quando cair, me avisa por aqui, por favor! — KR Previdência`
+const msgPagamento = (c) => ehAutomatico(c) ? msgPagamentoAuto(c) : msgPagamentoCobrar(c)
+const msgPagamentoCobrar = (c) => `Olá, ${primeiroNome(c.nome) || 'tudo bem'}! Passando para lembrar: o pagamento do seu salário-maternidade está previsto para *${fmtData(c.data_pagamento)}*${c.banco ? ` no *${c.banco}*` : ''}.\n\nQuando cair, me avisa por aqui, por favor. Qualquer dúvida, estou à disposição! — KR Previdência`
 
 // ---------------------------------------------------------------- acoes
 const ACOES_PD = {
@@ -672,7 +677,9 @@ export default function PosDeferimento() {
   const [lista, setLista] = useState(null)
   const [inss, setInss] = useState([])
   const [pends, setPends] = useState([])
-  const [aba, setAba] = useState('agenda')
+  const [aba, setAba] = useState('pagamentos')
+  const [pgPeriodo, setPgPeriodo] = useState('semana')
+  const [pgTipo, setPgTipo] = useState('')
   const [busca, setBusca] = useState('')
   const [fResp, setFResp] = useState('')
   const [fBanco, setFBanco] = useState('')
@@ -833,7 +840,7 @@ export default function PosDeferimento() {
   }
 
   const selectSt = { padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }
-  const filtroPos = ['agenda', 'funil', 'calendario', 'lista', 'inadimplencia'].includes(aba)
+  const filtroPos = ['pagamentos', 'agenda', 'funil', 'calendario', 'lista', 'inadimplencia'].includes(aba)
   const filtros = (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
@@ -1157,6 +1164,140 @@ export default function PosDeferimento() {
     )
   })()
 
+  // ------------------------------------------------------------ pagamentos (29/10, Bruno)
+  // O coracao do setor: quem recebe hoje, amanha e na semana, para o time programar a
+  // cobranca. Dois jeitos de acompanhar:
+  //  - DESCONTO AUTOMATICO (PrevSempre + aceitou): avisar a cliente e conferir na PrevSempre;
+  //  - COBRAR A CLIENTE (qualquer outro): lembrar antes e cobrar o honorario quando cair.
+  const tipoCobranca = (c) => (ehAutomatico(c) ? 'auto' : c.etapa === 'prevsempre' ? 'prev_pendente' : 'cobrar')
+  const TIPO_COBRANCA = {
+    auto: { rot: 'Desconto automático', icone: '🏦', cor: AZUL_PREV, faz: 'Avisar a cliente e conferir na PrevSempre se o honorário foi descontado' },
+    prev_pendente: { rot: 'PrevSempre a confirmar', icone: '❓', cor: '#d97706', faz: 'Confirmar conta e honorário automático antes do pagamento' },
+    cobrar: { rot: 'Cobrar cliente', icone: '💳', cor: '#7c3aed', faz: 'Lembrar a cliente antes e cobrar o honorário quando cair' },
+  }
+  const pagamentos = useMemo(() => {
+    const base = filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento)
+    const noPeriodo = (c) => {
+      const d = c.data_pagamento
+      if (pgPeriodo === 'hoje') return d === hoje
+      if (pgPeriodo === 'amanha') return d === amanha
+      if (pgPeriodo === 'semana') return d >= hoje && d <= fimSemana
+      if (pgPeriodo === '30') return d >= hoje && d <= somaDias(hoje, 30)
+      if (pgPeriodo === 'atrasados') return d < hoje
+      return true
+    }
+    return base.filter(noPeriodo).filter(c => !pgTipo || tipoCobranca(c) === pgTipo)
+      .sort((a, b) => String(a.data_pagamento).localeCompare(String(b.data_pagamento)) || String(a.nome).localeCompare(String(b.nome)))
+  }, [filtrada, pgPeriodo, pgTipo, hoje, amanha, fimSemana])
+  const contaPg = useMemo(() => {
+    const base = filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento)
+    return {
+      hoje: base.filter(c => c.data_pagamento === hoje).length,
+      amanha: base.filter(c => c.data_pagamento === amanha).length,
+      semana: base.filter(c => c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
+      d30: base.filter(c => c.data_pagamento >= hoje && c.data_pagamento <= somaDias(hoje, 30)).length,
+      atrasados: base.filter(c => c.data_pagamento < hoje).length,
+      todos: base.length,
+    }
+  }, [filtrada, hoje, amanha, fimSemana])
+
+  const linhaPagamento = (c, i) => {
+    const t = TIPO_COBRANCA[tipoCobranca(c)]
+    const wa = telWa(c.telefone)
+    const podeAgir = !soLeitura && c.pode_agir !== false
+    const acao = c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou'
+    return (
+      <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: inadimplente(c) ? cores.perigo : t.cor, flexShrink: 0 }} />
+        <div onClick={() => setAberto(c.id)} style={{ flex: '1 1 260px', minWidth: 0, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 800, color: '#fff', background: t.cor, borderRadius: 999, padding: '2px 9px' }}>{t.icone} {t.rot}</span>
+            <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+            {inadimplente(c) ? <Chip cor={cores.perigo} forte>INADIMPLENTE · {diasApos(c.data_pagamento)}d</Chip> : atrasado(c) ? <Chip cor="#ea580c" forte>ATRASADO · {diasApos(c.data_pagamento)}d</Chip> : null}
+          </div>
+          <div style={{ fontSize: 12.5, color: cores.texto, marginTop: 3 }}>
+            <b>{bancoCurto(c.banco) || 'banco?'}</b>{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · {fmtTel(c.telefone)}{!soLeitura ? ` · ${(c.responsaveis || []).join(', ')}` : ''}
+          </div>
+          <div style={{ fontSize: 12, color: t.cor, fontWeight: 700, marginTop: 2 }}>→ {t.faz}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+          <button title="Copiar lembrete para a cliente" onClick={async () => mostrar((await copiarTexto(msgPagamento(c))) ? 'Lembrete copiado' : 'Não consegui copiar')} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>⧉ Lembrete</button>
+          {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(msgPagamento(c))}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
+          {podeAgir && <button onClick={() => abrirAcao(c, acao)} style={{ ...btn(acao === 'prevsempre' ? AZUL_PREV : '#15803d'), padding: '6px 10px', fontSize: 12 }}>{acao === 'prevsempre' ? '🏦 Confirmar PrevSempre' : ehAutomatico(c) ? '🤝 Descontou' : '🤝 Pagou'}</button>}
+        </div>
+      </div>
+    )
+  }
+
+  const pagamentosView = (() => {
+    const chip = (val, set, atual, rot, n, cor) => {
+      const on = atual === val
+      return (
+        <button key={val || 'x'} onClick={() => set(val)} style={{ padding: '8px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: on ? 800 : 600, border: `1.5px solid ${on ? cor : hexA('#0f172a', 0.12)}`, background: on ? hexA(cor, 0.1) : '#fff', color: on ? cor : cores.texto, whiteSpace: 'nowrap' }}>
+          {rot}{n != null ? <span style={{ marginLeft: 6, fontWeight: 800, color: cor }}>{n}</span> : null}
+        </button>
+      )
+    }
+    const resumo = ['cobrar', 'auto', 'prev_pendente'].map(k => {
+      const it = pagamentos.filter(c => tipoCobranca(c) === k)
+      return { k, n: it.length, total: it.reduce((s, c) => s + Number(c.valor_beneficio || 0), 0) }
+    })
+    // agrupa por dia
+    const dias = []
+    pagamentos.forEach(c => { const u = dias[dias.length - 1]; if (u && u.d === c.data_pagamento) u.itens.push(c); else dias.push({ d: c.data_pagamento, itens: [c] }) })
+    const rotDia = (d) => d === hoje ? 'Hoje' : d === amanha ? 'Amanhã' : d === depois ? 'Depois de amanhã' : d < hoje ? `${diasApos(d)} dia${diasApos(d) === 1 ? '' : 's'} atrás` : `daqui ${-diasApos(d)} dias`
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ ...card, padding: 14, display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Quando cai</span>
+            {chip('hoje', setPgPeriodo, pgPeriodo, 'Hoje', contaPg.hoje, '#d97706')}
+            {chip('amanha', setPgPeriodo, pgPeriodo, 'Amanhã', contaPg.amanha, '#7c3aed')}
+            {chip('semana', setPgPeriodo, pgPeriodo, 'Esta semana', contaPg.semana, '#2563eb')}
+            {chip('30', setPgPeriodo, pgPeriodo, 'Próximos 30 dias', contaPg.d30, '#0891b2')}
+            {chip('atrasados', setPgPeriodo, pgPeriodo, 'Atrasados', contaPg.atrasados, cores.perigo)}
+            {chip('todos', setPgPeriodo, pgPeriodo, 'Todos', contaPg.todos, '#475569')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Como acompanhar</span>
+            {chip('', setPgTipo, pgTipo, 'Todos', null, '#475569')}
+            {chip('cobrar', setPgTipo, pgTipo, '💳 Cobrar cliente', null, '#7c3aed')}
+            {chip('auto', setPgTipo, pgTipo, '🏦 Desconto automático', null, AZUL_PREV)}
+            {chip('prev_pendente', setPgTipo, pgTipo, '❓ PrevSempre a confirmar', null, '#d97706')}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+          {resumo.map(r => {
+            const t = TIPO_COBRANCA[r.k]
+            return (
+              <div key={r.k} style={{ ...card, padding: '12px 14px', borderLeft: `4px solid ${t.cor}` }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: t.cor }}>{t.icone} {t.rot}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: cores.texto, marginTop: 2 }}>{r.n} <span style={{ fontSize: 13, fontWeight: 600, color: cores.suave }}>{r.total ? `· ${reais(r.total)} em benefícios` : ''}</span></div>
+                <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>{t.faz}</div>
+              </div>
+            )
+          })}
+        </div>
+        {dias.length === 0 && <div style={{ ...card, padding: 30, textAlign: 'center', color: cores.suave }}>Nenhum pagamento neste período.</div>}
+        {dias.map(g => {
+          const cor = g.d < hoje ? cores.perigo : g.d === hoje ? '#d97706' : g.d === amanha ? '#7c3aed' : '#2563eb'
+          const nAuto = g.itens.filter(ehAutomatico).length
+          return (
+            <div key={g.d} style={{ ...card, padding: 0, overflow: 'hidden', border: g.d < hoje ? `1.5px solid ${hexA(cores.perigo, 0.4)}` : card.border }}>
+              <div style={{ padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: hexA(cor, 0.06), borderBottom: `1px solid ${cores.cardBorda}` }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
+                <span style={{ fontSize: 14.5, fontWeight: 800, color: cores.texto }}>{diaSemana(g.d)} {fmtData(g.d)}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: cor }}>{rotDia(g.d)}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: cores.suave }}>{g.itens.length} pagamento{g.itens.length === 1 ? '' : 's'}{nAuto ? ` · ${nAuto} automático${nAuto === 1 ? '' : 's'}` : ''}</span>
+              </div>
+              {g.itens.map(linhaPagamento)}
+            </div>
+          )
+        })}
+      </div>
+    )
+  })()
+
   // ------------------------------------------------------------ inadimplencia
   const inadView = (() => {
     const meses = Object.values(porMes).sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 8)
@@ -1250,9 +1391,9 @@ export default function PosDeferimento() {
   // ------------------------------------------------------------ render
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
-    ? [['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
-    : [['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
-  const badge = { agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length }
+    ? [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
+    : [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
+  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -1274,9 +1415,9 @@ export default function PosDeferimento() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(6, minmax(0,1fr))', gap: 12 }}>
         {kpi({ rot: 'Sem carta ainda', n: conta.semCarta, cor: '#0891b2', icone: '📜', sub: 'deferidos aguardando carta', onClick: () => setAba('funil') })}
-        {kpi({ rot: 'Recebem amanhã', n: conta.amanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => setAba('agenda') })}
-        {kpi({ rot: 'Recebem na semana', n: conta.semana, cor: '#2563eb', icone: '🗓️', sub: `até ${fmtData(fimSemana)}`, onClick: () => setAba('agenda') })}
-        {kpi({ rot: 'Pagamento atrasado', n: conta.atrasados, cor: '#ea580c', icone: '⏰', sub: 'passou da data e não pagou', onClick: () => setAba('funil') })}
+        {kpi({ rot: 'Recebem amanhã', n: conta.amanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => { setPgPeriodo('amanha'); setAba('pagamentos') } })}
+        {kpi({ rot: 'Recebem na semana', n: conta.semana, cor: '#2563eb', icone: '🗓️', sub: `até ${fmtData(fimSemana)}`, onClick: () => { setPgPeriodo('semana'); setAba('pagamentos') } })}
+        {kpi({ rot: 'Pagamento atrasado', n: conta.atrasados, cor: '#ea580c', icone: '⏰', sub: 'passou da data e não pagou', onClick: () => { setPgPeriodo('atrasados'); setAba('pagamentos') } })}
         {kpi({ rot: 'Pagaram no mês', n: rm.pagos, cor: cores.ok, icone: '🤝', sub: rm.honor ? reais(rm.honor) + ' de honorário' : nomeMesBR(mesAtual), onClick: soLeitura ? null : () => setAba('inadimplencia') })}
         {kpi({ rot: 'Inadimplentes no mês', n: rm.inad, cor: cores.perigo, icone: '📉', sub: (rm.pagos + rm.inad) ? `${taxa(rm)}% de ${rm.pagos + rm.inad} vencidos` : `mais de ${DIAS_INADIMPLENTE} dias sem pagar`, onClick: soLeitura ? null : () => setAba('inadimplencia') })}
       </div>
@@ -1298,6 +1439,7 @@ export default function PosDeferimento() {
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
         : aba === 'pendencias' ? pendView
         : aba === 'inss' ? inssView
+        : aba === 'pagamentos' && lista.length ? pagamentosView
         : lista.length === 0 && aba !== 'inadimplencia' ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Nenhum caso deferido {soLeitura ? 'das suas vendas' : 'na sua carteira'} ainda. Quando a advogada marcar "Deferido", o caso aparece aqui sozinho.</div>
         : aba === 'agenda' ? agendaView : aba === 'funil' ? funil : aba === 'calendario' ? calendario : aba === 'inadimplencia' ? inadView : listaView}
 
