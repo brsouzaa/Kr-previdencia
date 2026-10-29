@@ -182,7 +182,7 @@ export const GUIAS = {
       { k: 'caiu', rot: 'Se já caiu: cobrar com leveza', var: [
         x => `Que bom, ${x.n}! 🎉 Agora só falta a nossa parte pra gente fechar o seu processo com chave de ouro: ${x.comoPagar}.\n\nE assim que fechar o maternidade, a gente já parte pra *revisão do INSS* que estamos analisando pra você 🤩`,
       ] },
-      { k: 'nao_caiu', rot: 'Se ainda não caiu', dica: 'Confira a data no extrato/carta e, se mudou, use "Mudar data do pagamento".', var: [
+      { k: 'nao_caiu', rot: 'Se ainda não caiu', depois: 'chamar', dica: 'Confira a data no extrato/carta e, se mudou, use "Mudar data do pagamento".', var: [
         x => `Entendi, ${x.n}! Fica tranquila que eu vou verificar aqui o que aconteceu e já te dou um retorno, tá bom? 🙏`,
       ] },
     ],
@@ -221,6 +221,38 @@ function guiaDaVez(c) {
   return gs.find(g => !GUIAS[g].passos.every(p => enviadoEm(c, g, p.k)) && g !== 'vespera') || gs[gs.length - 1] || null
 }
 
+// 29/10 (Bruno) CHECKLIST OBRIGATORIO, sem excecao: so avanca de etapa com as mensagens
+// marcadas como enviadas (o banco confere de novo em posdef_msgs_faltando).
+const guiasDaAcao = (acao, c) => (acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
+  : acao === 'prevsempre' ? ['carta_prev', 'abrir_conta']
+  : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', 'abrir_conta', 'vespera'] : ['carta_outro', 'vespera'])
+  : [])
+const faltaChecklist = (acao, c, extra) => guiasDaAcao(acao, c).flatMap(g => GUIAS[g].passos.map(p => `${g}:${p.k}`))
+  .filter(k => !(extra || {})[k] && !(c.msgs_enviadas || {})[k])
+const progressoGuia = (c, g) => (g === 'atrasado'   // "caiu" e "nao caiu" sao caminhos alternativos
+  ? { feitos: (enviadoEm(c, g, 'chamar') ? 1 : 0) + (enviadoEm(c, g, 'caiu') || enviadoEm(c, g, 'nao_caiu') ? 1 : 0), total: 2 }
+  : { feitos: GUIAS[g].passos.filter(p => enviadoEm(c, g, p.k)).length, total: GUIAS[g].passos.length })
+
+// conversa do WhatsApp EXPORTADA (pagamento e inadimplencia) — vai para um bucket proprio,
+// para a IA analisar depois o que funciona na cobranca (tempo de resposta, contatos, falas)
+const BUCKET_CONVERSAS = 'posdef-conversas'
+const ehConversa = (f) => /\.(txt|zip)$/i.test(f?.name || '')
+async function enviarConversa(arquivo, cpf) {
+  const ext = /\.zip$/i.test(arquivo.name || '') ? 'zip' : 'txt'
+  const caminho = `${soDig(cpf) || 'sem-cpf'}/${Date.now()}-conversa.${ext}`
+  const { error } = await supabase.storage.from(BUCKET_CONVERSAS).upload(caminho, arquivo, { contentType: ext === 'zip' ? 'application/zip' : 'text/plain', upsert: false })
+  if (error) throw new Error(error.message)
+  return caminho
+}
+async function abrirConversa(caminho) {
+  if (!caminho) return
+  const w = window.open('', '_blank')
+  const { data, error } = await supabase.storage.from(BUCKET_CONVERSAS).createSignedUrl(caminho, 900)
+  if (error || !data?.signedUrl) { if (w) w.close(); window.alert('Não consegui abrir a conversa: ' + (error?.message || 'sem link')); return }
+  if (w) w.location.href = data.signedUrl; else window.open(data.signedUrl, '_blank')
+}
+const COMO_EXPORTAR = 'No WhatsApp do celular: abra a conversa da cliente → toque no nome dela (iPhone) ou em ⋮ › Mais (Android) → Exportar conversa → Sem mídia. Mande o arquivo para o computador e anexe aqui (.txt ou .zip).'
+
 // texto de "como pagar" (configuravel no banco), carregado uma vez
 let textosPromessa = null
 function useTextosPD() {
@@ -237,8 +269,8 @@ function useTextosPD() {
 // ---------------------------------------------------------------- acoes
 const ACOES_PD = {
   avisar_cliente: {
-    titulo: 'Cliente avisada do deferimento', icone: '📣', cor: '#16a34a', guia: 'deferido',
-    nota: 'Mande as mensagens abaixo (uma de cada vez) e depois salve. O caso vai para "Carta de concessão".',
+    titulo: 'Cliente avisada do deferimento', icone: '📣', cor: '#16a34a',
+    nota: 'Mande as mensagens do checklist (uma de cada vez, esperando a cliente responder) e depois salve. O caso vai para "Carta de concessão".',
     campos: [{ k: 'texto', l: 'Como foi avisada / observação (opcional)', tipo: 'textarea' }],
   },
   carta: {
@@ -272,14 +304,19 @@ const ACOES_PD = {
   },
   cliente_pagou: {
     titulo: 'Cliente pagou', icone: '🤝', cor: '#15803d',
-    anexo: 'Comprovante (opcional)',
-    nota: 'Marque quando a cliente pagar o honorário. Passou 4 dias da data do pagamento sem pagar, ela conta como inadimplente no mês da data agendada.',
+    anexo: 'Comprovante do pagamento', anexoObrig: true, conversa: true,
+    nota: 'Marque quando a cliente pagar o honorário. Obrigatório: comprovante do pagamento e a conversa do WhatsApp exportada. Passou 4 dias da data do pagamento sem pagar, ela conta como inadimplente no mês da data agendada.',
     campos: [
       { k: 'data', l: 'Data em que a cliente pagou', obrig: true, tipo: 'date', hoje: true },
       { k: 'forma', l: 'Como pagou o honorário', obrig: true, tipo: 'select', opcoes: FORMAS_HONORARIO.map(b => ({ v: b, l: b })) },
       { k: 'valor', l: 'Valor do honorário', tipo: 'money' },
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
+  },
+  conversa_inadimplente: {
+    titulo: 'Anexar conversa (inadimplente)', icone: '📎', cor: '#dc2626', conversa: true,
+    nota: 'Passou 4 dias da data do pagamento e a cliente não pagou: exporte a conversa do WhatsApp com ela e anexe aqui. Ela vai para a análise do que funciona e do que não funciona na cobrança. Não muda a etapa.',
+    campos: [{ k: 'texto', l: 'O que aconteceu? (opcional)', tipo: 'textarea' }],
   },
   atividade: {
     titulo: 'Agendar atividade', icone: '📅', cor: '#0f766e',
@@ -339,6 +376,7 @@ function itensAgenda(c) {
   if (c.etapa === 'deferido' && !c.cliente_avisada_em) out.push({ tipo: 'avisar', data: diaBR(c.etapa_desde) || hojeISO(), texto: 'Avisar a cliente do deferimento' })
   if (ESPERANDO.includes(c.etapa) && c.data_pagamento) out.push({ tipo: 'pagamento', data: c.data_pagamento, texto: `Recebe${c.banco ? ' no ' + c.banco : ''}${inadimplente(c) ? ' · INADIMPLENTE' : ''}` })
   if (c.proxima_atividade_em && ATIVAS.includes(c.etapa)) out.push({ tipo: 'atividade', data: c.proxima_atividade_em, texto: c.proxima_atividade })
+  if (inadimplente(c) && !(c.conversas || []).includes('inadimplente')) out.push({ tipo: 'conversa', data: somaDias(c.data_pagamento, DIAS_INADIMPLENTE + 1), texto: 'Inadimplente: anexar a conversa do WhatsApp exportada' })
   return out
 }
 const TIPO_AGENDA = {
@@ -347,6 +385,7 @@ const TIPO_AGENDA = {
   avisar: { r: 'Avisar', cor: '#16a34a', icone: '📣' },
   sem_carta: { r: 'Sem carta', cor: '#0891b2', icone: '📜' },
   pendencia: { r: 'Pendência', cor: '#b45309', icone: '📌' },
+  conversa: { r: 'Conversa', cor: '#dc2626', icone: '📎' },
 }
 
 // ---------------------------------------------------------------- tags do card
@@ -369,12 +408,12 @@ function Tags({ c, grande }) {
 
 // ---------------------------------------------------------------- guia de mensagens (bloco)
 // so = mostra um roteiro so (ex.: 'deferido' dentro de "Cliente avisada")
-function GuiaMensagens({ caso, so, podeAgir, onMarcou }) {
+function GuiaMensagens({ caso, so, guias, podeAgir, onMarcou }) {
   const { profile } = useAuth()
   const textos = useTextosPD()
   const [toast, mostrar] = useToast()
-  const lista = so ? [so] : guiasDoCaso(caso)
-  const vez = so || guiaDaVez(caso)
+  const lista = guias || (so ? [so] : guiasDoCaso(caso))
+  const vez = so || (guias ? (guias.find(gg => !GUIAS[gg].passos.every(p => enviadoEm(caso, gg, p.k))) || guias[0]) : guiaDaVez(caso))
   const [aberta, setAberta] = useState(vez)
   const [versao, setVersao] = useState({})      // `${guia}:${passo}` -> qual variacao
   const [marcados, setMarcados] = useState({})  // enviados nesta tela (antes de recarregar)
@@ -395,7 +434,12 @@ function GuiaMensagens({ caso, so, podeAgir, onMarcou }) {
     setSalvando('')
     if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'Não consegui registrar', 'erro'); return }
     setMarcados(m => ({ ...m, [ch]: new Date().toISOString() }))
-    onMarcou && onMarcou()
+    // terminou este roteiro? abre o proximo que falta
+    if (G.passos.every(pp => pp.k === p.k || quandoEnviou(g, pp.k))) {
+      const prox = lista.find(gg => gg !== g && !completo(gg))
+      if (prox) setAberta(prox)
+    }
+    onMarcou && onMarcou(ch)
   }
 
   return (
@@ -421,8 +465,10 @@ function GuiaMensagens({ caso, so, podeAgir, onMarcou }) {
         const iv = (hashTxt(caso.id + ch) + (versao[ch] || 0)) % n
         const txt = p.var[iv](x, caso)
         const env = quandoEnviou(g, p.k)
+        const dep = p.depois || (i > 0 ? G.passos[i - 1].k : null)
+        const travado = !env && !!dep && !quandoEnviou(g, dep)   // uma de cada vez
         return (
-          <div key={ch} style={{ border: `1px solid ${env ? hexA(cores.ok, 0.35) : hexA(G.cor, 0.3)}`, background: env ? hexA(cores.ok, 0.04) : hexA(G.cor, 0.04), borderRadius: 12, padding: 12, minWidth: 0 }}>
+          <div key={ch} style={{ border: `1px solid ${env ? hexA(cores.ok, 0.35) : hexA(G.cor, 0.3)}`, background: env ? hexA(cores.ok, 0.04) : hexA(G.cor, 0.04), borderRadius: 12, padding: 12, minWidth: 0, opacity: travado ? 0.55 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
               <span style={{ width: 22, height: 22, borderRadius: 999, background: env ? cores.ok : G.cor, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{env ? '✓' : i + 1}</span>
               <span style={{ fontSize: 13, fontWeight: 800, color: cores.texto }}>{p.rot}</span>
@@ -431,12 +477,14 @@ function GuiaMensagens({ caso, so, podeAgir, onMarcou }) {
             </div>
             <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: cores.texto, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{txt}</div>
             {p.dica && <div style={{ fontSize: 12, color: '#92400e', background: hexA('#f59e0b', 0.1), borderRadius: 8, padding: '6px 9px', marginTop: 8 }}>💡 {p.dica}</div>}
+            {travado ? <div style={{ fontSize: 12, fontWeight: 700, color: cores.suave, marginTop: 10 }}>🔒 Primeiro mande o passo {G.passos.findIndex(pp => pp.k === dep) + 1} e espere a cliente responder.</div> : (
             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
               <button type="button" onClick={async () => mostrar((await copiarTexto(txt)) ? 'Mensagem copiada' : 'Não consegui copiar', 'ok')} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>⧉ Copiar</button>
               {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(txt)}`} target="_blank" rel="noreferrer" onClick={() => marcar(p)} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12, textDecoration: 'none' }}>Enviar no WhatsApp</a>}
               {n > 1 && <button type="button" onClick={() => setVersao(v => ({ ...v, [ch]: (v[ch] || 0) + 1 }))} style={{ ...btn(G.cor, false), padding: '6px 10px', fontSize: 12 }}>🔀 Outra versão ({iv + 1}/{n})</button>}
               {podeAgir && !env && <button type="button" disabled={!!salvando} onClick={() => marcar(p)} style={{ ...btn(cores.ok, false), padding: '6px 10px', fontSize: 12 }}>{salvando === ch ? 'Salvando…' : '✓ Já enviei'}</button>}
             </div>
+            )}
           </div>
         )
       })}
@@ -483,10 +531,13 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
   })
   const [arquivo, setArquivo] = useState(null)
   const [previa, setPrevia] = useState(null)
+  const [conversa, setConversa] = useState(null)
+  const [marcadas, setMarcadas] = useState({})   // mensagens marcadas aqui dentro
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [arrastando, setArrastando] = useState(false)
   const inputRef = useRef(null)
+  const convRef = useRef(null)
 
   const pegarArquivo = useCallback((f) => {
     if (!f) return
@@ -510,7 +561,17 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
   const visiveis = (cfg.campos || []).filter(c => !c.so || c.so(v))
   const faltando = visiveis.filter(c => (c.obrig || (c.obrigSe && c.obrigSe(v))) && !String(v[c.k] ?? '').trim()).map(c => c.l)
   if (cfg.anexoObrig && !arquivo) faltando.unshift(cfg.anexo)
+  if (cfg.conversa && !conversa) faltando.unshift('conversa do WhatsApp exportada')
+  const guiasReq = guiasDaAcao(acao, caso)
+  const faltaMsg = faltaChecklist(acao, caso, marcadas)
+  if (faltaMsg.length) faltando.unshift(`checklist de mensagens (${faltaMsg.length})`)
   const pode = faltando.length === 0 && !salvando
+  const pegarConversa = (f) => {
+    if (!f) return
+    if (!ehConversa(f)) { setErro('A conversa exportada do WhatsApp vem em .txt ou .zip.'); return }
+    if (f.size > 20 * 1024 * 1024) { setErro('Arquivo maior que 20 MB: exporte "Sem mídia".'); return }
+    setErro(''); setConversa(f)
+  }
   const ehMercantil = acao === 'carta' && /mercantil/i.test(v.banco === 'Outro' ? (v.banco_outro || '') : (v.banco || ''))
 
   async function salvar() {
@@ -522,6 +583,11 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
       if (acao === 'carta' && p.banco === 'Outro') { p.banco = p.banco_outro; delete p.banco_outro }
       delete p.banco_outro
       if (arquivo) p.anexo = await enviarArquivo(arquivo, caso.cpf)
+      if (conversa) {
+        p.conversa = await enviarConversa(conversa, caso.cpf)
+        p.conversa_nome = conversa.name || ''
+        if (!/\.zip$/i.test(conversa.name || '')) { try { p.conversa_texto = (await conversa.text()).slice(0, 2000000) } catch (_) { /* fica so o arquivo */ } }
+      }
       const { data, error } = await supabase.rpc('posdef_acao', { p_id: caso.id, p_acao: acao, p })
       if (error) throw new Error(error.message)
       if (!data?.ok) throw new Error(data?.erro || 'não salvou')
@@ -595,7 +661,14 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
         </div>
         <div style={{ padding: 20, display: 'grid', gap: 14 }}>
           {cfg.nota && <div style={{ fontSize: 12.5, color: cores.suave, background: cores.chipBg, borderRadius: 10, padding: '8px 12px' }}>{cfg.nota}</div>}
-          {cfg.guia && <GuiaMensagens caso={caso} so={cfg.guia} podeAgir={caso.pode_agir !== false} />}
+          {guiasReq.length > 0 && (
+            <div style={{ border: `1.5px solid ${faltaMsg.length ? hexA('#d97706', 0.5) : hexA(cores.ok, 0.45)}`, background: faltaMsg.length ? hexA('#f59e0b', 0.05) : hexA(cores.ok, 0.05), borderRadius: 14, padding: 12, display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: faltaMsg.length ? '#b45309' : cores.ok }}>
+                {faltaMsg.length ? `📋 Checklist obrigatório — falta${faltaMsg.length > 1 ? 'm' : ''} ${faltaMsg.length} mensage${faltaMsg.length > 1 ? 'ns' : 'm'}` : '✅ Checklist completo: todas as mensagens desta etapa foram enviadas'}
+              </div>
+              {faltaMsg.length > 0 && <GuiaMensagens caso={caso} guias={guiasReq} podeAgir={caso.pode_agir !== false} onMarcou={(ch) => setMarcadas(m => ({ ...m, [ch]: 1 }))} />}
+            </div>
+          )}
           {cfg.anexo && (
             <div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>{cfg.anexo}{cfg.anexoObrig && <span style={{ color: cores.perigo }}> *</span>}</div>
@@ -620,6 +693,21 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
                 )}
                 <input ref={inputRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => pegarArquivo(e.target.files?.[0])} />
               </div>
+            </div>
+          )}
+          {cfg.conversa && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>Conversa do WhatsApp exportada<span style={{ color: cores.perigo }}> *</span></div>
+              <div onClick={() => convRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); pegarConversa(e.dataTransfer.files?.[0]) }}
+                style={{ border: `2px dashed ${conversa ? hexA(cores.ok, 0.5) : hexA('#0f172a', 0.18)}`, borderRadius: 14, padding: 14, background: conversa ? hexA(cores.ok, 0.05) : '#fafbfd', cursor: 'pointer', textAlign: 'center', fontSize: 13, color: cores.suave }}>
+                {conversa
+                  ? <span><b style={{ color: cores.texto, overflowWrap: 'anywhere' }}>💬 {conversa.name}</b> · {(conversa.size / 1024).toFixed(0)} KB · clique para trocar</span>
+                  : <span><b style={{ color: cores.texto }}>Arraste o arquivo da conversa ou clique para escolher</b> · .txt ou .zip</span>}
+                <input ref={convRef} type="file" accept=".txt,.zip,text/plain,application/zip" style={{ display: 'none' }} onChange={e => pegarConversa(e.target.files?.[0])} />
+              </div>
+              <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 5 }}>{COMO_EXPORTAR}</div>
             </div>
           )}
           {visiveis.map(campo)}
@@ -661,7 +749,9 @@ function FichaPD({ id, onFechar, onMudou }) {
   const c = dados.caso
   const pr = dados.protocolo || {}
   const et = etapaPD(c.etapa)
-  const acoes = c.pode_agir === false ? [] : (ACOES_POR_ETAPA_PD[c.etapa] || ['observacao'])
+  const conversas = Array.isArray(dados.conversas) ? dados.conversas : []
+  const faltaConvInad = inadimplente(c) && !conversas.some(v => v.motivo === 'inadimplente')
+  const acoes = c.pode_agir === false ? [] : [...(faltaConvInad ? ['conversa_inadimplente'] : []), ...(ACOES_POR_ETAPA_PD[c.etapa] || ['observacao'])]
   const wa = telWa(c.telefone)
   const refs = (Array.isArray(pr.referencias) ? pr.referencias : []).filter(r => r && (r.nome || r.telefone))
   const copiar = async (rot, val) => { if (await copiarTexto(String(val))) mostrar(`${rot} copiado`) }
@@ -706,7 +796,10 @@ function FichaPD({ id, onFechar, onMudou }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-          {acoes.map((a, i) => <button key={a} onClick={() => setModal(a)} style={btn(ACOES_PD[a].cor, i === 0)}>{ACOES_PD[a].icone} {ACOES_PD[a].titulo}</button>)}
+          {acoes.map((a, i) => {
+            const fc = faltaChecklist(a, c).length
+            return <button key={a} onClick={() => setModal(a)} title={fc ? 'Falta marcar mensagens do checklist' : undefined} style={btn(ACOES_PD[a].cor, i === 0)}>{ACOES_PD[a].icone} {ACOES_PD[a].titulo}{fc ? ` · 🔒 ${fc} msg` : ''}</button>
+          })}
           {c.proxima_atividade && c.pode_agir !== false && <button onClick={() => setModal('atividade_feita')} style={btn('#0f766e', false)}>☑️ Atividade feita</button>}
           {c.pode_agir === false && <span style={{ fontSize: 12.5, color: cores.suave }}>Só acompanhamento — quem atualiza este caso é {(c.responsaveis || []).join(', ') || 'o responsável'}.</span>}
         </div>
@@ -752,9 +845,10 @@ function FichaPD({ id, onFechar, onMudou }) {
               <Info rot="Protocolo" val={pr.numero_protocolo} />
               <Info rot="Cliente avisada" val={c.cliente_avisada_em ? `${fmtDataHora(c.cliente_avisada_em)}${c.cliente_avisada_por_nome ? ' · ' + c.cliente_avisada_por_nome : ''}` : 'ainda não'} destaque={c.cliente_avisada_em ? null : '#d97706'} />
             </div>
-            {docs.length > 0 && (
+            {(docs.length > 0 || conversas.length > 0) && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                 {docs.map(([rot, u]) => <button key={rot} onClick={() => abrirArquivo(u)} style={btn('#0891b2', false)}>📎 {rot}</button>)}
+                {conversas.map(v => <button key={v.id} onClick={() => abrirConversa(v.arquivo_url)} title={`${v.enviado_por_nome || ''} · ${fmtDataHora(v.enviado_em)}`} style={btn(v.motivo === 'inadimplente' ? cores.perigo : '#15803d', false)}>💬 Conversa WhatsApp ({v.motivo === 'inadimplente' ? 'inadimplente' : 'pagamento'})</button>)}
               </div>
             )}
           </div>
@@ -924,6 +1018,84 @@ const ETAPAS_INSS = {
   indeferido: { rot: 'Indeferido', cor: '#dc2626', icone: '⛔', grupo: 'problema' },
   recurso_indeferido: { rot: 'Recurso indeferido', cor: '#b91c1c', icone: '✖️', grupo: 'problema' },
 }
+// 29/10 (Bruno): caso ainda no INSS (antes do deferimento). O time abre a CARTA DE PROTOCOLO
+// (obrigatoria quando a advogada marca "protocolado") para mandar para a cliente.
+const msgProtocolo = (c) => `Oi, ${primeiroNome(c.nome) || 'tudo bem'}! Passando pra te dar uma notícia boa: o seu pedido do salário-maternidade já foi *protocolado no INSS* 🙌\n\nProtocolo nº *${c.numero_protocolo || '—'}*${c.data_protocolo ? `, feito em ${fmtData(c.data_protocolo)}` : ''}. Vou te mandar o comprovante aqui.\n\nAgora o INSS analisa o pedido e eu te aviso de cada novidade, tá bom? 💛`
+function ModalINSS({ c, onClose, onPendencias }) {
+  const isMobile = useIsMobile()
+  const [toast, mostrar] = useToast()
+  const e = ETAPAS_INSS[c.etapa] || { rot: c.etapa, cor: '#64748b', icone: '•' }
+  const wa = telWa(c.telefone)
+  const temProt = !!c.numero_protocolo
+  const msg = temProt ? msgProtocolo(c) : null
+  const dProt = c.data_protocolo ? diasApos(c.data_protocolo) : null
+  const copiar = async (rot, v) => mostrar((await copiarTexto(String(v))) ? `${rot} copiado` : 'Não consegui copiar')
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', backdropFilter: 'blur(3px)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 20 }}>
+      {toast}
+      <div onClick={ev => ev.stopPropagation()} style={{ ...card, width: '100%', maxWidth: 580, maxHeight: isMobile ? '92vh' : '88vh', overflow: 'auto', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: 0 }}>
+        <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${cores.cardBorda}`, display: 'flex', gap: 12, alignItems: 'center', background: `linear-gradient(135deg, ${hexA(e.cor, 0.10)}, transparent)` }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: hexA(e.cor, 0.15), display: 'grid', placeItems: 'center', fontSize: 20 }}>{e.icone}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 16.5, fontWeight: 800, color: cores.texto, overflowWrap: 'anywhere' }}>{c.nome}</div>
+            <div style={{ fontSize: 12.5, color: cores.suave }}>{fmtCpf(c.cpf)} · {fmtTel(c.telefone)} · venda: {c.vendedora_nome || '—'}</div>
+          </div>
+          <button onClick={onClose} aria-label="Fechar" style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: cores.suave }}>✕</button>
+        </div>
+        <div style={{ padding: 18, display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Chip cor={e.cor} forte>{e.icone} {e.rot}</Chip>
+            {c.perfil && <Chip cor="#475569">{c.perfil}</Chip>}
+            {c.pend_abertas > 0 && <button onClick={onPendencias} style={{ border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: '#b45309', background: hexA('#b45309', 0.1), borderRadius: 999, padding: '3px 10px' }}>📌 {c.pend_abertas} pendência{c.pend_abertas > 1 ? 's' : ''} — resolver</button>}
+          </div>
+          {temProt ? (
+            <div style={{ border: `1.5px solid ${hexA('#8b5cf6', 0.4)}`, background: hexA('#8b5cf6', 0.05), borderRadius: 14, padding: 14, display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6d28d9' }}>📨 Protocolo no INSS</div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 20, fontWeight: 800, color: cores.texto }}>{c.numero_protocolo}</div>
+                <button onClick={() => copiar('Número', c.numero_protocolo)} style={{ ...btn('#475569', false), padding: '5px 9px', fontSize: 12 }}>⧉ Copiar nº</button>
+                <span style={{ fontSize: 12.5, color: cores.suave }}>{c.data_protocolo ? `protocolado em ${fmtData(c.data_protocolo)}${dProt != null ? ` · há ${dProt} dia${dProt === 1 ? '' : 's'}` : ''}` : ''}</span>
+              </div>
+              {c.protocolo_termo_url
+                ? <button onClick={() => abrirArquivo(c.protocolo_termo_url)} style={{ ...btn('#6d28d9'), justifySelf: 'start' }}>📄 Abrir a carta de protocolo</button>
+                : <div style={{ fontSize: 13, fontWeight: 700, color: cores.perigo }}>A carta de protocolo não foi anexada — avise a advogada.</div>}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13.5, color: cores.texto, background: cores.chipBg, borderRadius: 12, padding: '10px 12px' }}>🗂️ Ainda não protocolado — a advogada vai protocolar. A carta de protocolo aparece aqui assim que ela marcar.</div>
+          )}
+          {c.etapa === 'exigencia' && (
+            <div style={{ border: `1px solid ${hexA('#ea580c', 0.35)}`, background: hexA('#ea580c', 0.05), borderRadius: 12, padding: 12, fontSize: 13.5, color: cores.texto }}>
+              <b style={{ color: '#c2410c' }}>⚠️ Exigência do INSS</b>{c.exigencia_prazo ? <b style={{ color: cores.perigo }}> · prazo {fmtData(c.exigencia_prazo)}</b> : null}
+              {c.exigencia_texto && <div style={{ marginTop: 4 }}>{c.exigencia_texto}</div>}
+              {c.resposta_inss_url && <button onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#c2410c', false), marginTop: 8, padding: '5px 10px', fontSize: 12 }}>📎 Ver a resposta do INSS</button>}
+            </div>
+          )}
+          {['indeferido', 'recurso_indeferido'].includes(c.etapa) && c.motivo && (
+            <div style={{ fontSize: 13.5, color: '#7f1d1d', background: hexA(cores.perigo, 0.06), borderRadius: 12, padding: '10px 12px' }}><b>Motivo:</b> {c.motivo}{c.resposta_inss_url && <> · <button onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ border: 'none', background: 'none', color: cores.perigo, fontWeight: 700, cursor: 'pointer', padding: 0 }}>ver resposta do INSS</button></>}</div>
+          )}
+          {msg && (
+            <div style={{ border: `1px solid ${hexA('#16a34a', 0.3)}`, background: hexA('#16a34a', 0.04), borderRadius: 12, padding: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 6 }}>MENSAGEM PARA A CLIENTE (mande junto com a carta)</div>
+              <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: cores.texto, lineHeight: 1.5 }}>{msg}</div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                <button onClick={() => copiar('Mensagem', msg)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>⧉ Copiar</button>
+                {wa && <a href={`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12, textDecoration: 'none' }}>Enviar no WhatsApp</a>}
+              </div>
+              <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 6 }}>O WhatsApp não anexa arquivo pelo link: abra a carta, salve e anexe na conversa.</div>
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: cores.suave }}>🔒 Só acompanhamento — quem mexe nesta etapa é a advogada.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// colunas do funil ANTES do deferimento (so leitura, vem do Protocolo INSS)
+const COLUNAS_INSS = [
+  { k: 'inss_fila', label: 'A protocolar', icone: '🗂️', cor: '#3b82f6', etapas: ['aguardando_protocolo', 'pendencia_docs'], sub: 'contrato assinado, a advogada vai protocolar' },
+  { k: 'inss_analise', label: 'Em análise', icone: '📨', cor: '#8b5cf6', etapas: ['protocolado', 'exigencia', 'recurso'], sub: 'protocolado — clique para ver a carta' },
+]
 const nomeMesBR = (ym) => { const [a, m] = ym.split('-').map(Number); const n = new Date(a, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }); return `${n.charAt(0).toUpperCase()}${n.slice(1)}/${String(a).slice(2)}` }
 const mesDe = (c) => (c.data_pagamento || (c.pago_em || '')).slice(0, 7)
 
@@ -947,6 +1119,7 @@ export default function PosDeferimento() {
   const [modal, setModal] = useState(null)
   const [resolver, setResolver] = useState(null)
   const [guiaDe, setGuiaDe] = useState(null)
+  const [inssDe, setInssDe] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [colHover, setColHover] = useState(null)
   const [mes, setMes] = useState(() => hojeISO().slice(0, 7))
@@ -965,10 +1138,10 @@ export default function PosDeferimento() {
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { const t = setInterval(carregar, 60000); return () => clearInterval(t) }, [carregar])
   useEffect(() => {
-    const f = (e) => { if (e.key === 'Escape' && !modal && !resolver && !guiaDe) setAberto(null) }
+    const f = (e) => { if (e.key === 'Escape') { if (inssDe) setInssDe(null); else if (!modal && !resolver && !guiaDe) setAberto(null) } }
     window.addEventListener('keydown', f)
     return () => window.removeEventListener('keydown', f)
-  }, [modal, resolver, guiaDe])
+  }, [modal, resolver, guiaDe, inssDe])
 
   const responsaveis = useMemo(() => [...new Set([...(lista || []), ...inss, ...pends].flatMap(c => c.responsaveis || []))].sort(), [lista, inss, pends])
   const bancos = useMemo(() => [...new Set((lista || []).map(c => c.banco).filter(Boolean))].sort(), [lista])
@@ -1071,6 +1244,8 @@ export default function PosDeferimento() {
     const dPag = c.data_pagamento ? -diasApos(c.data_pagamento) : null
     const pagAtivo = ESPERANDO.includes(c.etapa)
     const arrasta = !isMobile && !soLeitura && c.pode_agir !== false
+    const gv = c.etapa !== 'cancelado' ? guiaDaVez(c) : null
+    const prog = gv ? progressoGuia(c, gv) : null
     return (
       <div key={c.id} draggable={arrasta}
         onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setArrastando(c.id) }}
@@ -1095,6 +1270,13 @@ export default function PosDeferimento() {
           <span style={{ whiteSpace: 'nowrap' }}>{bancoCurto(c.banco)}</span>
         </div>
         {c.proxima_atividade && <div style={{ marginTop: 7, fontSize: 11.5, color: '#0f766e', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📅 {fmtData(c.proxima_atividade_em)} · {c.proxima_atividade}</div>}
+        {gv && prog && prog.feitos < prog.total && (
+          <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: GUIAS[gv].cor }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>📩 {GUIAS[gv].titulo}</span>
+            <span style={{ marginLeft: 'auto', flexShrink: 0, background: hexA(GUIAS[gv].cor, 0.12), borderRadius: 999, padding: '1px 8px' }}>{prog.feitos}/{prog.total}</span>
+          </div>
+        )}
+        {inadimplente(c) && !(c.conversas || []).includes('inadimplente') && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 800, color: cores.perigo }}>📎 falta anexar a conversa</div>}
       </div>
     )
   }
@@ -1139,7 +1321,7 @@ export default function PosDeferimento() {
     const t = TIPO_AGENDA[it.tipo]
     const wa = telWa(c.telefone)
     const ehPend = it.tipo === 'pendencia'
-    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : 'atividade_feita'
+    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : it.tipo === 'conversa' ? 'conversa_inadimplente' : 'atividade_feita'
     const cfg = acaoRapida ? ACOES_PD[acaoRapida] : null
     const podeAgir = !soLeitura && !ehPend && c.pode_agir !== false
     return (
@@ -1160,7 +1342,7 @@ export default function PosDeferimento() {
           {!ehPend && guiasDoCaso(c).length > 0 && <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>}
           {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
           {ehPend && <button onClick={() => setAba('pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
-          {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : 'Feito'}</button>}
+          {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : acaoRapida === 'conversa_inadimplente' ? 'Anexar conversa' : 'Feito'}</button>}
         </div>
       </div>
     )
@@ -1198,7 +1380,41 @@ export default function PosDeferimento() {
   // ------------------------------------------------------------ funil
   const funil = (
     <div style={{ overflowX: 'auto', paddingBottom: 8, margin: '0 -4px' }}>
-      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(225px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : COLUNAS_PD.length * 225 }}>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(225px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : (COLUNAS_PD.length + (soLeitura ? 0 : 2)) * 225 }}>
+        {!soLeitura && COLUNAS_INSS.map(col => {
+          const itens = inssF.filter(c => col.etapas.includes(c.etapa))
+          return (
+            <div key={col.k} style={{ background: hexA(col.cor, 0.04), borderRadius: 18, padding: 10, border: `1.5px dashed ${hexA(col.cor, 0.3)}`, minHeight: 420, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 2px' }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, background: col.cor, boxShadow: `0 0 0 4px ${hexA(col.cor, 0.15)}` }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: cores.texto, flex: 1 }}>{col.icone} {col.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: col.cor, background: hexA(col.cor, 0.12), borderRadius: 999, padding: '1px 9px' }}>{itens.length}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: cores.suave, padding: '0 4px' }}>🔒 {col.sub}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 9, alignContent: 'start', overflowY: 'auto', maxHeight: 'calc(100vh - 330px)', minHeight: 60, paddingRight: 2 }}>
+                {itens.map(c => {
+                  const e = ETAPAS_INSS[c.etapa] || {}
+                  const d = c.data_protocolo && col.k === 'inss_analise' ? diasApos(c.data_protocolo) : diasDesde(c.etapa_desde)
+                  return (
+                    <div key={c.id} onClick={() => setInssDe(c)} className="kr-cartao" style={{ minWidth: 0, background: '#fff', borderRadius: 14, border: `1px solid ${cores.cardBorda}`, padding: 12, cursor: 'pointer', boxShadow: '0 1px 2px rgba(15,23,42,.05)' }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 750, color: cores.texto, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.nome || 'Sem nome'}</div>
+                      <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 2 }}>{(c.responsaveis || []).join(', ') || c.vendedora_nome || '—'}</div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+                        {c.etapa !== col.etapas[0] && <Chip cor={e.cor}>{e.icone} {e.rot}</Chip>}
+                        {c.pend_abertas > 0 && <Chip cor="#b45309">📌 {c.pend_abertas}</Chip>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7, fontSize: 11.5, color: cores.suave, gap: 6 }}>
+                        <span>{col.k === 'inss_analise' ? `em análise há ${d ?? '?'}d` : `há ${d ?? '?'} dia${d === 1 ? '' : 's'}`}</span>
+                        {c.protocolo_termo_url && <span style={{ fontWeight: 800, color: '#6d28d9' }}>📄 carta</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+                {itens.length === 0 && <div style={{ fontSize: 12.5, color: cores.suave, textAlign: 'center', padding: '22px 8px', border: `1.5px dashed ${hexA('#0f172a', 0.1)}`, borderRadius: 14 }}>Nenhum caso</div>}
+              </div>
+            </div>
+          )
+        })}
         {COLUNAS_PD.map(k => {
           const et = etapaPD(k)
           let itens = filtrada.filter(c => colunaDe(c) === k)
@@ -1302,7 +1518,7 @@ export default function PosDeferimento() {
     ]
     return (
       <div style={{ display: 'grid', gap: 14 }}>
-        <div style={{ ...card, padding: '11px 16px', fontSize: 13, color: cores.suave }}>🔒 <b style={{ color: cores.texto }}>Só acompanhamento.</b> Quem mexe nesta etapa é a advogada. Aqui você vê em que pé está cada contrato e há quanto tempo, para ir alinhando com a cliente.</div>
+        <div style={{ ...card, padding: '11px 16px', fontSize: 13, color: cores.suave }}>🔒 <b style={{ color: cores.texto }}>Só acompanhamento.</b> Quem mexe nesta etapa é a advogada. Clique na cliente para ver a <b style={{ color: cores.texto }}>carta de protocolo</b> e a mensagem pronta para mandar a ela.</div>
         {grupos.map(([g, tit, cor, sub]) => {
           const itens = inssF.filter(c => (ETAPAS_INSS[c.etapa] || {}).grupo === g)
           return (
@@ -1319,12 +1535,12 @@ export default function PosDeferimento() {
                 const d = diasDesde(c.etapa_desde)
                 const dProt = c.data_protocolo ? diasApos(c.data_protocolo) : null
                 return (
-                  <div key={c.id} className="kr-linha" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+                  <div key={c.id} className="kr-linha" onClick={() => setInssDe(c)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Chip cor={e.cor} forte>{e.icone} {e.rot}</Chip>
                         <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
-                        {c.pend_abertas > 0 && <button onClick={() => setAba('pendencias')} style={{ border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: '#b45309', background: hexA('#b45309', 0.1), borderRadius: 999, padding: '2px 9px' }}>📌 {c.pend_abertas} pendência{c.pend_abertas > 1 ? 's' : ''}</button>}
+                        {c.pend_abertas > 0 && <button onClick={(ev) => { ev.stopPropagation(); setAba('pendencias') }} style={{ border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: '#b45309', background: hexA('#b45309', 0.1), borderRadius: 999, padding: '2px 9px' }}>📌 {c.pend_abertas} pendência{c.pend_abertas > 1 ? 's' : ''}</button>}
                       </div>
                       <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>
                         {fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.perfil ? ` · ${c.perfil}` : ''}
@@ -1332,6 +1548,7 @@ export default function PosDeferimento() {
                         {c.motivo && ['indeferido', 'recurso_indeferido'].includes(c.etapa) ? ` · ${c.motivo}` : ''}
                       </div>
                     </div>
+                    {c.protocolo_termo_url && <button onClick={(ev) => { ev.stopPropagation(); abrirArquivo(c.protocolo_termo_url) }} style={{ ...btn('#6d28d9', false), padding: '6px 10px', fontSize: 12 }}>📄 Carta de protocolo</button>}
                     <div style={{ textAlign: 'right', fontSize: 12.5, color: cores.suave, minWidth: 140 }}>
                       {c.numero_protocolo && <div>nº <b style={{ color: cores.texto }}>{c.numero_protocolo}</b></div>}
                       <div style={{ fontWeight: 700, color: (g === 'fila' && d > 3) || (g === 'analise' && dProt > 45) ? cores.perigo : cores.texto }}>
@@ -1478,7 +1695,7 @@ export default function PosDeferimento() {
           <div style={{ fontSize: 12.5, color: cores.texto, marginTop: 3 }}>
             <b>{bancoCurto(c.banco) || 'banco?'}</b>{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · {fmtTel(c.telefone)}{!soLeitura ? ` · ${(c.responsaveis || []).join(', ')}` : ''}
           </div>
-          <div style={{ fontSize: 12, color: t.cor, fontWeight: 700, marginTop: 2 }}>→ {t.faz}{enviadoEm(c, 'vespera', 'como') ? <span style={{ color: cores.ok, marginLeft: 8 }}>✓ véspera avisada</span> : null}</div>
+          <div style={{ fontSize: 12, color: t.cor, fontWeight: 700, marginTop: 2 }}>→ {t.faz}{(() => { const fc = faltaChecklist(acao, c).length; return <span style={{ color: fc ? '#b45309' : cores.ok, marginLeft: 8 }}>{fc ? `🔒 checklist: falta${fc > 1 ? 'm' : ''} ${fc} mensage${fc > 1 ? 'ns' : 'm'}` : '✓ checklist ok'}</span> })()}{inadimplente(c) && !(c.conversas || []).includes('inadimplente') ? <span style={{ color: cores.perigo, marginLeft: 8 }}>📎 falta a conversa</span> : null}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
           <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>
@@ -1713,6 +1930,7 @@ export default function PosDeferimento() {
       )}
 
       {modal && <ModalPD caso={modal.caso} acao={modal.acao} inicial={modal.inicial} onClose={() => setModal(null)} onFeito={() => { setModal(null); mostrar('Salvo'); carregar() }} />}
+      {inssDe && <ModalINSS c={inssDe} onClose={() => setInssDe(null)} onPendencias={() => { setInssDe(null); setAba('pendencias') }} />}
       {guiaDe && <ModalGuia caso={guiaDe} podeAgir={!soLeitura && guiaDe.pode_agir !== false} onClose={() => setGuiaDe(null)} onMarcou={carregar} />}
       {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
     </div>
