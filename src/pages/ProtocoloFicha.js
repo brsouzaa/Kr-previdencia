@@ -641,6 +641,71 @@ const ICONE_EVENTO = {
   responsavel_avisado: '📣', observacao: '💬', mudanca_etapa: '🔀',
 }
 
+// 29/10/2026 (Bruno) — CEP DE SUGESTAO DO BANCO NO PROTOCOLO. No GERID o INSS pergunta o banco
+// de preferencia e o CEP e a SUGESTAO (o INSS decide). Quem paga o beneficio novo e o banco 1o
+// colocado do LOTE da regiao no leilao do INSS (Pregao 90005/2024). Sem a Crefisa (suspensa em
+// ago/2025) o Mercantil e o 1o em 14 dos 26 lotes. O banco (protocolo_cep_mercantil) devolve o
+// lote da cliente e ate 4 pontos fisicos do Mercantil em regiao onde ele e o 1o: mesma cidade >
+// mesma regiao do INSS > cidade vizinha (SP capital, por zona do CEP) > outra regiao do Mercantil
+// na UF. O ENDERECO DA CLIENTE NAO MUDA: este CEP vai so no campo do banco de preferencia.
+function CepMercantil({ cpf, copiar }) {
+  const [r, setR] = useState(null)
+  const [verTodos, setVerTodos] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    supabase.rpc('protocolo_cep_mercantil', { p_cpf: soDig(cpf) })
+      .then(({ data, error }) => { if (vivo) setR(error ? { ok: false, erro: error.message } : (data || { ok: false })) })
+    return () => { vivo = false }
+  }, [cpf])
+  if (!r || !r.ok) return null
+  const pts = Array.isArray(r.pontos) ? r.pontos : []
+  const AZ = '#1d4ed8'
+  const cidade = `${r.cidade || '?'}${r.uf ? '/' + r.uf : ''}`
+  const banco = String(r.banco_1o || '').replace(/^Banco\s+/i, '').replace(/\s+(S\.?A\.?|SA)$/i, '')
+  const merc = r.mercantil_primeiro === true
+  const linha = (p, i, destaque) => (
+    <div key={p.cep + i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: destaque ? '12px 14px' : '8px 12px', borderRadius: 12, background: destaque ? '#fff' : 'transparent', border: `1px solid ${destaque ? hexA(AZ, 0.35) : cores.cardBorda}` }}>
+      <div style={{ fontFamily: fonte.mono, fontSize: destaque ? 22 : 15, fontWeight: 800, color: AZ, letterSpacing: '.02em' }}>{p.cep}</div>
+      <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 12.5, color: cores.texto }}>
+        <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{p.municipio}/{p.uf} · {p.endereco || p.nome}</div>
+        <div style={{ color: cores.suave }}>{[p.bairro, p.motivo].filter(Boolean).join(' · ')}</div>
+        {p.alerta && <div style={{ color: '#b45309', fontWeight: 700, marginTop: 2 }}>⚠️ {p.alerta}</div>}
+      </div>
+      <button onClick={() => copiar('CEP', soDig(p.cep))} style={{ ...btn(AZ, destaque), padding: destaque ? '8px 12px' : '5px 9px', fontSize: destaque ? 13 : 12 }}>⧉ Copiar CEP</button>
+    </div>
+  )
+  return (
+    <div style={{ ...card, padding: 18, border: `1.5px solid ${pts.length ? hexA(AZ, 0.45) : hexA('#d97706', 0.45)}`, background: pts.length ? `linear-gradient(135deg, #ffffff 30%, ${hexA(AZ, 0.07)})` : hexA('#f59e0b', 0.05) }}>
+      <div style={{ ...tituloSecao, color: pts.length ? AZ : '#b45309' }}>🏦 CEP de sugestão do banco (Mercantil)</div>
+      {r.lote && (
+        <div style={{ fontSize: 13, color: cores.texto, marginBottom: 8 }}>
+          Região do INSS da cliente ({cidade}): 1º banco é <b style={{ color: merc ? cores.ok : '#b45309' }}>{banco || '?'}</b>{merc ? ' ✓' : ''}
+        </div>
+      )}
+      {pts.length ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ fontSize: 13, color: cores.texto }}>Quando o INSS perguntar o <b>banco de preferência</b>, use este CEP como sugestão{merc ? '' : ' — é de uma região onde o Mercantil é o 1º'}. Quem decide é o INSS.</div>
+          {linha(pts[0], 0, true)}
+          {pts.length > 1 && (
+            <>
+              <button onClick={() => setVerTodos(v => !v)} style={{ justifySelf: 'start', border: 'none', background: 'none', color: AZ, fontWeight: 700, fontSize: 12.5, cursor: 'pointer', padding: 0 }}>{verTodos ? '▾' : '▸'} mais {pts.length - 1} opç{pts.length - 1 > 1 ? 'ões' : 'ão'}</button>
+              {verTodos && pts.slice(1).map((p, i) => linha(p, i + 1, false))}
+            </>
+          )}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', background: hexA('#f59e0b', 0.1), borderRadius: 8, padding: '6px 9px' }}>⚠️ Só no campo do banco de preferência. O endereço da cliente continua o dela.</div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 13.5, color: '#7f1d1d', fontWeight: 600 }}>
+          {r.aviso ? 'Cadastro sem cidade/UF — confira o endereço da cliente.' : `Não tem região do Mercantil em ${r.uf || 'neste estado'} — não há CEP para sugerir. Deixe o banco que o INSS indicar.`}
+        </div>
+      )}
+      <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 10 }}>
+        Fontes: leilão da folha do INSS (Pregão 90005/2024{r.crefisa_fora === false ? '' : ', considerando a Crefisa fora'}) e Banco Central{r.posicao_bcb ? ` (pontos do Mercantil em ${fmtData(r.posicao_bcb)})` : ''}.
+      </div>
+    </div>
+  )
+}
+
 export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
@@ -1145,6 +1210,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
           {caixaAntes}
+          <CepMercantil cpf={caso.cpf} copiar={copiar} />
           {blocoProtocolo}
           {meuINSS}
           {blocoDocs}
