@@ -29,7 +29,7 @@ const COLUNAS = [
 
 const ABAS = [
   ['quadro', '▦ Quadro'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['concluidos', 'Concluídos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
+  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
 ]
 
 const ROTULO_EVENTO = {
@@ -162,7 +162,6 @@ export default function Protocolo() {
       pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
       deferidos: L.filter(c => c.etapa === 'deferido' || c.etapa === 'recurso_deferido').length,
       indeferidos: L.filter(c => c.etapa === 'indeferido' || c.etapa === 'recurso_indeferido').length,
-      concluidos: L.filter(c => ['deferido', 'indeferido', 'recurso_deferido', 'recurso_indeferido', 'cancelado'].includes(c.etapa)).length,
       atrasados: L.filter(c => c.etapa === 'aguardando_protocolo' && diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length,
     }
   }, [lista])
@@ -328,7 +327,7 @@ export default function Protocolo() {
     if (aba === 'fila') return L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     if (aba === 'pendencias') return L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
-    if (aba === 'concluidos') return L.filter(c => ['deferido', 'indeferido', 'recurso_deferido', 'recurso_indeferido', 'cancelado'].includes(c.etapa)).sort((a, b) => String(b.data_resultado || b.ultima_movimentacao_em).localeCompare(String(a.data_resultado || a.ultima_movimentacao_em)))
+    if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(c => (aba === 'deferidos' ? ['deferido', 'recurso_deferido'] : ['indeferido', 'recurso_indeferido']).includes(c.etapa)).sort((a, b) => String(b.data_resultado || b.ultima_movimentacao_em).localeCompare(String(a.data_resultado || a.ultima_movimentacao_em)))
     return L
   }, [filtrada, aba])
 
@@ -336,7 +335,7 @@ export default function Protocolo() {
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
     if (aba === 'pendencias') return c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>
-    if (aba === 'concluidos') return <span>{fmtData(c.data_resultado)}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
+    if (aba === 'deferidos' || aba === 'indeferidos') return <span>{fmtData(c.data_resultado)}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
     return <span>entrou {fmtDataHora(c.entrou_setor_em)}</span>
   }
 
@@ -711,13 +710,13 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {kpi({ rot: 'Fila de protocolo', n: conta.fila, cor: '#2563eb', alvo: 'fila', icone: '🗂️', sub: conta.atrasados ? `${conta.atrasados} há mais de ${LIMITE_AGUARDANDO} dias` : 'em dia' })}
         {kpi({ rot: 'Aguardando INSS', n: conta.protocolados, cor: '#8b5cf6', alvo: 'protocolados', icone: '📨', sub: 'protocolados e recursos' })}
         {kpi({ rot: 'Pendências', n: conta.pendencias, cor: '#ea580c', alvo: 'pendencias', icone: '⚠️', sub: 'docs e exigências' })}
-        {kpi({ rot: 'Deferidos', n: conta.deferidos, cor: cores.ok, alvo: 'concluidos', icone: '✅', sub: `${conta.indeferidos} indeferidos` })}
+        {kpi({ rot: 'Deferidos', n: conta.deferidos, cor: cores.ok, alvo: 'deferidos', icone: '✅', sub: `${conta.indeferidos} indeferidos` })}
         {kpi({ rot: 'Alertas', n: alertas.length, cor: cores.perigo, alvo: 'acompanhamento', icone: '🔴', sub: `${pend.length} pendência(s) aberta(s)` })}
       </div>
 
       <div className="kr-aba" style={{ display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
         {ABAS.map(([k, r]) => {
-          const n = k === 'hoje' ? conta.hoje : k === 'fila' ? conta.fila : k === 'protocolados' ? conta.protocolados : k === 'pendencias' ? conta.pendencias : k === 'concluidos' ? conta.concluidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
+          const n = k === 'hoje' ? conta.hoje : k === 'fila' ? conta.fila : k === 'protocolados' ? conta.protocolados : k === 'pendencias' ? conta.pendencias : k === 'deferidos' ? conta.deferidos : k === 'indeferidos' ? conta.indeferidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
           const on = aba === k
           return (
             <button key={k} onClick={() => setAba(k)} style={{
