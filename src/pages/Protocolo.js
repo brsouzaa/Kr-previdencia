@@ -6,6 +6,7 @@ import {
   ETAPAS, etapaInfo, FichaProtocolo, ModalAcao, ACOES, ACOES_POR_ETAPA, Chip, hexA,
   estiloBotao as btn, estiloCard as card, fmtCpf, fmtData, fmtDataHora, diasDesde, diaBR, hojeISO,
   iniciais, useIsMobile, useToast, abrirArquivo, soDig,
+  perguntarIA, catPend, rotResolucao, RESOLUCOES_NEGATIVAS, Markdown, copiarTexto,
 } from './ProtocoloFicha'
 
 // ===== SETOR DE PROTOCOLO E ACOMPANHAMENTO (28/10/2026, Bruno) =====
@@ -28,7 +29,7 @@ const COLUNAS = [
 
 const ABAS = [
   ['quadro', '▦ Quadro'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['concluidos', 'Concluídos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
+  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['concluidos', 'Concluídos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
 ]
 
 const ROTULO_EVENTO = {
@@ -81,16 +82,21 @@ export default function Protocolo() {
   const [importAberto, setImportAberto] = useState(false)
   const [atualizadoEm, setAtualizadoEm] = useState(null)
   const [carregando, setCarregando] = useState(false)
+  // 29/10 — pendencias resolvidas pelo Acompanhamento de clientes, para a advogada refazer
+  const [refazer, setRefazer] = useState([])
+  const [gerando, setGerando] = useState({})   // id -> 'gerando' | mensagem de erro
 
   const souAcomp = profile?.role === 'admin' || profile?.protocolo_papel === 'acompanhamento'
 
   const carregar = useCallback(async () => {
     setCarregando(true)
-    const [l, a, p] = await Promise.all([
+    const [l, a, p, rf] = await Promise.all([
       supabase.rpc('protocolo_lista'),
       supabase.rpc('protocolo_alertas'),
       supabase.rpc('protocolo_pendencias_lista'),
+      supabase.rpc('protocolo_refazer_lista'),
     ])
+    setRefazer(Array.isArray(rf.data) ? rf.data : [])
     if (l.error) mostrar('Erro ao carregar: ' + l.error.message, 'erro')
     setLista(Array.isArray(l.data) ? l.data : [])
     setAlertas(Array.isArray(a.data) ? a.data : [])
@@ -572,6 +578,112 @@ export default function Protocolo() {
     )
   })()
 
+  // ------------------------------------------------------------ resolvidas · refazer (29/10)
+  // O time de Acompanhamento resolveu a pendencia (anexou o que faltava ou disse que a
+  // cliente nao vai resolver). Aqui a advogada ve o que foi feito e a DEFESA PRONTA da
+  // I.A (gerada sozinha uma vez e salva no banco), refaz o caso e marca como refeito.
+  // Se ela protocolar / cumprir exigencia depois da resolucao, o item sai sozinho.
+  const gerarDefesa = useCallback(async (it) => {
+    setGerando(g => ({ ...g, [it.id]: 'gerando' }))
+    try {
+      const cat = catPend(it.categoria)
+      const anexos = Array.isArray(it.resolucao_anexos) ? it.resolucao_anexos.length : 0
+      const texto = `⟦DEFESA-PENDENCIA⟧ A pendência abaixo foi RESOLVIDA pelo time de acompanhamento e o caso voltou para a advogada. Responda em markdown curto:
+1. **O que fazer agora** (protocolar de novo, cumprir a exigência no Meu INSS ou decidir) — objetivo.
+2. **Texto pronto para colar no Meu INSS** (cumprimento de exigência ou observação do requerimento), defendendo a tese da KR.
+3. **Documentos para anexar**.
+Se a resolução foi negativa (a cliente não vai resolver), diga com franqueza as opções e o risco de cada uma.
+
+Pendência (${cat.rot}): ${it.descricao}
+O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.resolucao_texto ? ' — ' + it.resolucao_texto : ''}${anexos ? ` (${anexos} anexo(s) enviado(s))` : ''}`
+      const resp = await perguntarIA({ caso: { nome: it.nome, cpf: it.cpf, etapa: it.etapa, numero_protocolo: it.numero_protocolo, exigencia_texto: it.exigencia_texto, exigencia_prazo: it.exigencia_prazo }, historico: [], texto })
+      await supabase.rpc('protocolo_pendencia_salvar_defesa', { p_id: it.id, p_texto: resp })
+      setRefazer(lst => lst.map(x => (x.id === it.id ? { ...x, ia_defesa: resp, ia_defesa_em: new Date().toISOString() } : x)))
+      setGerando(g => { const n = { ...g }; delete n[it.id]; return n })
+    } catch (e) {
+      setGerando(g => ({ ...g, [it.id]: 'Não consegui gerar: ' + String(e.message || e) }))
+    }
+  }, [])
+
+  // gera a defesa de UM item por vez, so com a aba aberta (nao gasta I.A a toa)
+  useEffect(() => {
+    if (aba !== 'refazer') return
+    if (Object.values(gerando).includes('gerando')) return
+    const prox = refazer.find(it => !it.ia_defesa && !gerando[it.id])
+    if (prox) gerarDefesa(prox)
+  }, [aba, refazer, gerando, gerarDefesa])
+
+  async function marcarRefeito(it) {
+    const { data, error } = await supabase.rpc('protocolo_pendencia_refeita', { p_id: it.id })
+    if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'erro', 'erro'); return }
+    mostrar('Marcado como refeito')
+    setRefazer(lst => lst.filter(x => x.id !== it.id))
+  }
+
+  const refazerView = (
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.suave }}>
+        Pendências que o <b style={{ color: cores.texto }}>time de Acompanhamento de clientes</b> já resolveu. Confira o que foi feito, use a defesa pronta da I.A e refaça o caso. Quando você protocolar ou cumprir a exigência, o item sai daqui sozinho.
+      </div>
+      {refazer.length === 0 && <div style={{ ...card, padding: 36, textAlign: 'center', color: cores.suave }}>Nada para refazer agora.</div>}
+      {refazer.map(it => {
+        const cat = catPend(it.categoria)
+        const neg = RESOLUCOES_NEGATIVAS.includes(it.resolucao)
+        const anexos = Array.isArray(it.resolucao_anexos) ? it.resolucao_anexos : []
+        const st = gerando[it.id]
+        return (
+          <div key={it.id} style={{ ...card, padding: 0, overflow: 'hidden', border: `1.5px solid ${neg ? hexA(cores.perigo, 0.45) : hexA(cores.ok, 0.35)}` }}>
+            <div style={{ padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: neg ? hexA(cores.perigo, 0.06) : hexA(cores.ok, 0.06) }}>
+              <Chip cor={cat.cor} forte>{cat.icone} {cat.rot}</Chip>
+              <span style={{ fontSize: 15, fontWeight: 800, color: cores.texto }}>{it.nome}</span>
+              <span style={{ fontSize: 12.5, color: cores.suave }}>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'}</span>
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={() => setCpfAberto(it.cpf)} style={btn('#475569', false)}>Abrir ficha</button>
+                <button onClick={() => marcarRefeito(it)} style={btn(cores.ok)}>✔ Refeito</button>
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.3fr)', gap: 0 }}>
+              <div style={{ padding: 16, borderRight: isMobile ? 'none' : `1px solid ${cores.cardBorda}`, display: 'grid', gap: 12, alignContent: 'start' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase' }}>O que faltava</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: cores.texto, marginTop: 3 }}>{it.descricao}</div>
+                  <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>aberta por {it.aberta_por || '—'} em {fmtDataHora(it.aberta_em)}</div>
+                </div>
+                <div style={{ borderRadius: 12, padding: '10px 12px', background: neg ? hexA(cores.perigo, 0.07) : hexA(cores.ok, 0.07) }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: neg ? cores.perigo : cores.ok, textTransform: 'uppercase' }}>{neg ? 'Não resolvido — você decide' : 'O que o acompanhamento fez'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: cores.texto, marginTop: 3 }}>{rotResolucao(it.categoria, it.resolucao)}</div>
+                  {it.resolucao_texto && <div style={{ fontSize: 13, color: cores.texto, marginTop: 3 }}>{it.resolucao_texto}</div>}
+                  <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>{it.resolvida_por || '—'} · {fmtDataHora(it.resolvida_em)}</div>
+                  {anexos.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                      {anexos.map((u, i) => <button key={i} onClick={() => abrirArquivo(u)} style={{ ...btn('#0891b2', false), padding: '5px 10px', fontSize: 12 }}>📎 Anexo {i + 1}</button>)}
+                    </div>
+                  )}
+                </div>
+                {it.exigencia_texto && it.etapa === 'exigencia' && <div style={{ fontSize: 12.5, color: '#9a3412' }}>Exigência: {it.exigencia_texto} · prazo <b>{fmtData(it.exigencia_prazo)}</b></div>}
+              </div>
+              <div style={{ padding: 16, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.roxo, textTransform: 'uppercase' }}>✦ Defesa pronta da I.A</span>
+                  {it.ia_defesa && (
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                      <button onClick={async () => mostrar((await copiarTexto(it.ia_defesa)) ? 'Defesa copiada' : 'Não consegui copiar')} style={{ ...btn(cores.roxo, false), padding: '5px 10px', fontSize: 12 }}>⧉ Copiar</button>
+                      <button onClick={() => gerarDefesa(it)} disabled={st === 'gerando'} style={{ ...btn('#475569', false), padding: '5px 10px', fontSize: 12 }}>⟳ Refazer</button>
+                    </span>
+                  )}
+                </div>
+                {it.ia_defesa ? <div style={{ maxHeight: 340, overflowY: 'auto' }}><Markdown texto={it.ia_defesa} /></div>
+                  : st === 'gerando' ? <div style={{ fontSize: 13, color: cores.suave }}>A I.A está montando a defesa…</div>
+                  : st ? <div style={{ fontSize: 13, color: cores.perigo }}>{st} <button onClick={() => gerarDefesa(it)} style={{ ...btn('#475569', false), padding: '4px 9px', fontSize: 12, marginLeft: 6 }}>Tentar de novo</button></div>
+                  : <div style={{ fontSize: 13, color: cores.suave }}>Na fila para gerar…</div>}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
   // ------------------------------------------------------------ render
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
@@ -605,7 +717,7 @@ export default function Protocolo() {
 
       <div className="kr-aba" style={{ display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
         {ABAS.map(([k, r]) => {
-          const n = k === 'hoje' ? conta.hoje : k === 'fila' ? conta.fila : k === 'protocolados' ? conta.protocolados : k === 'pendencias' ? conta.pendencias : k === 'concluidos' ? conta.concluidos : k === 'acompanhamento' ? alertas.length + pend.length : null
+          const n = k === 'hoje' ? conta.hoje : k === 'fila' ? conta.fila : k === 'protocolados' ? conta.protocolados : k === 'pendencias' ? conta.pendencias : k === 'concluidos' ? conta.concluidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
           const on = aba === k
           return (
             <button key={k} onClick={() => setAba(k)} style={{
@@ -617,7 +729,7 @@ export default function Protocolo() {
         })}
       </div>
 
-      {!['acompanhamento', 'painel'].includes(aba) && filtros}
+      {!['acompanhamento', 'painel', 'refazer'].includes(aba) && filtros}
       {aba !== 'acompanhamento' && aba !== 'painel' && alertas.length > 0 && aba === 'quadro' && (
         <div onClick={() => setAba('acompanhamento')} style={{ ...card, padding: '10px 14px', background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
           🔴 {alertas.length} alerta{alertas.length === 1 ? '' : 's'}: {alertas.slice(0, 2).map(a => `${a.nome} — ${a.texto}`).join(' · ')}{alertas.length > 2 ? ' …' : ''} <span style={{ marginLeft: 'auto' }}>ver →</span>
@@ -627,6 +739,7 @@ export default function Protocolo() {
       {lista === null ? (
         <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando casos…</div>
       ) : aba === 'quadro' ? quadro
+        : aba === 'refazer' ? refazerView
         : aba === 'acompanhamento' ? acompanhamento
         : aba === 'painel' ? painelView
         : listaView}
