@@ -379,7 +379,8 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [board, setBoard] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aba, setAba] = useState('hoje')
-  const [periodo, setPeriodo] = useState('tudo')
+  // 28/10 (Bruno): a tela abre em "Hoje". "Todo o período" continua no seletor.
+  const [periodo, setPeriodo] = useState('hoje')
   // 22/10 — vendedor escolhido. Começa no que ficou guardado da última visita;
   // '' (string vazia) é uma escolha válida e quer dizer "toda a operação".
   const [vendedorSel, setVendedorSel] = useState(() => {
@@ -393,6 +394,10 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [listaVendedores, setListaVendedores] = useState([])
   const [busca, setBusca] = useState('')
   const [buscaAtiva, setBuscaAtiva] = useState('')
+  // 28/10 (Bruno): a mesa mostra só os últimos 30 dias (app_config
+  // retroativo_board_dias), mas a BUSCA acha o lead dela em qualquer data.
+  // Vem da mae_board6_busca (mesmas colunas da mae_board6, sem o corte de dias).
+  const [extrasBusca, setExtrasBusca] = useState([])
   const [obsAberta, setObsAberta] = useState(null)       // `${leadId}:${acao}`
   const [obs, setObs] = useState('')
   const [marcando, setMarcando] = useState(null)
@@ -480,6 +485,29 @@ export default function RevisaoIARetroativo({ setPage }) {
   }, [profile?.id, vejoMaisDeUm, minhaOp, meuTime])
 
   useEffect(() => { carregar() }, [carregar])
+
+  // 28/10 — busca fora da janela de dias. Roda de novo quando o board recarrega,
+  // pra o lead achado refletir o que a vendedora acabou de marcar nele.
+  useEffect(() => {
+    const q = buscaAtiva.trim()
+    const dig = soDigitos(q)
+    if (!profile?.id || (dig ? dig.length < 4 : q.length < 3)) { setExtrasBusca([]); return }
+    let vivo = true
+    supabase.rpc('mae_board6_busca', {
+      p_agente: vejoMaisDeUm ? null : profile.id,
+      p_entrada_de: null, p_entrada_ate: null,
+      p_ativ_de: null, p_ativ_ate: null,
+      p_entrega_de: null, p_entrega_ate: null,
+      p_termo: q,
+    }).then(({ data, error }) => {
+      if (!vivo) return
+      if (error || !Array.isArray(data)) { setExtrasBusca([]); return }
+      setExtrasBusca(data.filter(l =>
+        (!minhaOp || (l.operacao || 'kr') === minhaOp) &&
+        (!meuTime || meuTime.includes(l.bf_agente_id))))
+    })
+    return () => { vivo = false }
+  }, [buscaAtiva, board, profile?.id, vejoMaisDeUm, minhaOp, meuTime])
   useEffect(() => {
     const t = setInterval(carregar, 60000)   // sem Chatwoot, sem polling de conversa
     return () => clearInterval(t)
@@ -529,13 +557,19 @@ export default function RevisaoIARetroativo({ setPage }) {
       // período em "Hoje" devolveria "não encontrada" — e a pessoa concluiria
       // que a cliente não existe. A tela avisa que está fora do filtro.
       const d = soDigitos(q)
-      return mesa.filter(l =>
+      const achados = mesa.filter(l =>
         (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
         (!d && String(l.nome || '').toLowerCase().includes(q.toLowerCase())))
-        .sort(maisRecenteEmCima)
+      // 28/10 — soma o que a busca achou fora da janela de dias da mesa
+      const ja = new Set(achados.map(l => l.id))
+      const fora = extrasBusca
+        .filter(l => !ja.has(l.id) && (!vendedorSel || l.bf_agente_id === vendedorSel))
+        .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
+        .filter(l => l._aba)
+      return achados.concat(fora).sort(maisRecenteEmCima)
     }
     return mesaFiltrada.filter(l => l._aba === aba).sort(maisRecenteEmCima)
-  }, [mesa, mesaFiltrada, aba, buscaAtiva])
+  }, [mesa, mesaFiltrada, aba, buscaAtiva, extrasBusca, vendedorSel])
 
   // ===== NÚMEROS DO TOPO — todos sobre mesaFiltrada (ver nota acima) =====
   const caiuHoje = mesaFiltrada.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
@@ -681,7 +715,7 @@ export default function RevisaoIARetroativo({ setPage }) {
       </div>
 
       <div style={s.buscaWrap}>
-        <input style={s.buscaInput} value={busca} placeholder="🔎 Achar cliente: cole o CPF ou o telefone"
+        <input style={s.buscaInput} value={busca} placeholder="🔎 Achar cliente: CPF, telefone ou nome"
           onChange={e => setBusca(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') setBuscaAtiva(busca) }} />
         <button style={s.btn} onClick={() => setBuscaAtiva(busca)}>Buscar</button>
