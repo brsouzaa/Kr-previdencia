@@ -724,6 +724,11 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   const [abaDir, setAbaDir] = useState('ia')
   const [verMotivos, setVerMotivos] = useState(false)
   const [baixando, setBaixando] = useState(false)
+  // 29/10/2026 (Bruno): contratos ASSINADOS do ZapSign, um PDF por contrato (honorarios, procuracao,
+  // termo). A edge function zapsign-contratos-pdf baixa e guarda no bucket; aqui so lista e abre.
+  const [contratos, setContratos] = useState([])
+  const [contratosSt, setContratosSt] = useState('')   // '' | 'buscando' | 'erro:...'
+  const tentouContratos = useRef(false)
   const pediuParecer = useRef(false)
   const fimChat = useRef(null)
 
@@ -744,6 +749,32 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   }, [cpf])
 
   useEffect(() => { carregar() }, [carregar])
+
+  const carregarContratos = useCallback(async (buscarNoZapSign) => {
+    const listar = async () => {
+      const { data } = await supabase.rpc('protocolo_contratos_lista', { p_cpf: soDig(cpf) })
+      const lista = (data && data.ok && Array.isArray(data.contratos)) ? data.contratos : []
+      const comUrl = []
+      for (const c of lista) {
+        const { data: su } = await supabase.storage.from(BUCKET).createSignedUrl(c.arquivo_url, 3600)
+        if (su?.signedUrl) comUrl.push({ ...c, url: su.signedUrl })
+      }
+      setContratos(comUrl)
+      return comUrl
+    }
+    try {
+      const atuais = await listar()
+      if (atuais.length || !buscarNoZapSign) { setContratosSt(''); return }
+      setContratosSt('buscando')
+      const { data, error } = await supabase.functions.invoke('zapsign-contratos-pdf', { body: { cpf: soDig(cpf) } })
+      if (error || !data?.ok) { setContratosSt('erro:' + ((data && data.erro) || (error && error.message) || 'não consegui buscar')); return }
+      await listar()
+      setContratosSt('')
+    } catch (e) { setContratosSt('erro:' + String(e.message || e)) }
+  }, [cpf])
+  useEffect(() => {
+    if (!tentouContratos.current) { tentouContratos.current = true; carregarContratos(true) }
+  }, [carregarContratos])
 
   const gerarParecer = useCallback(async (casoAtual) => {
     if (!casoAtual) return
@@ -840,6 +871,8 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   const et = etapaInfo(caso.etapa)
   const diasEtapa = diasDesde(caso.etapa_desde)
   const alertas = Array.isArray(f.alertas) ? f.alertas : []
+  const ROT_CONTRATO = { contrato: 'Contrato de honorários (assinado)', procuracao: 'Procuração (assinada)', termo: 'Termo (assinado)' }
+  const docsContratos = contratos.map(c => ({ rotulo: ROT_CONTRATO[c.tipo] || (c.nome || 'Contrato assinado'), url: c.url, origem: 'contrato', em: c.assinado_em }))
   const docs = Array.isArray(f.documentos) ? f.documentos : []
   const temCaixa = alertas.length || f.liberacao || f.excecao || caso.sem_validacao_ia
   const acoes = ACOES_POR_ETAPA[caso.etapa] || ['observacao']
@@ -1000,6 +1033,38 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
     </div>
   ) : null
 
+  const linhaArquivo = (d, i) => {
+    const pdf = d.origem === 'contrato' || /\.pdf(\?|$)/i.test(d.url)
+    return (
+      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12, border: `1px solid ${cores.cardBorda}`, background: '#fbfcfe' }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: pdf ? hexA('#dc2626', 0.1) : hexA(cores.azul, 0.1), display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{pdf ? '📕' : '🖼️'}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: cores.texto }}>{d.rotulo}</div>
+          <div style={{ fontSize: 11.5, color: cores.suave }}>{d.origem === 'contrato' ? `assinado no ZapSign${d.em ? ' em ' + fmtData(d.em) : ''}` : d.origem === 'validacao' ? 'anexado na validação da I.A' : 'cadastro da venda'}</div>
+        </div>
+        <a href={d.url} target="_blank" rel="noreferrer" style={{ ...btn(cores.azul, false), padding: '6px 11px', fontSize: 12, textDecoration: 'none' }}>Abrir</a>
+      </div>
+    )
+  }
+
+  const blocoContratos = (
+    <div style={{ ...card, padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <div style={{ ...tituloSecao, margin: 0 }}>✍️ Contratos assinados ({docsContratos.length})</div>
+        {docsContratos.length > 1 && <button disabled={baixando} onClick={() => baixarTodos(docsContratos)} style={{ ...btn(cores.ok), padding: '6px 11px', fontSize: 12 }}>{baixando ? 'Baixando…' : '⬇ Baixar contratos'}</button>}
+      </div>
+      {contratosSt === 'buscando' && <div style={{ fontSize: 12.5, color: cores.suave }}>⏳ Buscando os contratos assinados no ZapSign…</div>}
+      {contratosSt.startsWith('erro:') && (
+        <div style={{ fontSize: 12.5, color: '#b45309', background: hexA('#f59e0b', 0.1), borderRadius: 10, padding: '7px 10px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{contratosSt.slice(5)}</span>
+          <button onClick={() => carregarContratos(true)} style={{ ...btn('#b45309', false), padding: '4px 9px', fontSize: 12 }}>Tentar de novo</button>
+        </div>
+      )}
+      {!contratosSt && docsContratos.length === 0 && <div style={{ fontSize: 13, color: cores.suave }}>Nenhum contrato assinado encontrado.</div>}
+      {docsContratos.length > 0 && <div style={{ display: 'grid', gap: 8 }}>{docsContratos.map(linhaArquivo)}</div>}
+    </div>
+  )
+
   const blocoDocs = (
     <div style={{ ...card, padding: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -1007,21 +1072,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
         {docs.length > 1 && <button disabled={baixando} onClick={() => baixarTodos(docs)} style={{ ...btn(cores.ok), padding: '6px 11px', fontSize: 12 }}>{baixando ? 'Baixando…' : '⬇ Baixar todos'}</button>}
       </div>
       {docs.length === 0 ? <div style={{ fontSize: 13, color: cores.suave }}>Nenhum documento anexado na venda.</div> : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {docs.map((d, i) => {
-            const pdf = /\.pdf(\?|$)/i.test(d.url)
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12, border: `1px solid ${cores.cardBorda}`, background: '#fbfcfe' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: pdf ? hexA('#dc2626', 0.1) : hexA(cores.azul, 0.1), display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{pdf ? '📕' : '🖼️'}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: cores.texto }}>{d.rotulo}</div>
-                  <div style={{ fontSize: 11.5, color: cores.suave }}>{d.origem === 'validacao' ? 'anexado na validação da I.A' : 'cadastro da venda'}</div>
-                </div>
-                <a href={d.url} target="_blank" rel="noreferrer" style={{ ...btn(cores.azul, false), padding: '6px 11px', fontSize: 12, textDecoration: 'none' }}>Abrir</a>
-              </div>
-            )
-          })}
-        </div>
+        <div style={{ display: 'grid', gap: 8 }}>{docs.map(linhaArquivo)}</div>
       )}
     </div>
   )
@@ -1214,6 +1265,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
           <CepMercantil cpf={caso.cpf} copiar={copiar} />
           {blocoProtocolo}
           {meuINSS}
+          {blocoContratos}
           {blocoDocs}
           {blocoValidacao}
         </div>
