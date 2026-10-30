@@ -140,20 +140,52 @@ function normalizar(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '
 // pessoa clicou e nao veio pra ca) nao pode preencher sozinho um cadastro de
 // outra cliente dias depois.
 const RECADO_MESA_VALIDADE_MS = 5 * 60 * 1000
-function lerCpfDaMesa() {
+// 30/10 (Bruno): o recado agora traz tambem os dados do lead da mesa (nome, telefone
+// — o novo da Assertiva, se a vendedora usou —, data do filho e o vinculo do Gerid).
+function lerRecadoDaMesa() {
   let raw = null
   try {
     raw = window.localStorage.getItem('kr_venda_cpf')
     window.localStorage.removeItem('kr_venda_cpf')
-  } catch (_) { return '' }
-  if (!raw) return ''
+  } catch (_) { return null }
+  if (!raw) return null
   try {
     const j = JSON.parse(raw)
-    if (!j || typeof j !== 'object') return ''
-    if (!(Date.now() - Number(j.em || 0) < RECADO_MESA_VALIDADE_MS)) return ''
+    if (!j || typeof j !== 'object') return null
+    if (!(Date.now() - Number(j.em || 0) < RECADO_MESA_VALIDADE_MS)) return null
     const d = String(j.cpf || '').replace(/\D/g, '')
-    return d.length === 11 ? d : ''
-  } catch (_) { return '' }
+    if (d.length !== 11) return null
+    return { cpf: d, lead: j.lead && typeof j.lead === 'object' ? j.lead : null }
+  } catch (_) { return null }
+}
+
+// 30/10 (Bruno) — PRE-PREENCHIMENTO. Helpers de formato.
+// "29/08/2022" -> "2022-08-29" (campo date); ISO passa direto.
+function dataISO(v) {
+  const t = String(v || '').trim()
+  const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(t)
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
+  return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : ''
+}
+// telefone do banco (+5511999998888 / 5511...) -> (11) 99999-8888
+function telDoBanco(v) {
+  let d = String(v || '').replace(/\D/g, '')
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2)
+  return d.length >= 10 ? maskTel(d) : ''
+}
+const urlOk = (u) => (typeof u === 'string' && /^https?:\/\//.test(u) ? u : null)
+// perfil da validacao da I.A -> motivo de aprovacao do cadastro (mesmos textos de MOTIVOS_APROVACAO_MAE)
+const MOTIVO_DO_PERFIL = {
+  '12_clt': 'Cliente 12 meses de contribuição',
+  '12_contrib': 'Cliente 12 meses de contribuição',
+  '24_seguro': 'Cliente 24 meses de contribuição e recebeu seguro-desemprego',
+  '24_fgts': MOTIVO_FGTS,
+  '24_120': 'Cliente 24 meses de contribuição por ter 120 contribuições',
+}
+const PERFIL_NOME = {
+  '12_clt': '12 meses — CLT', '12_contrib': '12 meses — facultativa/autônoma', '24_seguro': '24 meses — seguro-desemprego',
+  '24_fgts': '24 meses — FGTS/judicial', '24_120': '24 meses — 120 contribuições',
 }
 
 export default function NovoCliente({ onSucesso }) {
@@ -163,6 +195,16 @@ export default function NovoCliente({ onSucesso }) {
   // 20/10 — resultado da validacao da venda pela I.A. So vale no Maternidade Mae.
   // Sem { resultado: 'aprovado' } aqui, o botao de cadastrar nao libera.
   const [validacao, setValidacao] = useState(null)
+  // 30/10 (Bruno) — pre-preenchimento: de onde vieram os dados (aviso na tela),
+  // versao dos documentos (remonta os uploads do RG) e a chave cpf|filho|motivo da
+  // validacao reaproveitada (pra o reset abaixo nao apagar a aprovacao que acabou de carregar)
+  const [prefill, setPrefill] = useState(null)
+  const [docsVersao, setDocsVersao] = useState(0)
+  const [revalidar, setRevalidar] = useState(false)
+  // validacao aprovada reaproveitada (mesmo CPF, mesmo filho, mesmo motivo). E DERIVADA a cada render:
+  // se a vendedora trocar CPF, filho ou motivo, deixa de valer na hora (igual a regra de 20/10).
+  const [reuso, setReuso] = useState(null)
+  const prefillCpfRef = useRef('')
 
   const [c, setC] = useState({
     produto: '', // vazio inicialmente — vendedor escolhe primeiro
@@ -254,13 +296,102 @@ export default function NovoCliente({ onSucesso }) {
   // dele. O produto continua trocavel pelo "trocar" do topo. Sem recado valido
   // (abriu a tela pelo menu), nada muda.
   useEffect(() => {
-    const d = lerCpfDaMesa()
-    if (!d) return
-    const cpf = maskCPF(d)
+    const r = lerRecadoDaMesa()
+    if (!r) return
+    const cpf = maskCPF(r.cpf)
     setC(prev => ({ ...prev, produto: prev.produto || 'Maternidade Mãe', cpf }))
     verificarCpfDuplicado(cpf)
+    preencherDoHistorico(cpf, r.lead, 'Maternidade Mãe')
     // eslint-disable-next-line
   }, [])
+
+  // 30/10 (Bruno) — PRE-PREENCHIMENTO. Fontes, nesta ordem de prioridade:
+  //   1) lead da Mesa do Retroativo (so quando veio pelo botao "Fechou!"): nome, telefone, filho, vinculo do Gerid
+  //   2) validacao da I.A APROVADA nos ultimos 7 dias, feita pela PROPRIA vendedora (mesmo CPF): filho + motivo,
+  //      e a aprovacao e reaproveitada (nao roda a I.A de novo)
+  //   3) ultimo cadastro CANCELADO, EXPIRADO ou BARRADO NO POS-VENDA desse CPF que foi DA PROPRIA vendedora: dados pessoais,
+  //      endereco, referencias, dados do Maternidade Mae e o RG (frente/verso). Outros documentos NAO.
+  // Regra: so completa campo VAZIO — nunca apaga o que a vendedora digitou. Os dados vem da RPC
+  // novo_cliente_prefill (o banco so devolve o que e da propria vendedora; admin ve tudo).
+  async function preencherDoHistorico(cpfMask, lead, produtoAtual) {
+    const d = String(cpfMask || '').replace(/\D/g, '')
+    if (d.length !== 11 || !cpfValido(d) || prefillCpfRef.current === d) return
+    prefillCpfRef.current = d
+    let hist = null
+    try {
+      const { data, error } = await supabase.rpc('novo_cliente_prefill', { p_cpf: d })
+      if (!error) hist = data || null
+    } catch (_) { hist = null }
+    const cli = hist?.cliente || null
+    const val = hist?.validacao || null
+    const dp = (cli && cli.dados_produto) || {}
+    const vinc = lead?.vinculo || null
+    // novo vinculo do Gerid da mesa: emprego encerrado antes do parto => ja trabalhou CLT, nao trabalhava no parto
+    const dnMesa = dataISO(lead?.dn)
+    let clt = null
+    if (vinc && /empregad|dom[eé]stic/i.test(String(vinc.tipo || '')) && !vinc.ehBeneficio) {
+      const fim = dataISO(vinc.fim)
+      if (fim && (!dnMesa || fim < dnMesa)) clt = { ja: 'sim', trab: 'nao', saida: `${fim.slice(5, 7)}/${fim.slice(0, 4)}` }
+    }
+    const simNao = (b) => (b === true ? 'sim' : b === false ? 'nao' : '')
+    const origem = []
+    if (lead) origem.push('Mesa do Retroativo')
+    if (cli) origem.push(`cadastro ${cli.status === 'cancelado' ? 'cancelado' : cli.status === 'barrado_pos_venda' ? 'barrado no pós-venda' : 'expirado'} de ${dataBR(String(cli.criado_em || '').slice(0, 10))}`)
+    if (!origem.length && !val) { return }
+
+    // filho: mesa > validacao > cadastro anterior
+    const dnVal = dataISO(val?.dn)
+    const dnFinal = dnMesa || dnVal || dataISO(dp.data_nascimento_bebe)
+    // validacao reaproveitada so se for do MESMO filho que vai ficar na tela
+    const usarVal = !!val && (produtoAtual || c.produto || 'Maternidade Mãe') === 'Maternidade Mãe' && !!dnVal && dnVal === dnFinal
+    const motivoFinal = (usarVal && MOTIVO_DO_PERFIL[val.perfil]) || dp.motivo_aprovacao || ''
+
+    const novo = {}
+    const v = (x) => (x == null ? '' : String(x).trim())
+    setC(prev => {
+      const n = { ...prev }
+      const pega = (campo, valor) => { if (!v(n[campo]) && v(valor)) { n[campo] = valor; novo[campo] = true } }
+      pega('nome', v(lead?.nome).toUpperCase() || v(cli?.nome))
+      pega('telefone', telDoBanco(lead?.tel) || telDoBanco(cli?.telefone))
+      pega('rg', cli?.rg ? maskRG(cli.rg) : '')
+      pega('email', cli?.email)
+      pega('numero', cli?.numero)
+      pega('data_nascimento_bebe', dnFinal)
+      pega('ja_trabalhou_clt', clt?.ja || simNao(dp.ja_trabalhou_clt))
+      pega('trabalhava_no_nascimento', clt?.trab || simNao(dp.trabalhava_no_nascimento))
+      pega('saida_emprego_mes_ano', clt?.saida || (/^\d{2}\/\d{4}$/.test(v(dp.saida_emprego_mes_ano)) ? v(dp.saida_emprego_mes_ano) : ''))
+      pega('recebeu_seguro_desemprego', simNao(dp.recebeu_seguro_desemprego))
+      pega('motivo_aprovacao', motivoFinal)
+      return n
+    })
+    if (usarVal) { setRevalidar(false); setReuso({ ...val, cpf: d }) }
+    // referencias (so se as duas estao vazias)
+    const refsAnt = Array.isArray(cli?.contatos_referencia) ? cli.contatos_referencia : []
+    if (refsAnt.length) {
+      setRefs(rs => (rs.every(r => !r.nome.trim() && !r.telefone.trim())
+        ? [0, 1].map(i => {
+            const r = refsAnt[i] || {}
+            return { ...REF_VAZIA, nome: v(r.nome), telefone: telDoBanco(r.telefone), parentesco: v(r.parentesco), parentesco_outro: v(r.parentesco_outro) }
+          })
+        : rs))
+    }
+    // RG do cadastro anterior (frente/verso). Outros documentos a vendedora anexa de novo.
+    const rgF = urlOk(cli?.rg_frente), rgV = urlOk(cli?.rg_verso)
+    if (rgF || rgV) {
+      setDocs(dd => ({ ...dd, rg_frente: dd.rg_frente || rgF, rg_verso: dd.rg_verso || rgV }))
+      setDocsVersao(x => x + 1)
+    }
+    // endereco: pelo CEP (mesmo caminho da digitacao, trava os campos certos), depois completa rua/bairro vazios
+    if (cli?.cep && !String(c.cep || '').replace(/\D/g, '')) {
+      const cepM = maskCEP(cli.cep)
+      setC(prev => ({ ...prev, cep: prev.cep || cepM }))
+      await buscarCep(cepM)
+      setC(prev => ({ ...prev,
+        rua: prev.rua || v(cli.rua).toUpperCase(), bairro: prev.bairro || v(cli.bairro).toUpperCase(),
+        cidade: prev.cidade || v(cli.cidade).toUpperCase(), uf: prev.uf || v(cli.uf).toUpperCase() }))
+    }
+    setPrefill({ origem, validacao: usarVal ? val : null, dnAnterior: cli ? dataBR(dp.data_nascimento_bebe) : '' })
+  }
 
   async function buscarCep(cepRaw) {
     const cep = (cepRaw || '').replace(/\D/g, '')
@@ -347,6 +478,11 @@ export default function NovoCliente({ onSucesso }) {
   // parecer nao vale mais pro que esta na tela agora: zera e obriga validar de novo.
   useEffect(() => { setValidacao(null) },
     [c.cpf, c.data_nascimento_bebe, c.motivo_aprovacao])
+  // 30/10: validacao reaproveitada so vale se CPF, filho e motivo forem exatamente os que ela aprovou
+  const reusoOk = !!reuso && !revalidar && String(c.cpf || '').replace(/\D/g, '') === reuso.cpf &&
+    c.data_nascimento_bebe === dataISO(reuso.dn) && c.motivo_aprovacao === MOTIVO_DO_PERFIL[reuso.perfil]
+  const validacaoEfetiva = validacao || (reusoOk
+    ? { ok: true, id: reuso.id, perfil: reuso.perfil, resultado: 'aprovado', reaproveitada: true, em: reuso.em } : null)
 
   const camposBasicosOk = c.nome.trim() && c.cpf && c.rg && c.telefone &&
                           c.email.trim() && c.cep &&
@@ -392,7 +528,7 @@ export default function NovoCliente({ onSucesso }) {
 
   // 20/10 — validacao da venda pela I.A: obrigatoria SO no Maternidade Mae.
   // Nos outros produtos nada muda (o componente nem aparece).
-  const validacaoIaOk = !ehMae || validacao?.resultado === 'aprovado'
+  const validacaoIaOk = !ehMae || validacaoEfetiva?.resultado === 'aprovado'
 
   // 28/10 — contatos de referencia: nome, telefone valido e parentesco nos dois.
   // O telefone nao pode ser o da propria cliente nem repetir entre os dois:
@@ -458,8 +594,8 @@ export default function NovoCliente({ onSucesso }) {
           // 20/10 — rastro da validacao da I.A que liberou esta venda. O id aponta
           // pra linha em public.venda_validacao_ia (documentos analisados, motivos
           // e parecer), entao da pra auditar depois por que a venda passou.
-          ...(validacao?.id ? { validacao_ia_id: validacao.id } : {}),
-          ...(validacao?.perfil ? { validacao_ia_perfil: validacao.perfil } : {}),
+          ...(validacaoEfetiva?.id ? { validacao_ia_id: validacaoEfetiva.id } : {}),
+          ...(validacaoEfetiva?.perfil ? { validacao_ia_perfil: validacaoEfetiva.perfil } : {}),
         }
       }
 
@@ -506,6 +642,7 @@ export default function NovoCliente({ onSucesso }) {
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
     setCepSemRua(false); setCepSemBairro(false); setValidacao(null)
     setRefs([{ ...REF_VAZIA }, { ...REF_VAZIA }])
+    setPrefill(null); setRevalidar(false); setReuso(null); prefillCpfRef.current = ''
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
   }
 
@@ -679,8 +816,8 @@ export default function NovoCliente({ onSucesso }) {
             <label style={s.label}>CPF *</label>
             <input style={(c.cpf && !cpfOk) || duplicadoBloqueia ? s.inputErr : s.input}
               value={c.cpf}
-              onChange={e => { const v = maskCPF(e.target.value); set('cpf', v); setDuplicado(null) }}
-              onBlur={() => verificarCpfDuplicado(c.cpf)}
+              onChange={e => { const v = maskCPF(e.target.value); set('cpf', v); setDuplicado(null); if (v.replace(/\D/g, '') !== prefillCpfRef.current) prefillCpfRef.current = '' }}
+              onBlur={() => { verificarCpfDuplicado(c.cpf); preencherDoHistorico(c.cpf, null, c.produto) }}
               placeholder="000.000.000-00" inputMode="numeric" />
             {c.cpf && !cpfOk && <div style={s.hintErr}>CPF inválido</div>}
             {verificandoCpf && <div style={s.hint}>🔍 Verificando...</div>}
@@ -692,6 +829,15 @@ export default function NovoCliente({ onSucesso }) {
               placeholder="00.000.000-0" />
           </div>
         </div>
+
+        {prefill && (prefill.origem.length > 0 || prefill.validacao) && (
+          <div style={{ background: 'rgba(37,99,235,.07)', border: '1px solid rgba(37,99,235,.25)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#1e3a8a', marginBottom: 12 }}>
+            <b>📋 Dados preenchidos automaticamente</b>{prefill.origem.length ? <> — {prefill.origem.join(' + ')}</> : null}.
+            {' '}Só os campos vazios foram completados. <b>Confira tudo antes de cadastrar</b> (telefone, endereço e filho podem ter mudado).
+            {prefill.dnAnterior && <div style={{ marginTop: 4 }}>Filho do cadastro anterior: <b>{prefill.dnAnterior}</b> — se a venda é de outro filho, troque a data.</div>}
+            {prefill.validacao && reusoOk && <div style={{ marginTop: 4 }}>✅ Validação da I.A aprovada em {new Date(prefill.validacao.em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} reaproveitada (não precisa validar de novo).</div>}
+          </div>
+        )}
 
         {duplicado && (
           <div style={duplicado.vendedorMesmo ? { ...s.duplicadoBox, background: 'rgba(251,191,36,.12)', borderColor: '#F59E0B40', color: '#b45309' } : s.duplicadoBox}>
@@ -1013,9 +1159,9 @@ export default function NovoCliente({ onSucesso }) {
         </div>
 
         <div style={s.grid2}>
-          <UploadDocumento label="RG Frente" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_frente"
+          <UploadDocumento key={'rgf' + docsVersao} label="RG Frente" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_frente"
             valorInicial={docs.rg_frente} onChange={url => setDoc('rg_frente', url)} />
-          <UploadDocumento label="RG Verso" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_verso"
+          <UploadDocumento key={'rgv' + docsVersao} label="RG Verso" obrigatorio={true} clienteId={tempIdRef.current} chave="rg_verso"
             valorInicial={docs.rg_verso} onChange={url => setDoc('rg_verso', url)} />
         </div>
 
@@ -1060,7 +1206,20 @@ export default function NovoCliente({ onSucesso }) {
           resultado 'aprovado'. Os uploads daqui sao os DA I.A (bucket
           documentos-clientes, pasta validacao/<cpf>/) e convivem com os
           uploads antigos la de cima — um nao substitui o outro. */}
-      {ehMae && (
+      {ehMae && !validacao && reusoOk && (
+        <div style={{ marginBottom: 14, border: '1px solid #1E7B4F55', background: '#E8F5EE', color: '#1E7B4F', borderRadius: 12, padding: 16, fontSize: 14 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>✅ Venda já APROVADA pela I.A</div>
+          <div style={{ marginTop: 4, color: '#1B2430' }}>
+            Validação nº {reuso.id} de {new Date(reuso.em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} · perfil {PERFIL_NOME[reuso.perfil] || reuso.perfil}.
+            Vale para este CPF e este filho por 7 dias — não precisa validar de novo.
+          </div>
+          <button type="button" onClick={() => setRevalidar(true)}
+            style={{ marginTop: 10, background: '#fff', border: '1px solid #1E7B4F55', color: '#1E7B4F', borderRadius: 8, padding: '6px 12px', fontWeight: 700, cursor: 'pointer' }}>
+            Validar de novo mesmo assim
+          </button>
+        </div>
+      )}
+      {ehMae && !(!validacao && reusoOk) && (
         <div style={{ marginBottom: 14 }}>
           <ValidacaoVendaIA
             supabase={supabase}
