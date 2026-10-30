@@ -305,7 +305,7 @@ function paginaDeAbertura(profile) {
 
 // Time Maryana Kodos (supervisora + vendedoras B2C): acesso extra as telas Revisao IA, sem perder roles
 const IDS_TIME_MARYANA = [
-  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
+  // 30/10 (Bruno): Maryana Kodos saiu desta lista (perdeu Revisao IA Gestante/BF/CLT)
   '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
@@ -325,6 +325,9 @@ function paginaPermitida(profile, page) {
   // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
   // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
   if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
+  // 30/10 (Bruno) — Maryana Kodos deixa de ver: Revisao IA Gestante, Bolsa Familia e CLT, Gerar contratos (manual),
+  // Ranking de vendedoras e "O advogado aceitou?". MESMA lista do Layout.js (TELAS_TIRADAS_MARYANA).
+  if (profile.id === 'be98f268-314f-4114-acc3-7bb9ce7635fd' && ['revisao_ia_gestante', 'revisao_ia_bf', 'revisao_ia_clt', 'contratos', 'ranking', 'validacao_advogado'].includes(page)) return false
   // 19/10 (Bruno) — SO RETROATIVO. Fica no TOPO de proposito: e um corte, nao uma
   // adicao, e tem que vencer tudo que vem depois — inclusive a regra do
   // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
