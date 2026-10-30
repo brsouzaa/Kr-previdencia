@@ -662,7 +662,15 @@ export default function RevisaoIARetroativo({ setPage }) {
     setBusTel({ l, msg, st: 'buscando', telefones: [] })
     try {
       const { data, error } = await supabase.functions.invoke('assertiva-telefone', { body: { lead_id: l.id } })
-      if (error || !data?.ok) { setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'erro', erro: (data && data.erro) || (error && error.message) || 'não consegui buscar' } : b); return }
+      if (error || !data?.ok) {
+        // a função devolve o motivo no corpo da resposta; sem isso a tela só mostrava "non-2xx"
+        let corpo = data, status = error?.context?.status
+        if (error?.context && typeof error.context.json === 'function') { try { corpo = await error.context.json() } catch (_) { /* sem corpo */ } }
+        const motivo = (corpo && corpo.erro) || (error && error.message) || 'não consegui buscar'
+        const limite = status === 429 || /limite/i.test(motivo)
+        setBusTel(bb => bb && bb.l.id === l.id ? { ...bb, st: limite ? 'limite' : 'erro', erro: motivo, max: (/(\d+)/.exec(motivo) || [])[1] } : bb)
+        return
+      }
       setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'ok', telefones: data.telefones || [], de_cache: data.de_cache } : b)
     } catch (e) {
       setBusTel(b => b && b.l.id === l.id ? { ...b, st: 'erro', erro: String(e.message || e) } : b)
@@ -1171,6 +1179,12 @@ export default function RevisaoIARetroativo({ setPage }) {
               <button style={s.btnGhost} onClick={() => setBusTel(null)}>Fechar</button>
             </div>
             {busTel.st === 'buscando' && <div style={{ padding: '22px 0', fontSize: 14, color: cores.suave }}>🔎 Procurando os telefones atualizados dela…</div>}
+            {busTel.st === 'limite' && (
+              <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239' }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>⛔ Limite diário de buscas atingido</div>
+                <div style={{ fontSize: 13.5, marginTop: 4 }}>Você já usou as {busTel.max || ''} buscas de telefone de hoje. Amanhã libera de novo (zera à meia-noite). Se precisar antes, fale com a supervisão.</div>
+              </div>
+            )}
             {busTel.st === 'erro' && (
               <div style={{ marginTop: 14, fontSize: 13.5, color: cores.perigo }}>
                 Não consegui buscar: {busTel.erro}
