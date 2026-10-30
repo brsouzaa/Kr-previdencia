@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { Lancar, Recorrentes, Estilos } from './Financeiro'
+import { Equilibrio, ComissaoSemana } from './FinanceiroOperacao'
 
 // ============================================================
 // DESPESAS & CUSTOS — a tela única da operação de saída
@@ -38,7 +39,7 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 
 export default function DespesasCustos() {
   const { profile } = useAuth()
-  const [abaTela, setAbaTela] = useState('contas') // contas | nova | recorrentes
+  const [abaTela, setAbaTela] = useState('equilibrio') // equilibrio | comissao | contas | nova | recorrentes
   const podeVer = profile && ['admin', 'financeiro'].includes(profile.role)
 
   if (!podeVer) {
@@ -55,11 +56,13 @@ export default function DespesasCustos() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        {[['contas', '📑 Contas'], ['nova', '➕ Nova despesa'], ['recorrentes', '🔁 Fixas & Recorrentes']].map(([k, l]) => (
-          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#0f172a', color: '#232a37', borderColor: '#e6edf7' } : undefined}>{l}</button>
+        {[['equilibrio', '⚖️ Equilíbrio'], ['comissao', '💸 Comissão da semana'], ['contas', '📑 Contas'], ['nova', '➕ Nova despesa'], ['recorrentes', '🔁 Fixas & Recorrentes']].map(([k, l]) => (
+          <button key={k} onClick={() => setAbaTela(k)} className="dc-aba" style={abaTela === k ? { background: '#0f172a', color: '#ffffff', borderColor: '#0f172a' } : undefined}>{l}</button>
         ))}
       </div>
 
+      {abaTela === 'equilibrio' && <Equilibrio />}
+      {abaTela === 'comissao' && <ComissaoSemana />}
       {abaTela === 'contas' && <Contas profile={profile} />}
       {abaTela === 'nova' && (
         <div className="fin-wrap" style={{ padding: 0 }}>
