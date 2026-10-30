@@ -427,7 +427,7 @@ export default function Layout({ children, page, setPage }) {
   }
   // Time Maryana Kodos: itens Revisao IA no menu por ID (mantendo o menu do role)
   const IDS_TIME_MARYANA = [
-    'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    // 30/10 (Bruno): Maryana Kodos saiu desta lista (perdeu Revisao IA Gestante/BF/CLT)
     '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
     'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
     'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
@@ -559,6 +559,12 @@ export default function Layout({ children, page, setPage }) {
   // corte, e qualquer linha que rode depois dele voltaria a empilhar item no menu.
   // Leticia e Gislaine estao em IDS_TIME_MARYANA e em IDS_VENDAS_RETROATIVO: se
   // este bloco subisse, elas continuariam com BF, Gestante e CLT no menu.
+  // 30/10 (Bruno) — Maryana Kodos deixa de ver: Revisao IA Gestante, Bolsa Familia e CLT, Gerar contratos (manual),
+  // Ranking de vendedoras e "O advogado aceitou?". MESMA lista do App.js (paginaPermitida).
+  if (profile?.id === 'be98f268-314f-4114-acc3-7bb9ce7635fd') {
+    const TELAS_TIRADAS_MARYANA = ['revisao_ia_gestante', 'revisao_ia_bf', 'revisao_ia_clt', 'contratos', 'ranking', 'validacao_advogado']
+    nav = nav.filter(n => !TELAS_TIRADAS_MARYANA.includes(n.key))
+  }
   if (IDS_SO_RETROATIVO.includes(profile?.id)) {
     nav = NAV_SO_RETROATIVO
   }
