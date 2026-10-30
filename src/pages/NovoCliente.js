@@ -484,7 +484,18 @@ export default function NovoCliente({ onSucesso }) {
       }
       setSalvo(data)
     } catch (err) {
-      alert('Erro ao salvar: ' + (err.message || err.toString()))
+      // 30/10 (Bruno): explicar o motivo em vez de "TypeError: Failed to fetch".
+      // Os dados e documentos continuam no formulario: e so corrigir e salvar de novo.
+      const msg = String((err && (err.message || err.toString())) || '')
+      if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+        alert('⚠️ Sem conexão com o sistema — o cadastro NÃO foi salvo.\n\n' +
+          'A internet desta máquina caiu ou algo bloqueou o envio (antivírus, VPN ou extensão do navegador).\n' +
+          'Os dados e documentos continuam preenchidos: confira a internet e clique em salvar de novo.\n' +
+          'Se acontecer de novo, tente em outro navegador ou em aba anônima e avise o suporte com o horário.')
+      } else {
+        alert('Erro ao salvar — o cadastro NÃO foi salvo.\n\nMotivo: ' + msg + (err && err.code ? ' (código ' + err.code + ')' : '') +
+          '\n\nOs dados continuam preenchidos. Tire um print desta mensagem e envie ao suporte.')
+      }
     }
     setEnviando(false)
   }
