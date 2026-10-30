@@ -138,6 +138,15 @@ function horasDe(iso) {
   const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000)
   return h >= 0 ? h : 0
 }
+// 30/10 (Bruno) — a BUSCA acha qualquer lead (negado, reprovado, ainda nao pre-aprovado...).
+// Lead fora da mesa aparece so para leitura, com a situacao dele em destaque.
+const SITUACAO_FORA = {
+  NEGADO: '🚫 Negado', REPROVADO: '⛔ Reprovado pela advogada', A_ANALISAR: '⏳ Com a advogada (ainda não pré-aprovado)',
+  FILA_GERID: '⏳ Na fila do Gerid', PEDIU_CNIS: '⏳ Aguardando CNIS', PEDIU_CNIS_OK: '⏳ Aguardando CNIS',
+  OUTROS: 'Fora da mesa',
+}
+function situacaoFora(l) { return SITUACAO_FORA[l.coluna] || `Fora da mesa (${String(l.coluna || l.estado || '?').toLowerCase()})` }
+
 function fmtHoras(h) {
   if (h === null || h === undefined) return '—'
   if (h < 1) return 'agora'
@@ -402,6 +411,16 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [obs, setObs] = useState('')
   const [marcando, setMarcando] = useState(null)
   const [ficha, setFicha] = useState(null)
+  // 30/10: quem ve a operacao inteira recebe o board sem o "Resumo do GERID" (custava 5s); a ficha busca na hora
+  const [fichaGerid, setFichaGerid] = useState('')
+  useEffect(() => {
+    setFichaGerid('')
+    if (!ficha || ficha.gerid_vendedor || !ficha.id) return
+    let vivo = true
+    supabase.rpc('mesa_gerid_texto', { p_lead_id: ficha.id })
+      .then(({ data }) => { if (vivo && typeof data === 'string') setFichaGerid(data) })
+    return () => { vivo = false }
+  }, [ficha])
   const [toast, setToast] = useState(null)
   // 23/10 (Bruno) — TODOS OS FILHOS COM DIREITO, não só o mais novo.
   // O vinculo_direito do board vem de gerid_vinculo_decisivo, que faz
@@ -446,18 +465,28 @@ export default function RevisaoIARetroativo({ setPage }) {
     // trocar de vendedor não vai mais ao servidor.
     const p_agente = vejoMaisDeUm ? null : profile.id
 
+    // 30/10 (Bruno) — a mesa inteira passou de 2 mil linhas (3 paginas de 1.000) e cada pagina roda a funcao
+    // inteira de novo no banco. Agora: 1a pagina; se veio cheia, as seguintes em PARALELO (de 3 em 3).
+    const pedir = (p) => supabase.rpc(RPC_BOARD, {
+      p_agente,
+      p_entrada_de: null, p_entrada_ate: null,
+      p_ativ_de: null, p_ativ_ate: null,
+      p_entrega_de: null, p_entrega_ate: null,
+    }).range(p * PAGINA_BOARD, p * PAGINA_BOARD + PAGINA_BOARD - 1)
     let todos = []
-    for (let p = 0; p < MAX_PAGINAS; p++) {
-      const de = p * PAGINA_BOARD
-      const { data, error } = await supabase.rpc(RPC_BOARD, {
-        p_agente,
-        p_entrada_de: null, p_entrada_ate: null,
-        p_ativ_de: null, p_ativ_ate: null,
-        p_entrega_de: null, p_entrega_ate: null,
-      }).range(de, de + PAGINA_BOARD - 1)
-      if (error || !data || data.length === 0) break
-      todos = todos.concat(data)
-      if (data.length < PAGINA_BOARD) break
+    const r0 = await pedir(0)
+    if (!r0.error && Array.isArray(r0.data)) {
+      todos = r0.data
+      let fim = r0.data.length < PAGINA_BOARD
+      for (let p = 1; !fim && p < MAX_PAGINAS; p += 3) {
+        const lote = [p, p + 1, p + 2].filter(x => x < MAX_PAGINAS)
+        const rs = await Promise.all(lote.map(pedir))
+        for (const r of rs) {
+          if (r.error || !Array.isArray(r.data) || !r.data.length) { fim = true; break }
+          todos = todos.concat(r.data)
+          if (r.data.length < PAGINA_BOARD) { fim = true; break }
+        }
+      }
     }
     // Descarta resposta atrasada (senão a lenta sobrescreve a rápida).
     if (meuReq !== reqAtual.current) return
@@ -572,20 +601,22 @@ export default function RevisaoIARetroativo({ setPage }) {
       // busca respeitasse o filtro, procurar alguém de 10 dias atrás com o
       // período em "Hoje" devolveria "não encontrada" — e a pessoa concluiria
       // que a cliente não existe. A tela avisa que está fora do filtro.
+      // 30/10 (Bruno): a busca acha QUALQUER lead — inclusive negado, reprovado ou fora da mesa (aparece so
+      // para leitura, com a situacao) — e procura na operacao inteira, sem o recorte do vendedor escolhido.
       const d = soDigitos(q)
-      const achados = mesa.filter(l =>
+      const achados = board.filter(l =>
         (d && (soDigitos(l.cpf).includes(d) || soDigitos(l.tel).includes(d))) ||
         (!d && String(l.nome || '').toLowerCase().includes(q.toLowerCase())))
+        .map(l => ({ ...l, _aba: abaDoLead(l) || 'outro', _h: horasDe(l.entregue_vendedora_em) }))
       // 28/10 — soma o que a busca achou fora da janela de dias da mesa
       const ja = new Set(achados.map(l => l.id))
       const fora = extrasBusca
-        .filter(l => !ja.has(l.id) && (!vendedorSel || l.bf_agente_id === vendedorSel))
-        .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
-        .filter(l => l._aba)
+        .filter(l => !ja.has(l.id))
+        .map(l => ({ ...l, _aba: abaDoLead(l) || 'outro', _h: horasDe(l.entregue_vendedora_em) }))
       return achados.concat(fora).sort(maisRecenteEmCima)
     }
     return mesaFiltrada.filter(l => l._aba === aba).sort(maisRecenteEmCima)
-  }, [mesa, mesaFiltrada, aba, buscaAtiva, extrasBusca, vendedorSel])
+  }, [board, mesaFiltrada, aba, buscaAtiva, extrasBusca])
 
   // ===== NÚMEROS DO TOPO — todos sobre mesaFiltrada (ver nota acima) =====
   const caiuHoje = mesaFiltrada.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
@@ -651,6 +682,22 @@ export default function RevisaoIARetroativo({ setPage }) {
     setBoard(b => b.map(x => x.id === l.id
       ? { ...x, vend_status: data.status, vend_obs: texto || x.vend_obs, vend_tentativas: data.tentativas ?? x.vend_tentativas, vend_contato_em: x.vend_contato_em || new Date().toISOString() }
       : x))
+    carregar()
+  }
+
+  // 30/10 (Bruno) — "Voltou a ter direito". Quem decide é o banco (retroativo_voltou_direito):
+  // só a dona do lead (ou admin/supervisão), só Sem direito/Negado, motivo obrigatório.
+  // A data de entrada do lead NÃO muda; ele volta em "Em contato".
+  async function voltouDireito(l) {
+    const texto = obs.trim()
+    if (texto.length < 5) { avisar('Escreva o que mudou'); return }
+    if (marcando) return
+    setMarcando(l.id)
+    const { data, error } = await supabase.rpc('retroativo_voltou_direito', { p_lead_id: l.id, p_motivo: texto })
+    setMarcando(null)
+    if (error || !data?.ok) { avisar('Não gravou: ' + (error?.message || data?.erro || 'erro')); return }
+    setObsAberta(null); setObs('')
+    avisar(`${primeiroNome(l.nome) || 'Cliente'} · voltou pra sua mesa (Em contato)`)
     carregar()
   }
 
@@ -956,7 +1003,10 @@ export default function RevisaoIARetroativo({ setPage }) {
                     quando o lead caiu na mesa. Antes mostrava "na mesa há 7 dias" numa
                     venda feita hoje (ex.: 492.913.378-54, lead de 16/10, venda 23/10).
                     cliente_em = data do cadastro da cliente no CRM. */}
-                {l._aba === 'fechou' ? (
+                {l._aba === 'outro' && <span style={ui.pill(cores.perigo)}>{situacaoFora(l)}</span>}
+                {l._aba === 'outro' ? (
+                  l.entregue_vendedora_em ? <span style={ui.pill(cores.suave)}>caiu há {fmtHoras(l._h)}</span> : null
+                ) : l._aba === 'fechou' ? (
                   <span style={ui.pill(cores.ok)}>
                     {l.cliente_em
                       ? (diaBR(l.cliente_em) === hojeBR() ? 'venda de hoje'
@@ -970,6 +1020,14 @@ export default function RevisaoIARetroativo({ setPage }) {
                 )}
               </div>
             </div>
+
+            {l._aba === 'outro' && (
+              <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, background: `${cores.perigo}0d`, border: `1px solid ${cores.perigo}33`, fontSize: 13, color: cores.texto }}>
+                <b>Fora da mesa:</b> {situacaoFora(l)}{l.motivo_desqualificacao ? <> — {l.motivo_desqualificacao}</> : null}
+                {l.agente_nome ? <> · com <b>{l.agente_nome}</b></> : <> · sem vendedora</>}
+                {l.advogada_motivo ? <div style={{ marginTop: 3, color: cores.suave }}>Advogada: {l.advogada_motivo}</div> : null}
+              </div>
+            )}
 
             {/* ===== UM filho (o comum): igual ao desenho aprovado em 22/10 ===== */}
             {!direitos && vinc?.empresa && (
@@ -1066,13 +1124,8 @@ export default function RevisaoIARetroativo({ setPage }) {
                       {a.rotulo}
                     </button>
                   ))}
+                  {/* 30/10 (Bruno): "Ficha CNIS" saiu do card — fica só dentro da ficha */}
                   <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
-                  {linkFichaCnis(l.cpf) && (
-                    <a style={{ ...s.btnAcao(cores.azul), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                      href={linkFichaCnis(l.cpf)} target="_blank" rel="noreferrer" title="Vínculos do CNIS, qual deu o direito, carência e fundamento legal. Dá pra mandar o link pra cliente.">
-                      📄 Ficha CNIS
-                    </a>
-                  )}
                 </div>
 
                 {chaveObs && (
@@ -1132,11 +1185,21 @@ export default function RevisaoIARetroativo({ setPage }) {
                     </button>
                   </>
                 )}
-                <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
-                {linkFichaCnis(l.cpf) && (
-                  <a style={{ ...s.btnAcao(cores.azul), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                    href={linkFichaCnis(l.cpf)} target="_blank" rel="noreferrer">📄 Ficha CNIS</a>
+                {/* 30/10 (Bruno) — VOLTOU A TER DIREITO: a propria vendedora (dona do lead) reabre
+                    um lead que ela marcou "Sem direito" ou que esta "Negado". Motivo obrigatorio.
+                    O banco (retroativo_voltou_direito) confere tudo e mantem a data original de entrada. */}
+                {(l._aba === 'sem_direito' || (l._aba === 'outro' && l.coluna === 'NEGADO')) &&
+                  (l.bf_agente_id === profile?.id || ehAdmin) && (
+                  <button style={{ ...s.btnAcao(cores.ok), fontWeight: 800 }} disabled={marcando === l.id}
+                    onClick={() => {
+                      const ch = `${l.id}:voltou_direito`
+                      if (obsAberta !== ch) { setObsAberta(ch); setObs(''); return }
+                      setObsAberta(null); setObs('')
+                    }}>
+                    ↩️ Voltou a ter direito
+                  </button>
                 )}
+                <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
                 {l._aba === 'recuperar' && (
                   <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} onClick={() => vender(l)}>
                     Cadastrar de novo
@@ -1163,6 +1226,21 @@ export default function RevisaoIARetroativo({ setPage }) {
                     disabled={marcando === l.id || (chaveObs.endsWith(':reabrir') && soDigitos(telManual).length < 10)}
                     onClick={() => (chaveObs.endsWith(':reabrir') ? acheiPorFora(l) : marcar(l, chaveObs.split(':')[1]))}>
                     {marcando === l.id ? 'Gravando…' : 'Confirmar'}
+                  </button>
+                  <button style={s.btnGhost} onClick={() => { setObsAberta(null); setObs('') }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {chaveObs && chaveObs.endsWith(':voltou_direito') && (
+              <div>
+                <textarea style={s.obsArea} value={obs} onChange={e => setObs(e.target.value)}
+                  placeholder="O que mudou? ex.: cliente mandou o print do seguro-desemprego / extrato do FGTS (obrigatório)" />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button style={{ ...ui.btnPrimario, opacity: marcando === l.id || obs.trim().length < 5 ? .6 : 1 }}
+                    disabled={marcando === l.id || obs.trim().length < 5}
+                    onClick={() => voltouDireito(l)}>
+                    {marcando === l.id ? 'Gravando…' : 'Confirmar: voltou pra minha mesa'}
                   </button>
                   <button style={s.btnGhost} onClick={() => { setObsAberta(null); setObs('') }}>Cancelar</button>
                 </div>
@@ -1297,10 +1375,10 @@ export default function RevisaoIARetroativo({ setPage }) {
                 <div style={{ fontSize: 13, color: cores.texto, lineHeight: 1.5 }}>{ficha.vend_obs}</div>
               </div>
             )}
-            {ficha.gerid_vendedor && (
+            {(ficha.gerid_vendedor || fichaGerid) && (
               <div style={{ ...s.bloco, marginTop: 10 }}>
                 <div style={s.blocoTit}><span>Resumo do GERID</span></div>
-                <div style={{ fontSize: 12.5, color: cores.texto, whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{ficha.gerid_vendedor}</div>
+                <div style={{ fontSize: 12.5, color: cores.texto, whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{ficha.gerid_vendedor || fichaGerid}</div>
               </div>
             )}
           </div>
