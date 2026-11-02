@@ -58,11 +58,14 @@ function acaoDoDrop(caso, col) {
 
 const LIMITE_AGUARDANDO = 3
 
-// 02/11 (Bruno): filtro pela ULTIMA ANOTACAO do caso = a movimentacao mais recente (a que a extensao
-// le no Portal do INSS; nos casos lancados a mao, a ultima movimentacao feita aqui). Sem ela, vale
-// quando o caso entrou na situacao atual. Ex.: deferido anotado hoje aparece em "Anotado hoje".
-const PERIODOS_ANOT = [['', 'Última anotação: qualquer data'], ['hoje', 'Anotado hoje'], ['ontem', 'Anotado ontem'], ['semana', 'Anotado esta semana'], ['mes', 'Anotado este mês']]
-const dataAnotacao = (c) => c.ultima_movimentacao_em || c.etapa_desde || null
+// 02/11 (Bruno): filtro pelo dia em que o caso SUBIU na situacao atual aqui no CRM (etapa_desde:
+// a extensao/advogada marcou deferido, indeferido, exigencia...). Ex.: deferido que subiu hoje aparece
+// em "Subiu hoje", mesmo que o INSS tenha anotado de madrugada do dia anterior.
+const PERIODOS_ANOT = [['', 'Subiu: qualquer data'], ['hoje', 'Subiu hoje'], ['ontem', 'Subiu ontem'], ['semana', 'Subiu esta semana'], ['mes', 'Subiu este mês']]
+// 02/11 (Bruno): nas abas de resultado so vale o "Subiu"; o filtro "Entrada" (dia em que o contrato
+// entrou no setor) confundia ("Entrou hoje" em Deferidos nao mostra o que deferiu hoje) e some nessas abas.
+const ABAS_RESULTADO = ['deferidos', 'indeferidos', 'pendencias']
+const dataAnotacao = (c) => c.etapa_desde || c.ultima_movimentacao_em || null
 function noPeriodo(ts, per) {
   if (!per) return true
   const d = diaBR(ts)
@@ -160,7 +163,7 @@ export default function Protocolo() {
       if (q && !(String(c.nome || '').toLowerCase().includes(q) || (qd.length >= 3 && c.cpf.includes(qd)))) return false
       if (fPerfil && c.perfil_label !== fPerfil) return false
       if (fVend && c.vendedora_nome !== fVend) return false
-      if (fPeriodo) {
+      if (fPeriodo && !ABAS_RESULTADO.includes(aba)) {
         const d = diaBR(c.entrou_setor_em)
         if (fPeriodo === 'hoje' && d !== hoje) return false
         if (fPeriodo === '7' && diasDesde(c.entrou_setor_em) > 7) return false
@@ -169,7 +172,7 @@ export default function Protocolo() {
       if (fAnot && !noPeriodo(dataAnotacao(c), fAnot)) return false
       return true
     })
-  }, [lista, busca, fPerfil, fVend, fPeriodo, fAnot])
+  }, [lista, busca, fPerfil, fVend, fPeriodo, fAnot, aba])
 
   const conta = useMemo(() => {
     const L = lista || []
@@ -185,7 +188,7 @@ export default function Protocolo() {
     }
   }, [lista])
 
-  // 02/11: com "Última anotação" escolhida, o numero das abas segue o periodo (os cards do topo continuam o total)
+  // 02/11: com "Subiu" escolhido, o numero das abas segue o periodo (os cards do topo continuam o total)
   const contaAba = useMemo(() => {
     if (!fAnot) return conta
     const L = filtrada
@@ -291,13 +294,15 @@ export default function Protocolo() {
           {ops.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
       ))}
-      <select value={fPeriodo} onChange={e => setFPeriodo(e.target.value)} style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }}>
-        <option value="">Entrada: qualquer data</option>
-        <option value="hoje">Entrou hoje</option>
-        <option value="7">Últimos 7 dias</option>
-        <option value="30">Últimos 30 dias</option>
-      </select>
-      <select value={fAnot} onChange={e => setFAnot(e.target.value)} title="Filtra pela data da última anotação do caso (a movimentação mais recente do INSS)" style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${fAnot ? cores.azul : hexA('#0f172a', 0.12)}`, fontSize: 13, background: fAnot ? hexA(cores.azul, 0.06) : '#fff', fontWeight: fAnot ? 700 : 400 }}>
+      {!ABAS_RESULTADO.includes(aba) && (
+        <select value={fPeriodo} onChange={e => setFPeriodo(e.target.value)} style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${hexA('#0f172a', 0.12)}`, fontSize: 13, background: '#fff' }}>
+          <option value="">Entrada: qualquer data</option>
+          <option value="hoje">Entrou hoje</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+        </select>
+      )}
+      <select value={fAnot} onChange={e => setFAnot(e.target.value)} title="Filtra pelo dia em que o caso subiu nesta situação aqui no CRM" style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${fAnot ? cores.azul : hexA('#0f172a', 0.12)}`, fontSize: 13, background: fAnot ? hexA(cores.azul, 0.06) : '#fff', fontWeight: fAnot ? 700 : 400 }}>
         {PERIODOS_ANOT.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
       </select>
       {(busca || fPerfil || fVend || fPeriodo || fAnot) && <button onClick={() => { setBusca(''); setFPerfil(''); setFVend(''); setFPeriodo(''); setFAnot('') }} style={{ ...btn('#475569', false), padding: '8px 11px', fontSize: 12 }}>Limpar</button>}
@@ -371,8 +376,8 @@ export default function Protocolo() {
   const infoDaLinha = (c) => {
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
-    if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · anotado {fmtDataHora(dataAnotacao(c))}</span></span>
-    if (aba === 'deferidos' || aba === 'indeferidos') return <span title={`Resultado: ${fmtData(c.data_resultado)}`}>anotado {fmtDataHora(dataAnotacao(c))}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
+    if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · subiu {fmtDataHora(dataAnotacao(c))}</span></span>
+    if (aba === 'deferidos' || aba === 'indeferidos') return <span title={`Resultado: ${fmtData(c.data_resultado)}${c.ultima_movimentacao_em ? ' · INSS anotou ' + fmtDataHora(c.ultima_movimentacao_em) : ''}`}>subiu {fmtDataHora(dataAnotacao(c))}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
     return <span>entrou {fmtDataHora(c.entrou_setor_em)}</span>
   }
 
