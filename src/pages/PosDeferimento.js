@@ -5,7 +5,7 @@ import { cores, sombras } from '../lib/tema'
 import {
   Chip, hexA, estiloBotao as btn, estiloCard as card, fmtCpf, fmtTel, fmtData, fmtDataHora,
   diaBR, hojeISO, diasDesde, iniciais, useIsMobile, useToast, copiarTexto, abrirArquivo, enviarArquivo, soDig,
-  catPend, rotResolucao, RESOLUCOES_NEGATIVAS,
+  catPend, rotResolucao, RESOLUCOES_NEGATIVAS, perguntarIA,
 } from './ProtocoloFicha'
 
 // ===== ACOMPANHAMENTO DE CLIENTES (29/10/2026, Bruno) — funil no estilo Pipedrive =====
@@ -28,6 +28,7 @@ import {
 export const ETAPAS_PD = [
   { key: 'deferido', label: 'Deferido · avisar cliente', curto: 'Deferido', cor: '#16a34a', icone: '✅' },
   { key: 'carta', label: 'Carta de concessão', curto: 'Carta', cor: '#0891b2', icone: '📜' },
+  { key: 'extrato', label: 'Extrato de pagamento', curto: 'Extrato', cor: '#0d9488', icone: '🧾' },   // 02/11: a data REAL do pagamento
   { key: 'prevsempre', label: 'PrevSempre', curto: 'PrevSempre', cor: '#2563eb', icone: '🏦' },
   { key: 'aguardando_pagamento', label: 'Aguardando receber', curto: 'Aguardando', cor: '#7c3aed', icone: '⏳' },
   { key: 'atrasado', label: 'Pagamento atrasado', curto: 'Atrasado', cor: '#dc2626', icone: '⏰' },  // virtual: aguardando com a data vencida
@@ -36,8 +37,8 @@ export const ETAPAS_PD = [
   { key: 'cancelado', label: 'Cancelado', curto: 'Cancelado', cor: '#94a3b8', icone: '🚫' },
 ]
 const etapaPD = (k) => ETAPAS_PD.find(e => e.key === k) || { key: k, label: k, curto: k, cor: '#64748b', icone: '•' }
-const COLUNAS_PD = ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']
-const ATIVAS = ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento', 'pago']
+const COLUNAS_PD = ['deferido', 'carta', 'extrato', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']
+const ATIVAS = ['deferido', 'carta', 'extrato', 'prevsempre', 'aguardando_pagamento', 'pago']
 const ESPERANDO = ['aguardando_pagamento', 'prevsempre', 'pago']   // ainda nao pagou
 const DIAS_INADIMPLENTE = 4
 // dias depois da data do pagamento (negativo = ainda vai cair)
@@ -126,7 +127,7 @@ export const GUIAS = {
     passos: [
       { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
       { k: 'carta', rot: 'Explicar a PrevSempre e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
-        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago pelo *Banco Mercantil*, com previsão para *${x.data}* 💰\n\nE o melhor: você vai receber pela *PrevSempre*, a conta do Mercantil. Você abre a conta pelo celular, *não precisa ir em agência nenhuma*, e o dinheiro cai direto na sua conta.\n\nFunciona assim: o link para abrir a conta chega no seu WhatsApp, pelo *número oficial do Mercantil/PrevSempre*. Na abertura também aparece o *aceite dos nossos honorários*, que são descontados automaticamente — assim você não precisa se preocupar em fazer pagamento nenhum depois.\n\nFica tranquila: *no dia eu te aviso e te ligo* pra te ajudar em cada etapa, do começo ao fim. Combinado? 😊`,
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago pelo *Banco Mercantil* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias sai o *extrato de pagamento*, que mostra a data certinha — assim que sair eu te mando aqui, tá bom?\n\nE o melhor: você vai receber pela *PrevSempre*, a conta do Mercantil. Você abre a conta pelo celular, *não precisa ir em agência nenhuma*, e o dinheiro cai direto na sua conta.\n\nFunciona assim: o link para abrir a conta chega no seu WhatsApp, pelo *número oficial do Mercantil/PrevSempre*. Na abertura também aparece o *aceite dos nossos honorários*, que são descontados automaticamente — assim você não precisa se preocupar em fazer pagamento nenhum depois.\n\nFica tranquila: *no dia eu te aviso e te ligo* pra te ajudar em cada etapa, do começo ao fim. Combinado? 😊`,
       ] },
       { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
     ],
@@ -136,9 +137,19 @@ export const GUIAS = {
     passos: [
       { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
       { k: 'carta', rot: 'Explicar o pagamento e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
-        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago no *${x.banco}*, com previsão para *${x.data}* 💰\n\nNa véspera eu te chamo aqui pra te explicar direitinho como vai funcionar o pagamento, e no dia *eu te aviso e te ligo* pra te acompanhar em cada etapa, pra você ficar tranquila. Combinado? 😊`,
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago no *${x.banco}* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias sai o *extrato de pagamento*, que mostra a data certinha — assim que sair eu te mando aqui.\n\nNa véspera eu te chamo aqui pra te explicar direitinho como vai funcionar o pagamento, e no dia *eu te aviso e te ligo* pra te acompanhar em cada etapa, pra você ficar tranquila. Combinado? 😊`,
       ] },
       { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
+    ],
+  },
+  // 02/11 (Bruno): EXTRATO DE PAGAMENTO chegou = a data REAL. Manda a data certa para a cliente.
+  extrato: {
+    titulo: 'Extrato de pagamento · data certa', icone: '🧾', cor: '#0d9488',
+    passos: [
+      { k: 'data', rot: 'Mandar a data certa do pagamento', var: [
+        x => `${x.n}, ${x.s}! Saiu o seu *extrato de pagamento* 🙌\n\nAgora é oficial: o seu salário-maternidade cai no dia *${x.data}*, no *${x.banco}* 💰\n\nPode ficar tranquila que perto do dia eu te chamo aqui de novo pra te acompanhar, combinado?`,
+        x => `Oi, ${x.n}! ${x.aqui}. Como te falei, saiu o *extrato de pagamento* com a data certinha: o seu maternidade cai dia *${x.data}* no *${x.banco}* 🎉\n\nPerto do dia eu te aviso e te ajudo em tudo, tá bom?`,
+      ] },
     ],
   },
   abrir_conta: {
@@ -207,10 +218,12 @@ export const GUIAS = {
 // quais roteiros valem para o caso, e qual e o da vez
 function guiasDoCaso(c) {
   const e = c.etapa
+  const ext = c.extrato_em ? ['extrato'] : []   // 02/11: so quem passou pela etapa do extrato
   if (e === 'deferido' || e === 'carta') return ['deferido']
-  if (e === 'prevsempre') return ['carta_prev', 'abrir_conta']
+  if (e === 'extrato') return [c.prevsempre ? 'carta_prev' : 'carta_outro']
+  if (e === 'prevsempre') return ['carta_prev', ...ext, 'abrir_conta']
   if (ESPERANDO.includes(e)) {
-    const g = c.prevsempre ? ['carta_prev', 'abrir_conta', 'vespera'] : ['carta_outro', 'vespera']
+    const g = c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera']
     if (atrasado(c)) g.push('atrasado')
     return g
   }
@@ -227,10 +240,14 @@ function guiaDaVez(c) {
 
 // 29/10 (Bruno) CHECKLIST OBRIGATORIO, sem excecao: so avanca de etapa com as mensagens
 // marcadas como enviadas (o banco confere de novo em posdef_msgs_faltando).
-const guiasDaAcao = (acao, c) => (acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
-  : acao === 'prevsempre' ? ['carta_prev', 'abrir_conta']
-  : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', 'abrir_conta', 'vespera'] : ['carta_outro', 'vespera'])
-  : [])
+const guiasDaAcao = (acao, c) => {
+  const ext = c.extrato_em ? ['extrato'] : []
+  return acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
+    : acao === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro']
+    : acao === 'prevsempre' ? ['carta_prev', ...ext, 'abrir_conta']
+    : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera'])
+    : []
+}
 const faltaChecklist = (acao, c, extra) => guiasDaAcao(acao, c).flatMap(g => GUIAS[g].passos.map(p => `${g}:${p.k}`))
   .filter(k => !(extra || {})[k] && !(c.msgs_enviadas || {})[k])
 const progressoGuia = (c, g) => (g === 'atrasado'   // "caiu" e "nao caiu" sao caminhos alternativos
@@ -280,13 +297,22 @@ const ACOES_PD = {
   carta: {
     titulo: 'Carta de concessão', icone: '📜', cor: '#0891b2',
     anexo: 'Carta de concessão', anexoObrig: true,
-    nota: 'Banco Mercantil vai para a etapa PrevSempre (abertura de conta e honorário automático). Qualquer outro banco vai direto para "Aguardando pagamento".',
+    nota: 'A data de pagamento da carta é só PREVISÃO do INSS e não é usada aqui. O caso vai para "Extrato de pagamento": quando o extrato chegar (costuma sair uns 3 dias depois da carta), você lança a data real. Avise a cliente que a data certa vai depois.',
     campos: [
       { k: 'banco', l: 'Banco que vai pagar', obrig: true, tipo: 'select', opcoes: BANCOS.map(b => ({ v: b, l: b })) },
       { k: 'banco_outro', l: 'Qual banco?', tipo: 'text', obrigSe: (v) => v.banco === 'Outro', so: (v) => v.banco === 'Outro' },
-      { k: 'data_pagamento', l: 'Data do pagamento', obrig: true, tipo: 'date' },
       { k: 'valor', l: 'Valor do benefício (opcional)', tipo: 'money' },
       { k: 'data', l: 'Data da carta', tipo: 'date', hoje: true },
+      { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
+    ],
+  },
+  extrato: {
+    titulo: 'Extrato de pagamento', icone: '🧾', cor: '#0d9488',
+    anexo: 'Extrato de pagamento', anexoObrig: true,
+    nota: 'O extrato de pagamento é o documento que traz a data REAL em que a cliente recebe (a da carta é previsão). Banco Mercantil segue para a PrevSempre; qualquer outro banco vai para "Aguardando pagamento".',
+    campos: [
+      { k: 'data_pagamento', l: 'Data do pagamento (a do extrato)', obrig: true, tipo: 'date' },
+      { k: 'valor', l: 'Valor do benefício (opcional)', tipo: 'money' },
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
   },
@@ -340,7 +366,7 @@ const ACOES_PD = {
   voltar: {
     titulo: 'Voltar etapa', icone: '↩️', cor: '#64748b',
     campos: [
-      { k: 'etapa', l: 'Voltar para', obrig: true, tipo: 'select', opcoes: ETAPAS_PD.filter(e => ['deferido', 'carta', 'prevsempre', 'aguardando_pagamento'].includes(e.key)).map(e => ({ v: e.key, l: e.label })) },
+      { k: 'etapa', l: 'Voltar para', obrig: true, tipo: 'select', opcoes: ETAPAS_PD.filter(e => ['deferido', 'carta', 'extrato', 'prevsempre', 'aguardando_pagamento'].includes(e.key)).map(e => ({ v: e.key, l: e.label })) },
       { k: 'texto', l: 'Motivo', obrig: true, tipo: 'textarea' },
     ],
   },
@@ -352,6 +378,7 @@ const ACOES_PD = {
 const ACOES_POR_ETAPA_PD = {
   deferido: ['avisar_cliente', 'carta', 'atividade', 'observacao', 'cancelar'],
   carta: ['carta', 'atividade', 'observacao', 'cancelar'],
+  extrato: ['extrato', 'atividade', 'observacao', 'cancelar'],
   prevsempre: ['prevsempre', 'reagendar', 'atividade', 'observacao'],
   aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
   pago: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
@@ -364,8 +391,10 @@ function acaoDoDropPD(c, col) {
   const e = c.etapa
   if (col === 'atrasado') return ['__auto']
   if (col === 'carta') return e === 'deferido' ? ['avisar_cliente'] : ['voltar', { etapa: 'carta' }]
+  if (col === 'extrato') return e === 'deferido' || e === 'carta' ? ['carta'] : ['voltar', { etapa: 'extrato' }]
   if (col === 'prevsempre' || col === 'aguardando_pagamento') {
     if (e === 'deferido' || e === 'carta') return ['carta']
+    if (e === 'extrato') return ['extrato']
     if (e === 'prevsempre' && col === 'aguardando_pagamento') return ['prevsempre']
     return ['voltar', { etapa: col }]
   }
@@ -1117,6 +1146,10 @@ export default function PosDeferimento() {
   const [aba, setAba] = useState(() => (profile?.role !== 'admin' && profile?.posdef_papel === 'vendedora' ? 'pagamentos' : 'inicio'))
   const [muralAberto, setMuralAberto] = useState({})   // 02/11: grupos do mural abrem na setinha
   const [confIndef, setConfIndef] = useState(null)     // id do indeferido esperando o 2o clique (confirmar aviso)
+  const [protFiltro, setProtFiltro] = useState('falta') // 02/11: aba Protocolados
+  const [cartaDe, setCartaDe] = useState(null)          // caso cujo envio da carta de protocolo esta sendo registrado
+  const [cartaPrint, setCartaPrint] = useState(null)
+  const [cartaSt, setCartaSt] = useState('')            // '' | 'conferindo' | 'gravando' | 'erro:...'
   const [pgPeriodo, setPgPeriodo] = useState('semana')
   const [pgTipo, setPgTipo] = useState('')
   const [busca, setBusca] = useState('')
@@ -1653,6 +1686,109 @@ export default function PosDeferimento() {
     )
   }
 
+  // ------------------------------------------------------------ PROTOCOLADOS (02/11, Bruno)
+  // O time baixa a CARTA DE PROTOCOLO, manda para a cliente e registra o envio com o PRINT da conversa.
+  // A I.A confere o print (conversa real com a cliente mostrando a carta enviada); se nao confirmar,
+  // BLOQUEIA e pede outro print. So depois grava (posdef_carta_protocolo_enviada).
+  const lerBase64 = (arq) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]+,/, '')); r.onerror = () => erro(r.error); r.readAsDataURL(arq) })
+  const botoesCarta = (c) => [
+    c.protocolo_termo_url && <button key="b" onClick={() => abrirArquivo(c.protocolo_termo_url)} style={{ ...btn('#6d28d9', false), padding: '6px 9px', fontSize: 12 }}>📄 Baixar carta de protocolo</button>,
+    <button key="t" onClick={async () => mostrar((await copiarTexto(msgProtocolo(c))) ? 'Mensagem copiada' : 'Não consegui copiar')} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>⧉ Mensagem</button>,
+    telWa(c.telefone) && <a key="w" href={`https://wa.me/${telWa(c.telefone)}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>,
+    c.carta_enviada_em
+      ? <button key="v" onClick={() => abrirArquivo(c.carta_enviada_print)} title="ver o print" style={{ ...btn(cores.ok, false), padding: '6px 9px', fontSize: 12 }}>✅ Enviada {fmtDataHora(c.carta_enviada_em)}</button>
+      : <button key="e" onClick={() => { setCartaDe(c); setCartaPrint(null); setCartaSt('') }} style={{ ...btn('#8b5cf6'), padding: '6px 10px', fontSize: 12 }}>✔ Enviei a carta</button>,
+  ]
+  async function registrarCarta() {
+    const c = cartaDe
+    if (!c || !cartaPrint) { setCartaSt('erro:Anexe o print da conversa com a cliente.'); return }
+    if (!/^image\//.test(cartaPrint.type || '')) { setCartaSt('erro:O print precisa ser uma imagem (PNG ou JPG).'); return }
+    if (cartaPrint.size > 5 * 1024 * 1024) { setCartaSt('erro:Imagem muito grande (máximo 5 MB).'); return }
+    setCartaSt('conferindo')
+    let veredito = ''
+    try {
+      const texto = `TAREFA (não é parecer): confira o PRINT anexado. Responda na PRIMEIRA linha apenas SIM ou NÃO e, na segunda linha, o motivo em uma frase curta.
+SIM somente se for o print de uma CONVERSA REAL de WhatsApp (ou outro app de mensagens) com a cliente ${c.nome || ''}${c.telefone ? ` (telefone ${c.telefone})` : ''} e nele aparecer o ENVIO da carta/comprovante de protocolo do INSS (arquivo, PDF, imagem do comprovante ou mensagem com o número do protocolo ${c.numero_protocolo || ''}).
+NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra pessoa, ou se não mostrar a carta sendo enviada.`
+      veredito = await perguntarIA({ caso: c, historico: [], texto, anexos: [{ nome: cartaPrint.name || 'print.png', media_type: cartaPrint.type, data: await lerBase64(cartaPrint) }] })
+    } catch (e) { setCartaSt('erro:A I.A não conseguiu conferir agora: ' + String(e.message || e)); return }
+    const primeira = String(veredito || '').replace(/[*_#>`]/g, '').trim().split('\n')[0].trim().toUpperCase()
+    if (!primeira.startsWith('SIM')) {
+      setCartaSt('erro:A I.A NÃO confirmou o print — mande outro print da conversa com a cliente mostrando a carta enviada.\n\n' + String(veredito || '').replace(/[*_#>`]/g, '').trim())
+      return
+    }
+    setCartaSt('gravando')
+    try {
+      const caminho = await enviarArquivo(cartaPrint, c.cpf)
+      const { data, error } = await supabase.rpc('posdef_carta_protocolo_enviada', { p_caso: c.id, p_print: caminho, p_ia: String(veredito).slice(0, 1000) })
+      if (error || !data?.ok) { setCartaSt('erro:' + (error?.message || data?.erro || 'não gravou')); return }
+    } catch (e) { setCartaSt('erro:' + String(e.message || e)); return }
+    setCartaDe(null); setCartaPrint(null); setCartaSt('')
+    mostrar(`${primeiroNome(c.nome) || 'Cliente'} · carta de protocolo registrada`)
+    carregar()
+  }
+  const protocoladosView = () => {
+    const todos = inssF.filter(c => ['protocolado', 'recurso'].includes(c.etapa))
+    const falta = todos.filter(c => !c.carta_enviada_em)
+    const enviadas = todos.filter(c => c.carta_enviada_em)
+    const itens = (protFiltro === 'falta' ? falta : protFiltro === 'enviada' ? enviadas : todos)
+      .slice().sort((a, b) => String(b.data_protocolo || '').localeCompare(String(a.data_protocolo || '')))
+    const chip = (val, rot, n, cor) => {
+      const on = protFiltro === val
+      return <button key={val} onClick={() => setProtFiltro(val)} style={{ padding: '8px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: on ? 800 : 600, border: `1.5px solid ${on ? cor : hexA('#0f172a', 0.12)}`, background: on ? hexA(cor, 0.1) : '#fff', color: on ? cor : cores.texto, whiteSpace: 'nowrap' }}>{rot} <span style={{ fontWeight: 800, color: cor }}>{n}</span></button>
+    }
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ ...card, padding: 14, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {chip('falta', '📨 Falta mandar a carta', falta.length, '#8b5cf6')}
+            {chip('enviada', '✅ Carta enviada', enviadas.length, cores.ok)}
+            {chip('todos', 'Todos', todos.length, '#475569')}
+          </div>
+          <div style={{ fontSize: 12, color: cores.suave }}>Baixe a <b style={{ color: cores.texto }}>carta de protocolo</b>, mande para a cliente e clique em <b style={{ color: cores.texto }}>Enviei a carta</b> com o print da conversa. A I.A confere o print antes de registrar.</div>
+        </div>
+        <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+          {itens.length === 0 && <div style={{ padding: 18, fontSize: 13, color: cores.suave }}>Nada aqui.</div>}
+          {itens.map((c, i) => {
+            const d = c.data_protocolo ? diasApos(c.data_protocolo) : null
+            return (
+              <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+                <div onClick={() => setInssDe(c)} style={{ flex: '1 1 260px', minWidth: 0, cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip cor="#8b5cf6" forte>{c.etapa === 'recurso' ? '⚖️ Recurso' : '📨 Protocolado'}</Chip>
+                    <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · nº {c.numero_protocolo || '—'}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}${d != null ? ` (há ${d} dia${d === 1 ? '' : 's'})` : ''}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{botoesCarta(c)}</div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+  const modalCarta = cartaDe && (
+    <div onClick={() => !['conferindo', 'gravando'].includes(cartaSt) && setCartaDe(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', backdropFilter: 'blur(3px)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={ev => ev.stopPropagation()} style={{ ...card, width: '100%', maxWidth: 520, padding: 20, display: 'grid', gap: 12 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: cores.texto }}>📨 Carta de protocolo enviada</div>
+        <div style={{ fontSize: 13.5, color: cores.texto }}><b>{cartaDe.nome}</b> · nº {cartaDe.numero_protocolo || '—'}</div>
+        <div style={{ fontSize: 13, color: cores.suave }}>Anexe o <b style={{ color: cores.texto }}>print da conversa do WhatsApp</b> com a cliente mostrando a carta enviada. A I.A confere se é uma conversa real antes de registrar.</div>
+        <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 700, color: cores.texto }}>
+          Print da conversa (imagem)
+          <input type="file" accept="image/png,image/jpeg,image/webp" disabled={['conferindo', 'gravando'].includes(cartaSt)} onChange={e => { setCartaPrint(e.target.files?.[0] || null); setCartaSt('') }} />
+        </label>
+        {cartaSt === 'conferindo' && <div style={{ fontSize: 13, color: cores.roxo, fontWeight: 700 }}>✦ A I.A está conferindo o print…</div>}
+        {cartaSt === 'gravando' && <div style={{ fontSize: 13, color: cores.ok, fontWeight: 700 }}>Print confirmado. Gravando…</div>}
+        {cartaSt.startsWith('erro:') && <div style={{ fontSize: 13, color: '#991b1b', background: hexA(cores.perigo, 0.08), border: `1px solid ${hexA(cores.perigo, 0.3)}`, borderRadius: 10, padding: '8px 10px', whiteSpace: 'pre-wrap' }}>{cartaSt.slice(5)}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={() => setCartaDe(null)} disabled={['conferindo', 'gravando'].includes(cartaSt)} style={btn('#475569', false)}>Cancelar</button>
+          <button onClick={registrarCarta} disabled={!cartaPrint || ['conferindo', 'gravando'].includes(cartaSt)} style={{ ...btn('#8b5cf6'), opacity: !cartaPrint || ['conferindo', 'gravando'].includes(cartaSt) ? 0.55 : 1 }}>Conferir e registrar</button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ------------------------------------------------------------ MURAL de inicio (02/11, Bruno)
   // Avisos do que importa hoje, cada grupo fechado (abre na setinha): deferimentos para avisar a cliente,
   // indeferimentos para avisar, exigencias do INSS, pagamentos de hoje, recebem amanha e atrasados.
@@ -1674,6 +1810,8 @@ export default function PosDeferimento() {
     const indefAvisar = resultadosF.filter(c => !ehDeferido(c) && !c.cliente_avisada_em && (diasDesde(dataAnotacao(c)) ?? 0) <= 30).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     const exig = inssF.filter(c => c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
+    const aguardExtrato = filtrada.filter(c => c.etapa === 'extrato').sort((a, b) => String(a.carta_concessao_em || '').localeCompare(String(b.carta_concessao_em || '')))
+    const cartaFalta = inssF.filter(c => ['protocolado', 'recurso'].includes(c.etapa) && !c.carta_enviada_em).sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     const pgAmanha = base.filter(c => c.data_pagamento === amanha).sort(ordPg)
     const pgAtras = base.filter(c => c.data_pagamento < hoje).sort(ordPg)
     const linhaSimples = (c, i, { sub, acoes, onAbrir, novo }) => (
@@ -1696,6 +1834,12 @@ export default function PosDeferimento() {
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
           acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
             c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei a cliente</button>] }) },
+      { k: 'extrato', icone: '🧾', tit: 'Aguardando extrato de pagamento', cor: '#0d9488', itens: aguardExtrato, extra: aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length ? `${aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length} passou de 3 dias` : 'a data real do pagamento',
+        linha: (c, i) => { const d = diasApos(c.carta_concessao_em)
+          return linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
+            sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'} · carta {c.carta_concessao_em ? fmtData(c.carta_concessao_em) : '—'}{d != null ? <b style={{ color: d > 3 ? cores.perigo : '#0d9488' }}> · há {d} dia{d === 1 ? '' : 's'}{d > 3 ? ' — cobrar o extrato' : ''}</b> : null}</>,
+            acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>,
+              c.pode_agir !== false && <button key="e" onClick={() => abrirAcao(c, 'extrato')} style={{ ...btn('#0d9488'), padding: '6px 10px', fontSize: 12 }}>🧾 Lançar extrato</button>] }) } },
       { k: 'indef', icone: '⛔', tit: 'Indeferimentos para avisar a cliente', cor: cores.perigo, itens: indefAvisar, extra: nIndefHoje ? `${nIndefHoje} subiu hoje` : null,
         linha: (c, i) => linhaSimples(c, i, { novo: diaBR(dataAnotacao(c)) === hoje, onAbrir: () => setInssDe(c),
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
@@ -1708,6 +1852,10 @@ export default function PosDeferimento() {
             sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.exigencia_prazo ? <b style={{ color: d != null && d <= 5 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(c.exigencia_prazo)}{d != null ? (d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem prazo informado'}{c.exigencia_texto ? ` · ${String(c.exigencia_texto).slice(0, 90)}${String(c.exigencia_texto).length > 90 ? '…' : ''}` : ''}</>,
             acoes: [waBtn(c), <button key="v" onClick={() => setInssDe(c)} style={{ ...btn('#ea580c', false), padding: '6px 10px', fontSize: 12 }}>Ver exigência</button>] })
         } },
+      { k: 'cartaprot', icone: '📨', tit: 'Carta de protocolo para mandar à cliente', cor: '#8b5cf6', itens: cartaFalta, extra: 'baixar a carta, mandar e anexar o print',
+        linha: (c, i) => linhaSimples(c, i, { onAbrir: () => setInssDe(c),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · nº {c.numero_protocolo || '—'}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}` : ''}</>,
+          acoes: botoesCarta(c) }) },
       { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
       { k: 'pgamanha', icone: '⏳', tit: 'Recebem amanhã', cor: '#7c3aed', itens: pgAmanha, extra: 'lembrar a cliente', linha: linhaPagamento },
       { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
@@ -2042,7 +2190,7 @@ export default function PosDeferimento() {
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
     ? [['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
-    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
+    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['protocolados', '📨 Protocolados'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
   const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
@@ -2090,6 +2238,7 @@ export default function PosDeferimento() {
         : aba === 'pendencias' ? pendView
         : aba === 'inss' ? inssView
         : aba === 'inicio' ? muralView()
+        : aba === 'protocolados' ? protocoladosView()
         : aba === 'deferidos' ? resultadosView('def')
         : aba === 'indeferidos' ? resultadosView('indef')
         : aba === 'pagamentos' && lista.length ? pagamentosView
@@ -2106,6 +2255,7 @@ export default function PosDeferimento() {
       )}
 
       {modal && <ModalPD caso={modal.caso} acao={modal.acao} inicial={modal.inicial} onClose={() => setModal(null)} onFeito={() => { setModal(null); mostrar('Salvo'); carregar() }} />}
+      {modalCarta}
       {inssDe && <ModalINSS c={inssDe} onClose={() => setInssDe(null)} onPendencias={() => { setInssDe(null); setAba('pendencias') }} />}
       {guiaDe && <ModalGuia caso={guiaDe} podeAgir={!soLeitura && guiaDe.pode_agir !== false} onClose={() => setGuiaDe(null)} onMarcou={carregar} />}
       {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
