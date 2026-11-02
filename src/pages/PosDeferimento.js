@@ -52,6 +52,10 @@ const BANCOS = ['Banco Mercantil do Brasil', 'Caixa Econômica Federal', 'Banco 
 const FORMAS_HONORARIO = ['Desconto automático PrevSempre', 'PIX da cliente', 'Transferência', 'Boleto', 'Dinheiro', 'Outro']
 const AZUL_PREV = '#1d4ed8'
 
+// 02/11 (Bruno) — aba "Deferidos e indeferidos": o periodo (Hoje/Ontem/Semana/Mes) e pela ULTIMA ANOTACAO
+// do caso no Protocolo (a movimentacao mais recente do INSS; sem ela, quando entrou na situacao). Mesmo criterio
+// do filtro "Última anotação" do Protocolo INSS.
+const dataAnotacao = (c) => c.ultima_movimentacao_em || c.etapa_desde || null
 const somaDias = (iso, n) => { const d = new Date((iso || hojeISO()) + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 const diaSemana = (iso) => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') } catch (_) { return '' } }
 const reais = (v) => (v == null || v === '' ? null : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
@@ -1108,6 +1112,9 @@ export default function PosDeferimento() {
   const [lista, setLista] = useState(null)
   const [inss, setInss] = useState([])
   const [pends, setPends] = useState([])
+  const [resultados, setResultados] = useState([])   // 02/11: deferidos e indeferidos do Protocolo (posdef_resultados_inss)
+  const [rsPer, setRsPer] = useState('hoje')
+  const [rsTipo, setRsTipo] = useState('')
   const [aba, setAba] = useState('pagamentos')
   const [pgPeriodo, setPgPeriodo] = useState('semana')
   const [pgTipo, setPgTipo] = useState('')
@@ -1128,12 +1135,13 @@ export default function PosDeferimento() {
 
   const carregar = useCallback(async () => {
     const reqs = [supabase.rpc('posdef_lista')]
-    if (!soLeitura) reqs.push(supabase.rpc('posdef_inss_lista'), supabase.rpc('posdef_pendencias_lista'))
-    const [l, i, p] = await Promise.all(reqs)
+    if (!soLeitura) reqs.push(supabase.rpc('posdef_inss_lista'), supabase.rpc('posdef_pendencias_lista'), supabase.rpc('posdef_resultados_inss'))
+    const [l, i, p, r] = await Promise.all(reqs)
     if (l.error) mostrar('Erro ao carregar: ' + l.error.message, 'erro')
     setLista(Array.isArray(l.data) ? l.data : [])
     if (i) setInss(Array.isArray(i.data) ? i.data : [])
     if (p) setPends(Array.isArray(p.data) ? p.data : [])
+    if (r) setResultados(Array.isArray(r.data) ? r.data : [])
   }, [mostrar, soLeitura])
   useEffect(() => { carregar() }, [carregar])
   useEffect(() => { const t = setInterval(carregar, 60000); return () => clearInterval(t) }, [carregar])
@@ -1165,11 +1173,22 @@ export default function PosDeferimento() {
   }), [lista, casa, fBanco, fTag])
   const inssF = useMemo(() => inss.filter(casa), [inss, casa])
   const pendsF = useMemo(() => pends.filter(casa), [pends, casa])
+  const resultadosF = useMemo(() => resultados.filter(casa), [resultados, casa])
 
   const hoje = hojeISO()
   const amanha = somaDias(hoje, 1)
   const depois = somaDias(hoje, 2)
   const fimSemana = somaDias(hoje, 6)
+  const noPeriodoAnot = (c, per) => {
+    if (per === 'todos') return true
+    const d = diaBR(dataAnotacao(c))
+    if (!d) return false
+    if (per === 'hoje') return d === hoje
+    if (per === 'ontem') return d === somaDias(hoje, -1)
+    if (per === 'semana') { const dow = new Date(hoje + 'T12:00:00').getDay(); return d >= somaDias(hoje, -((dow + 6) % 7)) && d <= hoje }
+    if (per === 'mes') return d.slice(0, 7) === hoje.slice(0, 7) && d <= hoje
+    return true
+  }
 
   const agenda = useMemo(() => {
     const itens = []
@@ -1565,6 +1584,79 @@ export default function PosDeferimento() {
     )
   })()
 
+  // ------------------------------------------------------------ deferidos e indeferidos (02/11)
+  const ehDeferido = (c) => ['deferido', 'recurso_deferido'].includes(c.etapa)
+  const resultadosView = (() => {
+    const chip = (val, set, atual, rot, n, cor) => {
+      const on = atual === val
+      return (
+        <button key={val || 'x'} onClick={() => set(val)} style={{ padding: '8px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: on ? 800 : 600, border: `1.5px solid ${on ? cor : hexA('#0f172a', 0.12)}`, background: on ? hexA(cor, 0.1) : '#fff', color: on ? cor : cores.texto, whiteSpace: 'nowrap' }}>
+          {rot}{n != null ? <span style={{ marginLeft: 6, fontWeight: 800, color: cor }}>{n}</span> : null}
+        </button>
+      )
+    }
+    const nPer = (per) => resultadosF.filter(c => noPeriodoAnot(c, per) && (!rsTipo || (rsTipo === 'def' ? ehDeferido(c) : !ehDeferido(c)))).length
+    const noPer = resultadosF.filter(c => noPeriodoAnot(c, rsPer))
+    const itens = noPer.filter(c => !rsTipo || (rsTipo === 'def' ? ehDeferido(c) : !ehDeferido(c)))
+    const grupos = [['def', '✅ Deferidos', cores.ok], ['indef', '⛔ Indeferidos', cores.perigo]].filter(([k]) => !rsTipo || rsTipo === k)
+    const abrir = (c) => {
+      if (ehDeferido(c)) { const pd = (lista || []).find(x => x.caso_id === c.id); if (pd) { setAberto(pd.id); return } }
+      setInssDe(c)
+    }
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ ...card, padding: 14, display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Última anotação</span>
+            {chip('hoje', setRsPer, rsPer, 'Hoje', nPer('hoje'), '#d97706')}
+            {chip('ontem', setRsPer, rsPer, 'Ontem', nPer('ontem'), '#7c3aed')}
+            {chip('semana', setRsPer, rsPer, 'Esta semana', nPer('semana'), '#2563eb')}
+            {chip('mes', setRsPer, rsPer, 'Este mês', nPer('mes'), '#0891b2')}
+            {chip('todos', setRsPer, rsPer, 'Todos', nPer('todos'), '#475569')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Resultado</span>
+            {chip('', setRsTipo, rsTipo, 'Todos', noPer.length, '#475569')}
+            {chip('def', setRsTipo, rsTipo, '✅ Deferidos', noPer.filter(ehDeferido).length, cores.ok)}
+            {chip('indef', setRsTipo, rsTipo, '⛔ Indeferidos', noPer.filter(c => !ehDeferido(c)).length, cores.perigo)}
+          </div>
+          <div style={{ fontSize: 12, color: cores.suave }}>A data é a da <b style={{ color: cores.texto }}>última anotação</b> do caso no INSS — deferido anotado hoje aparece em <b style={{ color: cores.texto }}>Hoje</b>.</div>
+        </div>
+        {grupos.map(([g, tit, cor]) => {
+          const lst = itens.filter(c => (g === 'def') === ehDeferido(c))
+          return (
+            <div key={g} style={{ ...card, padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, background: hexA(cor, 0.06), borderBottom: `1px solid ${cores.cardBorda}` }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: cores.texto }}>{tit}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{lst.length}</span>
+              </div>
+              {lst.length === 0 && <div style={{ padding: '14px', fontSize: 13, color: cores.suave }}>Nenhum neste período.</div>}
+              {lst.map((c, i) => (
+                <div key={c.id} className="kr-linha" onClick={() => abrir(c)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
+                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Chip cor={cor} forte>{c.etapa === 'recurso_deferido' ? '🏆 Recurso deferido' : c.etapa === 'recurso_indeferido' ? '✖️ Recurso indeferido' : ehDeferido(c) ? '✅ Deferido' : '⛔ Indeferido'}</Chip>
+                      <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>
+                      {fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.perfil ? ` · ${c.perfil}` : ''}{(c.responsaveis || []).length ? ` · ${(c.responsaveis || []).join(', ')}` : ''}
+                      {!ehDeferido(c) && c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}
+                    </div>
+                  </div>
+                  {c.resposta_inss_url && <button onClick={(ev) => { ev.stopPropagation(); abrirArquivo(c.resposta_inss_url) }} style={{ ...btn('#15803d', false), padding: '6px 10px', fontSize: 12 }}>📄 Carta do INSS</button>}
+                  <div style={{ textAlign: 'right', fontSize: 12.5, color: cores.suave, minWidth: 150 }}>
+                    <div style={{ fontWeight: 700, color: cores.texto }}>anotado {fmtDataHora(dataAnotacao(c))}</div>
+                    {c.nb ? <div>NB {c.nb}</div> : c.numero_protocolo ? <div>prot. {c.numero_protocolo}</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    )
+  })()
+
   // ------------------------------------------------------------ pendencias para resolver
   const cartaoPend = (p) => {
     const cat = catPend(p.categoria)
@@ -1869,8 +1961,8 @@ export default function PosDeferimento() {
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
     ? [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
-    : [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
-  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length }
+    : [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['resultados', '⚖️ Deferidos e indeferidos'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
+  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, resultados: resultadosF.filter(c => noPeriodoAnot(c, 'hoje')).length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -1916,6 +2008,7 @@ export default function PosDeferimento() {
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
         : aba === 'pendencias' ? pendView
         : aba === 'inss' ? inssView
+        : aba === 'resultados' ? resultadosView
         : aba === 'pagamentos' && lista.length ? pagamentosView
         : lista.length === 0 && aba !== 'inadimplencia' ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Nenhum caso deferido {soLeitura ? 'das suas vendas' : 'na sua carteira'} ainda. Quando a advogada marcar "Deferido", o caso aparece aqui sozinho.</div>
         : aba === 'agenda' ? agendaView : aba === 'funil' ? funil : aba === 'calendario' ? calendario : aba === 'inadimplencia' ? inadView : listaView}
