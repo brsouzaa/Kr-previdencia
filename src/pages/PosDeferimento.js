@@ -1820,6 +1820,7 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
     const indefAvisar = resultadosF.filter(c => !ehDeferido(c) && !c.cliente_avisada_em && (diasDesde(dataAnotacao(c)) ?? 0) <= 30).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     const exig = inssF.filter(c => c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
+    const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort(ordPg)   // 02/11: abrir conta + debito automatico
     const aguardExtrato = filtrada.filter(c => c.etapa === 'extrato').sort((a, b) => String(a.carta_concessao_em || '').localeCompare(String(b.carta_concessao_em || '')))
     const cartaFalta = inssF.filter(c => ['protocolado', 'recurso'].includes(c.etapa) && !c.carta_enviada_em).sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     const pgAmanha = base.filter(c => c.data_pagamento === amanha).sort(ordPg)
@@ -1867,6 +1868,13 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
             sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'} · carta {c.carta_concessao_em ? fmtData(c.carta_concessao_em) : '—'}{d != null ? <b style={{ color: d > 3 ? cores.perigo : '#0d9488' }}> · há {d} dia{d === 1 ? '' : 's'}{d > 3 ? ' — cobrar o extrato' : ''}</b> : null}</>,
             acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>,
               c.pode_agir !== false && <button key="e" onClick={() => abrirAcao(c, 'extrato')} style={{ ...btn('#0d9488'), padding: '6px 10px', fontSize: 12 }}>🧾 Lançar extrato</button>] }) } },
+      { k: 'prev', icone: '🏦', tit: 'PrevSempre: abrir a conta e aceitar o débito automático', cor: AZUL_PREV, itens: prevPend,
+        extra: prevPend.filter(c => c.data_pagamento && -diasApos(c.data_pagamento) <= 3).length ? `${prevPend.filter(c => c.data_pagamento && -diasApos(c.data_pagamento) <= 3).length} com pagamento em até 3 dias` : 'o responsável confirma conta aberta e débito',
+        linha: (c, i) => { const d = c.data_pagamento ? -diasApos(c.data_pagamento) : null
+          return linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
+            sub: <>{fmtCpf(c.cpf)} · Mercantil{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''}{c.data_pagamento ? <b style={{ color: d != null && d <= 3 ? cores.perigo : AZUL_PREV }}> · cai {fmtData(c.data_pagamento)}{d != null ? (d < 0 ? ` (passou há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem data'}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+            acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
+              c.pode_agir !== false && <button key="p" onClick={() => abrirAcao(c, 'prevsempre')} style={{ ...btn(AZUL_PREV), padding: '6px 10px', fontSize: 12 }}>🏦 Confirmar PrevSempre</button>] }) } },
       { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
       { k: 'pgamanha', icone: '⏳', tit: 'Recebem amanhã', cor: '#7c3aed', itens: pgAmanha, extra: 'lembrar a cliente', linha: linhaPagamento },
       { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
