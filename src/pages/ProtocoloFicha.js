@@ -724,6 +724,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   const [abaDir, setAbaDir] = useState('ia')
   const [verMotivos, setVerMotivos] = useState(false)
   const [baixando, setBaixando] = useState(false)
+  const [verMais, setVerMais] = useState(false)   // 02/11: dados do protocolo recolhidos depois de protocolar
   // 29/10/2026 (Bruno): contratos ASSINADOS do ZapSign, um PDF por contrato (honorarios, procuracao,
   // termo). A edge function zapsign-contratos-pdf baixa e guarda no bucket; aqui so lista e abre.
   const [contratos, setContratos] = useState([])
@@ -791,7 +792,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
 
   // "quero sempre uma opiniao da I.A": sem parecer salvo, gera sozinho uma vez
   useEffect(() => {
-    if (dados?.caso && !dados.caso.ia_parecer && !pediuParecer.current) {
+    if (dados?.caso && !dados.caso.ia_parecer && !pediuParecer.current && !['deferido', 'recurso_deferido', 'cancelado'].includes(dados.caso.etapa)) {
       pediuParecer.current = true
       gerarParecer({ ...dados.caso })
     }
@@ -1252,6 +1253,124 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+
+  // ---------------- 02/11 (Bruno): ficha FOCADA na situacao do caso ----------------
+  // Antes de protocolar (fila / falta documento) a ficha continua igual: e ali que a Jessica usa
+  // Meu INSS, CEP, documentos, validacao e parecer. Depois de protocolar, o topo mostra so o que
+  // importa naquela situacao (deferido, indeferido, exigencia, em analise) e o resto fica
+  // recolhido em "Dados do protocolo" — nada foi apagado, so guardado.
+  const fase = ['deferido', 'recurso_deferido'].includes(caso.etapa) ? 'deferido'
+    : ['indeferido', 'recurso_indeferido'].includes(caso.etapa) ? 'indeferido'
+    : caso.etapa === 'exigencia' ? 'exigencia'
+    : ['protocolado', 'recurso'].includes(caso.etapa) ? 'analise'
+    : 'protocolar'
+  const diaDe = (v) => (v ? (String(v).length === 10 ? String(v) : diaBR(v)) : null)
+  const entreDias = (a, b) => (a && b ? Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000) : null)
+  // data da decisao: a mais antiga entre a data do resultado e a anotacao do INSS (a extensao pode ler um dia depois)
+  const diaDecisao = [diaDe(caso.data_resultado), diaDe(caso.ultima_movimentacao_em)].filter(Boolean).sort()[0] || null
+  const diaProt = diaDe(caso.data_protocolo)
+  const diaAssin = diaDe(caso.data_assinatura || caso.entrou_setor_em)
+  const diasProtDecisao = entreDias(diaProt, diaDecisao)
+  const diasAssinDecisao = entreDias(diaAssin, diaDecisao)
+  const diasEmAnalise = diaProt ? entreDias(diaProt, hojeISO()) : null
+  const prazoExig = caso.exigencia_prazo ? entreDias(hojeISO(), diaDe(caso.exigencia_prazo)) : null
+  const prazoRecurso = fase === 'indeferido' && diaDecisao ? (() => { const d = new Date(diaDecisao + 'T12:00:00'); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) })() : null
+  const corFase = { deferido: cores.ok, indeferido: cores.perigo, exigencia: '#ea580c', analise: '#8b5cf6' }[fase]
+  const tituloFase = {
+    deferido: caso.etapa === 'recurso_deferido' ? '🏆 Recurso deferido' : '✅ Deferido',
+    indeferido: caso.etapa === 'recurso_indeferido' ? '✖️ Recurso indeferido' : '⛔ Indeferido',
+    exigencia: '⚠️ Exigência do INSS',
+    analise: caso.etapa === 'recurso' ? '⚖️ Recurso em análise' : '📨 Em análise no INSS',
+  }[fase]
+  const numeroGrande = (n, rot, sub, cor) => (
+    <div style={{ background: '#fff', border: `1px solid ${hexA(cor, 0.25)}`, borderRadius: 14, padding: '12px 14px' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: cores.suave }}>{rot}</div>
+      <div style={{ fontSize: String(n).length > 9 ? 17 : 26, fontWeight: 800, color: cor, lineHeight: 1.15, marginTop: 2, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{n}</div>
+      {sub && <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+  const blocoSituacao = fase === 'protocolar' ? null : (
+    <div style={{ ...card, padding: 18, background: `linear-gradient(135deg, #ffffff 35%, ${hexA(corFase, 0.09)})`, border: `1.5px solid ${hexA(corFase, 0.35)}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: corFase }}>{tituloFase}</div>
+        {fase !== 'analise' && diaDecisao && <span style={{ fontSize: 13, color: cores.texto, fontWeight: 700 }}>em {fmtData(diaDecisao)}</span>}
+        {caso.ultima_movimentacao_em && <span style={{ fontSize: 12, color: cores.suave, marginLeft: 'auto' }}>última anotação do INSS {fmtDataHora(caso.ultima_movimentacao_em)}</span>}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+        {(fase === 'deferido' || fase === 'indeferido') && numeroGrande(diasProtDecisao != null ? `${diasProtDecisao} dia${diasProtDecisao === 1 ? '' : 's'}` : '—', 'Do protocolo ao resultado', diaProt ? `protocolado em ${fmtData(diaProt)}` : 'sem data de protocolo', corFase)}
+        {(fase === 'deferido' || fase === 'indeferido') && diasAssinDecisao != null && numeroGrande(`${diasAssinDecisao} dia${diasAssinDecisao === 1 ? '' : 's'}`, 'Da assinatura ao resultado', `assinou em ${fmtData(diaAssin)}`, '#475569')}
+        {fase === 'deferido' && numeroGrande(caso.nb || '—', 'NB (benefício)', caso.data_cai_conta ? `cai na conta ${fmtData(caso.data_cai_conta)}` : 'data de pagamento: ver carta de concessão', cores.texto)}
+        {fase === 'indeferido' && prazoRecurso && numeroGrande(fmtData(prazoRecurso), 'Prazo para recurso', '30 dias contados do resultado', cores.perigo)}
+        {fase === 'exigencia' && numeroGrande(caso.exigencia_prazo ? fmtData(caso.exigencia_prazo) : '—', 'Prazo da exigência', prazoExig == null ? 'sem prazo informado' : prazoExig < 0 ? `venceu há ${-prazoExig} dia${prazoExig === -1 ? '' : 's'}` : prazoExig === 0 ? 'vence HOJE' : `faltam ${prazoExig} dia${prazoExig === 1 ? '' : 's'}`, prazoExig != null && prazoExig <= 5 ? cores.perigo : '#ea580c')}
+        {(fase === 'exigencia' || fase === 'analise') && numeroGrande(diasEmAnalise != null ? `${diasEmAnalise} dia${diasEmAnalise === 1 ? '' : 's'}` : '—', 'Desde o protocolo', diaProt ? `protocolado em ${fmtData(diaProt)}` : 'sem data de protocolo', diasEmAnalise > 45 ? cores.perigo : '#8b5cf6')}
+        {numeroGrande(caso.numero_protocolo || '—', 'Nº do protocolo', null, cores.texto)}
+      </div>
+      {fase === 'exigencia' && (
+        <div style={{ marginTop: 12, background: '#fff', border: `1px solid ${hexA('#ea580c', 0.3)}`, borderRadius: 12, padding: '10px 12px' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9a3412', marginBottom: 4 }}>O que o INSS pediu</div>
+          <div style={{ fontSize: 14, color: cores.texto, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{caso.exigencia_texto || 'Texto da exigência não registrado — veja a última resposta do INSS.'}</div>
+        </div>
+      )}
+      {fase === 'indeferido' && (caso.motivo_codigo || caso.motivo_texto) && (
+        <div style={{ marginTop: 12, background: '#fff', border: `1px solid ${hexA(cores.perigo, 0.3)}`, borderRadius: 12, padding: '10px 12px' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#991b1b', marginBottom: 4 }}>Motivo do indeferimento</div>
+          <div style={{ fontSize: 14, color: cores.texto, lineHeight: 1.5 }}>{[caso.motivo_label, caso.motivo_texto].filter(Boolean).join(' — ')}</div>
+        </div>
+      )}
+      {fase === 'analise' && (caso.situacao_inss || caso.setor_inss) && (
+        <div style={{ marginTop: 12, fontSize: 13.5, color: cores.texto }}><b>No INSS:</b> {[caso.situacao_inss, caso.setor_inss].filter(Boolean).join(' · ')}</div>
+      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+        {caso.resposta_inss_url && <button onClick={() => abrirArquivo(caso.resposta_inss_url)} style={btn(corFase)}>{fase === 'deferido' ? '📄 Carta de deferimento' : fase === 'indeferido' ? '📄 Carta de indeferimento' : '🖼️ Última resposta do INSS'}</button>}
+        {caso.protocolo_termo_url && <button onClick={() => abrirArquivo(caso.protocolo_termo_url)} style={btn('#8b5cf6', false)}>📎 Comprovante do protocolo</button>}
+        {caso.numero_protocolo && <button onClick={() => copiar('Protocolo', caso.numero_protocolo)} style={btn('#475569', false)}>⧉ Copiar protocolo</button>}
+        {caso.nb && <button onClick={() => copiar('NB', caso.nb)} style={btn('#475569', false)}>⧉ Copiar NB</button>}
+      </div>
+    </div>
+  )
+  const temPend = (dados.pendencias || []).length > 0
+  const recolhidos = (
+    <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+      <button onClick={() => setVerMais(!verMais)} style={{ width: '100%', textAlign: 'left', padding: '13px 16px', border: 'none', background: '#f8fafc', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 800, color: cores.texto, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {verMais ? '▾' : '▸'} 📂 Dados do protocolo <span style={{ fontWeight: 500, color: cores.suave, fontSize: 12.5 }}>Meu INSS, contratos, documentos{fase !== 'exigencia' && fase !== 'indeferido' ? ', assistente da I.A' : ''} e validação da venda</span>
+      </button>
+      {verMais && (
+        <div style={{ display: 'grid', gap: 16, padding: 14 }}>
+          {meuINSS}
+          {blocoContratos}
+          {fase !== 'exigencia' && blocoDocs}
+          {blocoValidacao}
+          {caixaAntes}
+          {fase !== 'exigencia' && fase !== 'indeferido' && painelIA}
+        </div>
+      )}
+    </div>
+  )
+
+  if (fase !== 'protocolar') return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      {toast}
+      {cab}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
+          {blocoSituacao}
+          {(fase === 'exigencia' || pendAbertas.length > 0) && blocoPend}
+          {fase === 'exigencia' && blocoDocs}
+          {blocoRefs}
+          {recolhidos}
+        </div>
+        <div style={{ display: 'grid', gap: 16, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 12 }}>
+          {(fase === 'exigencia' || fase === 'indeferido') && painelIA}
+          {fase !== 'exigencia' && pendAbertas.length === 0 && temPend && blocoPend}
+          {blocoTempo}
+        </div>
+      </div>
+      {modal && (
+        <ModalAcao caso={caso} acao={modal} onClose={() => setModal(null)}
+          onFeito={() => { setModal(null); mostrar('Salvo'); carregar(); onMudou && onMudou() }} />
+      )}
     </div>
   )
 
