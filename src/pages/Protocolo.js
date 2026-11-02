@@ -58,6 +58,23 @@ function acaoDoDrop(caso, col) {
 
 const LIMITE_AGUARDANDO = 3
 
+// 02/11 (Bruno): filtro pela ULTIMA ANOTACAO do caso = a movimentacao mais recente (a que a extensao
+// le no Portal do INSS; nos casos lancados a mao, a ultima movimentacao feita aqui). Sem ela, vale
+// quando o caso entrou na situacao atual. Ex.: deferido anotado hoje aparece em "Anotado hoje".
+const PERIODOS_ANOT = [['', 'Última anotação: qualquer data'], ['hoje', 'Anotado hoje'], ['ontem', 'Anotado ontem'], ['semana', 'Anotado esta semana'], ['mes', 'Anotado este mês']]
+const dataAnotacao = (c) => c.ultima_movimentacao_em || c.etapa_desde || null
+function noPeriodo(ts, per) {
+  if (!per) return true
+  const d = diaBR(ts)
+  if (!d) return false
+  const hoje = hojeISO()
+  if (per === 'hoje') return d === hoje
+  if (per === 'ontem') return d === somaHoje(-1)
+  if (per === 'mes') return d.slice(0, 7) === hoje.slice(0, 7) && d <= hoje
+  if (per === 'semana') { const dow = new Date(hoje + 'T12:00:00').getDay(); return d >= somaHoje(-((dow + 6) % 7)) && d <= hoje }
+  return true
+}
+
 export default function Protocolo() {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
@@ -72,6 +89,7 @@ export default function Protocolo() {
   const [fPerfil, setFPerfil] = useState('')
   const [fVend, setFVend] = useState('')
   const [fPeriodo, setFPeriodo] = useState('')
+  const [fAnot, setFAnot] = useState('')   // 02/11: Hoje / Ontem / Semana / Mes pela ultima anotacao
   const [verCancelados, setVerCancelados] = useState(false)
   const [cpfAberto, setCpfAberto] = useState(null)
   const [modal, setModal] = useState(null)
@@ -148,9 +166,10 @@ export default function Protocolo() {
         if (fPeriodo === '7' && diasDesde(c.entrou_setor_em) > 7) return false
         if (fPeriodo === '30' && diasDesde(c.entrou_setor_em) > 30) return false
       }
+      if (fAnot && !noPeriodo(dataAnotacao(c), fAnot)) return false
       return true
     })
-  }, [lista, busca, fPerfil, fVend, fPeriodo])
+  }, [lista, busca, fPerfil, fVend, fPeriodo, fAnot])
 
   const conta = useMemo(() => {
     const L = lista || []
@@ -165,6 +184,21 @@ export default function Protocolo() {
       atrasados: L.filter(c => c.etapa === 'aguardando_protocolo' && diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length,
     }
   }, [lista])
+
+  // 02/11: com "Última anotação" escolhida, o numero das abas segue o periodo (os cards do topo continuam o total)
+  const contaAba = useMemo(() => {
+    if (!fAnot) return conta
+    const L = filtrada
+    return {
+      ...conta,
+      hoje: L.filter(c => diaBR(c.entrou_setor_em) === hojeISO()).length,
+      fila: L.filter(c => c.etapa === 'aguardando_protocolo').length,
+      protocolados: L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').length,
+      pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
+      deferidos: L.filter(c => c.etapa === 'deferido' || c.etapa === 'recurso_deferido').length,
+      indeferidos: L.filter(c => c.etapa === 'indeferido' || c.etapa === 'recurso_indeferido').length,
+    }
+  }, [fAnot, filtrada, conta])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
 
@@ -263,7 +297,10 @@ export default function Protocolo() {
         <option value="7">Últimos 7 dias</option>
         <option value="30">Últimos 30 dias</option>
       </select>
-      {(busca || fPerfil || fVend || fPeriodo) && <button onClick={() => { setBusca(''); setFPerfil(''); setFVend(''); setFPeriodo('') }} style={{ ...btn('#475569', false), padding: '8px 11px', fontSize: 12 }}>Limpar</button>}
+      <select value={fAnot} onChange={e => setFAnot(e.target.value)} title="Filtra pela data da última anotação do caso (a movimentação mais recente do INSS)" style={{ padding: '9px 10px', borderRadius: 11, border: `1px solid ${fAnot ? cores.azul : hexA('#0f172a', 0.12)}`, fontSize: 13, background: fAnot ? hexA(cores.azul, 0.06) : '#fff', fontWeight: fAnot ? 700 : 400 }}>
+        {PERIODOS_ANOT.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
+      </select>
+      {(busca || fPerfil || fVend || fPeriodo || fAnot) && <button onClick={() => { setBusca(''); setFPerfil(''); setFVend(''); setFPeriodo(''); setFAnot('') }} style={{ ...btn('#475569', false), padding: '8px 11px', fontSize: 12 }}>Limpar</button>}
     </div>
   )
 
@@ -327,15 +364,15 @@ export default function Protocolo() {
     if (aba === 'fila') return L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     if (aba === 'pendencias') return L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
-    if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(c => (aba === 'deferidos' ? ['deferido', 'recurso_deferido'] : ['indeferido', 'recurso_indeferido']).includes(c.etapa)).sort((a, b) => String(b.data_resultado || b.ultima_movimentacao_em).localeCompare(String(a.data_resultado || a.ultima_movimentacao_em)))
+    if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(c => (aba === 'deferidos' ? ['deferido', 'recurso_deferido'] : ['indeferido', 'recurso_indeferido']).includes(c.etapa)).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     return L
   }, [filtrada, aba])
 
   const infoDaLinha = (c) => {
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
-    if (aba === 'pendencias') return c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>
-    if (aba === 'deferidos' || aba === 'indeferidos') return <span>{fmtData(c.data_resultado)}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
+    if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · anotado {fmtDataHora(dataAnotacao(c))}</span></span>
+    if (aba === 'deferidos' || aba === 'indeferidos') return <span title={`Resultado: ${fmtData(c.data_resultado)}`}>anotado {fmtDataHora(dataAnotacao(c))}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
     return <span>entrou {fmtDataHora(c.entrou_setor_em)}</span>
   }
 
@@ -716,7 +753,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
 
       <div className="kr-aba" style={{ display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
         {ABAS.map(([k, r]) => {
-          const n = k === 'hoje' ? conta.hoje : k === 'fila' ? conta.fila : k === 'protocolados' ? conta.protocolados : k === 'pendencias' ? conta.pendencias : k === 'deferidos' ? conta.deferidos : k === 'indeferidos' ? conta.indeferidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
+          const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
           const on = aba === k
           return (
             <button key={k} onClick={() => setAba(k)} style={{
