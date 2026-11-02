@@ -1839,29 +1839,17 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
     )
     const waBtn = (c) => { const wa = telWa(c.telefone); return wa ? <a key="wa" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a> : null }
     const nIndefHoje = indefAvisar.filter(c => diaBR(dataAnotacao(c)) === hoje).length
-    // 02/11 (Bruno): na ordem do funil — protocolo, exigencia, resultado, extrato, pagamento
+    // 02/11 (Bruno): ordem do funil (protocolo, deferido, extrato, PrevSempre, pagamentos); indeferidos e exigencias no final
     const grupos = [
       { k: 'cartaprot', icone: '📨', tit: 'Carta de protocolo para mandar à cliente', cor: '#8b5cf6', itens: cartaFalta, extra: 'baixar a carta, mandar e anexar o print',
         linha: (c, i) => linhaSimples(c, i, { onAbrir: () => setInssDe(c),
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · nº {c.numero_protocolo || '—'}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}` : ''}</>,
           acoes: botoesCarta(c) }) },
-      { k: 'exig', icone: '⚠️', tit: 'Exigências do INSS', cor: '#ea580c', itens: exig, extra: exig.filter(subiuHoje).length ? `${exig.filter(subiuHoje).length} nova hoje` : null,
-        linha: (c, i) => {
-          const d = c.exigencia_prazo ? -diasApos(c.exigencia_prazo) : null
-          return linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setInssDe(c),
-            sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.exigencia_prazo ? <b style={{ color: d != null && d <= 5 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(c.exigencia_prazo)}{d != null ? (d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem prazo informado'}{c.exigencia_texto ? ` · ${String(c.exigencia_texto).slice(0, 90)}${String(c.exigencia_texto).length > 90 ? '…' : ''}` : ''}</>,
-            acoes: [waBtn(c), <button key="v" onClick={() => setInssDe(c)} style={{ ...btn('#ea580c', false), padding: '6px 10px', fontSize: 12 }}>Ver exigência</button>] })
-        } },
       { k: 'def', icone: '✅', tit: 'Deferimentos: avisar a cliente e anexar a carta de concessão', cor: cores.ok, itens: defAvisar, extra: defAvisar.filter(subiuHoje).length ? `${defAvisar.filter(subiuHoje).length} subiu hoje` : null,
         linha: (c, i) => linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setAberto(c.id),
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
           acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
             c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei + carta de concessão</button>] }) },
-      { k: 'indef', icone: '⛔', tit: 'Indeferimentos para avisar a cliente', cor: cores.perigo, itens: indefAvisar, extra: nIndefHoje ? `${nIndefHoje} subiu hoje` : null,
-        linha: (c, i) => linhaSimples(c, i, { novo: diaBR(dataAnotacao(c)) === hoje, onAbrir: () => setInssDe(c),
-          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
-          acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
-            <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
       { k: 'extrato', icone: '🧾', tit: 'Aguardando extrato de pagamento', cor: '#0d9488', itens: aguardExtrato, extra: aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length ? `${aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length} passou de 3 dias` : 'a data real do pagamento',
         linha: (c, i) => { const d = diasApos(c.carta_concessao_em)
           return linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
@@ -1878,6 +1866,18 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
       { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
       { k: 'pgamanha', icone: '⏳', tit: 'Recebem amanhã', cor: '#7c3aed', itens: pgAmanha, extra: 'lembrar a cliente', linha: linhaPagamento },
       { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
+      { k: 'indef', icone: '⛔', tit: 'Indeferimentos para avisar a cliente', cor: cores.perigo, itens: indefAvisar, extra: nIndefHoje ? `${nIndefHoje} subiu hoje` : null,
+        linha: (c, i) => linhaSimples(c, i, { novo: diaBR(dataAnotacao(c)) === hoje, onAbrir: () => setInssDe(c),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
+          acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
+            <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
+      { k: 'exig', icone: '⚠️', tit: 'Exigências do INSS', cor: '#ea580c', itens: exig, extra: exig.filter(subiuHoje).length ? `${exig.filter(subiuHoje).length} nova hoje` : null,
+        linha: (c, i) => {
+          const d = c.exigencia_prazo ? -diasApos(c.exigencia_prazo) : null
+          return linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setInssDe(c),
+            sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.exigencia_prazo ? <b style={{ color: d != null && d <= 5 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(c.exigencia_prazo)}{d != null ? (d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem prazo informado'}{c.exigencia_texto ? ` · ${String(c.exigencia_texto).slice(0, 90)}${String(c.exigencia_texto).length > 90 ? '…' : ''}` : ''}</>,
+            acoes: [waBtn(c), <button key="v" onClick={() => setInssDe(c)} style={{ ...btn('#ea580c', false), padding: '6px 10px', fontSize: 12 }}>Ver exigência</button>] })
+        } },
     ]
     const total = grupos.reduce((n, g) => n + g.itens.length, 0)
     return (
