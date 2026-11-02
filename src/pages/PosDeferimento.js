@@ -52,10 +52,10 @@ const BANCOS = ['Banco Mercantil do Brasil', 'Caixa Econômica Federal', 'Banco 
 const FORMAS_HONORARIO = ['Desconto automático PrevSempre', 'PIX da cliente', 'Transferência', 'Boleto', 'Dinheiro', 'Outro']
 const AZUL_PREV = '#1d4ed8'
 
-// 02/11 (Bruno) — aba "Deferidos e indeferidos": o periodo (Hoje/Ontem/Semana/Mes) e pela ULTIMA ANOTACAO
-// do caso no Protocolo (a movimentacao mais recente do INSS; sem ela, quando entrou na situacao). Mesmo criterio
-// do filtro "Última anotação" do Protocolo INSS.
-const dataAnotacao = (c) => c.ultima_movimentacao_em || c.etapa_desde || null
+// 02/11 (Bruno) — abas Deferidos / Indeferidos e o Mural: o periodo (Hoje/Ontem/Semana/Mes) e pelo dia em que o
+// caso SUBIU nessa situacao aqui no CRM (etapa_desde no Protocolo). Mesmo criterio do filtro "Subiu" do Protocolo.
+const dataAnotacao = (c) => c.etapa_desde || c.ultima_movimentacao_em || null
+const hojeExtensoBR = () => { const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }); return t.charAt(0).toUpperCase() + t.slice(1) }
 const somaDias = (iso, n) => { const d = new Date((iso || hojeISO()) + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 const diaSemana = (iso) => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') } catch (_) { return '' } }
 const reais = (v) => (v == null || v === '' ? null : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
@@ -1114,8 +1114,9 @@ export default function PosDeferimento() {
   const [pends, setPends] = useState([])
   const [resultados, setResultados] = useState([])   // 02/11: deferidos e indeferidos do Protocolo (posdef_resultados_inss)
   const [rsPer, setRsPer] = useState('hoje')
-  const [rsTipo, setRsTipo] = useState('')
-  const [aba, setAba] = useState('pagamentos')
+  const [aba, setAba] = useState(() => (profile?.role !== 'admin' && profile?.posdef_papel === 'vendedora' ? 'pagamentos' : 'inicio'))
+  const [muralAberto, setMuralAberto] = useState({})   // 02/11: grupos do mural abrem na setinha
+  const [confIndef, setConfIndef] = useState(null)     // id do indeferido esperando o 2o clique (confirmar aviso)
   const [pgPeriodo, setPgPeriodo] = useState('semana')
   const [pgTipo, setPgTipo] = useState('')
   const [busca, setBusca] = useState('')
@@ -1586,7 +1587,8 @@ export default function PosDeferimento() {
 
   // ------------------------------------------------------------ deferidos e indeferidos (02/11)
   const ehDeferido = (c) => ['deferido', 'recurso_deferido'].includes(c.etapa)
-  const resultadosView = (() => {
+  // 02/11 (Bruno): uma aba para Deferidos e outra para Indeferidos (nao tudo junto)
+  const resultadosView = (tipo) => {
     const chip = (val, set, atual, rot, n, cor) => {
       const on = atual === val
       return (
@@ -1595,10 +1597,10 @@ export default function PosDeferimento() {
         </button>
       )
     }
-    const nPer = (per) => resultadosF.filter(c => noPeriodoAnot(c, per) && (!rsTipo || (rsTipo === 'def' ? ehDeferido(c) : !ehDeferido(c)))).length
-    const noPer = resultadosF.filter(c => noPeriodoAnot(c, rsPer))
-    const itens = noPer.filter(c => !rsTipo || (rsTipo === 'def' ? ehDeferido(c) : !ehDeferido(c)))
-    const grupos = [['def', '✅ Deferidos', cores.ok], ['indef', '⛔ Indeferidos', cores.perigo]].filter(([k]) => !rsTipo || rsTipo === k)
+    const doTipo = resultadosF.filter(c => (tipo === 'def') === ehDeferido(c))
+    const nPer = (per) => doTipo.filter(c => noPeriodoAnot(c, per)).length
+    const itens = doTipo.filter(c => noPeriodoAnot(c, rsPer))
+    const grupos = [['def', '✅ Deferidos', cores.ok], ['indef', '⛔ Indeferidos', cores.perigo]].filter(([k]) => k === tipo)
     const abrir = (c) => {
       if (ehDeferido(c)) { const pd = (lista || []).find(x => x.caso_id === c.id); if (pd) { setAberto(pd.id); return } }
       setInssDe(c)
@@ -1607,20 +1609,14 @@ export default function PosDeferimento() {
       <div style={{ display: 'grid', gap: 14 }}>
         <div style={{ ...card, padding: 14, display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Última anotação</span>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Subiu</span>
             {chip('hoje', setRsPer, rsPer, 'Hoje', nPer('hoje'), '#d97706')}
             {chip('ontem', setRsPer, rsPer, 'Ontem', nPer('ontem'), '#7c3aed')}
             {chip('semana', setRsPer, rsPer, 'Esta semana', nPer('semana'), '#2563eb')}
             {chip('mes', setRsPer, rsPer, 'Este mês', nPer('mes'), '#0891b2')}
             {chip('todos', setRsPer, rsPer, 'Todos', nPer('todos'), '#475569')}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Resultado</span>
-            {chip('', setRsTipo, rsTipo, 'Todos', noPer.length, '#475569')}
-            {chip('def', setRsTipo, rsTipo, '✅ Deferidos', noPer.filter(ehDeferido).length, cores.ok)}
-            {chip('indef', setRsTipo, rsTipo, '⛔ Indeferidos', noPer.filter(c => !ehDeferido(c)).length, cores.perigo)}
-          </div>
-          <div style={{ fontSize: 12, color: cores.suave }}>A data é a da <b style={{ color: cores.texto }}>última anotação</b> do caso no INSS — deferido anotado hoje aparece em <b style={{ color: cores.texto }}>Hoje</b>.</div>
+          <div style={{ fontSize: 12, color: cores.suave }}>A data é o dia em que o caso <b style={{ color: cores.texto }}>subiu como {tipo === 'def' ? 'deferido' : 'indeferido'}</b> aqui no CRM — o que subiu hoje aparece em <b style={{ color: cores.texto }}>Hoje</b>.</div>
         </div>
         {grupos.map(([g, tit, cor]) => {
           const lst = itens.filter(c => (g === 'def') === ehDeferido(c))
@@ -1645,7 +1641,7 @@ export default function PosDeferimento() {
                   </div>
                   {c.resposta_inss_url && <button onClick={(ev) => { ev.stopPropagation(); abrirArquivo(c.resposta_inss_url) }} style={{ ...btn('#15803d', false), padding: '6px 10px', fontSize: 12 }}>📄 Carta do INSS</button>}
                   <div style={{ textAlign: 'right', fontSize: 12.5, color: cores.suave, minWidth: 150 }}>
-                    <div style={{ fontWeight: 700, color: cores.texto }}>anotado {fmtDataHora(dataAnotacao(c))}</div>
+                    <div style={{ fontWeight: 700, color: cores.texto }}>subiu {fmtDataHora(dataAnotacao(c))}</div>
                     {c.nb ? <div>NB {c.nb}</div> : c.numero_protocolo ? <div>prot. {c.numero_protocolo}</div> : null}
                   </div>
                 </div>
@@ -1655,7 +1651,92 @@ export default function PosDeferimento() {
         })}
       </div>
     )
-  })()
+  }
+
+  // ------------------------------------------------------------ MURAL de inicio (02/11, Bruno)
+  // Avisos do que importa hoje, cada grupo fechado (abre na setinha): deferimentos para avisar a cliente,
+  // indeferimentos para avisar, exigencias do INSS, pagamentos de hoje, recebem amanha e atrasados.
+  // "Avisei a cliente" do deferido e a MESMA acao do funil (avisar_cliente); a do indeferido grava um
+  // evento no caso do Protocolo (posdef_indeferido_avisada). Avisou = sai do mural.
+  async function indeferidoAvisado(c) {
+    if (confIndef !== c.id) { setConfIndef(c.id); return }
+    setConfIndef(null)
+    const { data, error } = await supabase.rpc('posdef_indeferido_avisada', { p_caso: c.id, p_texto: null })
+    if (error || !data?.ok) { mostrar('Não gravou: ' + (error?.message || data?.erro || 'erro'), 'erro'); return }
+    mostrar(`${primeiroNome(c.nome) || 'Cliente'} · avisada do indeferimento`)
+    carregar()
+  }
+  const muralView = () => {   // funcao (nao IIFE): usa linhaPagamento, declarada mais abaixo
+    const base = filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento)
+    const ordPg = (a, b) => String(a.data_pagamento).localeCompare(String(b.data_pagamento)) || String(a.nome).localeCompare(String(b.nome))
+    const subiuHoje = (c) => diaBR(c.etapa_desde) === hoje
+    const defAvisar = filtrada.filter(c => c.etapa === 'deferido' && !c.cliente_avisada_em).sort((a, b) => new Date(b.etapa_desde || 0) - new Date(a.etapa_desde || 0))
+    const indefAvisar = resultadosF.filter(c => !ehDeferido(c) && !c.cliente_avisada_em && (diasDesde(dataAnotacao(c)) ?? 0) <= 30).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
+    const exig = inssF.filter(c => c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
+    const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
+    const pgAmanha = base.filter(c => c.data_pagamento === amanha).sort(ordPg)
+    const pgAtras = base.filter(c => c.data_pagamento < hoje).sort(ordPg)
+    const linhaSimples = (c, i, { sub, acoes, onAbrir, novo }) => (
+      <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+        <div onClick={onAbrir} style={{ flex: '1 1 240px', minWidth: 0, cursor: onAbrir ? 'pointer' : 'default' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+            {novo && <Chip cor="#d97706" forte>NOVO HOJE</Chip>}
+          </div>
+          <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{sub}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{acoes}</div>
+      </div>
+    )
+    const waBtn = (c) => { const wa = telWa(c.telefone); return wa ? <a key="wa" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a> : null }
+    const nIndefHoje = indefAvisar.filter(c => diaBR(dataAnotacao(c)) === hoje).length
+    const grupos = [
+      { k: 'def', icone: '✅', tit: 'Deferimentos para avisar a cliente', cor: cores.ok, itens: defAvisar, extra: defAvisar.filter(subiuHoje).length ? `${defAvisar.filter(subiuHoje).length} subiu hoje` : null,
+        linha: (c, i) => linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setAberto(c.id),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+          acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
+            c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei a cliente</button>] }) },
+      { k: 'indef', icone: '⛔', tit: 'Indeferimentos para avisar a cliente', cor: cores.perigo, itens: indefAvisar, extra: nIndefHoje ? `${nIndefHoje} subiu hoje` : null,
+        linha: (c, i) => linhaSimples(c, i, { novo: diaBR(dataAnotacao(c)) === hoje, onAbrir: () => setInssDe(c),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
+          acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
+            <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
+      { k: 'exig', icone: '⚠️', tit: 'Exigências do INSS', cor: '#ea580c', itens: exig, extra: exig.filter(subiuHoje).length ? `${exig.filter(subiuHoje).length} nova hoje` : null,
+        linha: (c, i) => {
+          const d = c.exigencia_prazo ? -diasApos(c.exigencia_prazo) : null
+          return linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setInssDe(c),
+            sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.exigencia_prazo ? <b style={{ color: d != null && d <= 5 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(c.exigencia_prazo)}{d != null ? (d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem prazo informado'}{c.exigencia_texto ? ` · ${String(c.exigencia_texto).slice(0, 90)}${String(c.exigencia_texto).length > 90 ? '…' : ''}` : ''}</>,
+            acoes: [waBtn(c), <button key="v" onClick={() => setInssDe(c)} style={{ ...btn('#ea580c', false), padding: '6px 10px', fontSize: 12 }}>Ver exigência</button>] })
+        } },
+      { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
+      { k: 'pgamanha', icone: '⏳', tit: 'Recebem amanhã', cor: '#7c3aed', itens: pgAmanha, extra: 'lembrar a cliente', linha: linhaPagamento },
+      { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
+    ]
+    const total = grupos.reduce((n, g) => n + g.itens.length, 0)
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ ...card, padding: '12px 16px', fontSize: 13.5, color: cores.texto, background: 'linear-gradient(135deg,#ffffff 40%,#ecfdf5)' }}>
+          <b>{hojeExtensoBR()}</b> · {total ? <>você tem <b>{total}</b> aviso{total === 1 ? '' : 's'}. Clique na setinha para abrir cada um.</> : 'nada pendente por aqui. 🎉'}
+        </div>
+        {grupos.map(g => {
+          const n = g.itens.length
+          const aberto = !!muralAberto[g.k] && n > 0
+          return (
+            <div key={g.k} style={{ ...card, padding: 0, overflow: 'hidden', opacity: n ? 1 : 0.6 }}>
+              <button onClick={() => n && setMuralAberto(m => ({ ...m, [g.k]: !m[g.k] }))} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', border: 'none', background: n ? hexA(g.cor, 0.06) : '#fff', cursor: n ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left', borderBottom: aberto ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+                <span style={{ width: 16, color: cores.suave, fontSize: 13 }}>{n ? (aberto ? '▾' : '▸') : ''}</span>
+                <span style={{ fontSize: 18 }}>{g.icone}</span>
+                <span style={{ fontSize: 14.5, fontWeight: 800, color: cores.texto }}>{g.tit}</span>
+                {g.extra && n > 0 && <span style={{ fontSize: 12, color: cores.suave }}>· {g.extra}</span>}
+                <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, color: n ? g.cor : cores.suave, background: n ? hexA(g.cor, 0.12) : '#f1f5f9', borderRadius: 999, padding: '2px 11px' }}>{n || 'nada'}</span>
+              </button>
+              {aberto && g.itens.map((c, i) => g.linha(c, i))}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   // ------------------------------------------------------------ pendencias para resolver
   const cartaoPend = (p) => {
@@ -1960,9 +2041,9 @@ export default function PosDeferimento() {
   // ------------------------------------------------------------ render
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
-    ? [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos']]
-    : [['pagamentos', '💰 Pagamentos'], ['agenda', '📅 Agenda'], ['funil', '▦ Funil'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['resultados', '⚖️ Deferidos e indeferidos'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos']]
-  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, resultados: resultadosF.filter(c => noPeriodoAnot(c, 'hoje')).length }
+    ? [['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
+    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
+  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -2008,7 +2089,9 @@ export default function PosDeferimento() {
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
         : aba === 'pendencias' ? pendView
         : aba === 'inss' ? inssView
-        : aba === 'resultados' ? resultadosView
+        : aba === 'inicio' ? muralView()
+        : aba === 'deferidos' ? resultadosView('def')
+        : aba === 'indeferidos' ? resultadosView('indef')
         : aba === 'pagamentos' && lista.length ? pagamentosView
         : lista.length === 0 && aba !== 'inadimplencia' ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Nenhum caso deferido {soLeitura ? 'das suas vendas' : 'na sua carteira'} ainda. Quando a advogada marcar "Deferido", o caso aparece aqui sozinho.</div>
         : aba === 'agenda' ? agendaView : aba === 'funil' ? funil : aba === 'calendario' ? calendario : aba === 'inadimplencia' ? inadView : listaView}
