@@ -41,6 +41,33 @@ const COLUNAS_PD = ['deferido', 'extrato', 'prevsempre', 'aguardando_pagamento',
 const ATIVAS = ['deferido', 'carta', 'extrato', 'prevsempre', 'aguardando_pagamento', 'pago']
 const ESPERANDO = ['aguardando_pagamento', 'prevsempre', 'pago']   // ainda nao pagou
 const DIAS_INADIMPLENTE = 4
+// 03/11 (Bruno): parado ha mais de 48h na etapa = VERMELHO (Deferido e PrevSempre).
+// Extrato de pagamento: so da para pegar 7 dias apos o deferimento — o caso so SOBE para cobrar nesse dia
+// e fica vermelho 48h depois de subir. A Mercantil passa pela PrevSempre antes e pega o extrato do mesmo jeito.
+const HORAS_LIMITE = 48
+const DIAS_EXTRATO = 7
+const horasDesde = (ts) => (ts ? (Date.now() - new Date(ts).getTime()) / 3600000 : null)
+const extratoLiberaEm = (c) => somaDias(c.data_deferimento || String(c.criado_em || '').slice(0, 10) || hojeISO(), DIAS_EXTRATO)
+// 03/11 (Bruno): UM DE CADA VEZ. O extrato so sobe depois da PrevSempre (Mercantil) e nunca antes dos 7 dias.
+// As 48h contam de quando ele SUBIU: o maior entre "7 dias apos o deferimento" e "entrou na etapa do extrato".
+const inicioCobrancaExtrato = (c) => {
+  const lib = new Date(extratoLiberaEm(c) + 'T00:00:00-03:00').getTime()
+  const ent = (c.etapa === 'extrato' || c.etapa === 'carta') && c.etapa_desde ? new Date(c.etapa_desde).getTime() : 0
+  return Math.max(lib, ent)
+}
+const horasExtratoLiberado = (c) => (Date.now() - inicioCobrancaExtrato(c)) / 3600000   // negativo = ainda nao subiu
+const extratoLiberado = (c) => (horasExtratoLiberado(c) ?? 0) >= 0
+const vermelho48 = (c) => (c.etapa === 'deferido' || c.etapa === 'prevsempre') ? (horasDesde(c.etapa_desde) ?? 0) > HORAS_LIMITE
+  : (c.etapa === 'extrato' || c.etapa === 'carta') ? (horasExtratoLiberado(c) ?? 0) > HORAS_LIMITE : false
+const txtHoras = (h) => (h == null ? '' : h < 24 ? `${Math.max(0, Math.floor(h))}h` : `${Math.floor(h / 24)}d ${Math.floor(h % 24)}h`)
+// contador do extrato (aparece enquanto o extrato nao foi lancado)
+const txtExtrato = (c) => {
+  if (c.extrato_url || c.extrato_em) return ''
+  const h = horasExtratoLiberado(c)
+  if (h == null) return ''
+  if (h < 0) return ''   // 03/11 (Bruno): antes dos 7 dias nao mostra nada
+  return `cobrar o extrato · há ${txtHoras(h)}`
+}
 // dias depois da data do pagamento (negativo = ainda vai cair)
 const diasApos = (iso) => (iso ? Math.round((new Date(hojeISO() + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000) : null)
 const atrasado = (c) => ESPERANDO.includes(c.etapa) && !!c.data_pagamento && diasApos(c.data_pagamento) > 0
@@ -294,7 +321,7 @@ const ACOES_PD = {
   avisar_cliente: {
     titulo: 'Cliente avisada + carta de concessão', icone: '📣', cor: '#16a34a',
     anexo: 'Carta de concessão', anexoObrig: true,
-    nota: 'Mande as mensagens do checklist (uma de cada vez, esperando a cliente responder), anexe a CARTA DE CONCESSÃO e informe o banco. A data de pagamento da carta é só previsão: o caso vai para "Extrato de pagamento", onde entra a data real.',
+    nota: 'Mande as mensagens do checklist (uma de cada vez, esperando a cliente responder), anexe a CARTA DE CONCESSÃO e informe o banco. A data de pagamento da carta é só previsão. Banco Mercantil vai DIRETO para a PrevSempre; os outros bancos vão para "Extrato de pagamento", que só sobe para cobrar 7 dias após o deferimento (é quando o extrato sai).',
     campos: [
       { k: 'banco', l: 'Banco que vai pagar (está na carta)', obrig: true, tipo: 'select', opcoes: BANCOS.map(b => ({ v: b, l: b })) },
       { k: 'banco_outro', l: 'Qual banco?', tipo: 'text', obrigSe: (v) => v.banco === 'Outro', so: (v) => v.banco === 'Outro' },
@@ -306,7 +333,7 @@ const ACOES_PD = {
   carta: {
     titulo: 'Carta de concessão', icone: '📜', cor: '#0891b2',
     anexo: 'Carta de concessão', anexoObrig: true,
-    nota: 'A data de pagamento da carta é só PREVISÃO do INSS e não é usada aqui. O caso vai para "Extrato de pagamento": quando o extrato chegar (costuma sair uns 3 dias depois da carta), você lança a data real. Avise a cliente que a data certa vai depois.',
+    nota: 'A data de pagamento da carta é só PREVISÃO do INSS e não é usada aqui. Banco Mercantil vai direto para a PrevSempre; os outros vão para "Extrato de pagamento", que sai 7 dias após o deferimento — aí você lança a data real. Avise a cliente que a data certa vai depois.',
     campos: [
       { k: 'banco', l: 'Banco que vai pagar', obrig: true, tipo: 'select', opcoes: BANCOS.map(b => ({ v: b, l: b })) },
       { k: 'banco_outro', l: 'Qual banco?', tipo: 'text', obrigSe: (v) => v.banco === 'Outro', so: (v) => v.banco === 'Outro' },
@@ -318,7 +345,7 @@ const ACOES_PD = {
   extrato: {
     titulo: 'Extrato de pagamento', icone: '🧾', cor: '#0d9488',
     anexo: 'Extrato de pagamento', anexoObrig: true,
-    nota: 'O extrato de pagamento é o documento que traz a data REAL em que a cliente recebe (a da carta é previsão). Banco Mercantil segue para a PrevSempre; qualquer outro banco vai para "Aguardando pagamento".',
+    nota: 'O extrato de pagamento é o documento que traz a data REAL em que a cliente recebe (a da carta é previsão). Ele sai 7 dias após o deferimento. Depois de lançado, o caso vai para "Aguardando pagamento" (a Mercantil já passou pela PrevSempre antes).',
     campos: [
       { k: 'data_pagamento', l: 'Data do pagamento (a do extrato)', obrig: true, tipo: 'date' },
       { k: 'valor', l: 'Valor do benefício (opcional)', tipo: 'money' },
@@ -327,7 +354,7 @@ const ACOES_PD = {
   },
   prevsempre: {
     titulo: 'PrevSempre (Mercantil)', icone: '🏦', cor: AZUL_PREV,
-    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário.',
+    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário. Se o extrato de pagamento ainda não foi lançado, o caso segue para "Extrato de pagamento" (sai 7 dias após o deferimento).',
     campos: [
       { k: 'conta_aberta', l: 'Abriu a conta PrevSempre?', obrig: true, tipo: 'simnao' },
       { k: 'honorario_auto', l: 'Aceitou o honorário descontado automático?', obrig: true, tipo: 'simnao' },
@@ -1271,7 +1298,8 @@ export default function PosDeferimento() {
   const taxa = (r) => ((r.pagos + r.inad) ? Math.round((r.inad / (r.pagos + r.inad)) * 100) : 0)
 
   const conta = useMemo(() => ({
-    semCarta: filtrada.filter(c => c.etapa === 'extrato' || c.etapa === 'carta').length,   // 02/11: "Aguardando extrato"
+    semCarta: filtrada.filter(c => (c.etapa === 'extrato' || c.etapa === 'carta') && extratoLiberado(c)).length,   // 03/11: so o que ja passou dos 7 dias
+    extratoEspera: filtrada.filter(c => (c.etapa === 'extrato' || c.etapa === 'carta') && !extratoLiberado(c)).length,
     amanha: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento === amanha).length,
     semana: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
     atrasados: filtrada.filter(atrasado).length,
@@ -1314,7 +1342,7 @@ export default function PosDeferimento() {
         onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setArrastando(c.id) }}
         onDragEnd={() => { setArrastando(null); setColHover(null) }}
         onClick={() => setAberto(c.id)} className="kr-cartao"
-        style={{ minWidth: 0, background: '#fff', borderRadius: 14, border: `1px solid ${c.prevsempre ? hexA(AZUL_PREV, 0.35) : cores.cardBorda}`, borderLeft: c.prevsempre ? `4px solid ${AZUL_PREV}` : `1px solid ${cores.cardBorda}`, padding: 12, boxShadow: arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)', cursor: arrasta ? 'grab' : 'pointer', opacity: arrastando === c.id ? 0.55 : 1, transition: 'box-shadow .15s, transform .15s' }}>
+        style={{ minWidth: 0, background: vermelho48(c) ? '#fff5f5' : '#fff', borderRadius: 14, border: `1px solid ${vermelho48(c) ? hexA(cores.perigo, 0.55) : c.prevsempre ? hexA(AZUL_PREV, 0.35) : cores.cardBorda}`, borderLeft: vermelho48(c) ? `4px solid ${cores.perigo}` : c.prevsempre ? `4px solid ${AZUL_PREV}` : `1px solid ${cores.cardBorda}`, padding: 12, boxShadow: arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)', cursor: arrasta ? 'grab' : 'pointer', opacity: arrastando === c.id ? 0.55 : 1, transition: 'box-shadow .15s, transform .15s' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <div style={{ width: 34, height: 34, borderRadius: 11, background: hexA(et.cor, 0.12), color: et.cor, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 12.5, flexShrink: 0 }}>{iniciais(c.nome)}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -1333,6 +1361,8 @@ export default function PosDeferimento() {
           <span style={{ whiteSpace: 'nowrap' }}>{bancoCurto(c.banco)}</span>
         </div>
         {c.proxima_atividade && <div style={{ marginTop: 7, fontSize: 11.5, color: '#0f766e', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📅 {fmtData(c.proxima_atividade_em)} · {c.proxima_atividade}</div>}
+        {vermelho48(c) && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 800, color: cores.perigo }}>⏰ passou de 48h{c.etapa === 'extrato' || c.etapa === 'carta' ? ' — cobrar o extrato' : ` · há ${txtHoras(horasDesde(c.etapa_desde))}`}</div>}
+        {['extrato', 'carta'].includes(c.etapa) && extratoLiberado(c) && !vermelho48(c) && txtExtrato(c) && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 700, color: '#0d9488' }}>🧾 {txtExtrato(c)}</div>}
         {gv && prog && prog.feitos < prog.total && (
           <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: GUIAS[gv].cor }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>📩 {GUIAS[gv].titulo}</span>
@@ -1670,12 +1700,16 @@ export default function PosDeferimento() {
                 <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{lst.length}</span>
               </div>
               {lst.length === 0 && <div style={{ padding: '14px', fontSize: 13, color: cores.suave }}>Nenhum neste período.</div>}
-              {lst.map((c, i) => (
-                <div key={c.id} className="kr-linha" onClick={() => abrir(c)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
+              {lst.map((c, i) => { const pd = ehDeferido(c) ? (lista || []).find(x => x.caso_id === c.id) : null
+                const verm = !!pd && pd.etapa === 'deferido' && vermelho48(pd)   // 03/11: ainda no Deferido ha mais de 48h
+                return (
+                <div key={c.id} className="kr-linha" onClick={() => abrir(c)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer', ...(verm ? { background: hexA(cores.perigo, 0.07), boxShadow: `inset 4px 0 0 ${cores.perigo}` } : {}) }}>
                   <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Chip cor={cor} forte>{c.etapa === 'recurso_deferido' ? '🏆 Recurso deferido' : c.etapa === 'recurso_indeferido' ? '✖️ Recurso indeferido' : ehDeferido(c) ? '✅ Deferido' : '⛔ Indeferido'}</Chip>
-                      <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+                      <span style={{ fontSize: 14, fontWeight: 750, color: verm ? cores.perigo : cores.texto }}>{c.nome}</span>
+                      {verm && <Chip cor={cores.perigo} forte>⏰ PASSOU DE 48H · há {txtHoras(horasDesde(pd.etapa_desde))}</Chip>}
+                      {pd && pd.etapa !== 'deferido' && <Chip cor="#64748b">já avisada → {etapaPD(colunaDe(pd)).curto}</Chip>}
                     </div>
                     <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>
                       {fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.perfil ? ` · ${c.perfil}` : ''}{(c.responsaveis || []).length ? ` · ${(c.responsaveis || []).join(', ')}` : ''}
@@ -1688,7 +1722,7 @@ export default function PosDeferimento() {
                     {c.nb ? <div>NB {c.nb}</div> : c.numero_protocolo ? <div>prot. {c.numero_protocolo}</div> : null}
                   </div>
                 </div>
-              ))}
+              ) })}
             </div>
           )
         })}
@@ -1820,16 +1854,21 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
     const indefAvisar = resultadosF.filter(c => !ehDeferido(c) && !c.cliente_avisada_em && (diasDesde(dataAnotacao(c)) ?? 0) <= 30).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     const exig = inssF.filter(c => c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
-    const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort(ordPg)   // 02/11: abrir conta + debito automatico
-    const aguardExtrato = filtrada.filter(c => c.etapa === 'extrato').sort((a, b) => String(a.carta_concessao_em || '').localeCompare(String(b.carta_concessao_em || '')))
+    const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 03/11: mais antigo primeiro (48h)
+    // 03/11 (Bruno): o extrato so sobe para cobrar 7 dias apos o deferimento
+    const extratoTodos = filtrada.filter(c => c.etapa === 'extrato' || c.etapa === 'carta')
+    const aguardExtrato = extratoTodos.filter(extratoLiberado).sort((a, b) => extratoLiberaEm(a).localeCompare(extratoLiberaEm(b)))
+    const nExtratoEspera = extratoTodos.length - aguardExtrato.length
+    const nVerm = (l) => l.filter(vermelho48).length
     const cartaFalta = inssF.filter(c => ['protocolado', 'recurso'].includes(c.etapa) && !c.carta_enviada_em).sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     const pgAmanha = base.filter(c => c.data_pagamento === amanha).sort(ordPg)
     const pgAtras = base.filter(c => c.data_pagamento < hoje).sort(ordPg)
-    const linhaSimples = (c, i, { sub, acoes, onAbrir, novo }) => (
-      <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+    const linhaSimples = (c, i, { sub, acoes, onAbrir, novo, alerta }) => (
+      <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', ...(alerta ? { background: hexA(cores.perigo, 0.07), boxShadow: `inset 4px 0 0 ${cores.perigo}` } : {}) }}>
         <div onClick={onAbrir} style={{ flex: '1 1 240px', minWidth: 0, cursor: onAbrir ? 'pointer' : 'default' }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
+            <span style={{ fontSize: 14, fontWeight: 750, color: alerta ? cores.perigo : cores.texto }}>{c.nome}</span>
+            {alerta && <Chip cor={cores.perigo} forte>⏰ PASSOU DE 48H</Chip>}
             {novo && <Chip cor="#d97706" forte>NOVO HOJE</Chip>}
           </div>
           <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{sub}</div>
@@ -1845,22 +1884,24 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
         linha: (c, i) => linhaSimples(c, i, { onAbrir: () => setInssDe(c),
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · nº {c.numero_protocolo || '—'}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}` : ''}</>,
           acoes: botoesCarta(c) }) },
-      { k: 'def', icone: '✅', tit: 'Deferimentos: avisar a cliente e anexar a carta de concessão', cor: cores.ok, itens: defAvisar, extra: defAvisar.filter(subiuHoje).length ? `${defAvisar.filter(subiuHoje).length} subiu hoje` : null,
-        linha: (c, i) => linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setAberto(c.id),
-          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+      { k: 'def', icone: '✅', tit: 'Deferimentos: avisar a cliente e anexar a carta de concessão', cor: cores.ok, itens: defAvisar,
+        extra: [nVerm(defAvisar) ? `${nVerm(defAvisar)} passou de 48h` : null, defAvisar.filter(subiuHoje).length ? `${defAvisar.filter(subiuHoje).length} subiu hoje` : null].filter(Boolean).join(' · ') || null,
+        linha: (c, i) => linhaSimples(c, i, { novo: subiuHoje(c), alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)} · <b style={{ color: vermelho48(c) ? cores.perigo : cores.ok }}>há {txtHoras(horasDesde(c.etapa_desde))}</b>{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
           acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
             c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei + carta de concessão</button>] }) },
-      { k: 'extrato', icone: '🧾', tit: 'Aguardando extrato de pagamento', cor: '#0d9488', itens: aguardExtrato, extra: aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length ? `${aguardExtrato.filter(c => (diasApos(c.carta_concessao_em) ?? 0) > 3).length} passou de 3 dias` : 'a data real do pagamento',
-        linha: (c, i) => { const d = diasApos(c.carta_concessao_em)
-          return linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
-            sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'} · carta {c.carta_concessao_em ? fmtData(c.carta_concessao_em) : '—'}{d != null ? <b style={{ color: d > 3 ? cores.perigo : '#0d9488' }}> · há {d} dia{d === 1 ? '' : 's'}{d > 3 ? ' — cobrar o extrato' : ''}</b> : null}</>,
+      { k: 'extrato', icone: '🧾', tit: 'Cobrar o extrato de pagamento (7 dias após o deferimento)', cor: '#0d9488', itens: aguardExtrato,
+        extra: [nVerm(aguardExtrato) ? `${nVerm(aguardExtrato)} passou de 48h` : 'a data real do pagamento', nExtratoEspera ? `${nExtratoEspera} esperando os 7 dias` : null].filter(Boolean).join(' · '),
+        linha: (c, i) => { const h = horasExtratoLiberado(c)
+          return linhaSimples(c, i, { alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
+            sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'}{c.prevsempre ? ' · PrevSempre ok' : ''} · deferido {c.data_deferimento ? fmtData(c.data_deferimento) : '—'}<b style={{ color: vermelho48(c) ? cores.perigo : '#0d9488' }}> · subiu {fmtDataHora(new Date(inicioCobrancaExtrato(c)).toISOString())}, há {txtHoras(h)}{vermelho48(c) ? ' — cobrar o extrato' : ''}</b></>,
             acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>,
               c.pode_agir !== false && <button key="e" onClick={() => abrirAcao(c, 'extrato')} style={{ ...btn('#0d9488'), padding: '6px 10px', fontSize: 12 }}>🧾 Lançar extrato</button>] }) } },
       { k: 'prev', icone: '🏦', tit: 'PrevSempre: abrir a conta e aceitar o débito automático', cor: AZUL_PREV, itens: prevPend,
-        extra: prevPend.filter(c => c.data_pagamento && -diasApos(c.data_pagamento) <= 3).length ? `${prevPend.filter(c => c.data_pagamento && -diasApos(c.data_pagamento) <= 3).length} com pagamento em até 3 dias` : 'o responsável confirma conta aberta e débito',
+        extra: nVerm(prevPend) ? `${nVerm(prevPend)} passou de 48h` : 'o responsável confirma conta aberta e débito',
         linha: (c, i) => { const d = c.data_pagamento ? -diasApos(c.data_pagamento) : null
-          return linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
-            sub: <>{fmtCpf(c.cpf)} · Mercantil{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''}{c.data_pagamento ? <b style={{ color: d != null && d <= 3 ? cores.perigo : AZUL_PREV }}> · cai {fmtData(c.data_pagamento)}{d != null ? (d < 0 ? ` (passou há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem data'}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+          return linhaSimples(c, i, { alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
+            sub: <>{fmtCpf(c.cpf)} · Mercantil{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · <b style={{ color: vermelho48(c) ? cores.perigo : AZUL_PREV }}>na PrevSempre há {txtHoras(horasDesde(c.etapa_desde))}</b>{c.data_pagamento ? <> · cai {fmtData(c.data_pagamento)}{d != null ? (d < 0 ? ` (passou há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</> : ''}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
             acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
               c.pode_agir !== false && <button key="p" onClick={() => abrirAcao(c, 'prevsempre')} style={{ ...btn(AZUL_PREV), padding: '6px 10px', fontSize: 12 }}>🏦 Confirmar PrevSempre</button>] }) } },
       { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
@@ -2231,7 +2272,7 @@ NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra 
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(6, minmax(0,1fr))', gap: 12 }}>
-        {kpi({ rot: 'Aguardando extrato', n: conta.semCarta, cor: '#0d9488', icone: '🧾', sub: 'data real do pagamento', onClick: () => setAba('funil') })}
+        {kpi({ rot: 'Aguardando extrato', n: conta.semCarta, cor: '#0d9488', icone: '🧾', sub: conta.extratoEspera ? `+ ${conta.extratoEspera} esperando os 7 dias` : 'data real do pagamento', onClick: () => setAba('funil') })}
         {kpi({ rot: 'Recebem amanhã', n: conta.amanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => { setPgPeriodo('amanha'); setAba('pagamentos') } })}
         {kpi({ rot: 'Recebem na semana', n: conta.semana, cor: '#2563eb', icone: '🗓️', sub: `até ${fmtData(fimSemana)}`, onClick: () => { setPgPeriodo('semana'); setAba('pagamentos') } })}
         {kpi({ rot: 'Pagamento atrasado', n: conta.atrasados, cor: '#ea580c', icone: '⏰', sub: 'passou da data e não pagou', onClick: () => { setPgPeriodo('atrasados'); setAba('pagamentos') } })}
