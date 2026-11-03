@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 // Componente de upload pra um único documento.
@@ -11,14 +11,35 @@ import { supabase } from '../lib/supabase'
 //   - chave: chave do tipo de documento (ex: 'rg_frente')
 //   - somentePdf: exige PDF (CTPS digital e extrato FGTS — 31/08)
 //   - onChange: callback(url|null)
+// 03/11 (Bruno): mostra o tamanho do arquivo anexado e recusa arquivo vazio (0 KB).
+const fmtTam = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`)
+const VAZIO_MSG = 'O arquivo chegou VAZIO (0 KB). Salve o arquivo de novo no computador (área de trabalho), confira se abre e anexe outra vez.'
+async function tamanhoNoServidor(url) {
+  try { const r = await fetch(url, { method: 'HEAD', cache: 'no-store' }); const n = r.headers.get('content-length'); return n == null ? null : Number(n) }
+  catch (_e) { return null }
+}
+
 export default function UploadDocumento({ label, obrigatorio, valorInicial, clienteId, chave, somentePdf, onChange }) {
   const [url, setUrl] = useState(valorInicial || null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState(null)
+  const [tamanho, setTamanho] = useState(null)
+
+  // anexo que ja veio salvo (rascunho / edicao): busca o tamanho no servidor
+  useEffect(() => {
+    let vivo = true
+    if (url && tamanho == null) tamanhoNoServidor(url).then(n => { if (vivo) setTamanho(n) })
+    return () => { vivo = false }
+  }, [url, tamanho])
 
   async function fazerUpload(file) {
     setErro(null)
     if (!file) return
+
+    if (!file.size) {
+      setErro(VAZIO_MSG)
+      return
+    }
 
     // Valida tamanho (10MB)
     if (file.size > 10 * 1024 * 1024) {
@@ -59,6 +80,14 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
         .from('documentos-clientes')
         .getPublicUrl(nomeArquivo)
 
+      // confere o que REALMENTE ficou no servidor: se chegou vazio, nao aceita o anexo
+      const noServidor = await tamanhoNoServidor(pub.publicUrl)
+      if (noServidor === 0) {
+        setErro(VAZIO_MSG)
+        setEnviando(false)
+        return
+      }
+      setTamanho(noServidor ?? file.size)
       setUrl(pub.publicUrl)
       onChange?.(pub.publicUrl)
     } catch (err) {
@@ -69,6 +98,7 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
 
   function remover() {
     setUrl(null)
+    setTamanho(null)
     onChange?.(null)
   }
 
@@ -110,6 +140,11 @@ export default function UploadDocumento({ label, obrigatorio, valorInicial, clie
             style={{ flex: 1, fontSize: 12, color: '#059669', textDecoration: 'underline', wordBreak: 'break-all' }}>
             ✓ Anexado — clique pra ver
           </a>
+          {tamanho != null && (
+            <span style={{ fontSize: 12, color: tamanho ? '#5b6b84' : '#dc2626', fontWeight: tamanho ? 400 : 700, whiteSpace: 'nowrap' }}>
+              {tamanho ? fmtTam(tamanho) : 'VAZIO (0 KB) — troque'}
+            </span>
+          )}
           <button onClick={remover} type="button"
             style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 12, padding: '4px 8px', textDecoration: 'underline' }}>
             trocar
