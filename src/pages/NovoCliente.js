@@ -518,10 +518,16 @@ export default function NovoCliente({ onSucesso }) {
   const fgtsOk = !fgtsObrigatorio || !!docs.extrato_fgts
   const ctpsOk = !ctpsObrigatorio || !!docs.ctps_digital
 
+  // 03/11 (Bruno): cliente de 24 meses SEM seguro-desemprego (aprovada pelo FGTS
+  // ou pelas 120 contribuicoes) tem que mandar comprovante de endereco.
+  const enderecoObrigatorio = ehMae && (c.motivo_aprovacao === MOTIVO_FGTS
+    || c.motivo_aprovacao === 'Cliente 24 meses de contribuição por ter 120 contribuições')
+  const enderecoOk = !enderecoObrigatorio || !!docs.comprovante_endereco
+
   // Documentos obrigatórios: RG frente/verso + comprovantes 1 e 2, e no
   // Maternidade Mãe também CTPS digital e extrato FGTS.
   const docsOk = docs.rg_frente && docs.rg_verso && docs.comprovante_1 && docs.comprovante_2
-                 && fgtsOk && ctpsOk
+                 && fgtsOk && ctpsOk && enderecoOk
 
   // Duplicado bloqueia? Só se for OUTRO vendedor (mesmo vendedor pode recadastrar)
   const duplicadoBloqueia = duplicado && !duplicado.vendedorMesmo
@@ -772,6 +778,7 @@ export default function NovoCliente({ onSucesso }) {
     if (!docs.comprovante_2) f.push('anexar Comprovante 2')
     if (ctpsObrigatorio && !docs.ctps_digital) f.push('anexar CTPS digital em PDF')
     if (fgtsObrigatorio && !docs.extrato_fgts) f.push('anexar Extrato FGTS em PDF')
+    if (enderecoObrigatorio && !docs.comprovante_endereco) f.push('anexar Comprovante de endereço (obrigatório no 24 meses sem seguro-desemprego)')
     if (!validacaoIaOk) f.push('validar a venda com a I.A')
     return f
   }
@@ -1172,7 +1179,8 @@ export default function NovoCliente({ onSucesso }) {
             valorInicial={docs.comprovante_2} onChange={url => setDoc('comprovante_2', url)} />
         </div>
 
-        <UploadDocumento label="Comprovante de endereço (opcional)" obrigatorio={false} clienteId={tempIdRef.current} chave="comprovante_endereco"
+        <UploadDocumento label={enderecoObrigatorio ? 'Comprovante de endereço — OBRIGATÓRIO (24 meses sem seguro-desemprego)' : 'Comprovante de endereço (opcional)'}
+          obrigatorio={enderecoObrigatorio} clienteId={tempIdRef.current} chave="comprovante_endereco"
           valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
 
         {/* CTPS digital e extrato FGTS: obrigatórios no Maternidade Mãe desde 31/08 */}
