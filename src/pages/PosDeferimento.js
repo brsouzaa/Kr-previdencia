@@ -1247,6 +1247,8 @@ export default function PosDeferimento() {
   }), [lista, casa, fBanco, fTag])
   const inssF = useMemo(() => inss.filter(casa), [inss, casa])
   const pendsF = useMemo(() => pends.filter(casa), [pends, casa])
+  // 03/11 (Bruno): exigencia do INSS tem aba propria no Acompanhamento, separada das pendencias
+  const ehExig = (p) => p.categoria === 'exigencia_inss'
   const resultadosF = useMemo(() => resultados.filter(casa), [resultados, casa])
 
   const hoje = hojeISO()
@@ -1306,7 +1308,8 @@ export default function PosDeferimento() {
     amanha: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento === amanha).length,
     semana: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
     atrasados: filtrada.filter(atrasado).length,
-    pendAbertas: pendsF.filter(p => p.status === 'aberta').length,
+    pendAbertas: pendsF.filter(p => p.status === 'aberta' && !ehExig(p)).length,
+    exigAbertas: pendsF.filter(p => p.status !== 'resolvida' && ehExig(p)).length,
   }), [filtrada, pendsF, hoje, amanha, fimSemana])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
@@ -1423,7 +1426,7 @@ export default function PosDeferimento() {
     return (
       <div key={(c.id || '') + it.tipo + i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: c.prevsempre ? AZUL_PREV : t.cor, flexShrink: 0 }} />
-        <div onClick={() => (ehPend ? setAba('pendencias') : setAberto(c.id))} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
+        <div onClick={() => (ehPend ? setAba(ehExig(it.pend || {}) ? 'exigencias' : 'pendencias') : setAberto(c.id))} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip cor={t.cor} forte>{t.icone} {t.r}</Chip>
             <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
@@ -1437,7 +1440,7 @@ export default function PosDeferimento() {
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {!ehPend && guiasDoCaso(c).length > 0 && <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>}
           {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
-          {ehPend && <button onClick={() => setAba('pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
+          {ehPend && <button onClick={() => setAba(ehExig(it.pend || {}) ? 'exigencias' : 'pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
           {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : acaoRapida === 'conversa_inadimplente' ? 'Anexar conversa' : 'Feito'}</button>}
         </div>
       </div>
@@ -1974,7 +1977,11 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase' }}>O que precisa</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: cores.texto, marginTop: 3, whiteSpace: 'pre-wrap' }}>{p.descricao}</div>
             {cat.explica && <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{cat.explica}</div>}
-            {p.categoria === 'exigencia_inss' && p.exigencia_prazo && <div style={{ fontSize: 12.5, color: cores.perigo, fontWeight: 700, marginTop: 3 }}>Prazo do INSS: {fmtData(p.exigencia_prazo)}</div>}
+            {p.categoria === 'exigencia_inss' && p.exigencia_prazo && (() => {
+              const f = Math.round((new Date(String(p.exigencia_prazo).slice(0, 10) + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 86400000)
+              return <div style={{ fontSize: 12.5, color: f <= 5 ? cores.perigo : '#c2410c', fontWeight: 700, marginTop: 3 }}>Prazo do INSS: {fmtData(p.exigencia_prazo)}{!fechada && ` · ${f < 0 ? `venceu há ${-f} dia${f === -1 ? '' : 's'}` : f === 0 ? 'vence HOJE' : `faltam ${f} dia${f === 1 ? '' : 's'}`}`}</div>
+            })()}
+            {p.categoria === 'exigencia_inss' && p.numero_protocolo && <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>Protocolo {p.numero_protocolo}</div>}
           </div>
           {(andamento || fechada) && p.resolucao && (
             <div style={{ fontSize: 13, borderRadius: 10, padding: '8px 11px', background: venc ? hexA(cores.perigo, 0.08) : fechada ? hexA(cores.ok, 0.08) : hexA('#2563eb', 0.07), color: cores.texto }}>
@@ -2004,9 +2011,12 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     )
   }
   const pendView = (() => {
-    const abertas = pendsF.filter(p => p.status === 'aberta')
-    const andamento = pendsF.filter(p => p.status === 'avisado')
-    const resolvidas = pendsF.filter(p => p.status === 'resolvida')
+    const exig = aba === 'exigencias'
+    const base = pendsF.filter(p => ehExig(p) === exig)
+      .sort((a, b) => (exig ? String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')) : 0))
+    const abertas = base.filter(p => p.status === 'aberta')
+    const andamento = base.filter(p => p.status === 'avisado')
+    const resolvidas = base.filter(p => p.status === 'resolvida')
     const titulo = (t, n, cor, sub) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 2px' }}>
         <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
@@ -2017,8 +2027,9 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     )
     return (
       <div style={{ display: 'grid', gap: 12 }}>
-        {titulo('Para resolver', abertas.length, '#b45309', 'abertas pela advogada ou pela Sthefany')}
-        {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma pendência aberta. 🎉</div>}
+        {exig && <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#ea580c', 0.06), border: `1px solid ${hexA('#ea580c', 0.25)}` }}>⚠️ <b>Exigências do INSS</b> — o INSS parou a análise até receber o que pediu. Consiga o documento com a cliente e clique em <b>“Consegui tudo que o INSS pediu”</b> para anexar: vai direto para a advogada cumprir no Meu INSS. Ordenado pelo prazo do INSS.</div>}
+        {titulo('Para resolver', abertas.length, '#b45309', exig ? 'exigências abertas pela advogada' : 'abertas pela advogada ou pela Sthefany')}
+        {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>{exig ? 'Nenhuma exigência aberta. 🎉' : 'Nenhuma pendência aberta. 🎉'}</div>}
         {abertas.map(cartaoPend)}
         {andamento.length > 0 && titulo('Em andamento', andamento.length, '#2563eb', 'com data combinada — aparecem na agenda')}
         {andamento.map(cartaoPend)}
@@ -2258,8 +2269,8 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
     ? [['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
-    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['protocolados', '📨 Protocolados'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
-  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
+    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['protocolados', '📨 Protocolados'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['exigencias', '⚠️ Exigências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
+  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, exigencias: conta.exigAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -2303,7 +2314,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       {filtros}
 
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
-        : aba === 'pendencias' ? pendView
+        : aba === 'pendencias' || aba === 'exigencias' ? pendView
         : aba === 'inss' ? inssView
         : aba === 'inicio' ? muralView()
         : aba === 'protocolados' ? protocoladosView()
