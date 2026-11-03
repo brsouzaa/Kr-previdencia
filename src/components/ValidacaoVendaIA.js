@@ -25,7 +25,8 @@ const C = { navy: '#132A3E', ink: '#1B2430', muted: '#6B7785', line: '#E3DDD1', 
 export const PERFIS = {
   '12_clt':     { nome: '12 meses — CLT', docs: ['certidao', 'rg', 'ctps|cnis'] },
   '12_contrib': { nome: '12 meses — facultativa ou autônoma (guia)', docs: ['certidao', 'rg', 'cnis'] },
-  '24_seguro':  { nome: '24 meses — seguro-desemprego', docs: ['certidao', 'rg', 'ctps|cnis', 'seguro_lista', 'seguro_detalhe'] },
+  // 03/11 (Bruno): o print da LISTA do seguro-desemprego saiu da digitacao; basta o DETALHE
+  '24_seguro':  { nome: '24 meses — seguro-desemprego', docs: ['certidao', 'rg', 'ctps|cnis', 'seguro_detalhe'] },
   '24_fgts':    { nome: '24 meses — sem seguro (FGTS / judicial)', docs: ['certidao', 'rg', 'ctps|cnis', 'fgts'] },
   '24_120':     { nome: '24 meses — 120 contribuições', docs: ['certidao', 'rg', 'cnis'] },
 };
