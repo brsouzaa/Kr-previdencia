@@ -329,6 +329,16 @@ export const ACOES = {
       { k: 'prazo', l: 'Prazo para cumprir', tipo: 'date', mais30: true },
     ],
   },
+  // 03/11 (Bruno): sanar a exigencia — fecha as pendencias de exigencia e volta para "Em analise no INSS"
+  exigencia_cumprida: {
+    titulo: 'Exigência cumprida', icone: '✅', cor: '#0d9488',
+    anexo: 'Comprovante do que foi enviado ao INSS', anexoObrig: true,
+    nota: 'Fecha as pendências de exigência deste caso e volta para "Em análise no INSS". O texto da exigência fica guardado no histórico.',
+    campos: [
+      { k: 'data', l: 'Data em que cumpriu a exigência', obrig: true, tipo: 'date', hoje: true },
+      { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea', ph: 'Ex.: DARF pago e juntado com o comprovante no Meu INSS' },
+    ],
+  },
   deferido: {
     titulo: 'Deferido pelo INSS', icone: '✅', cor: '#16a34a',
     anexo: 'Imagem da resposta do INSS', anexoObrig: true,
@@ -396,7 +406,7 @@ export const ACOES_POR_ETAPA = {
   aguardando_protocolo: ['protocolado', 'falta_documento', 'observacao', 'pendencia', 'cancelar'],
   pendencia_docs: ['voltar_fila', 'protocolado', 'falta_documento', 'observacao'],
   protocolado: ['deferido', 'indeferido', 'exigencia', 'observacao'],
-  exigencia: ['deferido', 'indeferido', 'exigencia', 'observacao'],
+  exigencia: ['exigencia_cumprida', 'deferido', 'indeferido', 'exigencia', 'observacao'],
   indeferido: ['recurso', 'observacao'],
   recurso: ['recurso_resultado', 'observacao'],
   deferido: ['observacao'],
@@ -638,7 +648,7 @@ export async function perguntarIA({ caso, historico, texto, anexos }) {
 const ICONE_EVENTO = {
   entrada: '📥', protocolado: '📨', exigencia: '⚠️', deferido: '✅', indeferido: '⛔', recurso: '⚖️',
   recurso_deferido: '🏆', recurso_indeferido: '✖️', pendencia_aberta: '📌', pendencia_resolvida: '✔️',
-  responsavel_avisado: '📣', observacao: '💬', mudanca_etapa: '🔀',
+  responsavel_avisado: '📣', observacao: '💬', mudanca_etapa: '🔀', exigencia_cumprida: '✅',
 }
 
 // 29/10/2026 (Bruno) — CEP DE SUGESTAO DO BANCO NO PROTOCOLO. No GERID o INSS pergunta o banco
