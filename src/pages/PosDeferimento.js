@@ -1209,7 +1209,10 @@ export default function PosDeferimento() {
     if (!soLeitura) reqs.push(supabase.rpc('posdef_inss_lista'), supabase.rpc('posdef_pendencias_lista'), supabase.rpc('posdef_resultados_inss'))
     const [l, i, p, r] = await Promise.all(reqs)
     if (l.error) mostrar('Erro ao carregar: ' + l.error.message, 'erro')
-    setLista(Array.isArray(l.data) ? l.data : [])
+    // 03/11 (Bruno): antes do EXTRATO DE PAGAMENTO nao existe data de pagamento — a que veio do Protocolo/carta
+    // e previsao. Sem o extrato o caso nao entra em "recebe hoje/amanha", atrasado nem inadimplente.
+    setLista((Array.isArray(l.data) ? l.data : []).map(c => (!c.extrato_em && ['deferido', 'carta', 'extrato', 'prevsempre'].includes(c.etapa) && c.data_pagamento)
+      ? { ...c, data_pagamento_previsao: c.data_pagamento, data_pagamento: null } : c))
     if (i) setInss(Array.isArray(i.data) ? i.data : [])
     if (p) setPends(Array.isArray(p.data) ? p.data : [])
     if (r) setResultados(Array.isArray(r.data) ? r.data : [])
