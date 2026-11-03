@@ -410,6 +410,8 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [obsAberta, setObsAberta] = useState(null)       // `${leadId}:${acao}`
   const [obs, setObs] = useState('')
   const [marcando, setMarcando] = useState(null)
+  const [confReemitir, setConfReemitir] = useState(null)   // 03/11: lead com a confirmacao de reemissao aberta
+  const [reemitindo, setReemitindo] = useState(null)
   const [ficha, setFicha] = useState(null)
   // 30/10: quem ve a operacao inteira recebe o board sem o "Resumo do GERID" (custava 5s); a ficha busca na hora
   const [fichaGerid, setFichaGerid] = useState('')
@@ -422,6 +424,19 @@ export default function RevisaoIARetroativo({ setPage }) {
     return () => { vivo = false }
   }, [ficha])
   const [toast, setToast] = useState(null)
+  // 03/11 (Bruno): reemitir contrato que EXPIROU sem assinar. O banco confere tudo (status expirado, contrato
+  // nao assinado, quem pode) e devolve a cliente para "aguardando emissao" com o mesmo cadastro.
+  async function reemitirContrato(l) {
+    setReemitindo(l.id)
+    try {
+      const { data, error } = await supabase.rpc('retroativo_reemitir_contrato', { p_cpf: soDigitos(l.cpf) })
+      if (error || !data?.ok) { setToast('Não reemitiu: ' + (error?.message || data?.erro || 'erro')); setTimeout(() => setToast(null), 4000); return }
+      setConfReemitir(null)
+      setToast(`✅ Contrato de ${primeiroNome(l.nome)} reemitido — o link novo chega em Meus Clientes em ~1 min`)
+      setTimeout(() => setToast(null), 5000)
+      carregar()
+    } finally { setReemitindo(null) }
+  }
   // 23/10 (Bruno) — TODOS OS FILHOS COM DIREITO, não só o mais novo.
   // O vinculo_direito do board vem de gerid_vinculo_decisivo, que faz
   // "order by filho_dn desc limit 1" de propósito — um argumento de ligação. Com
@@ -1200,11 +1215,31 @@ export default function RevisaoIARetroativo({ setPage }) {
                   </button>
                 )}
                 <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
+                {/* 03/11 (Bruno): expirou, cancelada ou barrada -> REEMITE com o MESMO cadastro (igual "Solicitar nova
+                    emissao" de Meus Clientes), para nao digitar a cliente de novo. "Cadastrar de novo" fica de reserva
+                    para quando algum dado precisar mudar. O banco (retroativo_reemitir_contrato) confere tudo. */}
                 {l._aba === 'recuperar' && (
-                  <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} onClick={() => vender(l)}>
-                    Cadastrar de novo
-                  </button>
+                  <>
+                    <button style={s.btnAcao(cores.suave)} onClick={() => vender(l)}>Cadastrar de novo</button>
+                    <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} disabled={reemitindo === l.id}
+                      onClick={() => setConfReemitir(confReemitir === l.id ? null : l.id)}>
+                      🔄 Reemitir contrato
+                    </button>
+                  </>
                 )}
+              </div>
+            )}
+            {l._aba === 'recuperar' && confReemitir === l.id && (
+              <div style={{ ...s.bloco, background: `${cores.azul}0d`, border: `1.5px solid ${cores.azul}55` }}>
+                <div style={s.dir1}>🔄 Reemitir o contrato de {nomeBonito(l.nome)}?</div>
+                <div style={s.dir2}>Sai um contrato <b>novo</b> com o mesmo cadastro e os mesmos documentos — não precisa digitar de novo.
+                  O link novo chega em <b>Meus Clientes</b> em cerca de 1 minuto e vale <b>2 horas</b>: combine com a cliente antes e mande assim que chegar.
+                  {l.cliente_status !== 'expirado' && <> Se algum dado precisar mudar, use <b>Cadastrar de novo</b>.</>}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button style={{ ...ui.btnPrimario, padding: '10px 16px', opacity: reemitindo === l.id ? .6 : 1 }} disabled={reemitindo === l.id}
+                    onClick={() => reemitirContrato(l)}>{reemitindo === l.id ? '⏳ Reemitindo...' : 'Confirmar reemissão'}</button>
+                  <button style={s.btnAcao(cores.suave)} onClick={() => setConfReemitir(null)}>cancelar</button>
+                </div>
               </div>
             )}
 
