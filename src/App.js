@@ -521,10 +521,52 @@ function AppInner() {
   )
 }
 
+// 03/11 (Bruno): AVISO DE VERSAO NOVA — para ninguem precisar de Ctrl+Shift+R depois de cada deploy.
+// A cada 10 min busca so o index.html (poucos KB, sem cache) e compara o nome do JS principal
+// (o build gera main.<hash>.js) com o que esta aberto. Mudou = faixa "Atualizar agora".
+// NAO recarrega sozinho: quem esta digitando um cadastro nao perde nada. Aba escondida nao consulta;
+// ao voltar para a aba, confere se ja passou 10 min da ultima vez.
+const VERSAO_A_CADA_MS = 10 * 60 * 1000
+function AvisoNovaVersao() {
+  const [nova, setNova] = useState(false)
+  const [escondido, setEscondido] = useState(false)
+  useEffect(() => {
+    const src = Array.from(document.scripts).map(s => s.getAttribute('src') || '').find(s => /main\.\w+\.js/.test(s))
+    if (!src) return undefined   // rodando em desenvolvimento (sem build): nao confere
+    const aberta = src.match(/main\.\w+\.js/)[0]
+    let ultima = Date.now()
+    let achou = false
+    const conferir = async () => {
+      if (achou || document.hidden) return
+      ultima = Date.now()
+      try {
+        const html = await fetch('/', { cache: 'no-store' }).then(r => r.text())
+        const m = html.match(/main\.\w+\.js/)
+        if (m && m[0] !== aberta) { achou = true; setNova(true) }
+      } catch (_) { /* sem internet: tenta na proxima */ }
+    }
+    const t = setInterval(conferir, VERSAO_A_CADA_MS)
+    const aoVoltar = () => { if (!document.hidden && Date.now() - ultima >= VERSAO_A_CADA_MS) conferir() }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', aoVoltar) }
+  }, [])
+  if (!nova || escondido) return null
+  return (
+    <div style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 99999, display: 'flex', alignItems: 'center', gap: 12,
+      background: '#0f172a', color: '#fff', padding: '12px 14px 12px 18px', borderRadius: 14, boxShadow: '0 12px 32px rgba(15,23,42,.35)',
+      fontFamily: 'inherit', fontSize: 14, maxWidth: 'calc(100vw - 24px)', flexWrap: 'wrap' }}>
+      <span>🔄 Saiu uma versão nova do CRM.</span>
+      <button onClick={() => window.location.reload()} style={{ background: '#22c55e', color: '#052e16', border: 'none', borderRadius: 10, padding: '8px 14px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Atualizar agora</button>
+      <button onClick={() => setEscondido(true)} title="Atualizo depois" style={{ background: 'transparent', color: '#94a3b8', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>depois</button>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <AppInner />
+      <AvisoNovaVersao />
     </AuthProvider>
   )
 }
