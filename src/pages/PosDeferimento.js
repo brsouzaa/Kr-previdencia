@@ -1751,9 +1751,14 @@ export default function PosDeferimento() {
     setCartaSt('conferindo')
     let veredito = ''
     try {
+      // 03/11 (Bruno): menos rigida. Vale GRUPO criado com a cliente e envio feito por alguem da equipe
+      // (consultora/vendedora): o telefone que aparece no print costuma ser de quem ENVIOU, nao da cliente.
+      // O que prende o print a ESTA cliente e o NOME COMPLETO dela no documento enviado (protocolo nao e obrigatorio).
       const texto = `TAREFA (não é parecer): confira o PRINT anexado. Responda na PRIMEIRA linha apenas SIM ou NÃO e, na segunda linha, o motivo em uma frase curta.
-SIM somente se for o print de uma CONVERSA REAL de WhatsApp (ou outro app de mensagens) com a cliente ${c.nome || ''}${c.telefone ? ` (telefone ${c.telefone})` : ''} e nele aparecer o ENVIO da carta/comprovante de protocolo do INSS (arquivo, PDF, imagem do comprovante ou mensagem com o número do protocolo ${c.numero_protocolo || ''}).
-NÃO se for imagem montada ou editada, print de outra coisa, conversa com outra pessoa, ou se não mostrar a carta sendo enviada.`
+SIM se o print mostrar uma conversa de WhatsApp (ou outro app de mensagens) — conversa direta OU GRUPO criado com a cliente — e nela aparecer o ENVIO da carta/comprovante de protocolo do INSS (PDF, imagem do comprovante ou mensagem com o número do protocolo ${c.numero_protocolo || ''}).
+Quem envia normalmente é alguém da equipe da KR (consultora, vendedora, atendente), então o nome e o telefone que aparecem no print podem ser de quem ENVIOU. NÃO exija o telefone da cliente nem que a própria cliente apareça escrevendo.
+OBRIGATÓRIO: o NOME COMPLETO da cliente (${c.nome || ''}) tem que aparecer no DOCUMENTO enviado — no nome do arquivo (ex.: PDF com o nome dela) ou escrito no próprio comprovante visível no print. Pequenas diferenças de acento ou maiúscula não importam. O nome do contato/grupo sozinho NÃO basta. Se o número do protocolo ${c.numero_protocolo || ''} aparecer, também vale, mas NÃO é obrigatório.
+NÃO somente se: a imagem estiver claramente montada/editada, não for uma conversa de app de mensagens, o documento enviado for de OUTRA pessoa, o nome completo da cliente não aparecer no documento, ou não aparecer a carta/comprovante sendo enviado.`
       veredito = await perguntarIA({ caso: c, historico: [], texto, anexos: [{ nome: cartaPrint.name || 'print.png', media_type: cartaPrint.type, data: await lerBase64(cartaPrint) }] })
     } catch (e) { setCartaSt('erro:A I.A não conseguiu conferir agora: ' + String(e.message || e)); return }
     const primeira = String(veredito || '').replace(/[*_#>`]/g, '').trim().split('\n')[0].trim().toUpperCase()
