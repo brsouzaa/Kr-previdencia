@@ -40,6 +40,13 @@ const DOC = {
 };
 const ROTULO_ALT = { 'ctps|cnis': { t: 'Carteira de Trabalho Digital OU Extrato CNIS', d: 'Um dos dois. Se tiver o CNIS completo, prefira.' } };
 
+// 03/11 (Bruno): tamanho ao lado do arquivo + trava de arquivo vazio (CNIS da Maryana subiu com 0 KB)
+const fmtTam = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`);
+const VAZIO_MSG = (n) => `"${n}" chegou VAZIO (0 KB). Salve o PDF de novo no computador (área de trabalho), confira se abre e anexe outra vez.`;
+async function tamanhoNoServidor(url) {
+  try { const r = await fetch(url, { method: 'HEAD', cache: 'no-store' }); const n = r.headers.get('content-length'); return n == null ? null : Number(n); }
+  catch (_e) { return null; }
+}
 const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
 const soDig = (s) => String(s || '').replace(/\D/g, '');
 
@@ -63,9 +70,10 @@ export default function ValidacaoVendaIA({ supabase, cpf, ficha = {}, clienteId,
     for (const f of Array.from(files || [])) {
       if (f.size > MAX_MB * 1024 * 1024) { setErro(`"${f.name}" passa de ${MAX_MB} MB.`); continue; }
       if (!/pdf|png|jpe?g|webp/i.test(f.type || f.name)) { setErro(`"${f.name}": envie PDF, JPG ou PNG.`); continue; }
+      if (!f.size) { setErro(VAZIO_MSG(f.name)); continue; }
       const ext = (f.name.split('.').pop() || 'bin').toLowerCase();
       const caminho = `${pasta.current}/${chave}_${uid()}.${ext}`;
-      const tmp = { nome: f.name, url: '', enviando: true, id: uid() };
+      const tmp = { nome: f.name, url: '', enviando: true, id: uid(), tamanho: f.size };
       setArq((a) => ({ ...a, [chave]: [...(a[chave] || []), tmp] }));
       const { error } = await supabase.storage.from(BUCKET).upload(caminho, f, { upsert: false, contentType: f.type || undefined });
       if (error) {
@@ -74,7 +82,14 @@ export default function ValidacaoVendaIA({ supabase, cpf, ficha = {}, clienteId,
         continue;
       }
       const url = supabase.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl;
-      setArq((a) => ({ ...a, [chave]: (a[chave] || []).map((x) => (x.id === tmp.id ? { ...x, url, enviando: false } : x)) }));
+      // confere o que REALMENTE ficou no servidor: se chegou vazio, nao aceita o anexo
+      const noServidor = await tamanhoNoServidor(url);
+      if (noServidor === 0) {
+        setErro(VAZIO_MSG(f.name));
+        setArq((a) => ({ ...a, [chave]: (a[chave] || []).filter((x) => x.id !== tmp.id) }));
+        continue;
+      }
+      setArq((a) => ({ ...a, [chave]: (a[chave] || []).map((x) => (x.id === tmp.id ? { ...x, url, enviando: false, tamanho: noServidor ?? x.tamanho } : x)) }));
     }
     setRes(null);
   }
@@ -146,6 +161,7 @@ export default function ValidacaoVendaIA({ supabase, cpf, ficha = {}, clienteId,
               {lista.map((x) => (
                 <div key={x.id} style={{ fontSize: 12, marginTop: 6, display: 'flex', gap: 8 }}>
                   <span>{x.enviando ? '⏳' : '📎'} {x.nome}</span>
+                  {x.tamanho != null && <span style={{ color: x.tamanho ? C.muted : C.bad, fontWeight: x.tamanho ? 400 : 700 }}>{x.tamanho ? fmtTam(x.tamanho) : 'VAZIO (0 KB)'}</span>}
                   {!x.enviando && <a href={x.url} target="_blank" rel="noreferrer">ver</a>}
                   <button onClick={() => remover(k, x.id)} style={{ border: 'none', background: 'none', color: C.bad, cursor: 'pointer' }}>remover</button>
                 </div>))}
