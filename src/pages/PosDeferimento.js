@@ -361,6 +361,15 @@ const ACOES_PD = {
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
   },
+  // 04/11 (Bruno): trocar a carta de concessao depois do deferimento (antes so dava nas etapas Deferido/Carta)
+  trocar_carta: {
+    titulo: 'Trocar carta de concessão', icone: '🔁', cor: '#0891b2',
+    anexo: 'Carta de concessão correta', anexoObrig: true,
+    nota: 'Substitui a carta do caso (a antiga fica guardada no histórico). A aba PrevSempre passa a mostrar a carta nova na hora. A etapa não muda.',
+    campos: [
+      { k: 'texto', l: 'O que estava errado?', obrig: true, tipo: 'textarea', sugestoes: ['Carta de outra cliente', 'Carta ilegível ou cortada', 'Faltava página', 'Carta de outro benefício'] },
+    ],
+  },
   reagendar: {
     titulo: 'Mudar data do pagamento', icone: '🗓️', cor: '#7c3aed',
     campos: [
@@ -414,9 +423,9 @@ const ACOES_PD = {
 const ACOES_POR_ETAPA_PD = {
   deferido: ['avisar_cliente', 'atividade', 'observacao', 'cancelar'],
   carta: ['carta', 'atividade', 'observacao', 'cancelar'],
-  extrato: ['extrato', 'atividade', 'observacao', 'cancelar'],
-  prevsempre: ['prevsempre', 'reagendar', 'atividade', 'observacao'],
-  aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
+  extrato: ['extrato', 'atividade', 'trocar_carta', 'observacao', 'cancelar'],
+  prevsempre: ['prevsempre', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
+  aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
   pago: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
   baixado: ['observacao', 'voltar'],
   cancelado: ['voltar', 'observacao'],
@@ -463,6 +472,7 @@ function Tags({ c, grande }) {
   const s = grande ? { fontSize: 12.5, padding: '3px 11px' } : {}
   return (
     <>
+      {c.carta_recusada_em && <Chip cor={cores.perigo} forte>⚠️ CARTA RECUSADA</Chip>}
       {c.prevsempre && (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 800, color: '#fff', background: AZUL_PREV, borderRadius: 999, padding: '2px 9px', fontSize: 11, letterSpacing: '.04em', ...s }}>PREVSEMPRE</span>
       )}
@@ -858,6 +868,13 @@ function FichaPD({ id, onFechar, onMudou }) {
               {c.vendedora_nome && <span>🧑‍💼 venda: {c.vendedora_nome}</span>}
               <span>👥 acompanha: <b style={{ color: cores.texto }}>{(c.responsaveis || []).join(', ') || '—'}</b></span>
             </div>
+            {c.carta_recusada_em && (
+              <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: hexA(cores.perigo, 0.07), border: `1px solid ${hexA(cores.perigo, 0.35)}`, borderRadius: 12, padding: '10px 12px' }}>
+                <span style={{ fontSize: 13.5, color: cores.texto, flex: '1 1 260px' }}>⚠️ <b style={{ color: cores.perigo }}>Carta de concessão recusada</b>{c.carta_recusada_por_nome ? ` por ${c.carta_recusada_por_nome}` : ''} em {fmtDataHora(c.carta_recusada_em)}: <b>{c.carta_recusada_motivo || '—'}</b>. Anexe a carta correta.</span>
+                {c.carta_concessao_url && <button onClick={() => abrirArquivo(c.carta_concessao_url)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>📜 Ver carta atual</button>}
+                {c.pode_agir !== false && <button onClick={() => setModal('trocar_carta')} style={{ ...btn(cores.perigo), padding: '6px 12px', fontSize: 12.5 }}>🔁 Trocar carta</button>}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {c.telefone && <button onClick={() => copiar('Telefone', soDig(c.telefone))} style={btn('#475569', false)}>⧉ Telefone</button>}
@@ -1947,7 +1964,14 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const waBtn = (c) => { const wa = telWa(c.telefone); return wa ? <a key="wa" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a> : null }
     const nIndefHoje = indefAvisar.filter(c => diaBR(dataAnotacao(c)) === hoje).length
     // 02/11 (Bruno): ordem do funil (protocolo, deferido, extrato, PrevSempre, pagamentos); indeferidos e exigencias no final
+    // 04/11 (Bruno): carta de concessao recusada pela Maithe (PrevSempre) — o responsavel troca pelo sistema
+    const cartaRec = filtrada.filter(c => c.carta_recusada_em).sort((a, b) => String(a.carta_recusada_em).localeCompare(String(b.carta_recusada_em)))
     const grupos = [
+      { k: 'cartarec', icone: '⚠️', tit: 'Carta de concessão recusada — anexar a correta', cor: cores.perigo, itens: cartaRec, extra: 'a Maithe recusou a carta na PrevSempre',
+        linha: (c, i) => linhaSimples(c, i, { onAbrir: () => setAberto(c.id),
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · recusada {fmtDataHora(c.carta_recusada_em)}{c.carta_recusada_motivo ? <b style={{ color: cores.perigo }}> · {c.carta_recusada_motivo}</b> : null}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+          acoes: [c.carta_concessao_url && <button key="v" onClick={() => abrirArquivo(c.carta_concessao_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📜 Carta atual</button>,
+            c.pode_agir !== false && <button key="t" onClick={() => abrirAcao(c, 'trocar_carta')} style={{ ...btn(cores.perigo), padding: '6px 10px', fontSize: 12 }}>🔁 Trocar carta</button>] }) },
       { k: 'cartaprot', icone: '📨', tit: 'Carta de protocolo para mandar à cliente', cor: '#8b5cf6', itens: cartaFalta, extra: 'baixar a carta, mandar e anexar o print',
         linha: (c, i) => linhaSimples(c, i, { onAbrir: () => setInssDe(c),
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · nº {c.numero_protocolo || '—'}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}` : ''}</>,
