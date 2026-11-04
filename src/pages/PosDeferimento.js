@@ -1181,6 +1181,62 @@ export default function PosDeferimento() {
   const [resultados, setResultados] = useState([])   // 02/11: deferidos e indeferidos do Protocolo (posdef_resultados_inss)
   const [rsPer, setRsPer] = useState('hoje')
   const [aba, setAba] = useState(() => (profile?.role !== 'admin' && profile?.posdef_papel === 'vendedora' ? 'pagamentos' : 'inicio'))
+
+  // 04/11 (Bruno): abas que nao cabem na tela — alem das setas do teclado, agora da para ARRASTAR com o mouse
+  // e clicar nas setas ‹ › das pontas. Sem re-render no arrasto (mexe direto no scroll); seta so muda quando precisa.
+  const abasEl = useRef(null)
+  const abasDrag = useRef(null)
+  const [abasLado, setAbasLado] = useState('')   // '' | 'e' | 'd' | 'ed' = tem aba escondida a esquerda/direita
+  const abasRef = useCallback((el) => {
+    if (abasEl.current && abasEl.current._sair) abasEl.current._sair()
+    abasEl.current = el
+    if (!el) return
+    let raf = 0
+    const medir = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const v = (el.scrollLeft > 2 ? 'e' : '') + (el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? 'd' : '')
+        setAbasLado(o => (o === v ? o : v))
+      })
+    }
+    el._medir = medir
+    el.addEventListener('scroll', medir, { passive: true })
+    window.addEventListener('resize', medir)
+    medir()
+    el._sair = () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', medir); window.removeEventListener('resize', medir) }
+  }, [])
+  useEffect(() => {   // a aba escolhida sempre fica a vista
+    const el = abasEl.current
+    if (!el) return
+    const on = el.querySelector('[data-on="1"]')
+    if (on && (on.offsetLeft < el.scrollLeft || on.offsetLeft + on.offsetWidth > el.scrollLeft + el.clientWidth)) {
+      el.scrollTo({ left: on.offsetLeft - el.clientWidth / 2 + on.offsetWidth / 2, behavior: 'smooth' })
+    }
+    if (el._medir) el._medir()
+  }, [aba])
+  const abasArrasto = {
+    onPointerDown: (e) => { if (e.pointerType === 'mouse' && e.button === 0) abasDrag.current = { x: e.clientX, s: e.currentTarget.scrollLeft, moveu: false } },
+    onPointerMove: (e) => {
+      const d = abasDrag.current
+      if (!d) return
+      const dx = e.clientX - d.x
+      if (!d.moveu && Math.abs(dx) < 5) return
+      if (!d.moveu) { d.moveu = true; try { e.currentTarget.setPointerCapture(e.pointerId) } catch (_) { /* ok */ } }
+      e.currentTarget.scrollLeft = d.s - dx
+    },
+    onPointerUp: () => { setTimeout(() => { abasDrag.current = null }, 0) },
+    onPointerLeave: () => { if (abasDrag.current && !abasDrag.current.moveu) abasDrag.current = null; else setTimeout(() => { abasDrag.current = null }, 0) },
+    onClickCapture: (e) => { if (abasDrag.current && abasDrag.current.moveu) { e.preventDefault(); e.stopPropagation() } },
+  }
+  const abasRolar = (s) => { const el = abasEl.current; if (el) el.scrollBy({ left: s * Math.max(180, el.clientWidth * 0.7), behavior: 'smooth' }) }
+  const abasSeta = (lado) => (
+    <button type="button" aria-label={lado === 'e' ? 'Ver abas anteriores' : 'Ver mais abas'} onClick={() => abasRolar(lado === 'e' ? -1 : 1)}
+      style={{ position: 'absolute', top: 1, bottom: 1, [lado === 'e' ? 'left' : 'right']: 1, width: 46, border: 'none', cursor: 'pointer', padding: '0 7px', zIndex: 2,
+        display: 'flex', alignItems: 'center', justifyContent: lado === 'e' ? 'flex-start' : 'flex-end',
+        background: `linear-gradient(${lado === 'e' ? 90 : 270}deg, #fff 55%, rgba(255,255,255,0))`, borderRadius: lado === 'e' ? '13px 0 0 13px' : '0 13px 13px 0' }}>
+      <span style={{ width: 26, height: 26, borderRadius: 999, display: 'grid', placeItems: 'center', background: '#fff', boxShadow: '0 1px 4px rgba(15,23,42,.28)', color: '#0f172a', fontSize: 18, fontWeight: 800, lineHeight: 1 }}>{lado === 'e' ? '‹' : '›'}</span>
+    </button>
+  )
   const [muralAberto, setMuralAberto] = useState({})   // 02/11: grupos do mural abrem na setinha
   const [confIndef, setConfIndef] = useState(null)     // id do indeferido esperando o 2o clique (confirmar aviso)
   const [protFiltro, setProtFiltro] = useState('falta') // 02/11: aba Protocolados
@@ -2347,16 +2403,20 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
         {kpi({ rot: 'Inadimplentes no mês', n: rm.inad, cor: cores.perigo, icone: '📉', sub: (rm.pagos + rm.inad) ? `${taxa(rm)}% de ${rm.pagos + rm.inad} vencidos` : `mais de ${DIAS_INADIMPLENTE} dias sem pagar`, onClick: soLeitura ? null : () => setAba('inadimplencia') })}
       </div>
 
-      <div className="kr-aba" style={{ display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5 }}>
-        {ABAS.map(([k, r]) => {
-          const on = aba === k
-          const n = badge[k]
-          return (
-            <button key={k} onClick={() => setAba(k)} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? '#fff' : cores.texto, background: on ? 'linear-gradient(135deg,#16a34a,#2563eb)' : 'transparent' }}>
-              {r}{n ? <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, opacity: on ? 0.95 : 0.7 }}>{n}</span> : null}
-            </button>
-          )
-        })}
+      <div style={{ position: 'relative', minWidth: 0 }}>
+        {abasLado.includes('e') && abasSeta('e')}
+        <div ref={abasRef} {...abasArrasto} className="kr-aba" style={{ userSelect: 'none', scrollbarWidth: 'none', display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5 }}>
+          {ABAS.map(([k, r]) => {
+            const on = aba === k
+            const n = badge[k]
+            return (
+              <button key={k} data-on={on ? '1' : '0'} onClick={() => setAba(k)} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', fontSize: 13, fontWeight: on ? 800 : 600, color: on ? '#fff' : cores.texto, background: on ? 'linear-gradient(135deg,#16a34a,#2563eb)' : 'transparent' }}>
+                {r}{n ? <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 800, opacity: on ? 0.95 : 0.7 }}>{n}</span> : null}
+              </button>
+            )
+          })}
+        </div>
+        {abasLado.includes('d') && abasSeta('d')}
       </div>
 
       {filtros}
