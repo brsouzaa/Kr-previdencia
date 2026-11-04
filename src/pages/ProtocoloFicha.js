@@ -326,7 +326,7 @@ export const ACOES = {
     campos: [
       { k: 'texto', l: 'O que o INSS pediu?', obrig: true, tipo: 'textarea' },
       { k: 'data', l: 'Data da exigência', tipo: 'date', hoje: true },
-      { k: 'prazo', l: 'Prazo para cumprir', tipo: 'date', mais30: true },
+      { k: 'prazo', l: 'Prazo para cumprir', tipo: 'date', mais7: true },
     ],
   },
   // 03/11 (Bruno): sanar a exigencia — fecha as pendencias de exigencia e volta para "Em analise no INSS"
@@ -422,7 +422,7 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
     const o = {}
     ;(cfg?.campos || []).forEach(c => {
       if (c.hoje) o[c.k] = hojeISO()
-      if (c.mais30) o[c.k] = somaDias(hojeISO(), 30)
+      if (c.mais7) o[c.k] = somaDias(hojeISO(), 7)   // 04/11 (Bruno): prazo padrao da exigencia = 7 dias
       if (c.padrao) o[c.k] = c.padrao
     })
     return { ...o, ...(inicial || {}) }
@@ -453,9 +453,9 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
     return () => window.removeEventListener('paste', f)
   }, [cfg, pegarArquivo])
 
-  // mudou o dia da exigencia: o prazo acompanha (+30)
+  // mudou o dia da exigencia: o prazo acompanha (+7)
   useEffect(() => {
-    if (acao === 'exigencia' && v.data) setV(o => (o._prazoMexido ? o : { ...o, prazo: somaDias(o.data, 30) }))
+    if (acao === 'exigencia' && v.data) setV(o => (o._prazoMexido ? o : { ...o, prazo: somaDias(o.data, 7) }))
   }, [v.data, acao])
 
   if (!cfg) return null
