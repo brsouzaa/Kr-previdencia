@@ -28,7 +28,7 @@ const COLUNAS = [
 ]
 
 const ABAS = [
-  ['quadro', '▦ Quadro'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
+  ['quadro', '▦ Quadro'], ['conferir', '🔴 Conferir resultado'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
   ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
 ]
 
@@ -57,6 +57,12 @@ function acaoDoDrop(caso, col) {
 }
 
 const LIMITE_AGUARDANDO = 3
+
+// 04/11 (Bruno): o INSS marcou CONCLUÍDA mas a extensão não conseguiu cravar deferido/indeferido
+// (ex.: carta com nome fora do padrão "carta.concessao", ou sem despacho escrito). Concluído é SEMPRE
+// deferido ou indeferido — então sobe com DESTAQUE FORTE pra a advogada consultar manual e marcar.
+const ETAPAS_DECIDIDAS = ['deferido', 'indeferido', 'recurso_deferido', 'recurso_indeferido', 'cancelado']
+const aConferir = (c) => /conclu/i.test(c?.situacao_inss || '') && !ETAPAS_DECIDIDAS.includes(c?.etapa)
 
 // 02/11 (Bruno): filtro pelo dia em que o caso SUBIU na situacao atual aqui no CRM (etapa_desde:
 // a extensao/advogada marcou deferido, indeferido, exigencia...). Ex.: deferido que subiu hoje aparece
@@ -238,6 +244,7 @@ export default function Protocolo() {
   const cartao = (c, compacto) => {
     const et = etapaInfo(c.etapa)
     const dias = diasDesde(c.etapa_desde)
+    const conferir = aConferir(c)
     const atrasado = (c.etapa === 'aguardando_protocolo' && dias > LIMITE_AGUARDANDO) || (c.etapa === 'exigencia' && !!c.exigencia_prazo && c.exigencia_prazo <= somaHoje(5))
     return (
       <div
@@ -248,8 +255,10 @@ export default function Protocolo() {
         onClick={() => setCpfAberto(c.cpf)}
         className="kr-cartao"
         style={{
-          background: '#fff', borderRadius: 14, border: `1px solid ${cores.cardBorda}`, padding: compacto ? 11 : 13,
-          boxShadow: arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)', cursor: isMobile ? 'pointer' : 'grab',
+          background: conferir ? '#fff5f5' : '#fff', borderRadius: 14,
+          border: conferir ? `2px solid ${cores.perigo}` : `1px solid ${cores.cardBorda}`, padding: compacto ? 11 : 13,
+          boxShadow: conferir ? `0 0 0 3px ${hexA(cores.perigo, 0.18)}` : (arrastando === c.id ? sombras.cardHover : '0 1px 2px rgba(15,23,42,.05)'),
+          cursor: isMobile ? 'pointer' : 'grab',
           opacity: arrastando === c.id ? 0.55 : 1, transition: 'box-shadow .15s, transform .15s', position: 'relative',
         }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -260,6 +269,7 @@ export default function Protocolo() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 9 }}>
+          {conferir && <Chip cor={cores.perigo} forte>🔴 CONCLUÍDO · VER RESULTADO</Chip>}
           <Chip cor="#475569">{c.perfil_label}</Chip>
           {c.sem_validacao_ia && <Chip cor={cores.perigo} forte>SEM I.A</Chip>}
           {c.tem_ressalva && <Chip cor="#b45309">ressalva</Chip>}
@@ -365,6 +375,7 @@ export default function Protocolo() {
   const listaDaAba = useMemo(() => {
     const hoje = hojeISO()
     const L = filtrada
+    if (aba === 'conferir') return L.filter(aConferir).sort((a, b) => new Date(b.ultima_movimentacao_em || 0) - new Date(a.ultima_movimentacao_em || 0))
     if (aba === 'hoje') return L.filter(c => diaBR(c.entrou_setor_em) === hoje)
     if (aba === 'fila') return L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
@@ -374,6 +385,7 @@ export default function Protocolo() {
   }, [filtrada, aba])
 
   const infoDaLinha = (c) => {
+    if (aba === 'conferir') return <span style={{ color: cores.perigo, fontWeight: 800 }}>CONCLUÍDO no INSS sem resultado lido — consultar manual{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}</span>
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
     if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · subiu {fmtDataHora(dataAnotacao(c))}</span></span>
@@ -771,6 +783,11 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
       </div>
 
       {!['acompanhamento', 'painel', 'refazer'].includes(aba) && filtros}
+      {(aba === 'quadro' || aba === 'conferir') && (lista || []).some(aConferir) && (
+        <div onClick={() => setAba('conferir')} style={{ ...card, padding: '12px 16px', background: '#fef2f2', border: `2px solid ${cores.perigo}`, color: '#991b1b', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
+          🔴 {(lista || []).filter(aConferir).length} concluído(s) no INSS SEM resultado lido — a advogada precisa consultar manual e marcar deferido/indeferido <span style={{ marginLeft: 'auto' }}>ver →</span>
+        </div>
+      )}
       {aba !== 'acompanhamento' && aba !== 'painel' && alertas.length > 0 && aba === 'quadro' && (
         <div onClick={() => setAba('acompanhamento')} style={{ ...card, padding: '10px 14px', background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
           🔴 {alertas.length} alerta{alertas.length === 1 ? '' : 's'}: {alertas.slice(0, 2).map(a => `${a.nome} — ${a.texto}`).join(' · ')}{alertas.length > 2 ? ' …' : ''} <span style={{ marginLeft: 'auto' }}>ver →</span>
