@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { cores } from '../lib/tema'
 import {
   Chip, hexA, estiloBotao as btn, estiloCard as card, fmtCpf, fmtTel, fmtData, fmtDataHora,
-  useIsMobile, useToast, copiarTexto, abrirArquivo, enviarArquivo,
+  useIsMobile, useToast, copiarTexto, abrirArquivo, enviarArquivo, BUCKET,
 } from './ProtocoloFicha'
 
 // ===== ABA PREVSEMPRE DA MAITHE (04/11/2026, Bruno) =====
@@ -86,6 +86,66 @@ function CampoArquivo({ arquivo, setArquivo, obrig, rot }) {
   )
 }
 
+// 04/11 (Bruno): RG abre DENTRO do KR (sem nova aba). Girar e zoom porque foto de RG costuma vir torta.
+function VerDocumento({ docs, inicio = 0, titulo, onClose }) {
+  const [i, setI] = useState(inicio)
+  const [url, setUrl] = useState(null)
+  const [erro, setErro] = useState('')
+  const [giro, setGiro] = useState(0)
+  const [zoom, setZoom] = useState(1)
+  const d = docs[i] || {}
+  const ehPdf = /\.pdf($|\?)/i.test(String(d.url || ''))
+  useEffect(() => {
+    let vivo = true
+    setUrl(null); setErro(''); setGiro(0); setZoom(1)
+    const c = String(d.url || '')
+    if (!c) { setErro('Sem arquivo'); return }
+    if (/^https?:\/\//i.test(c)) { setUrl(c); return }
+    supabase.storage.from(BUCKET).createSignedUrl(c, 900).then(({ data, error }) => {
+      if (!vivo) return
+      if (error || !data?.signedUrl) setErro('Não consegui abrir: ' + (error?.message || 'sem link')); else setUrl(data.signedUrl)
+    })
+    return () => { vivo = false }
+  }, [d.url])
+  useEffect(() => {
+    const k = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowRight') setI(x => Math.min(docs.length - 1, x + 1))
+      if (e.key === 'ArrowLeft') setI(x => Math.max(0, x - 1))
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [docs.length, onClose])
+  const bt = { border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.08)', color: '#fff', borderRadius: 10, padding: '7px 11px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }
+  const deitado = giro % 180 !== 0
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 2500, background: 'rgba(2,6,23,.92)', display: 'flex', flexDirection: 'column' }}>
+      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '12px 16px', color: '#fff' }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginRight: 8 }}>{titulo}</div>
+        {docs.map((x, k) => (
+          <button key={k} onClick={() => setI(k)} style={{ ...bt, background: k === i ? '#fff' : bt.background, color: k === i ? '#0f172a' : '#fff' }}>🪪 {x.rotulo || 'RG'}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {!ehPdf && <>
+          <button onClick={() => setGiro(g => (g + 270) % 360)} style={bt} title="Girar para a esquerda">⟲</button>
+          <button onClick={() => setGiro(g => (g + 90) % 360)} style={bt} title="Girar para a direita">⟳</button>
+          <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))} style={bt}>−</button>
+          <button onClick={() => setZoom(1)} style={bt}>{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={bt}>+</button>
+        </>}
+        <button onClick={onClose} style={{ ...bt, background: '#fff', color: '#0f172a' }}>✕ Fechar</button>
+      </div>
+      <div onClick={e => e.stopPropagation()} style={{ flex: 1, overflow: 'auto', display: 'grid', placeItems: zoom > 1 ? 'start center' : 'center', padding: 16 }}>
+        {erro ? <div style={{ color: '#fecaca', fontWeight: 700 }}>{erro}</div>
+          : !url ? <div style={{ color: '#cbd5e1' }}>carregando…</div>
+          : ehPdf ? <iframe title={d.rotulo || 'documento'} src={url} style={{ width: 'min(1000px, 100%)', height: '100%', minHeight: '70vh', border: 'none', background: '#fff', borderRadius: 8 }} />
+          : <img src={url} alt={d.rotulo || 'RG'} onError={() => setErro('Não consegui carregar a imagem')}
+              style={{ maxWidth: deitado ? '80vh' : `${100 * zoom}%`, maxHeight: deitado ? `${90 * zoom}vw` : `${80 * zoom}vh`, transform: `rotate(${giro}deg) scale(${deitado ? zoom : 1})`, transition: 'transform .15s', borderRadius: 6, boxShadow: '0 12px 40px rgba(0,0,0,.5)' }} />}
+      </div>
+    </div>
+  )
+}
+
 export default function PrevSempreMaithe() {
   const isMobile = useIsMobile()
   const [toast, mostrar] = useToast()
@@ -101,6 +161,7 @@ export default function PrevSempreMaithe() {
   const [, setTick] = useState(0)
   const [dnEdit, setDnEdit] = useState({})   // 04/11: { [id]: 'AAAA-MM-DD' } enquanto a Maithe digita a data de nascimento
   const [dnSalvando, setDnSalvando] = useState(null)
+  const [verRg, setVerRg] = useState(null)   // { c, i }
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.rpc('posdef_prev_lista')
@@ -203,7 +264,7 @@ export default function PrevSempreMaithe() {
             <button disabled={!procuracao} onClick={() => abrirArquivo(procuracao)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12, opacity: procuracao ? 1 : 0.45 }}>✍️ Procuração</button>
             <button disabled={!c.carta_concessao_url} onClick={() => abrirArquivo(c.carta_concessao_url)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12, opacity: c.carta_concessao_url ? 1 : 0.45 }}>📜 Carta de concessão</button>
             {(Array.isArray(c.rgs) ? c.rgs : []).map((g, i) => (
-              <button key={'rg' + i} onClick={() => abrirArquivo(g.url)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12 }}>🪪 {g.rotulo || 'RG'}</button>
+              <button key={'rg' + i} onClick={() => setVerRg({ c, i })} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12 }}>🪪 {g.rotulo || 'RG'}</button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: `1px solid ${cores.cardBorda}`, paddingTop: 12 }}>
@@ -253,6 +314,8 @@ export default function PrevSempreMaithe() {
           {coluna('Aguardando a cliente', `vermelho depois de ${HORAS_ALERTA}h`, '#0d9488', aguardando, 'Ninguém aguardando.')}
         </div>
       )}
+
+      {verRg && <VerDocumento docs={verRg.c.rgs || []} inicio={verRg.i} titulo={verRg.c.nome} onClose={() => setVerRg(null)} />}
 
       {j?.tipo === 'iniciar' && (
         <Janela titulo="▶️ Iniciar PrevSempre" sub={`${j.c.nome} · ${fmtCpf(j.c.cpf)}`} onClose={fechar}
