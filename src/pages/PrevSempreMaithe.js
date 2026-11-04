@@ -99,6 +99,8 @@ export default function PrevSempreMaithe() {
   const [copiou, setCopiou] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [, setTick] = useState(0)
+  const [dnEdit, setDnEdit] = useState({})   // 04/11: { [id]: 'AAAA-MM-DD' } enquanto a Maithe digita a data de nascimento
+  const [dnSalvando, setDnSalvando] = useState(null)
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.rpc('posdef_prev_lista')
@@ -121,6 +123,45 @@ export default function PrevSempreMaithe() {
       mostrar({ iniciar: 'Registrado — agora acompanhe pela PrevSempre', reenviar: 'Voltou para Novos — inicie de novo', confirmar: 'Confirmado — o caso seguiu no Acompanhamento', invalidar: 'Invalidado — segue sem desconto automático' }[acao] || 'Feito')
       setJanela(null); carregar()
     } catch (e) { mostrar(String(e.message || e), 'erro'); setSalvando(false) }
+  }
+
+  // 04/11 (Bruno): data de nascimento da cliente — nao existe no cadastro; a Maithe digita lendo o RG
+  async function salvarDn(c) {
+    const v = dnEdit[c.id]
+    if (!v) { mostrar('Informe a data de nascimento', 'erro'); return }
+    setDnSalvando(c.id)
+    const { data, error } = await supabase.rpc('posdef_prev_acao', { p_id: c.id, p_acao: 'nascimento', p: { data: v } })
+    setDnSalvando(null)
+    if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'Não salvou', 'erro'); return }
+    setDnEdit(o => { const n = { ...o }; delete n[c.id]; return n })
+    mostrar('Data de nascimento salva'); carregar()
+  }
+  const idade = (dn) => { if (!dn) return null; const d = new Date(String(dn).slice(0, 10) + 'T12:00:00'), h = new Date(); let a = h.getFullYear() - d.getFullYear(); if (h.getMonth() < d.getMonth() || (h.getMonth() === d.getMonth() && h.getDate() < d.getDate())) a--; return a }
+  const campoDn = (c) => {
+    const editando = dnEdit[c.id] !== undefined
+    if (!c.cliente_dn && !editando) return (
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: cores.suave }}>Nascimento da cliente</div>
+        <div style={{ fontSize: 13, color: cores.suave }}>— <button onClick={() => setDnEdit(o => ({ ...o, [c.id]: '' }))} style={{ border: 'none', background: 'none', color: AZUL, cursor: 'pointer', fontSize: 12, padding: 0, fontWeight: 700 }}>anotar</button></div>
+      </div>
+    )
+    if (c.cliente_dn && !editando) return (
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: cores.suave }}>Nascimento da cliente</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: cores.texto }}>{fmtData(c.cliente_dn)} <span style={{ color: cores.suave, fontWeight: 500 }}>({idade(c.cliente_dn)} anos)</span>{' '}
+          <button onClick={() => setDnEdit(o => ({ ...o, [c.id]: String(c.cliente_dn).slice(0, 10) }))} style={{ border: 'none', background: 'none', color: AZUL, cursor: 'pointer', fontSize: 12, padding: 0, fontWeight: 700 }}>editar</button></div>
+      </div>
+    )
+    return (
+      <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: cores.suave }}>Nascimento da cliente (opcional · está no RG)</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
+          <input type="date" value={dnEdit[c.id] || ''} onChange={e => setDnEdit(o => ({ ...o, [c.id]: e.target.value }))} style={{ padding: '5px 8px', borderRadius: 8, border: `1px solid ${hexA('#0f172a', 0.18)}`, fontSize: 13, fontFamily: 'inherit' }} />
+          <button disabled={dnSalvando === c.id} onClick={() => salvarDn(c)} style={{ ...btn(AZUL), padding: '5px 10px', fontSize: 12 }}>{dnSalvando === c.id ? 'Salvando…' : 'Salvar'}</button>
+          {editando && <button onClick={() => setDnEdit(o => { const n = { ...o }; delete n[c.id]; return n })} style={{ ...btn('#475569', false), padding: '5px 10px', fontSize: 12 }}>Cancelar</button>}
+        </div>
+      </div>
+    )
   }
 
   const q = busca.trim().toLowerCase()
@@ -148,6 +189,7 @@ export default function PrevSempreMaithe() {
         <div style={{ padding: 14, display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
             <Info rot="Telefone" val={fmtTel(c.telefone)} />
+            {campoDn(c)}
             <Info rot="Responsável" val={nomesResp(c)} />
             <Info rot="Venda" val={c.vendedora_nome} />
             <Info rot="NB" val={c.nb} />
@@ -160,6 +202,9 @@ export default function PrevSempreMaithe() {
             <button disabled={!contrato} onClick={() => abrirArquivo(contrato)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12, opacity: contrato ? 1 : 0.45 }}>📄 Contrato</button>
             <button disabled={!procuracao} onClick={() => abrirArquivo(procuracao)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12, opacity: procuracao ? 1 : 0.45 }}>✍️ Procuração</button>
             <button disabled={!c.carta_concessao_url} onClick={() => abrirArquivo(c.carta_concessao_url)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12, opacity: c.carta_concessao_url ? 1 : 0.45 }}>📜 Carta de concessão</button>
+            {(Array.isArray(c.rgs) ? c.rgs : []).map((g, i) => (
+              <button key={'rg' + i} onClick={() => abrirArquivo(g.url)} style={{ ...btn('#475569', false), padding: '6px 11px', fontSize: 12 }}>🪪 {g.rotulo || 'RG'}</button>
+            ))}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: `1px solid ${cores.cardBorda}`, paddingTop: 12 }}>
             {!c.iniciado_em ? (
