@@ -76,7 +76,7 @@ const inadimplente = (c) => ESPERANDO.includes(c.etapa) && !!c.data_pagamento &&
 const colunaDe = (c) => c.etapa === 'carta' ? 'extrato' : c.etapa === 'baixado' ? 'baixado' : c.etapa === 'pago' ? (atrasado(c) ? 'atrasado' : 'aguardando_pagamento')
   : c.etapa === 'aguardando_pagamento' && atrasado(c) ? 'atrasado' : c.etapa
 
-const BANCOS = ['Banco Mercantil do Brasil', 'Caixa Econômica Federal', 'Banco do Brasil', 'Bradesco', 'Itaú', 'Santander', 'Nubank', 'Outro']
+const BANCOS = ['Banco Mercantil do Brasil', 'Caixa Econômica Federal', 'Banco do Brasil', 'Bradesco', 'Itaú', 'Santander', 'Nubank', 'Banrisul', 'Outro']   // 04/11 (Bruno): + Banrisul
 const FORMAS_HONORARIO = ['Desconto automático PrevSempre', 'PIX da cliente', 'Transferência', 'Boleto', 'Dinheiro', 'Outro']
 const AZUL_PREV = '#1d4ed8'
 
