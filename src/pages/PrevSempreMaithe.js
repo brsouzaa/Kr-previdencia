@@ -29,6 +29,9 @@ export const mensagemGrupo = (c) =>
   `📣 Avisar a cliente *${c.nome}*, ${nomesResp(c)}, que em alguns minutos ela receberá um link do *Banco Mercantil* para abertura de conta e desconto dos honorários.` +
   `\nCPF: ${fmtCpf(c.cpf)}${c.telefone ? ` · Tel: ${fmtTel(c.telefone)}` : ''}`
 
+// 04/11 (Bruno): Maithe recusa a carta de concessao errada -> volta como aviso para o responsavel do Acompanhamento
+const MOTIVOS_CARTA = ['Carta de outra cliente', 'Carta ilegível ou cortada', 'Faltando página', 'Carta de outro benefício', 'Outro']
+
 const MOTIVOS_INVALIDAR = [
   { v: 'nao_abriu', rot: 'Cliente não abriu a conta' },
   { v: 'nao_autorizou', rot: 'Abriu a conta, mas não autorizou o desconto dos honorários' },
@@ -177,7 +180,7 @@ export default function PrevSempreMaithe() {
       const { data, error } = await supabase.rpc('posdef_prev_acao', { p_id: c.id, p_acao: acao, p: extra })
       if (error) throw new Error(error.message)
       if (!data?.ok) throw new Error(data?.erro || 'não salvou')
-      mostrar({ iniciar: 'Registrado — a cliente foi para Cadastrada · falta assinar', reenviar: 'Voltou para Novos — inicie de novo', confirmar: 'Finalizado — o caso seguiu no Acompanhamento', invalidar: 'Invalidado — segue sem desconto automático' }[acao] || 'Feito')
+      mostrar({ recusar_carta: 'Carta recusada — o responsável foi avisado no Acompanhamento', iniciar: 'Registrado — a cliente foi para Cadastrada · falta assinar', reenviar: 'Voltou para Novos — inicie de novo', confirmar: 'Finalizado — o caso seguiu no Acompanhamento', invalidar: 'Invalidado — segue sem desconto automático' }[acao] || 'Feito')
       setJanela(null); carregar()
     } catch (e) { mostrar(String(e.message || e), 'erro'); setSalvando(false) }
   }
@@ -286,6 +289,8 @@ export default function PrevSempreMaithe() {
             </div>
           </div>
           {c.tentativas > 1 && <Chip cor="#b45309">{c.tentativas}ª tentativa</Chip>}
+          {c.carta_recusada_em && <Chip cor={cores.perigo} forte>⚠️ aguardando carta correta</Chip>}
+          {!c.carta_recusada_em && c.carta_trocada_em && horasDesde(c.carta_trocada_em) < 48 && <Chip cor={cores.ok} forte>🔁 carta trocada {fmtDataHora(c.carta_trocada_em)}</Chip>}
           <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: atrasado ? cores.perigo : cores.suave }}>{txtTempo(h)}{atrasado ? ' · cobrar' : ''}</span>
           {!c.iniciado_em
             ? <button onClick={(e) => { e.stopPropagation(); abrir('iniciar', c) }} style={{ ...btn(AZUL), padding: '6px 12px', fontSize: 12.5, whiteSpace: 'nowrap' }}>▶️ Iniciar cadastro</button>
@@ -309,8 +314,10 @@ export default function PrevSempreMaithe() {
               {contrato && <button onClick={() => abrirArquivo(contrato)} style={linkDoc}>Contrato</button>}
               {procuracao && <button onClick={() => abrirArquivo(procuracao)} style={linkDoc}>Procuração</button>}
               {c.carta_concessao_url && <button onClick={() => abrirArquivo(c.carta_concessao_url)} style={linkDoc}>Carta de concessão</button>}
+              {c.carta_concessao_url && !c.carta_recusada_em && <button onClick={() => abrir('recusar_carta', c)} style={{ ...linkDoc, color: cores.perigo }}>⚠️ carta errada?</button>}
               {(Array.isArray(c.rgs) ? c.rgs : []).map((g, i) => <button key={'rg' + i} onClick={() => setVerRg({ c, i })} style={linkDoc}>{g.rotulo || 'RG'}</button>)}
             </div>
+            {c.carta_recusada_em && <div style={{ fontSize: 13, color: cores.texto, background: hexA(cores.perigo, 0.06), border: `1px solid ${hexA(cores.perigo, 0.3)}`, borderRadius: 10, padding: '8px 11px' }}>⚠️ Carta recusada em {fmtDataHora(c.carta_recusada_em)}: <b>{c.carta_recusada_motivo}</b> — aguardando o responsável anexar a correta no Acompanhamento.</div>}
             {blocoObs(c)}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {obsEdit[c.id] === undefined && !c.obs && <button onClick={() => setObsEdit(o => ({ ...o, [c.id]: '' }))} style={ghost('#a16207')}>📝 Anotar</button>}
@@ -420,6 +427,29 @@ export default function PrevSempreMaithe() {
             <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} style={{ ...st, resize: 'vertical' }} />
           </div>
           {!arquivo && <div style={{ fontSize: 12, color: cores.suave }}>Falta: print do Mercantil</div>}
+        </Janela>
+      )}
+
+      {j?.tipo === 'recusar_carta' && (
+        <Janela titulo="⚠️ Recusar carta de concessão" sub={`${j.c.nome} · ${fmtCpf(j.c.cpf)}`} cor={cores.perigo} onClose={fechar}
+          rodape={<>
+            <button onClick={fechar} style={btn('#475569', false)}>Cancelar</button>
+            <button disabled={!motivo || (motivo === 'Outro' && !texto.trim()) || salvando} onClick={() => agir('recusar_carta', j.c, { motivo: motivo === 'Outro' ? texto.trim() : motivo, texto: motivo === 'Outro' ? null : (texto.trim() || null) })}
+              style={{ ...btn(cores.perigo), opacity: motivo && !(motivo === 'Outro' && !texto.trim()) && !salvando ? 1 : 0.45 }}>{salvando ? 'Salvando…' : 'Recusar carta'}</button>
+          </>}>
+          <div style={{ fontSize: 13, color: cores.texto, background: hexA(cores.perigo, 0.06), borderRadius: 10, padding: '9px 12px' }}>O responsável do Acompanhamento recebe o aviso em vermelho para anexar a carta correta. A cliente <b>continua aqui</b> — quando a carta for trocada, aparece “carta trocada” na linha dela.</div>
+          {j.c.carta_concessao_url && <button onClick={() => abrirArquivo(j.c.carta_concessao_url)} style={{ ...btn('#475569', false), justifySelf: 'start', padding: '6px 11px', fontSize: 12.5 }}>📜 Ver a carta atual</button>}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {MOTIVOS_CARTA.map(m => (
+              <label key={m} style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14, border: `1.5px solid ${motivo === m ? cores.perigo : cores.cardBorda}`, borderRadius: 12, padding: '9px 12px', background: motivo === m ? hexA(cores.perigo, 0.05) : '#fff' }}>
+                <input type="radio" name="motivo_carta" checked={motivo === m} onChange={() => setMotivo(m)} /> {m}
+              </label>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>{motivo === 'Outro' ? 'Qual o problema?' : 'Detalhe (opcional)'}{motivo === 'Outro' && <span style={{ color: cores.perigo }}> *</span>}</div>
+            <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} style={{ ...st, resize: 'vertical' }} />
+          </div>
         </Janela>
       )}
 
