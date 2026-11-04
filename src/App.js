@@ -59,6 +59,7 @@ import FichaCNIS from './pages/FichaCNIS'
 import Protocolo from './pages/Protocolo'
 import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 import PosDeferimento from './pages/PosDeferimento'
+import PrevSempreMaithe from './pages/PrevSempreMaithe'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -312,6 +313,9 @@ const IDS_TIME_MARYANA = [
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
+// 04/11 (Bruno): quem tem a aba PrevSempre (abertura de conta Mercantil + desconto dos honorarios)
+const IDS_PREVSEMPRE = ['f53681cf-1467-41a9-b679-211ca4225865'] // Maithe (Advogada)
+
 function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
@@ -325,6 +329,8 @@ function paginaPermitida(profile, page) {
   // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
   // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
   if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
+  // 04/11 (Bruno) — ABA PREVSEMPRE: Maithe (advogada) + admin. Mesma lista do Layout.js; o banco confere de novo (app_config posdef_prevsempre_ids).
+  if (page === 'prevsempre_maithe') return role === 'admin' || IDS_PREVSEMPRE.includes(profile.id)
   // 30/10 (Bruno) — Maryana Kodos deixa de ver: Revisao IA Gestante, Bolsa Familia e CLT, Gerar contratos (manual),
   // Ranking de vendedoras e "O advogado aceitou?". MESMA lista do Layout.js (TELAS_TIRADAS_MARYANA).
   if (profile.id === 'be98f268-314f-4114-acc3-7bb9ce7635fd' && ['revisao_ia_gestante', 'revisao_ia_bf', 'revisao_ia_clt', 'contratos', 'ranking', 'validacao_advogado'].includes(page)) return false
@@ -509,6 +515,7 @@ function AppInner() {
     mesa_advogada: <MesaAdvogada />,
     protocolo: <Protocolo />,
     posdef: <PosDeferimento />,
+    prevsempre_maithe: <PrevSempreMaithe />,
     revisao_crefaz: <RevisaoCrefaz />,
   }
 
