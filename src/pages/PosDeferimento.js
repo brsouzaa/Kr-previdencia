@@ -1203,6 +1203,7 @@ export default function PosDeferimento() {
   const [mes, setMes] = useState(() => hojeISO().slice(0, 7))
   const [verFechados, setVerFechados] = useState(false)
   const [verResolvidas, setVerResolvidas] = useState(false)
+  const [exigVer, setExigVer] = useState('abertas')   // 04/11 (Bruno): aba Exigencias = Abertas | Cumpridas
 
   const carregar = useCallback(async () => {
     const reqs = [supabase.rpc('posdef_lista')]
@@ -1965,7 +1966,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const venc = andamento && p.prazo && p.prazo < hoje
     const wa = telWa(p.telefone)
     return (
-      <div key={p.id} style={{ ...card, padding: 0, overflow: 'hidden', opacity: fechada ? 0.75 : 1, border: `1.5px solid ${fechada ? cores.cardBorda : venc ? hexA(cores.perigo, 0.5) : hexA(cat.cor, 0.35)}` }}>
+      <div key={p.id} style={{ ...card, padding: 0, overflow: 'hidden', opacity: fechada && !ehExig(p) ? 0.75 : 1, border: `1.5px solid ${fechada ? cores.cardBorda : venc ? hexA(cores.perigo, 0.5) : hexA(cat.cor, 0.35)}` }}>
         <div style={{ padding: '11px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: hexA(cat.cor, 0.07) }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: '#fff', background: cat.cor, borderRadius: 999, padding: '3px 11px' }}>{cat.icone} {cat.rot}</span>
           <span style={{ fontSize: 14.5, fontWeight: 800, color: cores.texto }}>{p.nome}</span>
@@ -1983,6 +1984,25 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
             })()}
             {p.categoria === 'exigencia_inss' && p.numero_protocolo && <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>Protocolo {p.numero_protocolo}</div>}
           </div>
+          {fechada && ehExig(p) && (() => {
+            // 04/11 (Bruno): em que pe esta a exigencia depois que o Acompanhamento anexou
+            const e = p.etapa
+            const dias = p.resolvida_em ? Math.max(0, Math.floor((Date.now() - new Date(p.resolvida_em).getTime()) / 86400000)) : null
+            const st = ['deferido', 'recurso_deferido'].includes(e) ? { cor: cores.ok, t: '✅ Deferido pelo INSS' }
+              : ['indeferido', 'recurso_indeferido'].includes(e) ? { cor: cores.perigo, t: '⛔ Indeferido pelo INSS' }
+              : p.exig_cumprida_em ? { cor: '#0d9488', t: `📨 Cumprida no INSS pela advogada em ${fmtDataHora(p.exig_cumprida_em)} — em análise` }
+              : ['protocolado', 'recurso'].includes(e) ? { cor: '#0d9488', t: '📨 Voltou para análise do INSS' }
+              : e === 'exigencia' ? { cor: '#b45309', t: `📎 Anexado — com a advogada para mandar ao INSS${dias != null ? ` · há ${dias === 0 ? 'menos de 1 dia' : dias + ' dia' + (dias === 1 ? '' : 's')}` : ''}` }
+              : ['pendencia_docs', 'aguardando_protocolo'].includes(e) ? { cor: '#7c3aed', t: '📎 Anexado — com o setor de protocolo' }
+              : { cor: '#475569', t: `Etapa: ${e || '—'}` }
+            const anexos = Array.isArray(p.resolucao_anexos) ? p.resolucao_anexos.filter(Boolean) : []
+            return (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', borderRadius: 10, padding: '9px 12px', background: hexA(st.cor, 0.08), border: `1px solid ${hexA(st.cor, 0.25)}` }}>
+                <b style={{ fontSize: 13.5, color: st.cor }}>{st.t}</b>
+                {anexos.map((u, i) => <button key={i} onClick={() => abrirArquivo(u)} style={{ ...btn('#475569', false), padding: '4px 10px', fontSize: 12 }}>📎 Anexo {anexos.length > 1 ? i + 1 : ''}</button>)}
+              </div>
+            )
+          })()}
           {(andamento || fechada) && p.resolucao && (
             <div style={{ fontSize: 13, borderRadius: 10, padding: '8px 11px', background: venc ? hexA(cores.perigo, 0.08) : fechada ? hexA(cores.ok, 0.08) : hexA('#2563eb', 0.07), color: cores.texto }}>
               <b>{fechada ? 'Resolvida' : venc ? 'Combinado e VENCIDO' : 'Combinado'}:</b> {rotResolucao(p.categoria, p.resolucao)}{p.resolucao_data ? ` · ${fmtData(p.resolucao_data)}` : ''}{p.resolucao_texto ? ` — ${p.resolucao_texto}` : ''}
@@ -2025,6 +2045,34 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
         {sub && <span style={{ fontSize: 12, color: cores.suave }}>{sub}</span>}
       </div>
     )
+    if (exig) {
+      // 04/11 (Bruno): Exigencias separada em Abertas | Cumpridas (cumpridas ficam 30 dias)
+      const cumpridas = [...resolvidas].sort((a, b) => String(b.resolvida_em || '').localeCompare(String(a.resolvida_em || '')))
+      const comAdv = cumpridas.filter(p => p.etapa === 'exigencia' && !p.exig_cumprida_em).length
+      const sub = (k, rot, n) => (
+        <button key={k} onClick={() => setExigVer(k)} style={{ padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${exigVer === k ? '#ea580c' : cores.cardBorda}`, background: exigVer === k ? hexA('#ea580c', 0.08) : '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: exigVer === k ? 800 : 600, color: cores.texto }}>{rot} <span style={{ fontWeight: 800, color: '#ea580c' }}>{n}</span></button>
+      )
+      return (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {sub('abertas', '⚠️ Abertas', abertas.length + andamento.length)}
+            {sub('cumpridas', '✅ Cumpridas', cumpridas.length)}
+          </div>
+          {exigVer === 'abertas' ? (<>
+            <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#ea580c', 0.06), border: `1px solid ${hexA('#ea580c', 0.25)}` }}>⚠️ <b>Exigências do INSS</b> — o INSS parou a análise até receber o que pediu. Consiga o documento com a cliente e clique em <b>“Consegui tudo que o INSS pediu”</b> para anexar: vai direto para a advogada cumprir no Meu INSS e a exigência passa para <b>Cumpridas</b>. Ordenado pelo prazo do INSS.</div>
+            {titulo('Para resolver', abertas.length, '#b45309', 'exigências abertas pela advogada')}
+            {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma exigência aberta. 🎉</div>}
+            {abertas.map(cartaoPend)}
+            {andamento.length > 0 && titulo('Em andamento', andamento.length, '#2563eb', 'com data combinada — aparecem na agenda')}
+            {andamento.map(cartaoPend)}
+          </>) : (<>
+            <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#0d9488', 0.06), border: `1px solid ${hexA('#0d9488', 0.25)}` }}>✅ <b>Exigências cumpridas</b> nos últimos 30 dias — a parte do Acompanhamento terminou. Acompanhe aqui se a advogada já mandou ao INSS{comAdv ? <> · <b style={{ color: '#b45309' }}>{comAdv} com a advogada para mandar</b></> : ''}.</div>
+            {cumpridas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma exigência cumprida nos últimos 30 dias.</div>}
+            {cumpridas.map(cartaoPend)}
+          </>)}
+        </div>
+      )
+    }
     return (
       <div style={{ display: 'grid', gap: 12 }}>
         {exig && <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#ea580c', 0.06), border: `1px solid ${hexA('#ea580c', 0.25)}` }}>⚠️ <b>Exigências do INSS</b> — o INSS parou a análise até receber o que pediu. Consiga o documento com a cliente e clique em <b>“Consegui tudo que o INSS pediu”</b> para anexar: vai direto para a advogada cumprir no Meu INSS. Ordenado pelo prazo do INSS.</div>}
