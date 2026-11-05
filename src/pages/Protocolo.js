@@ -28,8 +28,8 @@ const COLUNAS = [
 ]
 
 const ABAS = [
-  ['quadro', '▦ Quadro'], ['conferir', '🔴 Conferir resultado'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
+  ['inicio', '🏠 Início'], ['conferir', '🔴 Conferir resultado'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
+  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'], ['quadro', '▦ Quadro'],
 ]
 
 const ROTULO_EVENTO = {
@@ -57,6 +57,7 @@ function acaoDoDrop(caso, col) {
 }
 
 const LIMITE_AGUARDANDO = 3
+const hojeExtensoBR = () => { const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }); return t.charAt(0).toUpperCase() + t.slice(1) }
 
 // 04/11 (Bruno): o INSS marcou CONCLUÍDA mas a extensão não conseguiu cravar deferido/indeferido
 // (ex.: carta com nome fora do padrão "carta.concessao", ou sem despacho escrito). Concluído é SEMPRE
@@ -65,6 +66,10 @@ const ETAPAS_DECIDIDAS = ['deferido', 'indeferido', 'recurso_deferido', 'recurso
 // 04/11 (Bruno): o que a extensao nao leu com certeza SOBE como deferido (ou indeferido, se leu a carta de
 // indeferimento) com marca conferir_resultado. O pos-deferimento so abre depois do "Conferido" da advogada.
 const aConferir = (c) => !!c?.conferir_resultado || (/conclu/i.test(c?.situacao_inss || '') && !ETAPAS_DECIDIDAS.includes(c?.etapa))
+// 05/11 (Bruno): o que esta em "Conferir resultado" NAO aparece em Deferidos/Indeferidos (nem conta).
+// So entra la quando a advogada disser se e deferido ou indeferido.
+const ehDef = (c) => ['deferido', 'recurso_deferido'].includes(c?.etapa) && !c?.conferir_resultado
+const ehIndef = (c) => ['indeferido', 'recurso_indeferido'].includes(c?.etapa) && !c?.conferir_resultado
 const rotuloConferir = (c) => c?.conferir_resultado
   ? (c.etapa === 'indeferido' ? 'INDEFERIDO · CONFERIR' : 'DEFERIDO · CONFERIR')
   : 'CONCLUÍDO · VER RESULTADO'
@@ -98,7 +103,7 @@ export default function Protocolo() {
   const [pend, setPend] = useState([])
   const [feed, setFeed] = useState([])
   const [painel, setPainel] = useState(null)
-  const [aba, setAba] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 860 ? 'fila' : 'quadro'))
+  const [aba, setAba] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 860 ? 'inicio' : 'inicio'))   // 05/11 (Bruno): abre no Inicio
 
   // 04/11 (Bruno): abas que nao cabem na tela — alem das setas do teclado, agora da para ARRASTAR com o mouse
   // e clicar nas setas ‹ › das pontas. Sem re-render no arrasto (mexe direto no scroll); seta so muda quando precisa.
@@ -173,6 +178,7 @@ export default function Protocolo() {
   // 29/10 — pendencias resolvidas pelo Acompanhamento de clientes, para a advogada refazer
   const [refazer, setRefazer] = useState([])
   const [gerando, setGerando] = useState({})   // id -> 'gerando' | mensagem de erro
+  const [inicioAberto, setInicioAberto] = useState({ conferir: true })   // 05/11: grupos abertos no Inicio
 
   const souAcomp = profile?.role === 'admin' || profile?.protocolo_papel === 'acompanhamento'
 
@@ -249,8 +255,10 @@ export default function Protocolo() {
       fila: L.filter(c => c.etapa === 'aguardando_protocolo').length,
       protocolados: L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').length,
       pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
-      deferidos: L.filter(c => c.etapa === 'deferido' || c.etapa === 'recurso_deferido').length,
-      indeferidos: L.filter(c => c.etapa === 'indeferido' || c.etapa === 'recurso_indeferido').length,
+      deferidos: L.filter(ehDef).length,
+      indeferidos: L.filter(ehIndef).length,
+      conferir: L.filter(aConferir).length,
+      indefSemMotivo: L.filter(c => ehIndef(c) && !c.motivo).length,
       atrasados: L.filter(c => c.etapa === 'aguardando_protocolo' && diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length,
     }
   }, [lista])
@@ -265,8 +273,9 @@ export default function Protocolo() {
       fila: L.filter(c => c.etapa === 'aguardando_protocolo').length,
       protocolados: L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').length,
       pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
-      deferidos: L.filter(c => c.etapa === 'deferido' || c.etapa === 'recurso_deferido').length,
-      indeferidos: L.filter(c => c.etapa === 'indeferido' || c.etapa === 'recurso_indeferido').length,
+      deferidos: L.filter(ehDef).length,
+      indeferidos: L.filter(ehIndef).length,
+      conferir: L.filter(aConferir).length,
     }
   }, [fAnot, filtrada, conta])
 
@@ -297,6 +306,26 @@ export default function Protocolo() {
     mostrar(`${c.nome?.split(' ')[0] || 'Caso'}: ${c.etapa === 'indeferido' ? 'indeferido' : 'deferido'} conferido`)
     tudoMudou()
   }
+
+  // 05/11 (Bruno): em "Conferir resultado" a advogada diz ONDE o caso fica.
+  //  - ja marcado como deferido e e deferido  -> confirma (abre o Acompanhamento na hora)
+  //  - ja marcado como indeferido             -> escolhe o motivo (isso confirma)
+  //  - qualquer outro caso                    -> formulario normal de deferido/indeferido (com o print do INSS)
+  function conferirComo(c, res) {
+    const rec = c.etapa === 'recurso' || c.etapa === 'recurso_deferido' || c.etapa === 'recurso_indeferido'
+    if (res === 'def') {
+      if (c.conferir_resultado && ['deferido', 'recurso_deferido'].includes(c.etapa)) return confirmarResultado(c)
+      return rec ? abrirAcao(c, 'recurso_resultado', { resultado: 'recurso_deferido' }) : abrirAcao(c, 'deferido')
+    }
+    if (['indeferido', 'recurso_indeferido'].includes(c.etapa)) return abrirAcao(c, 'definir_motivo')
+    return rec ? abrirAcao(c, 'recurso_resultado', { resultado: 'recurso_indeferido' }) : abrirAcao(c, 'indeferido')
+  }
+  const botoesConferir = (c, larguraTotal) => (
+    <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', width: larguraTotal ? '100%' : undefined }}>
+      <button onClick={(e) => { e.stopPropagation(); conferirComo(c, 'def') }} title="Conferi no INSS: é DEFERIDO" style={{ ...btn(cores.ok), padding: '7px 10px', fontSize: 12, flex: larguraTotal ? 1 : undefined, justifyContent: 'center' }}>✅ Deferido</button>
+      <button onClick={(e) => { e.stopPropagation(); conferirComo(c, 'ind') }} title="Conferi no INSS: é INDEFERIDO" style={{ ...btn(cores.perigo), padding: '7px 10px', fontSize: 12, flex: larguraTotal ? 1 : undefined, justifyContent: 'center' }}>⛔ Indeferido</button>
+    </span>
+  )
 
   // ------------------------------------------------------------ pecas
   const kpi = ({ rot, n, sub, cor, alvo, icone }) => (
@@ -454,7 +483,7 @@ export default function Protocolo() {
     if (aba === 'fila') return L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     if (aba === 'pendencias') return L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
-    if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(c => (aba === 'deferidos' ? ['deferido', 'recurso_deferido'] : ['indeferido', 'recurso_indeferido']).includes(c.etapa)).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
+    if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(aba === 'deferidos' ? ehDef : ehIndef).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     return L
   }, [filtrada, aba])
 
@@ -493,7 +522,7 @@ export default function Protocolo() {
               {c.sem_validacao_ia && <Chip cor={cores.perigo} forte>SEM I.A</Chip>}
               {c.tem_ressalva && <Chip cor="#b45309">ressalva</Chip>}
             </div>
-            {prox && prox !== 'observacao' && (
+            {aba === 'conferir' ? <div style={{ marginTop: 10 }}>{botoesConferir(c, true)}</div> : prox && prox !== 'observacao' && (
               <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, prox) }} style={{ ...btn(ACOES[prox].cor), marginTop: 10, width: '100%', justifyContent: 'center' }}>{ACOES[prox].icone} {ACOES[prox].titulo}</button>
             )}
           </div>
@@ -513,7 +542,7 @@ export default function Protocolo() {
             <div style={{ fontSize: 12.5, minWidth: 0 }}><Chip cor={et.cor} forte>{et.curto}</Chip> <span style={{ marginLeft: 4 }}>{infoDaLinha(c)}</span></div>
             <div style={{ fontSize: 12.5, color: cores.suave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.vendedora_nome || '—'}</div>
             <div style={{ textAlign: 'right' }}>
-              {prox && prox !== 'observacao' ? (
+              {aba === 'conferir' ? botoesConferir(c) : prox && prox !== 'observacao' ? (
                 <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, prox) }} style={{ ...btn(ACOES[prox].cor), padding: '7px 11px', fontSize: 12 }}>{ACOES[prox].icone} {ACOES[prox].titulo.replace('Marcar como ', '')}</button>
               ) : <span style={{ fontSize: 12, color: cores.azul, fontWeight: 700 }}>Abrir ficha →</span>}
             </div>
@@ -620,6 +649,70 @@ export default function Protocolo() {
     </div>
   )
 
+  // ------------------------------------------------------------ inicio (05/11, Bruno)
+  // Tarefas da advogada, no mesmo formato do Inicio do Acompanhamento: clica na setinha e abre.
+  const inicioView = (() => {
+    const L = lista || []
+    const conf = L.filter(aConferir).sort((a, b) => new Date(a.ultima_movimentacao_em || a.etapa_desde || 0) - new Date(b.ultima_movimentacao_em || b.etapa_desde || 0))
+    const fila = L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
+    const indef = L.filter(c => ehIndef(c) && !c.motivo).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
+    const filaAtras = fila.filter(c => diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length
+    const linha = (c, i, { sub, acoes, alerta, onAbrir }) => (
+      <div key={c.id || i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', ...(alerta ? { background: hexA(cores.perigo, 0.06), boxShadow: `inset 4px 0 0 ${cores.perigo}` } : {}) }}>
+        <div onClick={onAbrir} style={{ flex: '1 1 240px', minWidth: 0, cursor: 'pointer' }}>
+          <div style={{ fontSize: 14, fontWeight: 750, color: alerta ? cores.perigo : cores.texto }}>{c.nome}</div>
+          <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{sub}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>{acoes}</div>
+      </div>
+    )
+    const fichaBtn = (cpf) => <button key="f" onClick={() => setCpfAberto(cpf)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>Abrir ficha</button>
+    const grupos = [
+      { k: 'conferir', icone: '🔴', tit: 'Conferir resultado no INSS', cor: cores.perigo, itens: conf, extra: 'o INSS concluiu — diga se é deferido ou indeferido',
+        linha: (c, i) => linha(c, i, { alerta: true, onAbrir: () => setCpfAberto(c.cpf),
+          sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''} · <b style={{ color: cores.perigo }}>{c.conferir_resultado ? `${rotuloConferir(c)}` : 'CONCLUÍDO sem resultado lido'}</b>{c.ultima_movimentacao_em ? ` · INSS ${fmtDataHora(c.ultima_movimentacao_em)}` : ''}</>,
+          acoes: [fichaBtn(c.cpf), <span key="b">{botoesConferir(c)}</span>] }) },
+      { k: 'fila', icone: '🗂️', tit: 'Fila de protocolo', cor: '#2563eb', itens: fila, extra: filaAtras ? `${filaAtras} há mais de ${LIMITE_AGUARDANDO} dias` : 'em dia',
+        linha: (c, i) => { const d = diasDesde(c.etapa_desde); const atr = d > LIMITE_AGUARDANDO
+          return linha(c, i, { alerta: atr, onAbrir: () => setCpfAberto(c.cpf),
+            sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.sem_validacao_ia ? ' · SEM I.A' : ''}{c.tem_ressalva ? ' · ressalva' : ''} · <b style={{ color: atr ? cores.perigo : '#2563eb' }}>esperando há {d} dia{d === 1 ? '' : 's'}</b></>,
+            acoes: [fichaBtn(c.cpf), <button key="p" onClick={() => abrirAcao(c, 'protocolado')} style={{ ...btn(ACOES.protocolado.cor), padding: '6px 10px', fontSize: 12 }}>📨 Protocolado</button>] }) } },
+      { k: 'refazer', icone: '✅', tit: 'Pendências resolvidas para refazer', cor: cores.ok, itens: refazer, extra: 'o Acompanhamento resolveu — refaça o caso',
+        linha: (it, i) => linha({ ...it, id: it.id }, i, { alerta: RESOLUCOES_NEGATIVAS.includes(it.resolucao), onAbrir: () => setCpfAberto(it.cpf),
+          sub: <>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'} · faltava: {String(it.descricao || '').slice(0, 80)}{String(it.descricao || '').length > 80 ? '…' : ''} · <b style={{ color: RESOLUCOES_NEGATIVAS.includes(it.resolucao) ? cores.perigo : cores.ok }}>{rotResolucao(it.categoria, it.resolucao)}</b> · {fmtDataHora(it.resolvida_em)}</>,
+          acoes: [fichaBtn(it.cpf), <button key="d" onClick={() => setAba('refazer')} style={{ ...btn(cores.roxo, false), padding: '6px 10px', fontSize: 12 }}>✦ Ver defesa</button>,
+            <button key="r" onClick={() => marcarRefeito(it)} style={{ ...btn(cores.ok), padding: '6px 10px', fontSize: 12 }}>✔ Refeito</button>] }) },
+      { k: 'indef', icone: '⛔', tit: 'Indeferidos sem motivo', cor: '#b91c1c', itens: indef, extra: 'coloque o motivo — é ele que mostra o que não protocolar',
+        linha: (c, i) => linha(c, i, { onAbrir: () => setCpfAberto(c.cpf),
+          sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}</>,
+          acoes: [fichaBtn(c.cpf), <button key="m" onClick={() => abrirAcao(c, 'definir_motivo')} style={{ ...btn('#b91c1c'), padding: '6px 10px', fontSize: 12 }}>📝 Colocar motivo</button>] }) },
+    ]
+    const total = grupos.reduce((n, g) => n + g.itens.length, 0)
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ ...card, padding: '12px 16px', fontSize: 13.5, color: cores.texto, background: 'linear-gradient(135deg,#ffffff 40%,#eef2ff)' }}>
+          <b>{hojeExtensoBR()}</b> · {total ? <>você tem <b>{total}</b> tarefa{total === 1 ? '' : 's'}. Clique na setinha para abrir cada uma.</> : 'nada pendente por aqui. 🎉'}
+        </div>
+        {grupos.map(g => {
+          const n = g.itens.length
+          const aberto = !!inicioAberto[g.k] && n > 0
+          return (
+            <div key={g.k} style={{ ...card, padding: 0, overflow: 'hidden', opacity: n ? 1 : 0.6 }}>
+              <button onClick={() => n && setInicioAberto(m => ({ ...m, [g.k]: !m[g.k] }))} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', border: 'none', background: n ? hexA(g.cor, 0.06) : '#fff', cursor: n ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left', borderBottom: aberto ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap' }}>
+                <span style={{ width: 16, color: cores.suave, fontSize: 13 }}>{n ? (aberto ? '▾' : '▸') : ''}</span>
+                <span style={{ fontSize: 18 }}>{g.icone}</span>
+                <span style={{ fontSize: 14.5, fontWeight: 800, color: cores.texto }}>{g.tit}</span>
+                {g.extra && n > 0 && <span style={{ fontSize: 12, color: cores.suave }}>· {g.extra}</span>}
+                <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, color: n ? g.cor : cores.suave, background: n ? hexA(g.cor, 0.12) : '#f1f5f9', borderRadius: 999, padding: '2px 11px' }}>{n || 'nada'}</span>
+              </button>
+              {aberto && g.itens.map((c, i) => g.linha(c, i))}
+            </div>
+          )
+        })}
+      </div>
+    )
+  })()
+
   // ------------------------------------------------------------ painel
   const painelView = !painel ? <div style={{ ...card, padding: 30, textAlign: 'center', color: cores.suave }}>Carregando números…</div> : (() => {
     const per = painel.periodos || {}
@@ -646,6 +739,12 @@ export default function Protocolo() {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0,1fr))', gap: 16, alignItems: 'start' }}>
           <div style={{ ...card, padding: 18 }}>
             <div style={{ fontWeight: 800, marginBottom: 12 }}>Casos por etapa</div>
+            {painel.por_etapa?.a_conferir > 0 && (
+              <div style={{ marginBottom: 9 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span>🔴 Conferir resultado</span><b style={{ color: cores.perigo }}>{painel.por_etapa.a_conferir}</b></div>
+                <div style={{ height: 8, borderRadius: 99, background: '#eef2f7', marginTop: 4 }}><div style={{ height: 8, borderRadius: 99, width: `${(100 * painel.por_etapa.a_conferir) / maxEtapa}%`, background: cores.perigo }} /></div>
+              </div>
+            )}
             {ETAPAS.filter(e => painel.por_etapa?.[e.key]).map(e => (
               <div key={e.key} style={{ marginBottom: 9 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span>{e.icone} {e.label}</span><b>{painel.por_etapa[e.key]}</b></div>
@@ -699,6 +798,72 @@ export default function Protocolo() {
                 <div style={{ fontSize: 11, color: cores.suave }}>de {painel.total ?? 0} casos</div>
               </div>
             </div>
+          </div>
+        </div>
+        {/* 05/11 (Bruno): o que NAO protocolar — indeferimento por perfil x motivo, vendedora e tipo de entrada */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+          {(painel.grupos || []).map(g => (
+            <div key={g.grupo} style={{ ...card, padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave }}>{g.grupo}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: g.taxa == null ? cores.suave : g.taxa >= 70 ? cores.ok : g.taxa >= 40 ? cores.alerta : cores.perigo }}>{g.taxa == null ? '—' : g.taxa + '%'}</span>
+                <span style={{ fontSize: 12, color: cores.suave }}>de deferimento</span>
+              </div>
+              <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>{g.total} casos · {g.deferidos} deferidos · {g.indeferidos} indeferidos · {g.exigencias} com exigência</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ fontWeight: 800 }}>O que não protocolar · indeferimentos por perfil e motivo</div>
+          <div style={{ fontSize: 12, color: cores.suave, margin: '2px 0 12px' }}>Cada linha é um tipo de caso que o INSS negou. Só conta resultado já conferido pela advogada.</div>
+          {(painel.perfil_motivo || []).length === 0 && <div style={{ fontSize: 12.5, color: cores.suave }}>Nenhum indeferimento conferido ainda.</div>}
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(painel.perfil_motivo || []).map((r, i) => (
+              <div key={i} style={{ border: `1px solid ${cores.cardBorda}`, borderRadius: 12, padding: '10px 12px', background: hexA(cores.perigo, 0.03) }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Chip cor="#475569">{r.perfil}</Chip><b style={{ fontSize: 13, color: cores.perigo }}>{r.motivo}</b>
+                  <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, color: cores.perigo }}>{r.n} indeferido{r.n === 1 ? '' : 's'}</span>
+                </div>
+                {(r.casos || []).map((x, j) => (
+                  <div key={j} onClick={() => setCpfAberto(x.cpf)} style={{ fontSize: 12.5, color: cores.texto, marginTop: 6, cursor: 'pointer' }}>
+                    <b>{x.nome}</b> <span style={{ color: cores.suave }}>· {x.vendedora || '—'}</span>{x.texto ? <span style={{ color: cores.suave }}> — {String(x.texto).slice(0, 220)}{String(x.texto).length > 220 ? '…' : ''}</span> : null}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px 4px' }}>
+            <div style={{ fontWeight: 800 }}>Resultado por vendedora</div>
+            <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>Casos no setor de cada vendedora (sem cancelados). % de deferimento = deferidos ÷ (deferidos + indeferidos).</div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 720 }}>
+              <thead>
+                <tr style={{ color: cores.suave, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  {['Vendedora', 'Casos', 'Protocolados', 'No INSS', 'Exigência', 'Deferidos', 'Indeferidos', '% def.', 'Ressalva', 'Sem I.A'].map((h, i) => (
+                    <th key={h} style={{ textAlign: i ? 'right' : 'left', padding: '10px 14px', borderBottom: `1px solid ${cores.cardBorda}`, fontWeight: 800 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(painel.por_vendedora || []).map(v => (
+                  <tr key={v.vendedora} style={{ borderBottom: `1px solid ${cores.cardBorda}` }}>
+                    <td style={{ padding: '9px 14px', fontWeight: 700 }}>{v.vendedora}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.total}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.protocolados}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.em_analise}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.exigencias ? '#ea580c' : cores.suave, fontWeight: v.exigencias ? 800 : 500 }}>{v.exigencias}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: cores.ok, fontWeight: 800 }}>{v.deferidos}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.indeferidos ? cores.perigo : cores.suave, fontWeight: v.indeferidos ? 800 : 500 }}>{v.indeferidos}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 800, color: v.taxa == null ? cores.suave : v.taxa >= 70 ? cores.ok : v.taxa >= 40 ? cores.alerta : cores.perigo }}>{v.taxa == null ? '—' : v.taxa + '%'}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.ressalva ? '#b45309' : cores.suave }}>{v.ressalva}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.sem_ia ? cores.perigo : cores.suave }}>{v.sem_ia}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -846,7 +1011,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {abasLado.includes('e') && abasSeta('e')}
         <div ref={abasRef} {...abasArrasto} className="kr-aba" style={{ userSelect: 'none', scrollbarWidth: 'none', display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
           {ABAS.map(([k, r]) => {
-            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
+            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'conferir' ? contaAba.conferir : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
             const on = aba === k
             return (
               <button key={k} data-on={on ? '1' : '0'} onClick={() => setAba(k)} style={{
@@ -860,10 +1025,10 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {abasLado.includes('d') && abasSeta('d')}
       </div>
 
-      {!['acompanhamento', 'painel', 'refazer'].includes(aba) && filtros}
+      {!['acompanhamento', 'painel', 'refazer', 'inicio'].includes(aba) && filtros}
       {(aba === 'quadro' || aba === 'conferir') && (lista || []).some(aConferir) && (
         <div onClick={() => setAba('conferir')} style={{ ...card, padding: '12px 16px', background: '#fef2f2', border: `2px solid ${cores.perigo}`, color: '#991b1b', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
-          🔴 {(lista || []).filter(aConferir).length} resultado(s) para CONFERIR no INSS — a extensão não leu com certeza. Confira e clique "✔ Conferido" (o pós-deferimento só abre depois) <span style={{ marginLeft: 'auto' }}>ver →</span>
+          🔴 {(lista || []).filter(aConferir).length} resultado(s) para CONFERIR no INSS — a extensão não leu com certeza. Confira no INSS e diga se é deferido ou indeferido — só depois o caso vai para Deferidos/Indeferidos e para o Acompanhamento <span style={{ marginLeft: 'auto' }}>ver →</span>
         </div>
       )}
       {aba !== 'acompanhamento' && aba !== 'painel' && alertas.length > 0 && aba === 'quadro' && (
@@ -875,6 +1040,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
       {lista === null ? (
         <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando casos…</div>
       ) : aba === 'quadro' ? quadro
+        : aba === 'inicio' ? inicioView
         : aba === 'refazer' ? refazerView
         : aba === 'acompanhamento' ? acompanhamento
         : aba === 'painel' ? painelView
