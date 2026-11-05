@@ -28,8 +28,8 @@ const COLUNAS = [
 ]
 
 const ABAS = [
-  ['inicio', '🏠 Início'], ['conferir', '🔴 Conferir resultado'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['guia', '🧾 Complementação de guia'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'], ['quadro', '▦ Quadro'],
+  ['inicio', '🏠 Início'], ['quadro', '▦ Quadro'], ['conferir', '🔴 Conferir resultado'],   // 05/11 (Bruno): Quadro logo depois do Inicio ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
+  ['pendencias', 'Pendências e exigências'], ['guia', '🧾 Complementação de guia'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
 ]
 
 const ROTULO_EVENTO = {
