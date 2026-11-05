@@ -62,7 +62,12 @@ const LIMITE_AGUARDANDO = 3
 // (ex.: carta com nome fora do padrão "carta.concessao", ou sem despacho escrito). Concluído é SEMPRE
 // deferido ou indeferido — então sobe com DESTAQUE FORTE pra a advogada consultar manual e marcar.
 const ETAPAS_DECIDIDAS = ['deferido', 'indeferido', 'recurso_deferido', 'recurso_indeferido', 'cancelado']
-const aConferir = (c) => /conclu/i.test(c?.situacao_inss || '') && !ETAPAS_DECIDIDAS.includes(c?.etapa)
+// 04/11 (Bruno): o que a extensao nao leu com certeza SOBE como deferido (ou indeferido, se leu a carta de
+// indeferimento) com marca conferir_resultado. O pos-deferimento so abre depois do "Conferido" da advogada.
+const aConferir = (c) => !!c?.conferir_resultado || (/conclu/i.test(c?.situacao_inss || '') && !ETAPAS_DECIDIDAS.includes(c?.etapa))
+const rotuloConferir = (c) => c?.conferir_resultado
+  ? (c.etapa === 'indeferido' ? 'INDEFERIDO · CONFERIR' : 'DEFERIDO · CONFERIR')
+  : 'CONCLUÍDO · VER RESULTADO'
 
 // 02/11 (Bruno): filtro pelo dia em que o caso SUBIU na situacao atual aqui no CRM (etapa_desde:
 // a extensao/advogada marcou deferido, indeferido, exigencia...). Ex.: deferido que subiu hoje aparece
@@ -284,6 +289,15 @@ export default function Protocolo() {
     tudoMudou()
   }
 
+  // 04/11: advogada conferiu no INSS que o resultado lido pela extensao esta certo -> tira a marca
+  // (se for deferido, ai sim abre o pos-deferimento). Se estiver errado, e so arrastar pra coluna certa.
+  async function confirmarResultado(c) {
+    const { data, error } = await supabase.rpc('protocolo_confirmar_resultado', { p_caso: c.id })
+    if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'erro', 'erro'); return }
+    mostrar(`${c.nome?.split(' ')[0] || 'Caso'}: ${c.etapa === 'indeferido' ? 'indeferido' : 'deferido'} conferido`)
+    tudoMudou()
+  }
+
   // ------------------------------------------------------------ pecas
   const kpi = ({ rot, n, sub, cor, alvo, icone }) => (
     <button key={rot} onClick={() => alvo && setAba(alvo)} style={{
@@ -325,7 +339,11 @@ export default function Protocolo() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 9 }}>
-          {conferir && <Chip cor={cores.perigo} forte>🔴 CONCLUÍDO · VER RESULTADO</Chip>}
+          {conferir && <Chip cor={cores.perigo} forte>🔴 {rotuloConferir(c)}</Chip>}
+          {c.conferir_resultado && (
+            <button onClick={(e) => { e.stopPropagation(); confirmarResultado(c) }} title="Já conferi no INSS: o resultado está certo"
+              style={{ ...btn(cores.perigo, false), padding: '2px 9px', fontSize: 11.5, fontWeight: 800 }}>✔ Conferido</button>
+          )}
           <Chip cor="#475569">{c.perfil_label}</Chip>
           {c.sem_validacao_ia && <Chip cor={cores.perigo} forte>SEM I.A</Chip>}
           {c.tem_ressalva && <Chip cor="#b45309">ressalva</Chip>}
@@ -441,7 +459,7 @@ export default function Protocolo() {
   }, [filtrada, aba])
 
   const infoDaLinha = (c) => {
-    if (aba === 'conferir') return <span style={{ color: cores.perigo, fontWeight: 800 }}>CONCLUÍDO no INSS sem resultado lido — consultar manual{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}</span>
+    if (aba === 'conferir') return <span style={{ color: cores.perigo, fontWeight: 800 }}>{c.conferir_resultado ? `${rotuloConferir(c)} — ${c.conferir_motivo || 'conferir no INSS'}` : 'CONCLUÍDO no INSS sem resultado lido — consultar manual'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}</span>
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
     if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · subiu {fmtDataHora(dataAnotacao(c))}</span></span>
@@ -845,7 +863,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
       {!['acompanhamento', 'painel', 'refazer'].includes(aba) && filtros}
       {(aba === 'quadro' || aba === 'conferir') && (lista || []).some(aConferir) && (
         <div onClick={() => setAba('conferir')} style={{ ...card, padding: '12px 16px', background: '#fef2f2', border: `2px solid ${cores.perigo}`, color: '#991b1b', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
-          🔴 {(lista || []).filter(aConferir).length} concluído(s) no INSS SEM resultado lido — a advogada precisa consultar manual e marcar deferido/indeferido <span style={{ marginLeft: 'auto' }}>ver →</span>
+          🔴 {(lista || []).filter(aConferir).length} resultado(s) para CONFERIR no INSS — a extensão não leu com certeza. Confira e clique "✔ Conferido" (o pós-deferimento só abre depois) <span style={{ marginLeft: 'auto' }}>ver →</span>
         </div>
       )}
       {aba !== 'acompanhamento' && aba !== 'painel' && alertas.length > 0 && aba === 'quadro' && (
