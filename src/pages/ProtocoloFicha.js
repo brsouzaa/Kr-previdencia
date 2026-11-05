@@ -358,6 +358,16 @@ export const ACOES = {
       { k: 'motivo_texto', l: 'Detalhe do motivo', tipo: 'textarea', obrigSe: (v) => v.motivo_codigo === 'outro' },
     ],
   },
+  // 05/11 (Bruno): indeferido sem motivo (ou lido pela extensao) -> a advogada escolhe o motivo.
+  // Nao muda a etapa e nao pede anexo. Se estava em "Conferir resultado", isso confirma o indeferimento.
+  definir_motivo: {
+    titulo: 'Motivo do indeferimento', icone: '📝', cor: '#b91c1c',
+    nota: 'Confira no INSS e escolha o motivo. É ele que alimenta o Painel ("o que não protocolar").',
+    campos: [
+      { k: 'motivo_codigo', l: 'Motivo', obrig: true, tipo: 'select', opcoes: MOTIVOS },
+      { k: 'motivo_texto', l: 'Detalhe do motivo', tipo: 'textarea', obrigSe: (v) => v.motivo_codigo === 'outro' },
+    ],
+  },
   recurso: {
     titulo: 'Entrar com recurso', icone: '⚖️', cor: '#0891b2',
     campos: [
@@ -407,11 +417,11 @@ export const ACOES_POR_ETAPA = {
   pendencia_docs: ['voltar_fila', 'protocolado', 'falta_documento', 'observacao'],
   protocolado: ['deferido', 'indeferido', 'exigencia', 'observacao'],
   exigencia: ['exigencia_cumprida', 'deferido', 'indeferido', 'exigencia', 'observacao'],
-  indeferido: ['recurso', 'observacao'],
+  indeferido: ['recurso', 'definir_motivo', 'observacao'],
   recurso: ['recurso_resultado', 'observacao'],
   deferido: ['observacao'],
   recurso_deferido: ['observacao'],
-  recurso_indeferido: ['observacao'],
+  recurso_indeferido: ['definir_motivo', 'observacao'],
   cancelado: ['voltar_fila', 'observacao'],
 }
 
