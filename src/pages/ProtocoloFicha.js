@@ -43,6 +43,17 @@ export const MOTIVOS = [
   { v: 'outro', l: 'Outro (escrever)' },
 ]
 
+// 05/11 (Bruno): motivo da EXIGENCIA do INSS (obrigatorio ao registrar). Vai no "subtipo" da pendencia.
+// "Complementacao de guia" vira categoria propria (cliente paga a guia e o acompanhamento registra o valor).
+export const MOTIVOS_EXIG = [
+  { v: 'complementacao_guia', l: 'Complementação de guia' },
+  { v: 'procuracao_termo', l: 'Assinar procuração / termo do INSS' },
+  { v: 'documento', l: 'Documento faltando' },
+  { v: 'dado_divergente', l: 'Declaração / dado divergente' },
+  { v: 'outro', l: 'Outro (escrever)' },
+]
+export const rotMotivoExig = (v) => (MOTIVOS_EXIG.find(m => m.v === v) || {}).l?.replace(' (escrever)', '') || null
+
 export const BUCKET = 'protocolo-inss'
 
 // 29/10 (Bruno) — CATEGORIA DA PENDENCIA e as ALTERNATIVAS para resolver. A advogada escolhe
@@ -324,6 +335,7 @@ export const ACOES = {
     anexo: 'Imagem da resposta do INSS', anexoObrig: true,
     nota: 'Abre pendência para a vendedora e grava a exigência na base de resultados do INSS.',
     campos: [
+      { k: 'subtipo', l: 'Motivo da exigência', obrig: true, tipo: 'select', opcoes: MOTIVOS_EXIG },   // 05/11 (Bruno)
       { k: 'texto', l: 'O que o INSS pediu?', obrig: true, tipo: 'textarea' },
       { k: 'data', l: 'Data da exigência', tipo: 'date', hoje: true },
       { k: 'prazo', l: 'Prazo para cumprir', tipo: 'date', mais7: true },
