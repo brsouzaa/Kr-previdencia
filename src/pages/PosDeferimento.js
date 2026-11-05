@@ -5,7 +5,7 @@ import { cores, sombras } from '../lib/tema'
 import {
   Chip, hexA, estiloBotao as btn, estiloCard as card, fmtCpf, fmtTel, fmtData, fmtDataHora,
   diaBR, hojeISO, diasDesde, iniciais, useIsMobile, useToast, copiarTexto, abrirArquivo, enviarArquivo, soDig,
-  catPend, rotResolucao, RESOLUCOES_NEGATIVAS, perguntarIA,
+  catPend, rotResolucao, RESOLUCOES_NEGATIVAS, perguntarIA, rotMotivoExig,
 } from './ProtocoloFicha'
 
 // ===== ACOMPANHAMENTO DE CLIENTES (29/10/2026, Bruno) — funil no estilo Pipedrive =====
@@ -995,6 +995,8 @@ function ModalResolver({ pend, opcao, onClose, onFeito }) {
   const op = cat.opcoes.find(o => o.v === opcao) || cat.opcoes[0]
   const [texto, setTexto] = useState('')
   const [data, setData] = useState('')
+  const [valor, setValor] = useState('')   // 05/11 (Bruno): complementacao de guia paga -> valor
+  const pedeValor = op.v === 'pagou'
   const [arquivos, setArquivos] = useState([])
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -1017,6 +1019,7 @@ function ModalResolver({ pend, opcao, onClose, onFeito }) {
   if (op.anexo && !arquivos.length) falta.push('anexo')
   if (op.data && !data) falta.push('data')
   if (op.texto && !texto.trim()) falta.push('explicação')
+  if (pedeValor && !(Number(String(valor).replace(/\./g, '').replace(',', '.')) > 0)) falta.push('valor pago')
   const pode = !falta.length && !salvando
 
   async function salvar() {
@@ -1025,7 +1028,7 @@ function ModalResolver({ pend, opcao, onClose, onFeito }) {
     try {
       const anexos = []
       for (const f of arquivos) anexos.push(await enviarArquivo(f, pend.cpf))
-      const { data: r, error } = await supabase.rpc('posdef_pendencia_resolver', { p_id: pend.id, p: { resolucao: op.v, texto: texto.trim() || null, data: data || null, anexos } })
+      const { data: r, error } = await supabase.rpc('posdef_pendencia_resolver', { p_id: pend.id, p: { resolucao: op.v, texto: texto.trim() || null, data: data || null, anexos, valor: pedeValor ? String(valor).replace(/\./g, '').replace(',', '.') : null } })
       if (error) throw new Error(error.message)
       if (!r?.ok) throw new Error(r?.erro || 'não salvou')
       onFeito && onFeito(r)
@@ -1068,6 +1071,12 @@ function ModalResolver({ pend, opcao, onClose, onFeito }) {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {pedeValor && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: cores.suave, margin: '0 0 5px' }}>Valor pago na complementação (R$)<span style={{ color: cores.perigo }}> *</span></div>
+              <input inputMode="decimal" value={valor} onChange={e => setValor(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="Ex.: 152,37" style={st} />
             </div>
           )}
           {op.data && (
@@ -1322,7 +1331,7 @@ export default function PosDeferimento() {
   const inssF = useMemo(() => inss.filter(casa), [inss, casa])
   const pendsF = useMemo(() => pends.filter(casa), [pends, casa])
   // 03/11 (Bruno): exigencia do INSS tem aba propria no Acompanhamento, separada das pendencias
-  const ehExig = (p) => p.categoria === 'exigencia_inss'
+  const ehExig = (p) => p.tipo === 'exigencia_inss' || p.categoria === 'exigencia_inss'   // 05/11: exigencia de complementacao de guia continua aqui
   const resultadosF = useMemo(() => resultados.filter(casa), [resultados, casa])
 
   const hoje = hojeISO()
@@ -1937,7 +1946,15 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const subiuHoje = (c) => diaBR(c.etapa_desde) === hoje
     const defAvisar = filtrada.filter(c => c.etapa === 'deferido' && !c.cliente_avisada_em).sort((a, b) => new Date(b.etapa_desde || 0) - new Date(a.etapa_desde || 0))
     const indefAvisar = resultadosF.filter(c => !ehDeferido(c) && !c.cliente_avisada_em && (diasDesde(dataAnotacao(c)) ?? 0) <= 30).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
-    const exig = inssF.filter(c => c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
+    // 05/11 (Bruno): no Inicio so as exigencias que a advogada registrou COM MOTIVO (complementacao de guia tem grupo proprio).
+    // Resolveu -> vai para "Resolvidas · refazer" da advogada.
+    const ordPrazo = (a, b) => String(a.exigencia_prazo || a.prazo || '9999').localeCompare(String(b.exigencia_prazo || b.prazo || '9999'))
+    const exig = pendsF.filter(p => p.tipo === 'exigencia_inss' && p.subtipo && p.categoria !== 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
+    const guiaPend = pendsF.filter(p => p.categoria === 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
+    const botoesResolver = (p) => catPend(p.categoria).opcoes.map(o => (
+      <button key={o.v} onClick={() => setResolver({ pend: p, opcao: o.v })} style={{ ...btn(o.negativa ? cores.perigo : o.andamento ? '#2563eb' : cores.ok, !!(o.negativa || o.andamento)), padding: '6px 10px', fontSize: 12 }}>{o.rot}</button>
+    ))
+    const prazoTxt = (p) => { const pz = p.exigencia_prazo || p.prazo; if (!pz) return ''; const d = -diasApos(pz); return <b style={{ color: d <= 3 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(pz)}{d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`}</b> }
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
     const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 03/11: mais antigo primeiro (48h)
     // 03/11 (Bruno): o extrato so sobe para cobrar 7 dias apos o deferimento
@@ -2004,13 +2021,15 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
           acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
             <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
-      { k: 'exig', icone: '⚠️', tit: 'Exigências do INSS', cor: '#ea580c', itens: exig, extra: exig.filter(subiuHoje).length ? `${exig.filter(subiuHoje).length} nova hoje` : null,
-        linha: (c, i) => {
-          const d = c.exigencia_prazo ? -diasApos(c.exigencia_prazo) : null
-          return linhaSimples(c, i, { novo: subiuHoje(c), onAbrir: () => setInssDe(c),
-            sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'}{c.exigencia_prazo ? <b style={{ color: d != null && d <= 5 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(c.exigencia_prazo)}{d != null ? (d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</b> : ' · sem prazo informado'}{c.exigencia_texto ? ` · ${String(c.exigencia_texto).slice(0, 90)}${String(c.exigencia_texto).length > 90 ? '…' : ''}` : ''}</>,
-            acoes: [waBtn(c), <button key="v" onClick={() => setInssDe(c)} style={{ ...btn('#ea580c', false), padding: '6px 10px', fontSize: 12 }}>Ver exigência</button>] })
-        } },
+      { k: 'exig', icone: '⚠️', tit: 'Exigências a resolver', cor: '#ea580c', itens: exig, extra: 'a advogada registrou o motivo — resolvendo, volta para ela refazer',
+        linha: (p, i) => linhaSimples({ ...p, id: 'e' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba('exigencias'),
+          sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · <b style={{ color: '#9a3412' }}>{rotMotivoExig(p.subtipo) || 'Exigência'}</b> · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? ` · combinado até ${fmtData(p.resolucao_data)}` : ''}</>,
+          acoes: botoesResolver(p) }) },
+      // 05/11 (Bruno): complementacao de guia (antes do protocolo e exigencia do INSS). Pagou -> registra o valor.
+      { k: 'guia', icone: '🧾', tit: 'Complementação de guia', cor: '#b45309', itens: guiaPend, extra: 'quando a cliente pagar, registre o valor',
+        linha: (p, i) => linhaSimples({ ...p, id: 'g' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba(ehExig(p) ? 'exigencias' : 'pendencias'),
+          sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · {p.tipo === 'exigencia_inss' ? 'exigência do INSS' : 'antes do protocolo'} · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? <b style={{ color: '#2563eb' }}> · vai pagar até {fmtData(p.resolucao_data)}</b> : ''}</>,
+          acoes: botoesResolver(p) }) },
     ]
     const total = grupos.reduce((n, g) => n + g.itens.length, 0)
     return (
