@@ -6,7 +6,7 @@ import {
   ETAPAS, etapaInfo, FichaProtocolo, ModalAcao, ACOES, ACOES_POR_ETAPA, Chip, hexA,
   estiloBotao as btn, estiloCard as card, fmtCpf, fmtData, fmtDataHora, diasDesde, diaBR, hojeISO,
   iniciais, useIsMobile, useToast, abrirArquivo, soDig,
-  perguntarIA, catPend, rotResolucao, RESOLUCOES_NEGATIVAS, Markdown, copiarTexto,
+  perguntarIA, catPend, rotResolucao, RESOLUCOES_NEGATIVAS, Markdown, copiarTexto, MOTIVOS_EXIG, rotMotivoExig,
 } from './ProtocoloFicha'
 
 // ===== SETOR DE PROTOCOLO E ACOMPANHAMENTO (28/10/2026, Bruno) =====
@@ -29,7 +29,7 @@ const COLUNAS = [
 
 const ABAS = [
   ['inicio', '🏠 Início'], ['conferir', '🔴 Conferir resultado'], ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'], ['quadro', '▦ Quadro'],
+  ['pendencias', 'Pendências e exigências'], ['guia', '🧾 Complementação de guia'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'], ['quadro', '▦ Quadro'],
 ]
 
 const ROTULO_EVENTO = {
@@ -57,6 +57,7 @@ function acaoDoDrop(caso, col) {
 }
 
 const LIMITE_AGUARDANDO = 3
+const reais = (v) => (v == null || v === '' ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const hojeExtensoBR = () => { const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }); return t.charAt(0).toUpperCase() + t.slice(1) }
 
 // 04/11 (Bruno): o INSS marcou CONCLUÍDA mas a extensão não conseguiu cravar deferido/indeferido
@@ -177,6 +178,7 @@ export default function Protocolo() {
   const [carregando, setCarregando] = useState(false)
   // 29/10 — pendencias resolvidas pelo Acompanhamento de clientes, para a advogada refazer
   const [refazer, setRefazer] = useState([])
+  const [guias, setGuias] = useState([])   // 05/11: aba Complementacao de guia
   const [gerando, setGerando] = useState({})   // id -> 'gerando' | mensagem de erro
   const [inicioAberto, setInicioAberto] = useState({ conferir: true })   // 05/11: grupos abertos no Inicio
 
@@ -184,13 +186,15 @@ export default function Protocolo() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
-    const [l, a, p, rf] = await Promise.all([
+    const [l, a, p, rf, gu] = await Promise.all([
       supabase.rpc('protocolo_lista'),
       supabase.rpc('protocolo_alertas'),
       supabase.rpc('protocolo_pendencias_lista'),
       supabase.rpc('protocolo_refazer_lista'),
+      supabase.rpc('protocolo_complementacao_lista'),
     ])
     setRefazer(Array.isArray(rf.data) ? rf.data : [])
+    setGuias(Array.isArray(gu.data) ? gu.data : [])
     if (l.error) mostrar('Erro ao carregar: ' + l.error.message, 'erro')
     setLista(Array.isArray(l.data) ? l.data : [])
     setAlertas(Array.isArray(a.data) ? a.data : [])
@@ -649,6 +653,15 @@ export default function Protocolo() {
     </div>
   )
 
+  // 05/11 (Bruno): exigencia registrada sem motivo -> a advogada escolhe aqui (vira o "subtipo")
+  async function motivoExig(pendId, v) {
+    if (!v) return
+    const { data, error } = await supabase.rpc('protocolo_pendencia_acao', { p_id: pendId, p_acao: 'motivo', p_obs: v })
+    if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'erro', 'erro'); return }
+    mostrar('Motivo da exigência salvo')
+    tudoMudou()
+  }
+
   // ------------------------------------------------------------ inicio (05/11, Bruno)
   // Tarefas da advogada, no mesmo formato do Inicio do Acompanhamento: clica na setinha e abre.
   const inicioView = (() => {
@@ -657,6 +670,19 @@ export default function Protocolo() {
     const fila = L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     const indef = L.filter(c => ehIndef(c) && !c.motivo).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     const filaAtras = fila.filter(c => diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length
+    // 05/11 (Bruno): exigencia sem motivo. Sem registro da advogada (so o robo viu) = registrar; registrada sem motivo = escolher o motivo.
+    const exigMot = L.filter(c => c.etapa === 'exigencia').map(c => {
+      const adv = (pend || []).filter(p => p.caso_id === c.id && p.tipo === 'exigencia_inss' && p.da_advogada)
+      return { ...c, _semRegistro: adv.length === 0, _semMotivo: adv.filter(p => !p.subtipo) }
+    }).filter(c => c._semRegistro || c._semMotivo.length > 0)
+      .sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
+    const selMotivo = (p) => (
+      <select key={p.id} defaultValue="" onChange={e => motivoExig(p.id, e.target.value)} onClick={e => e.stopPropagation()}
+        title={p.descricao} style={{ padding: '6px 8px', borderRadius: 9, border: `1.5px solid #ea580c`, fontSize: 12, fontFamily: 'inherit', fontWeight: 700, color: '#9a3412', background: '#fff7ed', maxWidth: 240 }}>
+        <option value="" disabled>Motivo: {String(p.descricao || '').slice(0, 28)}{String(p.descricao || '').length > 28 ? '…' : ''}</option>
+        {MOTIVOS_EXIG.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+      </select>
+    )
     const linha = (c, i, { sub, acoes, alerta, onAbrir }) => (
       <div key={c.id || i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', ...(alerta ? { background: hexA(cores.perigo, 0.06), boxShadow: `inset 4px 0 0 ${cores.perigo}` } : {}) }}>
         <div onClick={onAbrir} style={{ flex: '1 1 240px', minWidth: 0, cursor: 'pointer' }}>
@@ -672,6 +698,12 @@ export default function Protocolo() {
         linha: (c, i) => linha(c, i, { alerta: true, onAbrir: () => setCpfAberto(c.cpf),
           sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''} · <b style={{ color: cores.perigo }}>{c.conferir_resultado ? `${rotuloConferir(c)}` : 'CONCLUÍDO sem resultado lido'}</b>{c.ultima_movimentacao_em ? ` · INSS ${fmtDataHora(c.ultima_movimentacao_em)}` : ''}</>,
           acoes: [fichaBtn(c.cpf), <span key="b">{botoesConferir(c)}</span>] }) },
+      { k: 'exigmot', icone: '⚠️', tit: 'Exigências: registrar o motivo', cor: '#ea580c', itens: exigMot, extra: 'sem motivo a exigência não vai para o Acompanhamento resolver',
+        linha: (c, i) => linha(c, i, { alerta: !!c.exigencia_prazo && c.exigencia_prazo <= somaHoje(3), onAbrir: () => setCpfAberto(c.cpf),
+          sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}{c.exigencia_prazo ? <b style={{ color: '#c2410c' }}> · prazo {fmtData(c.exigencia_prazo)}</b> : ''} · {c._semRegistro ? <b style={{ color: '#c2410c' }}>a extensão viu a exigência — registre o que o INSS pediu</b> : `${c._semMotivo.length} exigência(s) sem motivo`}</>,
+          acoes: [fichaBtn(c.cpf), ...(c._semRegistro
+            ? [<button key="r" onClick={() => abrirAcao(c, 'exigencia')} style={{ ...btn('#ea580c'), padding: '6px 10px', fontSize: 12 }}>⚠️ Registrar exigência</button>]
+            : c._semMotivo.map(selMotivo))] }) },
       { k: 'fila', icone: '🗂️', tit: 'Fila de protocolo', cor: '#2563eb', itens: fila, extra: filaAtras ? `${filaAtras} há mais de ${LIMITE_AGUARDANDO} dias` : 'em dia',
         linha: (c, i) => { const d = diasDesde(c.etapa_desde); const atr = d > LIMITE_AGUARDANDO
           return linha(c, i, { alerta: atr, onAbrir: () => setCpfAberto(c.cpf),
@@ -709,6 +741,60 @@ export default function Protocolo() {
             </div>
           )
         })}
+      </div>
+    )
+  })()
+
+  // ------------------------------------------------------------ complementacao de guia (05/11, Bruno)
+  // Todas as clientes que precisam complementar guia: antes do protocolo (pendencia) e exigencia do INSS.
+  // O Acompanhamento resolve; quando a cliente paga, registra o VALOR.
+  const guiaView = (() => {
+    const abertas = guias.filter(g => g.status !== 'resolvida' && g.resolucao !== 'vai_pagar')
+    const vai = guias.filter(g => g.status !== 'resolvida' && g.resolucao === 'vai_pagar')
+    const pagas = guias.filter(g => g.status === 'resolvida' && g.resolucao === 'pagou')
+    const nao = guias.filter(g => g.resolucao === 'nao_paga')
+    const total = pagas.reduce((n, g) => n + Number(g.resolucao_valor || 0), 0)
+    const sit = (g) => g.status === 'resolvida'
+      ? (g.resolucao === 'pagou' ? <b style={{ color: cores.ok }}>pagou {reais(g.resolucao_valor)} · {fmtDataHora(g.resolvida_em)}</b>
+        : g.resolucao === 'nao_paga' ? <b style={{ color: cores.perigo }}>não vai pagar{g.resolucao_texto ? ` — ${g.resolucao_texto}` : ''}</b>
+        : <b>{rotResolucao('complementacao_guia', g.resolucao)}</b>)
+      : g.resolucao === 'vai_pagar' ? <b style={{ color: '#2563eb' }}>vai pagar até {fmtData(g.resolucao_data || g.prazo)}</b>
+      : <b style={{ color: '#b45309' }}>aberta há {diasDesde(g.aberta_em)} dia{diasDesde(g.aberta_em) === 1 ? '' : 's'}</b>
+    const bloco = (tit, itens, cor) => itens.length > 0 && (
+      <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '11px 16px', fontWeight: 800, fontSize: 14, background: hexA(cor, 0.07), color: cores.texto, display: 'flex', gap: 8, alignItems: 'center' }}>
+          {tit}<span style={{ fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{itens.length}</span>
+        </div>
+        {itens.map((g, i) => (
+          <div key={g.id} className="kr-linha" onClick={() => setCpfAberto(g.cpf)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
+            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{g.nome}</span>
+                <Chip cor={g.de_exigencia ? '#ea580c' : '#475569'}>{g.de_exigencia ? 'exigência do INSS' : 'antes do protocolo'}</Chip>
+              </div>
+              <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{fmtCpf(g.cpf)} · {g.perfil_label} · {g.vendedora_nome || '—'} · {String(g.descricao || '').slice(0, 90)}{g.de_exigencia && g.exigencia_prazo && g.status !== 'resolvida' ? <b style={{ color: '#c2410c' }}> · prazo INSS {fmtData(g.exigencia_prazo)}</b> : ''}</div>
+            </div>
+            <div style={{ fontSize: 12.5, textAlign: 'right' }}>{sit(g)}</div>
+          </div>
+        ))}
+      </div>
+    )
+    return (
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 12 }}>
+          {[['Abertas', abertas.length, '#b45309', 'esperando o Acompanhamento'], ['Vai pagar', vai.length, '#2563eb', 'data combinada'], ['Pagas (60 dias)', pagas.length, cores.ok, `${reais(total)} no total`], ['Não vai pagar', nao.length, cores.perigo, 'você decide o caso']].map(([r, n, cor, sub]) => (
+            <div key={r} style={{ ...card, padding: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave }}>{r}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 4 }}>{n}</div>
+              <div style={{ fontSize: 12, color: cores.suave }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+        {guias.length === 0 && <div style={{ ...card, padding: 36, textAlign: 'center', color: cores.suave }}>Nenhuma complementação de guia por enquanto. Ao registrar a exigência, escolha o motivo "Complementação de guia".</div>}
+        {bloco('🧾 Abertas', abertas, '#b45309')}
+        {bloco('📅 Vai pagar', vai, '#2563eb')}
+        {bloco('✅ Pagas', pagas, cores.ok)}
+        {bloco('⛔ Não vai pagar', nao, cores.perigo)}
       </div>
     )
   })()
@@ -799,6 +885,33 @@ export default function Protocolo() {
               </div>
             </div>
           </div>
+        </div>
+        {/* 05/11 (Bruno): exigencias por motivo e complementacao de guia */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
+          <div style={{ ...card, padding: 18 }}>
+            <div style={{ fontWeight: 800, marginBottom: 12 }}>Exigências por motivo <span style={{ fontWeight: 500, fontSize: 12, color: cores.suave }}>(casos)</span></div>
+            {(painel.exig_motivos || []).length === 0 && <div style={{ fontSize: 12.5, color: cores.suave }}>Nenhuma exigência registrada.</div>}
+            {(painel.exig_motivos || []).map(m => { const mx = Math.max(1, ...(painel.exig_motivos || []).map(x => x.n)); return (
+              <div key={m.motivo} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span style={{ color: m.motivo === 'Sem motivo' ? cores.suave : cores.texto }}>{m.motivo}</span><b>{m.n}</b></div>
+                <div style={{ height: 7, borderRadius: 99, background: '#eef2f7', marginTop: 4 }}><div style={{ height: 7, borderRadius: 99, width: `${(100 * m.n) / mx}%`, background: m.motivo === 'Sem motivo' ? '#cbd5e1' : '#ea580c' }} /></div>
+              </div>) })}
+          </div>
+          {(() => { const g = painel.complementacao || {}; const pct = g.protocolados ? Math.round((100 * (g.casos || 0)) / g.protocolados) : null; return (
+            <div onClick={() => setAba('guia')} style={{ ...card, padding: 18, cursor: 'pointer' }}>
+              <div style={{ fontWeight: 800 }}>🧾 Complementação de guia</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
+                <span style={{ fontSize: 28, fontWeight: 800, color: '#b45309' }}>{pct == null ? '—' : pct + '%'}</span>
+                <span style={{ fontSize: 12.5, color: cores.suave }}>dos casos protocolados precisaram complementar ({g.casos || 0} de {g.protocolados || 0})</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 4 }}>{g.de_exigencia || 0} por exigência do INSS · {g.antes_protocolo || 0} antes do protocolo</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 8, marginTop: 12 }}>
+                {[['abertas', g.abertas, '#b45309'], ['vai pagar', g.vai_pagar, '#2563eb'], ['pagas', g.pagas, cores.ok], ['não paga', g.nao_paga, cores.perigo]].map(([r, n, cor]) => (
+                  <div key={r} style={{ background: hexA(cor, 0.07), borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 18, fontWeight: 800, color: cor }}>{n || 0}</div><div style={{ fontSize: 11, color: cores.suave }}>{r}</div></div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12.5, marginTop: 10 }}>Pago pelas clientes: <b>{reais(g.valor_total || 0)}</b>{g.valor_medio ? <span style={{ color: cores.suave }}> · média {reais(g.valor_medio)}</span> : null}</div>
+            </div>) })()}
         </div>
         {/* 05/11 (Bruno): o que NAO protocolar — indeferimento por perfil x motivo, vendedora e tipo de entrada */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0,1fr))', gap: 12 }}>
@@ -943,7 +1056,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
                 </div>
                 <div style={{ borderRadius: 12, padding: '10px 12px', background: neg ? hexA(cores.perigo, 0.07) : hexA(cores.ok, 0.07) }}>
                   <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: neg ? cores.perigo : cores.ok, textTransform: 'uppercase' }}>{neg ? 'Não resolvido — você decide' : 'O que o acompanhamento fez'}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: cores.texto, marginTop: 3 }}>{rotResolucao(it.categoria, it.resolucao)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: cores.texto, marginTop: 3 }}>{rotResolucao(it.categoria, it.resolucao)}{it.resolucao_valor ? ` — ${reais(it.resolucao_valor)}` : ''}</div>
                   {it.resolucao_texto && <div style={{ fontSize: 13, color: cores.texto, marginTop: 3 }}>{it.resolucao_texto}</div>}
                   <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>{it.resolvida_por || '—'} · {fmtDataHora(it.resolvida_em)}</div>
                   {anexos.length > 0 && (
@@ -1011,7 +1124,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {abasLado.includes('e') && abasSeta('e')}
         <div ref={abasRef} {...abasArrasto} className="kr-aba" style={{ userSelect: 'none', scrollbarWidth: 'none', display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
           {ABAS.map(([k, r]) => {
-            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'conferir' ? contaAba.conferir : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
+            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'conferir' ? contaAba.conferir : k === 'guia' ? guias.filter(g => g.status !== 'resolvida').length : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
             const on = aba === k
             return (
               <button key={k} data-on={on ? '1' : '0'} onClick={() => setAba(k)} style={{
@@ -1025,7 +1138,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {abasLado.includes('d') && abasSeta('d')}
       </div>
 
-      {!['acompanhamento', 'painel', 'refazer', 'inicio'].includes(aba) && filtros}
+      {!['acompanhamento', 'painel', 'refazer', 'inicio', 'guia'].includes(aba) && filtros}
       {(aba === 'quadro' || aba === 'conferir') && (lista || []).some(aConferir) && (
         <div onClick={() => setAba('conferir')} style={{ ...card, padding: '12px 16px', background: '#fef2f2', border: `2px solid ${cores.perigo}`, color: '#991b1b', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'center' }}>
           🔴 {(lista || []).filter(aConferir).length} resultado(s) para CONFERIR no INSS — a extensão não leu com certeza. Confira no INSS e diga se é deferido ou indeferido — só depois o caso vai para Deferidos/Indeferidos e para o Acompanhamento <span style={{ marginLeft: 'auto' }}>ver →</span>
@@ -1041,6 +1154,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando casos…</div>
       ) : aba === 'quadro' ? quadro
         : aba === 'inicio' ? inicioView
+        : aba === 'guia' ? guiaView
         : aba === 'refazer' ? refazerView
         : aba === 'acompanhamento' ? acompanhamento
         : aba === 'painel' ? painelView
