@@ -1195,6 +1195,16 @@ const COLUNAS_INSS = [
 const nomeMesBR = (ym) => { const [a, m] = ym.split('-').map(Number); const n = new Date(a, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }); return `${n.charAt(0).toUpperCase()}${n.slice(1)}/${String(a).slice(2)}` }
 const mesDe = (c) => (c.data_pagamento || (c.pago_em || '')).slice(0, 7)
 
+// 06/11 (Bruno): icone de anexo desenhado (sem emoji) e o tipo do arquivo pelo nome
+function IconeClipe() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  )
+}
+const tipoArquivo = (u) => (/\.pdf($|\?)/i.test(String(u || '')) ? 'PDF' : 'Imagem')
+
 export default function PosDeferimento() {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
@@ -1951,6 +1961,8 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const ordPrazo = (a, b) => String(a.exigencia_prazo || a.prazo || '9999').localeCompare(String(b.exigencia_prazo || b.prazo || '9999'))
     const exig = pendsF.filter(p => p.tipo === 'exigencia_inss' && p.subtipo && p.categoria !== 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
     const guiaPend = pendsF.filter(p => p.categoria === 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
+    // 06/11 (Bruno): no mural, o anexo da advogada vem antes dos botoes de resolver
+    const botaoAnexoAdv = (p) => p.anexo_advogada && <button key="anx" onClick={() => abrirArquivo(p.anexo_advogada)} title="Documento anexado pela advogada no Protocolo" style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconeClipe /> Anexo da advogada</button>
     const botoesResolver = (p) => catPend(p.categoria).opcoes.map(o => (
       <button key={o.v} onClick={() => setResolver({ pend: p, opcao: o.v })} style={{ ...btn(o.negativa ? cores.perigo : o.andamento ? '#2563eb' : cores.ok, !!(o.negativa || o.andamento)), padding: '6px 10px', fontSize: 12 }}>{o.rot}</button>
     ))
@@ -2024,12 +2036,12 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       { k: 'exig', icone: '⚠️', tit: 'Exigências a resolver', cor: '#ea580c', itens: exig, extra: 'a advogada registrou o motivo — resolvendo, volta para ela refazer',
         linha: (p, i) => linhaSimples({ ...p, id: 'e' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba('exigencias'),
           sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · <b style={{ color: '#9a3412' }}>{rotMotivoExig(p.subtipo) || 'Exigência'}</b> · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? ` · combinado até ${fmtData(p.resolucao_data)}` : ''}</>,
-          acoes: botoesResolver(p) }) },
+          acoes: [botaoAnexoAdv(p), ...botoesResolver(p)] }) },
       // 05/11 (Bruno): complementacao de guia (antes do protocolo e exigencia do INSS). Pagou -> registra o valor.
       { k: 'guia', icone: '🧾', tit: 'Complementação de guia', cor: '#b45309', itens: guiaPend, extra: 'quando a cliente pagar, registre o valor',
         linha: (p, i) => linhaSimples({ ...p, id: 'g' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba(ehExig(p) ? 'exigencias' : 'pendencias'),
           sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · {p.tipo === 'exigencia_inss' ? 'exigência do INSS' : 'antes do protocolo'} · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? <b style={{ color: '#2563eb' }}> · vai pagar até {fmtData(p.resolucao_data)}</b> : ''}</>,
-          acoes: botoesResolver(p) }) },
+          acoes: [botaoAnexoAdv(p), ...botoesResolver(p)] }) },
     ]
     const total = grupos.reduce((n, g) => n + g.itens.length, 0)
     return (
@@ -2077,6 +2089,17 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase' }}>O que precisa</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: cores.texto, marginTop: 3, whiteSpace: 'pre-wrap' }}>{p.descricao}</div>
             {cat.explica && <div style={{ fontSize: 12.5, color: cores.suave, marginTop: 3 }}>{cat.explica}</div>}
+            {/* 06/11 (Bruno): o anexo que a advogada subiu ao registrar no Protocolo (ex.: resposta do INSS) */}
+            {p.anexo_advogada && (
+              <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 10px 8px 12px', border: `1px solid ${cores.cardBorda}`, borderRadius: 10, background: '#f8fafc', maxWidth: '100%' }}>
+                <span style={{ display: 'inline-flex', color: cores.suave }}><IconeClipe /></span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase' }}>Anexado pela advogada</div>
+                  <div style={{ fontSize: 13, color: cores.texto, fontWeight: 600 }}>{p.tipo === 'exigencia_inss' ? 'Resposta do INSS' : 'Documento'} · {tipoArquivo(p.anexo_advogada)}</div>
+                </div>
+                <button onClick={() => abrirArquivo(p.anexo_advogada)} style={{ ...btn('#334155', false), padding: '5px 14px', fontSize: 12 }}>Abrir</button>
+              </div>
+            )}
             {p.categoria === 'exigencia_inss' && p.exigencia_prazo && (() => {
               const f = Math.round((new Date(String(p.exigencia_prazo).slice(0, 10) + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 86400000)
               return <div style={{ fontSize: 12.5, color: f <= 5 ? cores.perigo : '#c2410c', fontWeight: 700, marginTop: 3 }}>Prazo do INSS: {fmtData(p.exigencia_prazo)}{!fechada && ` · ${f < 0 ? `venceu há ${-f} dia${f === -1 ? '' : 's'}` : f === 0 ? 'vence HOJE' : `faltam ${f} dia${f === 1 ? '' : 's'}`}`}</div>
