@@ -517,6 +517,30 @@ const fmtQuando = (iso) => {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+// 06/11 (Bruno): telefone em QUALQUER formato. O WhatsApp mostra "+55 71 9267-3388"
+// (sem o 9) e o banco guarda "+5571992673388". Compara DDD + ultimos 8 digitos,
+// com o 9 e o 55 opcionais. Mesma regra da busca da Mesa do Retroativo (mae_board6_busca).
+function mesmoTelefone(telDig, buscaDig) {
+  const sem55 = (d) => ((d.length === 12 || d.length === 13) && d.startsWith('55') ? d.slice(2) : d)
+  const q = sem55(buscaDig), t = sem55(telDig)
+  if (t.length < 8) return false
+  if (q.length === 10 || q.length === 11) return t.length >= 10 && t.slice(0, 2) === q.slice(0, 2) && t.slice(-8) === q.slice(-8)
+  if (q.length === 8 || q.length === 9) return t.slice(-8) === q.slice(-8)
+  return false
+}
+
+// 06/11 (Bruno): "dois nomes Maria". O chip e o selo do card mostravam so o primeiro
+// nome — Maria Andreza e Maria Valdislane viravam as duas "Maria". Agora: tira o
+// "(Advogada)", usa o primeiro nome e, se outra pessoa da fila tem o mesmo primeiro
+// nome, acrescenta o segundo ("Maria Andreza" / "Maria Valdislane").
+function nomeCurtoAdv(nome, todos) {
+  const limpa = (n) => String(n || '').replace(/\s*\((advogad[ao]s?)\)\s*$/i, '').trim().split(/\s+/)
+  const p = limpa(nome)
+  if (!p[0]) return ''
+  const repetido = (todos || []).some(o => o !== nome && limpa(o)[0] === p[0])
+  return repetido && p[1] ? `${p[0]} ${p[1]}` : p[0]
+}
+
 export default function MesaAdvogada() {
   const { profile } = useAuth()
   const [copiado, setCopiado] = useState('')
@@ -1074,6 +1098,8 @@ export default function MesaAdvogada() {
     if (busNum) {
       if ((c.cpf_limpo || '').includes(busNum)) return true
       if ((c.tel || '').replace(/\D/g, '').includes(busNum)) return true
+      // 06/11 (Bruno): "+55 71 9267-3388" do WhatsApp (sem o 9) acha o "+5571992673388" do banco
+      if (mesmoTelefone((c.tel || '').replace(/\D/g, ''), busNum)) return true
     }
     return false
   }
@@ -1356,7 +1382,7 @@ export default function MesaAdvogada() {
               style={s.chip('#185fa5', 'rgba(96,165,250,.12)', fAdv === nome)}
               onClick={() => setFAdv(fAdv === nome ? 'todos' : nome)}
               title={`Falta ${contaAdv(nome)} na mão de ${nome}`}>
-              {nome.split(' ')[0]} · {contaAdv(nome)}
+              {nomeCurtoAdv(nome, advogadosNaFila)} · {contaAdv(nome)}
             </button>
           ))}
           {fila.some(c => !c.advogado_nome) && (
@@ -1445,7 +1471,7 @@ export default function MesaAdvogada() {
                       color: c.advogado_nome ? '#185fa5' : '#854f0b',
                       background: c.advogado_nome ? 'rgba(96,165,250,.12)' : 'rgba(251,191,36,.14)',
                     }} title={c.advogado_nome ? `na mão de ${c.advogado_nome}` : 'entrou depois da divisão, ainda sem dono'}>
-                      {c.advogado_nome ? `⚖️ ${c.advogado_nome.split(' ')[0]}` : '⚖️ sem dono'}
+                      {c.advogado_nome ? `⚖️ ${nomeCurtoAdv(c.advogado_nome, advogadosNaFila)}` : '⚖️ sem dono'}
                     </span>
                   )}
                 </div>
