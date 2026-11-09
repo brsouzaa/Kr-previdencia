@@ -520,8 +520,8 @@ export default function NovoCliente({ onSucesso }) {
 
   // 03/11 (Bruno): cliente de 24 meses SEM seguro-desemprego (aprovada pelo FGTS
   // ou pelas 120 contribuicoes) tem que mandar comprovante de endereco.
-  const enderecoObrigatorio = ehMae && (c.motivo_aprovacao === MOTIVO_FGTS
-    || c.motivo_aprovacao === 'Cliente 24 meses de contribuição por ter 120 contribuições')
+  // 08/11 (Bruno): agora o comprovante de endereco e obrigatorio em TODO Maternidade Mae.
+  const enderecoObrigatorio = ehMae
   const enderecoOk = !enderecoObrigatorio || !!docs.comprovante_endereco
 
   // Documentos obrigatórios: RG frente/verso + comprovantes 1 e 2, e no
@@ -778,7 +778,7 @@ export default function NovoCliente({ onSucesso }) {
     if (!docs.comprovante_2) f.push('anexar Comprovante 2')
     if (ctpsObrigatorio && !docs.ctps_digital) f.push('anexar CTPS digital em PDF')
     if (fgtsObrigatorio && !docs.extrato_fgts) f.push('anexar Extrato FGTS em PDF')
-    if (enderecoObrigatorio && !docs.comprovante_endereco) f.push('anexar Comprovante de endereço (obrigatório no 24 meses sem seguro-desemprego)')
+    if (enderecoObrigatorio && !docs.comprovante_endereco) f.push('anexar Comprovante de endereço (obrigatório no Maternidade Mãe)')
     if (!validacaoIaOk) f.push('validar a venda com a I.A')
     return f
   }
@@ -1161,7 +1161,7 @@ export default function NovoCliente({ onSucesso }) {
       <div style={s.card}>
         <div style={s.sectionTitle}>Documentos do cliente</div>
         <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 16 }}>
-          Anexe RG (frente e verso), comprovantes obrigatórios, e opcionalmente comprovante de endereço.
+          Anexe RG (frente e verso), comprovantes obrigatórios e o comprovante de endereço (obrigatório no Maternidade Mãe; opcional nos outros produtos).
           Formatos aceitos: JPG, PNG ou PDF (máx 10MB cada).
         </div>
 
@@ -1179,7 +1179,7 @@ export default function NovoCliente({ onSucesso }) {
             valorInicial={docs.comprovante_2} onChange={url => setDoc('comprovante_2', url)} />
         </div>
 
-        <UploadDocumento label={enderecoObrigatorio ? 'Comprovante de endereço — OBRIGATÓRIO (24 meses sem seguro-desemprego)' : 'Comprovante de endereço (opcional)'}
+        <UploadDocumento label={enderecoObrigatorio ? 'Comprovante de endereço — OBRIGATÓRIO (Maternidade Mãe)' : 'Comprovante de endereço (opcional)'}
           obrigatorio={enderecoObrigatorio} clienteId={tempIdRef.current} chave="comprovante_endereco"
           valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
 
