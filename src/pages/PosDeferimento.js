@@ -110,6 +110,8 @@ const GRUPOS_PEND = [
 const grupoPend = (p) => p.categoria === 'complementacao_guia' ? 'complementacao_guia' : p.categoria === 'requerimento_aberto' ? 'requerimento_aberto'
   : (p.tipo === 'exigencia_inss' || p.categoria === 'exigencia_inss') ? 'exigencia_inss' : 'documento'
 const pendAbertaAtiva = (p) => p.status !== 'resolvida' && ETAPAS_PEND_ATIVAS.includes(p.etapa)
+// 09/11 (Bruno): numero = CLIENTES (igual ao Protocolo); a mesma cliente com 2 pendencias conta 1
+const nClientes = (lst) => new Set(lst.map(p => p.cpf || p.caso_id)).size
 const ehAutomatico = (c) => c.prevsempre && c.prevsempre_honorario_auto === true
 
 // ---------------------------------------------------------------- guia de mensagens (29/10, Bruno)
@@ -1469,7 +1471,7 @@ export default function PosDeferimento() {
     amanha: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento === amanha).length,
     semana: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
     atrasados: filtrada.filter(atrasado).length,
-    pendAbertas: pendsF.filter(pendAbertaAtiva).length,   // 09/11: o mesmo numero do Protocolo
+    pendAbertas: nClientes(pendsF.filter(pendAbertaAtiva)),   // 09/11: o mesmo numero do Protocolo
   }), [filtrada, pendsF, hoje, amanha, fimSemana])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
@@ -2266,18 +2268,19 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     return (
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {chip('', '📌 Todas', abertasTodas.length, '#475569')}
-          {GRUPOS_PEND.map(g => chip(g.k, g.rot, abertasTodas.filter(p => grupoPend(p) === g.k).length, g.cor))}
+          {chip('', '📌 Todas', nClientes(abertasTodas), '#475569')}
+          {GRUPOS_PEND.map(g => chip(g.k, g.rot, nClientes(abertasTodas.filter(p => grupoPend(p) === g.k)), g.cor))}
+          <span style={{ alignSelf: 'center', fontSize: 12, color: cores.suave }}>clientes · {abertasTodas.length} pendências no total</span>
         </div>
         <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, color: cores.suave }}>
           {podeResolver ? 'Você dá a baixa: confira o que foi conseguido e resolva. Resolveu, sai daqui.' : 'Você sinaliza o que conseguiu (com anexo). Quem dá a baixa é a Jessica ou a Sthefany — até lá a pendência continua aqui como "sinalizada".'}
         </div>
-        {titulo('Para resolver', paraResolver.length, '#b45309')}
+        {titulo('Para resolver', nClientes(paraResolver), '#b45309', `cliente(s) · ${paraResolver.length} pendência(s)`)}
         {paraResolver.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nada para resolver. 🎉</div>}
         {paraResolver.map(cartaoPend)}
-        {sinalizadas.length > 0 && titulo('Sinalizadas', sinalizadas.length, '#2563eb', podeResolver ? 'conferir e dar a baixa' : 'aguardando a Jessica/Sthefany')}
+        {sinalizadas.length > 0 && titulo('Sinalizadas', nClientes(sinalizadas), '#2563eb', podeResolver ? 'conferir e dar a baixa' : 'aguardando a Jessica/Sthefany')}
         {sinalizadas.map(cartaoPend)}
-        {andamento.length > 0 && titulo('Em andamento', andamento.length, '#0891b2', 'com data combinada — aparecem na agenda')}
+        {andamento.length > 0 && titulo('Em andamento', nClientes(andamento), '#0891b2', 'com data combinada — aparecem na agenda')}
         {andamento.map(cartaoPend)}
         {resolvidas.length > 0 && (
           <button onClick={() => setVerResolvidas(v => !v)} style={{ ...btn('#475569', false), justifySelf: 'start' }}>{verResolvidas ? 'Esconder' : 'Ver'} resolvidas recentes ({resolvidas.length})</button>
