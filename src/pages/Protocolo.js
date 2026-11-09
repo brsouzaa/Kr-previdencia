@@ -82,6 +82,17 @@ const PERIODOS_ANOT = [['', 'Subiu: qualquer data'], ['hoje', 'Subiu hoje'], ['o
 // 02/11 (Bruno): nas abas de resultado so vale o "Subiu"; o filtro "Entrada" (dia em que o contrato
 // entrou no setor) confundia ("Entrou hoje" em Deferidos nao mostra o que deferiu hoje) e some nessas abas.
 const ABAS_RESULTADO = ['deferidos', 'indeferidos', 'pendencias']
+// 09/11 (Bruno): uma regra so de pendencia — aberta (nao resolvida) e cliente em etapa ativa, em 4 grupos
+const ETAPAS_PEND_ATIVAS = ['aguardando_protocolo', 'pendencia_docs', 'protocolado', 'exigencia', 'recurso']
+const GRUPOS_PEND = [
+  { k: 'documento', rot: '📄 Documento', cor: '#b45309' },
+  { k: 'requerimento_aberto', rot: '📂 Pedido em aberto no INSS', cor: '#7c3aed' },
+  { k: 'exigencia_inss', rot: '⚠️ Exigência do INSS', cor: '#ea580c' },
+  { k: 'complementacao_guia', rot: '🧾 Complementação de guia', cor: '#0d9488' },
+]
+const grupoPend = (p) => p.categoria === 'complementacao_guia' ? 'complementacao_guia' : p.categoria === 'requerimento_aberto' ? 'requerimento_aberto'
+  : (p.tipo === 'exigencia_inss' || p.categoria === 'exigencia_inss') ? 'exigencia_inss' : 'documento'
+const pendAbertaAtiva = (p) => p.status !== 'resolvida' && ETAPAS_PEND_ATIVAS.includes(p.etapa)
 const dataAnotacao = (c) => c.etapa_desde || c.ultima_movimentacao_em || null
 function noPeriodo(ts, per) {
   if (!per) return true
@@ -102,6 +113,7 @@ export default function Protocolo() {
   const [lista, setLista] = useState(null)
   const [alertas, setAlertas] = useState([])
   const [pend, setPend] = useState([])
+  const [pendGrupo, setPendGrupo] = useState('todas')   // 09/11: filtro da aba Pendencias
   const [feed, setFeed] = useState([])
   const [painel, setPainel] = useState(null)
   const [aba, setAba] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 860 ? 'inicio' : 'inicio'))   // 05/11 (Bruno): abre no Inicio
@@ -251,6 +263,14 @@ export default function Protocolo() {
     })
   }, [lista, busca, fPerfil, fVend, fPeriodo, fAnot, aba])
 
+  // 09/11: clientes com pendencia aberta em etapa ativa -> grupos de cada um
+  const gruposDoCaso = useMemo(() => {
+    const m = {}
+    ;(pend || []).filter(pendAbertaAtiva).forEach(p => { (m[p.caso_id] = m[p.caso_id] || {})[grupoPend(p)] = ((m[p.caso_id] || {})[grupoPend(p)] || 0) + 1 })
+    return m
+  }, [pend])
+  const temPend = (c) => !!gruposDoCaso[c.id]
+
   const conta = useMemo(() => {
     const L = lista || []
     const hoje = hojeISO()
@@ -258,14 +278,14 @@ export default function Protocolo() {
       hoje: L.filter(c => diaBR(c.entrou_setor_em) === hoje).length,
       fila: L.filter(c => c.etapa === 'aguardando_protocolo').length,
       protocolados: L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').length,
-      pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
+      pendencias: L.filter(temPend).length,
       deferidos: L.filter(ehDef).length,
       indeferidos: L.filter(ehIndef).length,
       conferir: L.filter(aConferir).length,
       indefSemMotivo: L.filter(c => ehIndef(c) && !c.motivo).length,
       atrasados: L.filter(c => c.etapa === 'aguardando_protocolo' && diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length,
     }
-  }, [lista])
+  }, [lista, gruposDoCaso])
 
   // 02/11: com "Subiu" escolhido, o numero das abas segue o periodo (os cards do topo continuam o total)
   const contaAba = useMemo(() => {
@@ -276,12 +296,12 @@ export default function Protocolo() {
       hoje: L.filter(c => diaBR(c.entrou_setor_em) === hojeISO()).length,
       fila: L.filter(c => c.etapa === 'aguardando_protocolo').length,
       protocolados: L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').length,
-      pendencias: L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').length,
+      pendencias: L.filter(temPend).length,
       deferidos: L.filter(ehDef).length,
       indeferidos: L.filter(ehIndef).length,
       conferir: L.filter(aConferir).length,
     }
-  }, [fAnot, filtrada, conta])
+  }, [fAnot, filtrada, conta, gruposDoCaso])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
 
@@ -486,16 +506,16 @@ export default function Protocolo() {
     if (aba === 'hoje') return L.filter(c => diaBR(c.entrou_setor_em) === hoje)
     if (aba === 'fila') return L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
-    if (aba === 'pendencias') return L.filter(c => c.etapa === 'pendencia_docs' || c.etapa === 'exigencia').sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
+    if (aba === 'pendencias') return L.filter(c => temPend(c) && (pendGrupo === 'todas' || gruposDoCaso[c.id][pendGrupo])).sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
     if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(aba === 'deferidos' ? ehDef : ehIndef).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     return L
-  }, [filtrada, aba])
+  }, [filtrada, aba, pendGrupo, gruposDoCaso])
 
   const infoDaLinha = (c) => {
     if (aba === 'conferir') return <span style={{ color: cores.perigo, fontWeight: 800 }}>{c.conferir_resultado ? `${rotuloConferir(c)} — ${c.conferir_motivo || 'conferir no INSS'}` : 'CONCLUÍDO no INSS sem resultado lido — consultar manual'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}</span>
     if (aba === 'fila') { const d = diasDesde(c.etapa_desde); return <span style={{ color: d > LIMITE_AGUARDANDO ? cores.perigo : cores.texto, fontWeight: 800 }}>esperando há {d} dia{d === 1 ? '' : 's'}</span> }
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
-    if (aba === 'pendencias') return <span>{c.etapa === 'exigencia' ? <span style={{ color: cores.perigo, fontWeight: 800 }}>exigência · prazo {fmtData(c.exigencia_prazo)}</span> : <span style={{ color: cores.alerta, fontWeight: 700 }}>falta documento · {c.pend_abertas} pendência(s)</span>}<span style={{ color: cores.suave }}> · subiu {fmtDataHora(dataAnotacao(c))}</span></span>
+    if (aba === 'pendencias') { const g = gruposDoCaso[c.id] || {}; return <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GRUPOS_PEND.filter(x => g[x.k]).map(x => <Chip key={x.k} cor={x.cor}>{x.rot}{g[x.k] > 1 ? ` · ${g[x.k]}` : ''}</Chip>)}{c.etapa === 'exigencia' && c.exigencia_prazo ? <span style={{ color: cores.perigo, fontWeight: 800, fontSize: 12 }}>prazo {fmtData(c.exigencia_prazo)}</span> : null}</span> }
     if (aba === 'deferidos' || aba === 'indeferidos') return <span title={`Resultado: ${fmtData(c.data_resultado)}${c.ultima_movimentacao_em ? ' · INSS anotou ' + fmtDataHora(c.ultima_movimentacao_em) : ''}`}>subiu {fmtDataHora(dataAnotacao(c))}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
     return <span>entrou {fmtDataHora(c.entrou_setor_em)}</span>
   }
@@ -1021,8 +1041,9 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
   async function marcarRefeito(it) {
     const { data, error } = await supabase.rpc('protocolo_pendencia_refeita', { p_id: it.id })
     if (error || !data?.ok) { mostrar(error?.message || data?.erro || 'erro', 'erro'); return }
-    mostrar('Marcado como refeito')
+    mostrar(it.sinalizada ? 'Conferido — pendência baixada' : 'Marcado como refeito')
     setRefazer(lst => lst.filter(x => x.id !== it.id))
+    carregar()
   }
 
   const refazerView = (
@@ -1040,11 +1061,12 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
           <div key={it.id} style={{ ...card, padding: 0, overflow: 'hidden', border: `1.5px solid ${neg ? hexA(cores.perigo, 0.45) : hexA(cores.ok, 0.35)}` }}>
             <div style={{ padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: neg ? hexA(cores.perigo, 0.06) : hexA(cores.ok, 0.06) }}>
               <Chip cor={cat.cor} forte>{cat.icone} {cat.rot}</Chip>
+              {it.sinalizada && <Chip cor={cores.alerta} forte>🚩 Sinalizada — confira e dê a baixa</Chip>}
               <span style={{ fontSize: 15, fontWeight: 800, color: cores.texto }}>{it.nome}</span>
               <span style={{ fontSize: 12.5, color: cores.suave }}>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'}</span>
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => setCpfAberto(it.cpf)} style={btn('#475569', false)}>Abrir ficha</button>
-                <button onClick={() => marcarRefeito(it)} style={btn(cores.ok)}>✔ Refeito</button>
+                <button onClick={() => marcarRefeito(it)} style={btn(cores.ok)}>{it.sinalizada ? '✔ Conferi e refiz' : '✔ Refeito'}</button>
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.3fr)', gap: 0 }}>
@@ -1055,10 +1077,10 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
                   <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>aberta por {it.aberta_por || '—'} em {fmtDataHora(it.aberta_em)}</div>
                 </div>
                 <div style={{ borderRadius: 12, padding: '10px 12px', background: neg ? hexA(cores.perigo, 0.07) : hexA(cores.ok, 0.07) }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: neg ? cores.perigo : cores.ok, textTransform: 'uppercase' }}>{neg ? 'Não resolvido — você decide' : 'O que o acompanhamento fez'}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: neg ? cores.perigo : cores.ok, textTransform: 'uppercase' }}>{neg ? 'Não resolvido — você decide' : it.sinalizada ? 'O que o acompanhamento sinalizou' : 'O que o acompanhamento fez'}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: cores.texto, marginTop: 3 }}>{rotResolucao(it.categoria, it.resolucao)}{it.resolucao_valor ? ` — ${reais(it.resolucao_valor)}` : ''}</div>
                   {it.resolucao_texto && <div style={{ fontSize: 13, color: cores.texto, marginTop: 3 }}>{it.resolucao_texto}</div>}
-                  <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>{it.resolvida_por || '—'} · {fmtDataHora(it.resolvida_em)}</div>
+                  <div style={{ fontSize: 12, color: cores.suave, marginTop: 4 }}>{it.resolvida_por || it.sinalizada_por || '—'} · {fmtDataHora(it.resolvida_em || it.sinalizada_em)}</div>
                   {anexos.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                       {anexos.map((u, i) => <button key={i} onClick={() => abrirArquivo(u)} style={{ ...btn('#0891b2', false), padding: '5px 10px', fontSize: 12 }}>📎 Anexo {i + 1}</button>)}
@@ -1115,7 +1137,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {kpi({ rot: 'Chegou hoje', n: conta.hoje, cor: cores.azul, alvo: 'hoje', icone: '📥', sub: 'contratos assinados' })}
         {kpi({ rot: 'Fila de protocolo', n: conta.fila, cor: '#2563eb', alvo: 'fila', icone: '🗂️', sub: conta.atrasados ? `${conta.atrasados} há mais de ${LIMITE_AGUARDANDO} dias` : 'em dia' })}
         {kpi({ rot: 'Aguardando INSS', n: conta.protocolados, cor: '#8b5cf6', alvo: 'protocolados', icone: '📨', sub: 'protocolados e recursos' })}
-        {kpi({ rot: 'Pendências', n: conta.pendencias, cor: '#ea580c', alvo: 'pendencias', icone: '⚠️', sub: 'docs e exigências' })}
+        {kpi({ rot: 'Pendências', n: conta.pendencias, cor: '#ea580c', alvo: 'pendencias', icone: '⚠️', sub: `clientes · ${(pend || []).filter(pendAbertaAtiva).length} pendência(s)` })}
         {kpi({ rot: 'Deferidos', n: conta.deferidos, cor: cores.ok, alvo: 'deferidos', icone: '✅', sub: `${conta.indeferidos} indeferidos` })}
         {kpi({ rot: 'Alertas', n: alertas.length, cor: cores.perigo, alvo: 'acompanhamento', icone: '🔴', sub: `${pend.length} pendência(s) aberta(s)` })}
       </div>
@@ -1150,6 +1172,16 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         </div>
       )}
 
+      {aba === 'pendencias' && lista && (() => {
+        const tot = (k) => (filtrada || []).filter(c => temPend(c) && (k === 'todas' || gruposDoCaso[c.id][k])).length
+        return (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[{ k: 'todas', rot: 'Todas', cor: '#475569' }, ...GRUPOS_PEND].map(g => (
+              <button key={g.k} onClick={() => setPendGrupo(g.k)} style={{ ...btn(g.cor, pendGrupo === g.k), padding: '7px 12px', fontSize: 12.5 }}>{g.rot} · {tot(g.k)}</button>
+            ))}
+          </div>
+        )
+      })()}
       {lista === null ? (
         <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando casos…</div>
       ) : aba === 'quadro' ? quadro
