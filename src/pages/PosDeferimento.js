@@ -97,6 +97,18 @@ const telWa = (t) => { let d = soDig(t); if (d.startsWith('55') && d.length > 11
 // 07/11 (Bruno): Mercantil que ainda nao passou pela Orientacao PrevSempre aparece na etapa virtual
 const etapaVirtualPD = (c) => (c.etapa === 'prevsempre' && c.prev_orientacao_exigida && !c.prev_orientada_em) ? { ...c, etapa: 'orientacao_prev' } : c
 const lerBase64PD = (arq) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]+,/, '')); r.onerror = () => erro(r.error); r.readAsDataURL(arq) })
+// 09/11/2026 (Bruno): UM SO jeito de contar pendencia, igual ao Protocolo: so as abertas de clientes ativos no setor,
+// em 4 grupos. "Sinalizada" = o acompanhamento conseguiu e espera a Jessica/Sthefany darem a baixa.
+const ETAPAS_PEND_ATIVAS = ['aguardando_protocolo', 'pendencia_docs', 'protocolado', 'exigencia', 'recurso']
+const GRUPOS_PEND = [
+  { k: 'documento', rot: '📄 Documento', cor: '#b45309' },
+  { k: 'requerimento_aberto', rot: '📂 Pedido em aberto no INSS', cor: '#7c3aed' },
+  { k: 'exigencia_inss', rot: '⚠️ Exigência do INSS', cor: '#ea580c' },
+  { k: 'complementacao_guia', rot: '🧾 Complementação de guia', cor: '#0d9488' },
+]
+const grupoPend = (p) => p.categoria === 'complementacao_guia' ? 'complementacao_guia' : p.categoria === 'requerimento_aberto' ? 'requerimento_aberto'
+  : (p.tipo === 'exigencia_inss' || p.categoria === 'exigencia_inss') ? 'exigencia_inss' : 'documento'
+const pendAbertaAtiva = (p) => p.status !== 'resolvida' && ETAPAS_PEND_ATIVAS.includes(p.etapa)
 const ehAutomatico = (c) => c.prevsempre && c.prevsempre_honorario_auto === true
 
 // ---------------------------------------------------------------- guia de mensagens (29/10, Bruno)
@@ -1264,6 +1276,8 @@ export default function PosDeferimento() {
   const [toast, mostrar] = useToast()
   // vendedora (sem ser responsavel/admin): so le o pos das vendas dela
   const soLeitura = profile?.role !== 'admin' && profile?.posdef_papel === 'vendedora'
+  // 09/11 (Bruno): so a Jessica e a Sthefany (protocolo_papel) e o admin dao a BAIXA na pendencia; os outros sinalizam
+  const podeResolver = profile?.role === 'admin' || !!profile?.protocolo_papel
   const [lista, setLista] = useState(null)
   const [inss, setInss] = useState([])
   const [pends, setPends] = useState([])
@@ -1348,7 +1362,7 @@ export default function PosDeferimento() {
   const [mes, setMes] = useState(() => hojeISO().slice(0, 7))
   const [verFechados, setVerFechados] = useState(false)
   const [verResolvidas, setVerResolvidas] = useState(false)
-  const [exigVer, setExigVer] = useState('abertas')   // 04/11 (Bruno): aba Exigencias = Abertas | Cumpridas
+  const [pendGrupo, setPendGrupo] = useState('')   // 09/11 (Bruno): uma aba so de Pendencias, com 4 grupos
 
   const carregar = useCallback(async () => {
     const reqs = [supabase.rpc('posdef_lista')]
@@ -1454,8 +1468,7 @@ export default function PosDeferimento() {
     amanha: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento === amanha).length,
     semana: filtrada.filter(c => ESPERANDO.includes(c.etapa) && c.data_pagamento >= hoje && c.data_pagamento <= fimSemana).length,
     atrasados: filtrada.filter(atrasado).length,
-    pendAbertas: pendsF.filter(p => p.status === 'aberta' && !ehExig(p)).length,
-    exigAbertas: pendsF.filter(p => p.status !== 'resolvida' && ehExig(p)).length,
+    pendAbertas: pendsF.filter(pendAbertaAtiva).length,   // 09/11: o mesmo numero do Protocolo
   }), [filtrada, pendsF, hoje, amanha, fimSemana])
 
   const abrirAcao = (caso, acao, inicial) => setModal({ caso, acao, inicial })
@@ -1572,7 +1585,7 @@ export default function PosDeferimento() {
     return (
       <div key={(c.id || '') + it.tipo + i} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: c.prevsempre ? AZUL_PREV : t.cor, flexShrink: 0 }} />
-        <div onClick={() => (ehPend ? setAba(ehExig(it.pend || {}) ? 'exigencias' : 'pendencias') : setAberto(c.id))} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
+        <div onClick={() => (ehPend ? setAba('pendencias') : setAberto(c.id))} style={{ flex: '1 1 220px', minWidth: 0, cursor: 'pointer' }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Chip cor={t.cor} forte>{t.icone} {t.r}</Chip>
             <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{c.nome}</span>
@@ -1586,7 +1599,7 @@ export default function PosDeferimento() {
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {!ehPend && guiasDoCaso(c).length > 0 && <button title="Mensagens prontas desta etapa" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>}
           {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12, textDecoration: 'none' }}>WhatsApp</a>}
-          {ehPend && <button onClick={() => setAba(ehExig(it.pend || {}) ? 'exigencias' : 'pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
+          {ehPend && <button onClick={() => setAba('pendencias')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📌 Resolver</button>}
           {podeAgir && cfg && <button onClick={() => abrirAcao(c, acaoRapida)} style={{ ...btn(cfg.cor), padding: '6px 10px', fontSize: 12 }}>{cfg.icone} {acaoRapida === 'cliente_pagou' ? 'Pagou' : acaoRapida === 'prevsempre' ? 'PrevSempre' : acaoRapida === 'avisar_cliente' ? 'Avisei' : acaoRapida === 'carta' ? 'Lançar carta' : acaoRapida === 'conversa_inadimplente' ? 'Anexar conversa' : 'Feito'}</button>}
         </div>
       </div>
@@ -2012,8 +2025,9 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     // 05/11 (Bruno): no Inicio so as exigencias que a advogada registrou COM MOTIVO (complementacao de guia tem grupo proprio).
     // Resolveu -> vai para "Resolvidas · refazer" da advogada.
     const ordPrazo = (a, b) => String(a.exigencia_prazo || a.prazo || '9999').localeCompare(String(b.exigencia_prazo || b.prazo || '9999'))
-    const exig = pendsF.filter(p => p.tipo === 'exigencia_inss' && p.subtipo && p.categoria !== 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
-    const guiaPend = pendsF.filter(p => p.categoria === 'complementacao_guia' && p.status !== 'resolvida').sort(ordPrazo)
+    const exig = pendsF.filter(p => p.tipo === 'exigencia_inss' && p.subtipo && p.categoria !== 'complementacao_guia' && p.status !== 'resolvida' && !p.sinalizada_em).sort(ordPrazo)
+    const guiaPend = pendsF.filter(p => p.categoria === 'complementacao_guia' && p.status !== 'resolvida' && !p.sinalizada_em).sort(ordPrazo)
+    const sinalPend = podeResolver ? pendsF.filter(p => pendAbertaAtiva(p) && p.sinalizada_em).sort((a, b) => String(a.sinalizada_em).localeCompare(String(b.sinalizada_em))) : []   // 09/11
     // 06/11 (Bruno): no mural, o anexo da advogada vem antes dos botoes de resolver
     const botaoAnexoAdv = (p) => p.anexo_advogada && <button key="anx" onClick={() => abrirArquivo(p.anexo_advogada)} title="Documento anexado pela advogada no Protocolo" style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconeClipe /> Anexo da advogada</button>
     const botoesResolver = (p) => catPend(p.categoria).opcoes.map(o => (
@@ -2094,12 +2108,17 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
           acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
             <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
       { k: 'exig', icone: '⚠️', tit: 'Exigências a resolver', cor: '#ea580c', itens: exig, extra: 'a advogada registrou o motivo — resolvendo, volta para ela refazer',
-        linha: (p, i) => linhaSimples({ ...p, id: 'e' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba('exigencias'),
+        linha: (p, i) => linhaSimples({ ...p, id: 'e' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba('pendencias'),
           sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · <b style={{ color: '#9a3412' }}>{rotMotivoExig(p.subtipo) || 'Exigência'}</b> · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? ` · combinado até ${fmtData(p.resolucao_data)}` : ''}</>,
+          acoes: [botaoAnexoAdv(p), ...botoesResolver(p)] }) },
+      // 09/11 (Bruno): o acompanhamento SINALIZOU — so Jessica/Sthefany dao a baixa
+      { k: 'sinal', icone: '🔔', tit: 'Sinalizadas pelo acompanhamento — conferir e dar a baixa', cor: '#2563eb', itens: sinalPend, extra: 'só a Jessica e a Sthefany dão a baixa',
+        linha: (p, i) => linhaSimples({ ...p, id: 's' + p.id }, i, { onAbrir: () => setAba('pendencias'),
+          sub: <>{fmtCpf(p.cpf)} · {GRUPOS_PEND.find(g => g.k === grupoPend(p))?.rot} · sinalizado por <b>{p.sinalizada_por || '—'}</b> {fmtDataHora(p.sinalizada_em)} · {String(p.descricao || '').slice(0, 70)}</>,
           acoes: [botaoAnexoAdv(p), ...botoesResolver(p)] }) },
       // 05/11 (Bruno): complementacao de guia (antes do protocolo e exigencia do INSS). Pagou -> registra o valor.
       { k: 'guia', icone: '🧾', tit: 'Complementação de guia', cor: '#b45309', itens: guiaPend, extra: 'quando a cliente pagar, registre o valor',
-        linha: (p, i) => linhaSimples({ ...p, id: 'g' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba(ehExig(p) ? 'exigencias' : 'pendencias'),
+        linha: (p, i) => linhaSimples({ ...p, id: 'g' + p.id }, i, { novo: diaBR(p.aberta_em) === hoje, onAbrir: () => setAba('pendencias'),
           sub: <>{fmtCpf(p.cpf)} · venda: {p.vendedora_nome || '—'} · {p.tipo === 'exigencia_inss' ? 'exigência do INSS' : 'antes do protocolo'} · {String(p.descricao || '').slice(0, 90)}{String(p.descricao || '').length > 90 ? '…' : ''}{prazoTxt(p)}{p.status === 'avisado' && p.resolucao_data ? <b style={{ color: '#2563eb' }}> · vai pagar até {fmtData(p.resolucao_data)}</b> : ''}</>,
           acoes: [botaoAnexoAdv(p), ...botoesResolver(p)] }) },
     ]
@@ -2191,9 +2210,16 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
               {fechada && <span style={{ color: cores.suave }}> · {p.resolvida_por} {fmtDataHora(p.resolvida_em)}{RESOLUCOES_NEGATIVAS.includes(p.resolucao) ? ' · advogada vai decidir' : ' · com a advogada para refazer'}</span>}
             </div>
           )}
-          {!fechada && (
+          {!fechada && p.sinalizada_em && (
+            <div style={{ borderRadius: 10, padding: '9px 12px', background: hexA('#2563eb', 0.07), border: `1px solid ${hexA('#2563eb', 0.25)}`, fontSize: 13, color: cores.texto }}>
+              🔔 <b>Sinalizado</b> por {p.sinalizada_por || '—'} em {fmtDataHora(p.sinalizada_em)}: {rotResolucao(p.categoria, p.resolucao)}{p.resolucao_texto ? ` — ${p.resolucao_texto}` : ''}
+              {(Array.isArray(p.resolucao_anexos) ? p.resolucao_anexos.filter(Boolean) : []).map((u, i) => <button key={i} onClick={() => abrirArquivo(u)} style={{ marginLeft: 8, border: 'none', background: 'none', color: cores.azul, cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: 0 }}>📎 anexo{i ? ' ' + (i + 1) : ''}</button>)}
+              <div style={{ fontSize: 12, color: cores.suave, marginTop: 3 }}>{podeResolver ? 'Confira e dê a baixa abaixo.' : 'Aguardando a Jessica ou a Sthefany conferirem e darem a baixa.'}</div>
+            </div>
+          )}
+          {!fechada && (!p.sinalizada_em || podeResolver) && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase', marginBottom: 6 }}>Como resolver</div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', color: cores.suave, textTransform: 'uppercase', marginBottom: 6 }}>{p.sinalizada_em ? 'Dar a baixa' : podeResolver ? 'Como resolver' : 'O que você conseguiu (vai para a Jessica/Sthefany conferirem)'}</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${cat.opcoes.length}, minmax(0,1fr))`, gap: 8 }}>
                 {cat.opcoes.map(o => {
                   const cor = o.negativa ? cores.perigo : o.andamento ? '#2563eb' : cores.ok
@@ -2212,13 +2238,17 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       </div>
     )
   }
+  // 09/11/2026 (Bruno): UMA aba de Pendencias (antes eram Pendencias e Exigencias, cada uma contando de um jeito).
+  // 4 grupos com o MESMO criterio do Protocolo: abertas, de clientes ativos no setor.
   const pendView = (() => {
-    const exig = aba === 'exigencias'
-    const base = pendsF.filter(p => ehExig(p) === exig)
-      .sort((a, b) => (exig ? String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')) : 0))
-    const abertas = base.filter(p => p.status === 'aberta')
-    const andamento = base.filter(p => p.status === 'avisado')
-    const resolvidas = base.filter(p => p.status === 'resolvida')
+    const abertasTodas = pendsF.filter(pendAbertaAtiva)
+    const doGrupo = (p) => !pendGrupo || grupoPend(p) === pendGrupo
+    const ordem = (a, b) => String(a.exigencia_prazo || a.prazo || '9999').localeCompare(String(b.exigencia_prazo || b.prazo || '9999'))
+    const base = abertasTodas.filter(doGrupo).sort(ordem)
+    const paraResolver = base.filter(p => p.status === 'aberta' && !p.sinalizada_em)
+    const sinalizadas = base.filter(p => p.sinalizada_em)
+    const andamento = base.filter(p => p.status === 'avisado' && !p.sinalizada_em)
+    const resolvidas = pendsF.filter(p => p.status === 'resolvida' && doGrupo(p)).sort((a, b) => String(b.resolvida_em || '').localeCompare(String(a.resolvida_em || '')))
     const titulo = (t, n, cor, sub) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 2px' }}>
         <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
@@ -2227,44 +2257,29 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
         {sub && <span style={{ fontSize: 12, color: cores.suave }}>{sub}</span>}
       </div>
     )
-    if (exig) {
-      // 04/11 (Bruno): Exigencias separada em Abertas | Cumpridas (cumpridas ficam 30 dias)
-      const cumpridas = [...resolvidas].sort((a, b) => String(b.resolvida_em || '').localeCompare(String(a.resolvida_em || '')))
-      const comAdv = cumpridas.filter(p => p.etapa === 'exigencia' && !p.exig_cumprida_em).length
-      const sub = (k, rot, n) => (
-        <button key={k} onClick={() => setExigVer(k)} style={{ padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${exigVer === k ? '#ea580c' : cores.cardBorda}`, background: exigVer === k ? hexA('#ea580c', 0.08) : '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: exigVer === k ? 800 : 600, color: cores.texto }}>{rot} <span style={{ fontWeight: 800, color: '#ea580c' }}>{n}</span></button>
-      )
-      return (
-        <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {sub('abertas', '⚠️ Abertas', abertas.length + andamento.length)}
-            {sub('cumpridas', '✅ Cumpridas', cumpridas.length)}
-          </div>
-          {exigVer === 'abertas' ? (<>
-            <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#ea580c', 0.06), border: `1px solid ${hexA('#ea580c', 0.25)}` }}>⚠️ <b>Exigências do INSS</b> — o INSS parou a análise até receber o que pediu. Consiga o documento com a cliente e clique em <b>“Consegui tudo que o INSS pediu”</b> para anexar: vai direto para a advogada cumprir no Meu INSS e a exigência passa para <b>Cumpridas</b>. Ordenado pelo prazo do INSS.</div>
-            {titulo('Para resolver', abertas.length, '#b45309', 'exigências abertas pela advogada')}
-            {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma exigência aberta. 🎉</div>}
-            {abertas.map(cartaoPend)}
-            {andamento.length > 0 && titulo('Em andamento', andamento.length, '#2563eb', 'com data combinada — aparecem na agenda')}
-            {andamento.map(cartaoPend)}
-          </>) : (<>
-            <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#0d9488', 0.06), border: `1px solid ${hexA('#0d9488', 0.25)}` }}>✅ <b>Exigências cumpridas</b> nos últimos 30 dias — a parte do Acompanhamento terminou. Acompanhe aqui se a advogada já mandou ao INSS{comAdv ? <> · <b style={{ color: '#b45309' }}>{comAdv} com a advogada para mandar</b></> : ''}.</div>
-            {cumpridas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nenhuma exigência cumprida nos últimos 30 dias.</div>}
-            {cumpridas.map(cartaoPend)}
-          </>)}
-        </div>
-      )
-    }
+    const chip = (k, rot, n, cor) => (
+      <button key={k || 'todas'} onClick={() => setPendGrupo(k)} style={{ padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${pendGrupo === k ? cor : cores.cardBorda}`, background: pendGrupo === k ? hexA(cor, 0.08) : '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 800, color: cores.texto }}>
+        {rot} <span style={{ color: cor }}>{n}</span>
+      </button>
+    )
     return (
       <div style={{ display: 'grid', gap: 12 }}>
-        {exig && <div style={{ ...card, padding: '12px 16px', fontSize: 13, color: cores.texto, background: hexA('#ea580c', 0.06), border: `1px solid ${hexA('#ea580c', 0.25)}` }}>⚠️ <b>Exigências do INSS</b> — o INSS parou a análise até receber o que pediu. Consiga o documento com a cliente e clique em <b>“Consegui tudo que o INSS pediu”</b> para anexar: vai direto para a advogada cumprir no Meu INSS. Ordenado pelo prazo do INSS.</div>}
-        {titulo('Para resolver', abertas.length, '#b45309', exig ? 'exigências abertas pela advogada' : 'abertas pela advogada ou pela Sthefany')}
-        {abertas.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>{exig ? 'Nenhuma exigência aberta. 🎉' : 'Nenhuma pendência aberta. 🎉'}</div>}
-        {abertas.map(cartaoPend)}
-        {andamento.length > 0 && titulo('Em andamento', andamento.length, '#2563eb', 'com data combinada — aparecem na agenda')}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {chip('', '📌 Todas', abertasTodas.length, '#475569')}
+          {GRUPOS_PEND.map(g => chip(g.k, g.rot, abertasTodas.filter(p => grupoPend(p) === g.k).length, g.cor))}
+        </div>
+        <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, color: cores.suave }}>
+          {podeResolver ? 'Você dá a baixa: confira o que foi conseguido e resolva. Resolveu, sai daqui.' : 'Você sinaliza o que conseguiu (com anexo). Quem dá a baixa é a Jessica ou a Sthefany — até lá a pendência continua aqui como "sinalizada".'}
+        </div>
+        {titulo('Para resolver', paraResolver.length, '#b45309')}
+        {paraResolver.length === 0 && <div style={{ ...card, padding: 20, fontSize: 13, color: cores.suave }}>Nada para resolver. 🎉</div>}
+        {paraResolver.map(cartaoPend)}
+        {sinalizadas.length > 0 && titulo('Sinalizadas', sinalizadas.length, '#2563eb', podeResolver ? 'conferir e dar a baixa' : 'aguardando a Jessica/Sthefany')}
+        {sinalizadas.map(cartaoPend)}
+        {andamento.length > 0 && titulo('Em andamento', andamento.length, '#0891b2', 'com data combinada — aparecem na agenda')}
         {andamento.map(cartaoPend)}
         {resolvidas.length > 0 && (
-          <button onClick={() => setVerResolvidas(v => !v)} style={{ ...btn('#475569', false), justifySelf: 'start' }}>{verResolvidas ? 'Esconder' : 'Ver'} resolvidas nos últimos 7 dias ({resolvidas.length})</button>
+          <button onClick={() => setVerResolvidas(v => !v)} style={{ ...btn('#475569', false), justifySelf: 'start' }}>{verResolvidas ? 'Esconder' : 'Ver'} resolvidas recentes ({resolvidas.length})</button>
         )}
         {verResolvidas && resolvidas.map(cartaoPend)}
       </div>
@@ -2499,8 +2514,8 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
   const totalAtivos = (lista || []).filter(c => ATIVAS.includes(c.etapa)).length
   const ABAS = soLeitura
     ? [['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['calendario', '🗓️ Calendário'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
-    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['protocolados', '📨 Protocolados'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['exigencias', '⚠️ Exigências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
-  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, exigencias: conta.exigAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
+    : [['inicio', '🏠 Início'], ['pagamentos', '💰 Pagamentos'], ['funil', '▦ Funil'], ['protocolados', '📨 Protocolados'], ['deferidos', '✅ Deferidos'], ['indeferidos', '⛔ Indeferidos'], ['pendencias', '📌 Pendências'], ['inss', '🏛️ No INSS'], ['calendario', '🗓️ Calendário'], ['inadimplencia', '📉 Inadimplência'], ['lista', '☰ Todos'], ['agenda', '📅 Agenda']]
+  const badge = { pagamentos: contaPg.hoje + contaPg.amanha + contaPg.atrasados, agenda: agenda.atrasados.length + agenda.hoje.length, pendencias: conta.pendAbertas, inss: inssF.length, deferidos: resultadosF.filter(c => ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length, indeferidos: resultadosF.filter(c => !ehDeferido(c) && noPeriodoAnot(c, 'hoje')).length }
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1600, margin: '0 auto' }}>
       <style>{`
@@ -2548,7 +2563,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       {filtros}
 
       {lista === null ? <div style={{ ...card, padding: 40, textAlign: 'center', color: cores.suave }}>Carregando…</div>
-        : aba === 'pendencias' || aba === 'exigencias' ? pendView
+        : aba === 'pendencias' ? pendView
         : aba === 'inss' ? inssView
         : aba === 'inicio' ? muralView()
         : aba === 'protocolados' ? protocoladosView()
@@ -2571,7 +2586,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       {modalCarta}
       {inssDe && <ModalINSS c={inssDe} onClose={() => setInssDe(null)} onPendencias={() => { setInssDe(null); setAba('pendencias') }} />}
       {guiaDe && <ModalGuia caso={guiaDe} podeAgir={!soLeitura && guiaDe.pode_agir !== false} onClose={() => setGuiaDe(null)} onMarcou={carregar} />}
-      {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
+      {resolver && <ModalResolver pend={resolver.pend} opcao={resolver.opcao} onClose={() => setResolver(null)} onFeito={(r) => { setResolver(null); mostrar(r?.sinalizada ? 'Sinalizado — a Jessica/Sthefany vão conferir e dar a baixa' : r?.andamento ? 'Combinado — está na agenda' : 'Resolvida — foi para a advogada'); carregar() }} />}
     </div>
   )
 }
