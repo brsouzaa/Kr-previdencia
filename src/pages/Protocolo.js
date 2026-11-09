@@ -83,7 +83,8 @@ const PERIODOS_ANOT = [['', 'Subiu: qualquer data'], ['hoje', 'Subiu hoje'], ['o
 // entrou no setor) confundia ("Entrou hoje" em Deferidos nao mostra o que deferiu hoje) e some nessas abas.
 const ABAS_RESULTADO = ['deferidos', 'indeferidos', 'pendencias']
 // 09/11 (Bruno): uma regra so de pendencia — aberta (nao resolvida) e cliente em etapa ativa, em 4 grupos
-const ETAPAS_PEND_ATIVAS = ['aguardando_protocolo', 'pendencia_docs', 'protocolado', 'exigencia', 'recurso']
+// 09/11 (Bruno): pendencia = cliente que NAO deu pra protocolar (pendencia_docs) ou em exigencia; fila/protocolado nao contam
+const ETAPAS_PEND_ATIVAS = ['pendencia_docs', 'exigencia']
 const GRUPOS_PEND = [
   { k: 'documento', rot: '📄 Documento', cor: '#b45309' },
   { k: 'requerimento_aberto', rot: '📂 Pedido em aberto no INSS', cor: '#7c3aed' },
