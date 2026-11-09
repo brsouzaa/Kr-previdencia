@@ -55,6 +55,12 @@ import Clientes from './pages/Clientes'
 import CentralRetorno from './pages/CentralRetorno'
 import RevisaoCrefaz from './pages/RevisaoCrefaz'
 import MesaAdvogada from './pages/MesaAdvogada'
+import FichaCNIS from './pages/FichaCNIS'
+import Protocolo from './pages/Protocolo'
+import ProtocoloFichaPagina from './pages/ProtocoloFicha'
+import PosDeferimento from './pages/PosDeferimento'
+import VendAcompanhamento from './pages/VendAcompanhamento'
+import PrevSempreMaithe from './pages/PrevSempreMaithe'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -65,6 +71,55 @@ const IDS_VENDAS_RETROATIVO = [
   '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda — a que ja atuava no setor
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto — entrou no setor 27/08
   '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane — 15/09: sai do pos-venda e vira vendedora do retroativo
+  '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: entrou no time de 12 da KR
+  '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza (leandrosouza) — 27/10: time de 12 da KR
+  // 19/10 — RT CRÉDITOS (Ronaldo Arcari), a parceria. O acesso dele foi criado no
+  // BANCO em 17/10 (bf_agentes faixa 'rt') e o front ficou de fora: ele recebeu
+  // 2 leads em 19/10 e nao conseguia abrir a tela pra ver nenhum dos dois.
+  '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
+]
+
+// 19/10 (Bruno) — SO RETROATIVO. Quem esta aqui perde TODAS as outras telas do
+// sistema e fica com o pacote de vendedor do retroativo (TELAS_SO_RETROATIVO).
+// Vale sobre qualquer outra regra deste arquivo, inclusive as injecoes por ID.
+//
+// POR QUE ESTES TRES E NAO AS OUTRAS SETE de IDS_VENDAS_RETROATIVO: conferido no
+// banco em 19/10, por produto digitado nos ultimos 90 dias.
+//   Leticia  — Maternidade ate 08/09, Gestante ate 27/08; de setembro pra ca SO Maternidade Mae
+//   Gislaine — Maternidade ate 03/09, Gestante ate 04/09; de setembro pra ca SO Maternidade Mae
+//   Luciane  — SO Maternidade Mae desde 17/09 (veio do pos-venda)
+// As tres ja migraram de fato ha mais de seis semanas: cortar nao tira trabalho
+// de ninguem, so tira menu que elas nao usam mais.
+//
+// FICARAM FORA DE PROPOSITO, porque cortar quebraria outra operacao:
+//   Maryana Kodos  — supervisor_producao, supervisiona time (SUPERVISORAS_TIME)
+//   Agatha Barreto — coordenador_b2c, supervisora do time de 12
+//   Duda           — opera a Revisao Crefaz e o Confere CNIS
+//   Sthefany       — analista, valida direito no Acompanhamento Mae e no pos-venda
+//   Joana / Pamela / Nadia / Ju / Hellen — time de 24, tambem vendem Simulacao de Emprestimo
+// Tirar alguem dessa lista de fora = tirar a tela do trabalho dela. Nao fazer
+// sem conferir o que a pessoa digita hoje.
+//
+// RT CRÉDITOS (Ronaldo Arcari) NAO entra aqui de proposito, mesmo sendo vendedor
+// do retroativo: e PARCEIRO EXTERNO, e este pacote inclui o Painel de vendas.
+// Ele entra so em IDS_VENDAS_RETROATIVO, que libera a tela do retroativo e nada
+// mais — o resto do menu dele continua vindo do papel (vendedor_operador).
+const IDS_SO_RETROATIVO = [
+  'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
+  'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
+  '4a1db9e1-0b10-48bc-85d6-23b728b9fd4f', // Luciane
+  '4bf01e58-2d1e-417a-878b-786094f1ad01', // Fernanda (femalves) — 19/10: entra ja so no retroativo
+  '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza — 27/10: entra ja so no retroativo
+]
+// O pacote completo do vendedor do retroativo: a mesa, o proprio numero e o que
+// ele precisa pra digitar a cliente que fechou.
+// 'fila_digitacao' NAO entra: e a tela da SUPERVISAO (718 notificacoes de
+// admin/supervisor dentro dela). Quem digita cliente usa 'novo_cliente'.
+// MESMA lista do Layout.js: se as duas nao baterem, o item aparece no menu e a
+// pagina nega (bug de 02/09).
+const TELAS_SO_RETROATIVO = [
+  'revisao_ia_retroativo', 'painel_vendas',
+  'novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes',
 ]
 
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
@@ -185,6 +240,22 @@ const IDS_SIMULACAO_EMPRESTIMO = [
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: era simulador_emprestimo, virou coordenador_b2c
 ]
 
+// Digitacao por ID (02/10, Bruno): quem fecha venda no Revisao IA Retroativo e
+// precisa digitar a cliente e acompanhar a propria producao, mas cujo papel nao
+// da essas telas. Joana e Pamela sao 'simulador_emprestimo' — "Supervisora" no
+// nome delas e so apelido, elas vendem e digitam igual as outras. Trocar o papel
+// delas pra vendedor_operador tiraria a Simulacao de Emprestimo (foi o que quase
+// aconteceu com a Egle), entao entra por ID.
+// As outras tres do time de 24 (helenlima451, juhferreira, nadiacajado) ja sao
+// vendedor_operador e ja tinham essas telas — nao precisam estar aqui.
+// MESMA lista do Layout.js: se as duas nao baterem, o item aparece no menu e a
+// pagina nega (bug de 02/09).
+const IDS_DIGITACAO_RETROATIVO = [
+  '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
+  '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+]
+const TELAS_DIGITACAO_RETROATIVO = ['novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes']
+
 const TELAS_SUPERVISAO_SETOR = ['fila_digitacao', 'revisao_ia', 'ranking', 'contratos']
 
 function PortalRoute() {
@@ -225,19 +296,54 @@ function paginaInicial(role) {
   return 'dashboard'
 }
 
+// 19/10 — tela de abertura. Centralizado aqui porque antes a conta estava
+// repetida em dois lugares (o useEffect e o paginaSegura) e acrescentar um caso
+// exigia lembrar dos dois. Quem e so do retroativo abre na mesa dele.
+function paginaDeAbertura(profile) {
+  if (IDS_OPERACAO_LICENCIADA.includes(profile?.id)) return 'revisao_ia_bf'
+  if (IDS_SO_RETROATIVO.includes(profile?.id)) return 'revisao_ia_retroativo'
+  return paginaInicial(profile?.role)
+}
+
 // Time Maryana Kodos (supervisora + vendedoras B2C): acesso extra as telas Revisao IA, sem perder roles
 const IDS_TIME_MARYANA = [
-  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos (supervisora)
+  // 30/10 (Bruno): Maryana Kodos saiu desta lista (perdeu Revisao IA Gestante/BF/CLT)
   '78e022dd-b499-4e7d-85ce-65922ddbf9cf', // Eduarda (B2C)
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // Jose Carlos Galvao (o comentario dizia 'Daniele' — errado, corrigido 03/09)
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
 ]
 
+// 04/11 (Bruno): quem tem a aba PrevSempre (abertura de conta Mercantil + desconto dos honorarios)
+const IDS_PREVSEMPRE = ['f53681cf-1467-41a9-b679-211ca4225865'] // Maithe (Advogada)
+
 function paginaPermitida(profile, page) {
   const role = profile.role
   // Planejamento pessoal do Bruno: so ele, por ID. Nao e feature de admin.
   if (page === 'meu_planejamento') return profile.id === '906f9a57-bd4a-4b0e-9973-0968ef4f1e15'
+  // 28/10 (Bruno) — SETOR DE PROTOCOLO: libera quem tem profiles.protocolo_papel
+  // (Jessica = advogada, Sthefany = acompanhamento) e o admin. Fica no TOPO porque
+  // a advogada so tem a mesa no papel dela (a linha do role advogada viria antes).
+  // Nao tem id fixo aqui: entrar ou sair do setor e so mudar a coluna no banco.
+  if (page === 'protocolo') return role === 'admin' || !!profile.protocolo_papel
+  // 29/10 (Bruno) — POS-DEFERIMENTO: quem tem profiles.posdef_papel (time que acompanha
+  // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
+  // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
+  if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
+  // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): mesma turma do Acompanhamento (posdef_papel) + admin.
+  // O banco (vend_painel) so devolve as clientes da propria vendedora. Mesma regra do Layout.js.
+  if (page === 'vend_acomp') return role === 'admin' || !!profile.posdef_papel
+  // 04/11 (Bruno) — ABA PREVSEMPRE: Maithe (advogada) + admin. Mesma lista do Layout.js; o banco confere de novo (app_config posdef_prevsempre_ids).
+  if (page === 'prevsempre_maithe') return role === 'admin' || IDS_PREVSEMPRE.includes(profile.id)
+  // 30/10 (Bruno) — Maryana Kodos deixa de ver: Revisao IA Gestante, Bolsa Familia e CLT, Gerar contratos (manual),
+  // Ranking de vendedoras e "O advogado aceitou?". MESMA lista do Layout.js (TELAS_TIRADAS_MARYANA).
+  if (profile.id === 'be98f268-314f-4114-acc3-7bb9ce7635fd' && ['revisao_ia_gestante', 'revisao_ia_bf', 'revisao_ia_clt', 'contratos', 'ranking', 'validacao_advogado'].includes(page)) return false
+  // 19/10 (Bruno) — SO RETROATIVO. Fica no TOPO de proposito: e um corte, nao uma
+  // adicao, e tem que vencer tudo que vem depois — inclusive a regra do
+  // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
+  // Leticia e Gislaine estao em IDS_TIME_MARYANA logo acima: sem este corte vir
+  // primeiro, elas continuariam enxergando BF, Gestante e CLT.
+  if (IDS_SO_RETROATIVO.includes(profile.id)) return TELAS_SO_RETROATIVO.includes(page)
   // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
   // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
   // 02/09 (correcao): 'simulador_emprestimo' e 'analista' entraram na regra do MENU
@@ -273,11 +379,14 @@ function paginaPermitida(profile, page) {
   // Setor resgate vê a tela da ala
   if (profile.setor === 'resgate' && page === 'resgate') return true
   // Karol (resgate) tambem acessa o pos-venda pra validar/barrar os Maternidade Mae
-  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','acompanhamento_mae','confere_cnis'].includes(page)) return true
-  // Sthefany (analista): valida direito na etapa de analise do Acompanhamento Mae
-  if (profile.id === '88929e81-7223-4754-a17b-1cd08f46195d' && page === 'acompanhamento_mae') return true
+  // 28/10 (Bruno): 'acompanhamento_mae' saiu — a tela foi substituida pelo setor de Protocolo.
+  if (profile.id === '1c9e99ee-02c4-4500-9dd5-9706f95d0ee9' && ['pos_venda','pos_venda_historico','confere_cnis'].includes(page)) return true
+  // 28/10 (Bruno): a Sthefany saiu do Acompanhamento Mae — agora acompanha pelo setor de
+  // Protocolo (regra 'protocolo' no topo). Os dados do acompanhamento_mae ficam no banco.
   // Simulacao de Emprestimo por ID (Nadia, Ju, Egle): a tela nao faz parte do papel delas
   if (IDS_SIMULACAO_EMPRESTIMO.includes(profile.id) && page === 'simulacao_emprestimo') return true
+  // Digitacao por ID (Joana, Pamela): cadastrar cliente e ver a propria producao
+  if (IDS_DIGITACAO_RETROATIVO.includes(profile.id) && TELAS_DIGITACAO_RETROATIVO.includes(page)) return true
   // Agentes BF (Joana, Pamela, Ju, Nadia, Hellen): acesso as telas Revisao IA por ID.
   // 01/10 (Bruno): 'revisao_ia_retroativo' entrou aqui. O item ja estava no menu
   // (Layout.js, IDS_AGENTES_BF) mas esta lista so liberava o Bolsa Familia — entao
@@ -311,7 +420,7 @@ function AppInner() {
 
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+      setPage(paginaDeAbertura(profile))
     }
   }, [profile, page])
 
@@ -337,6 +446,27 @@ function AppInner() {
 
   // Primeiro acesso: força troca de senha + nome
   if (profile.senha_temporaria === true) return <PrimeiroAcesso />
+
+  // 08/10 (Bruno) — FICHA CNIS: documento do pre-aprovado que a validacao imprime
+  // em PDF e anexa no Drive do advogado. Rota com URL propria (/ficha/<cpf>) igual
+  // ao Portal e a ParceriaPensao, porque precisa abrir em aba nova e ser colada no
+  // WhatsApp/Drive — nao da pra chegar nela por setPage.
+  // DIFERENCA das outras duas: fica DEPOIS do login. A ficha traz CPF, telefone e o
+  // CNIS inteiro da cliente, entao nao pode ser publica como o Portal de cadastro.
+  // Fica FORA do Layout de proposito: na impressao o documento sai limpo, sem menu.
+  if (window.location.pathname.startsWith('/ficha/')) return <FichaCNIS />
+
+  // 28/10 (Bruno) — FICHA DO PROTOCOLO: /protocolo/<cpf> abre a ficha do caso em aba
+  // propria (mesmo esquema da /ficha/: depois do login, fora do Layout). A propria
+  // pagina confere se a pessoa tem acesso ao setor.
+  if (window.location.pathname.startsWith('/protocolo/')) return <ProtocoloFichaPagina />
+
+  // 23/10 (Bruno) — botao "Fechou! Cadastrar a venda" da Mesa do Retroativo leva
+  // direto pro Novo Cliente. O setPage SO vai pra quem tem a tela novo_cliente
+  // (mesma regra paginaPermitida de baixo). Sem isso, quem nao tem a tela (ex.:
+  // Agatha, coordenador_b2c) clicava e o paginaSegura devolvia pra tela inicial
+  // sem aviso — o mesmo bug de 02/09. Sem a prop, a mesa copia o CPF e avisa.
+  const setPageMesaRetro = paginaPermitida(profile, 'novo_cliente') ? setPage : undefined
 
   const pages = {
     dashboard: <Dashboard />,
@@ -379,7 +509,7 @@ function AppInner() {
     recebimentos: <RecebimentosAdvogados />,
     metas_financeiras: <MetasFinanceiras />,
     revisao_ia_bf: <RevisaoIABolsaFamilia />,
-    revisao_ia_retroativo: <RevisaoIARetroativo />,
+    revisao_ia_retroativo: <RevisaoIARetroativo setPage={setPageMesaRetro} />,
     meu_planejamento: <MeuPlanejamento />,
     painel_vendas: <PainelVendas />,
     validacao_advogado: <ValidacaoAdvogado />,
@@ -387,10 +517,14 @@ function AppInner() {
     revisao_ia_clt: <RevisaoIACLT />,
     central_retorno: <CentralRetorno />,
     mesa_advogada: <MesaAdvogada />,
+    protocolo: <Protocolo />,
+    posdef: <PosDeferimento />,
+    vend_acomp: <VendAcompanhamento />,
+    prevsempre_maithe: <PrevSempreMaithe />,
     revisao_crefaz: <RevisaoCrefaz />,
   }
 
-  const paginaSegura = paginaPermitida(profile, page) ? page : (IDS_OPERACAO_LICENCIADA.includes(profile.id) ? 'revisao_ia_bf' : paginaInicial(profile.role))
+  const paginaSegura = paginaPermitida(profile, page) ? page : paginaDeAbertura(profile)
 
   return (
     <Layout page={paginaSegura} setPage={setPage}>
@@ -399,10 +533,52 @@ function AppInner() {
   )
 }
 
+// 03/11 (Bruno): AVISO DE VERSAO NOVA — para ninguem precisar de Ctrl+Shift+R depois de cada deploy.
+// A cada 10 min busca so o index.html (poucos KB, sem cache) e compara o nome do JS principal
+// (o build gera main.<hash>.js) com o que esta aberto. Mudou = faixa "Atualizar agora".
+// NAO recarrega sozinho: quem esta digitando um cadastro nao perde nada. Aba escondida nao consulta;
+// ao voltar para a aba, confere se ja passou 10 min da ultima vez.
+const VERSAO_A_CADA_MS = 10 * 60 * 1000
+function AvisoNovaVersao() {
+  const [nova, setNova] = useState(false)
+  const [escondido, setEscondido] = useState(false)
+  useEffect(() => {
+    const src = Array.from(document.scripts).map(s => s.getAttribute('src') || '').find(s => /main\.\w+\.js/.test(s))
+    if (!src) return undefined   // rodando em desenvolvimento (sem build): nao confere
+    const aberta = src.match(/main\.\w+\.js/)[0]
+    let ultima = Date.now()
+    let achou = false
+    const conferir = async () => {
+      if (achou || document.hidden) return
+      ultima = Date.now()
+      try {
+        const html = await fetch('/', { cache: 'no-store' }).then(r => r.text())
+        const m = html.match(/main\.\w+\.js/)
+        if (m && m[0] !== aberta) { achou = true; setNova(true) }
+      } catch (_) { /* sem internet: tenta na proxima */ }
+    }
+    const t = setInterval(conferir, VERSAO_A_CADA_MS)
+    const aoVoltar = () => { if (!document.hidden && Date.now() - ultima >= VERSAO_A_CADA_MS) conferir() }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', aoVoltar) }
+  }, [])
+  if (!nova || escondido) return null
+  return (
+    <div style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 99999, display: 'flex', alignItems: 'center', gap: 12,
+      background: '#0f172a', color: '#fff', padding: '12px 14px 12px 18px', borderRadius: 14, boxShadow: '0 12px 32px rgba(15,23,42,.35)',
+      fontFamily: 'inherit', fontSize: 14, maxWidth: 'calc(100vw - 24px)', flexWrap: 'wrap' }}>
+      <span>🔄 Saiu uma versão nova do CRM.</span>
+      <button onClick={() => window.location.reload()} style={{ background: '#22c55e', color: '#052e16', border: 'none', borderRadius: 10, padding: '8px 14px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Atualizar agora</button>
+      <button onClick={() => setEscondido(true)} title="Atualizo depois" style={{ background: 'transparent', color: '#94a3b8', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>depois</button>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <AppInner />
+      <AvisoNovaVersao />
     </AuthProvider>
   )
 }
