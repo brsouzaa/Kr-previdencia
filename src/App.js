@@ -59,6 +59,7 @@ import FichaCNIS from './pages/FichaCNIS'
 import Protocolo from './pages/Protocolo'
 import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 import PosDeferimento from './pages/PosDeferimento'
+import VendAcompanhamento from './pages/VendAcompanhamento'
 import PrevSempreMaithe from './pages/PrevSempreMaithe'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
@@ -329,6 +330,9 @@ function paginaPermitida(profile, page) {
   // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
   // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
   if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
+  // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): mesma turma do Acompanhamento (posdef_papel) + admin.
+  // O banco (vend_painel) so devolve as clientes da propria vendedora. Mesma regra do Layout.js.
+  if (page === 'vend_acomp') return role === 'admin' || !!profile.posdef_papel
   // 04/11 (Bruno) — ABA PREVSEMPRE: Maithe (advogada) + admin. Mesma lista do Layout.js; o banco confere de novo (app_config posdef_prevsempre_ids).
   if (page === 'prevsempre_maithe') return role === 'admin' || IDS_PREVSEMPRE.includes(profile.id)
   // 30/10 (Bruno) — Maryana Kodos deixa de ver: Revisao IA Gestante, Bolsa Familia e CLT, Gerar contratos (manual),
@@ -515,6 +519,7 @@ function AppInner() {
     mesa_advogada: <MesaAdvogada />,
     protocolo: <Protocolo />,
     posdef: <PosDeferimento />,
+    vend_acomp: <VendAcompanhamento />,
     prevsempre_maithe: <PrevSempreMaithe />,
     revisao_crefaz: <RevisaoCrefaz />,
   }
