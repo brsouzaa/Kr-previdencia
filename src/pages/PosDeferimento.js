@@ -99,7 +99,8 @@ const etapaVirtualPD = (c) => (c.etapa === 'prevsempre' && c.prev_orientacao_exi
 const lerBase64PD = (arq) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]+,/, '')); r.onerror = () => erro(r.error); r.readAsDataURL(arq) })
 // 09/11/2026 (Bruno): UM SO jeito de contar pendencia, igual ao Protocolo: so as abertas de clientes ativos no setor,
 // em 4 grupos. "Sinalizada" = o acompanhamento conseguiu e espera a Jessica/Sthefany darem a baixa.
-const ETAPAS_PEND_ATIVAS = ['aguardando_protocolo', 'pendencia_docs', 'protocolado', 'exigencia', 'recurso']
+// 09/11 (Bruno): pendencia = cliente que NAO deu pra protocolar (pendencia_docs) ou em exigencia; fila/protocolado nao contam
+const ETAPAS_PEND_ATIVAS = ['pendencia_docs', 'exigencia']
 const GRUPOS_PEND = [
   { k: 'documento', rot: '📄 Documento', cor: '#b45309' },
   { k: 'requerimento_aberto', rot: '📂 Pedido em aberto no INSS', cor: '#7c3aed' },
