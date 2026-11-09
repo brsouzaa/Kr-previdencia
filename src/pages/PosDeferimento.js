@@ -28,7 +28,10 @@ import {
 export const ETAPAS_PD = [
   { key: 'deferido', label: 'Deferido · avisar cliente', curto: 'Deferido', cor: '#16a34a', icone: '✅' },
   { key: 'carta', label: 'Carta de concessão', curto: 'Carta', cor: '#0891b2', icone: '📜' },
-  { key: 'extrato', label: 'Extrato de pagamento', curto: 'Extrato', cor: '#0d9488', icone: '🧾' },   // 02/11: a data REAL do pagamento
+  { key: 'extrato', label: 'Data do pagamento (INSS)', curto: 'Data INSS', cor: '#0d9488', icone: '📞' },   // 08/11 (Bruno): nao precisa mais do extrato — liga no INSS apos 7 dias   // 02/11: a data REAL do pagamento
+  // 07/11/2026 (Bruno): ORIENTACAO PREVSEMPRE (so Mercantil). Etapa VIRTUAL: no banco o caso esta em 'prevsempre'
+  // com prev_orientacao_exigida e sem prev_orientada_em. So vai para a Maithe depois do print conferido pela I.A.
+  { key: 'orientacao_prev', label: 'Orientação PrevSempre', curto: 'Orientação', cor: '#b45309', icone: '📣' },
   { key: 'prevsempre', label: 'PrevSempre', curto: 'PrevSempre', cor: '#2563eb', icone: '🏦' },
   { key: 'aguardando_pagamento', label: 'Aguardando receber', curto: 'Aguardando', cor: '#7c3aed', icone: '⏳' },
   { key: 'atrasado', label: 'Pagamento atrasado', curto: 'Atrasado', cor: '#dc2626', icone: '⏰' },  // virtual: aguardando com a data vencida
@@ -37,9 +40,9 @@ export const ETAPAS_PD = [
   { key: 'cancelado', label: 'Cancelado', curto: 'Cancelado', cor: '#94a3b8', icone: '🚫' },
 ]
 const etapaPD = (k) => ETAPAS_PD.find(e => e.key === k) || { key: k, label: k, curto: k, cor: '#64748b', icone: '•' }
-const COLUNAS_PD = ['deferido', 'extrato', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']   // 02/11: a coluna "Carta" virou "Extrato de pagamento"
-const ATIVAS = ['deferido', 'carta', 'extrato', 'prevsempre', 'aguardando_pagamento', 'pago']
-const ESPERANDO = ['aguardando_pagamento', 'prevsempre', 'pago']   // ainda nao pagou
+const COLUNAS_PD = ['deferido', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']   // 02/11: a coluna "Carta" virou "Extrato de pagamento"
+const ATIVAS = ['deferido', 'carta', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'pago']
+const ESPERANDO = ['aguardando_pagamento', 'orientacao_prev', 'prevsempre', 'pago']   // ainda nao pagou
 const DIAS_INADIMPLENTE = 4
 // 03/11 (Bruno): parado ha mais de 48h na etapa = VERMELHO (Deferido e PrevSempre).
 // Extrato de pagamento: so da para pegar 7 dias apos o deferimento — o caso so SOBE para cobrar nesse dia
@@ -57,7 +60,7 @@ const inicioCobrancaExtrato = (c) => {
 }
 const horasExtratoLiberado = (c) => (Date.now() - inicioCobrancaExtrato(c)) / 3600000   // negativo = ainda nao subiu
 const extratoLiberado = (c) => (horasExtratoLiberado(c) ?? 0) >= 0
-const vermelho48 = (c) => (c.etapa === 'deferido' || c.etapa === 'prevsempre') ? (horasDesde(c.etapa_desde) ?? 0) > HORAS_LIMITE
+const vermelho48 = (c) => (c.etapa === 'deferido' || c.etapa === 'orientacao_prev' || c.etapa === 'prevsempre') ? (horasDesde(c.etapa_desde) ?? 0) > HORAS_LIMITE
   : (c.etapa === 'extrato' || c.etapa === 'carta') ? (horasExtratoLiberado(c) ?? 0) > HORAS_LIMITE : false
 const txtHoras = (h) => (h == null ? '' : h < 24 ? `${Math.max(0, Math.floor(h))}h` : `${Math.floor(h / 24)}d ${Math.floor(h % 24)}h`)
 // contador do extrato (aparece enquanto o extrato nao foi lancado)
@@ -66,7 +69,7 @@ const txtExtrato = (c) => {
   const h = horasExtratoLiberado(c)
   if (h == null) return ''
   if (h < 0) return ''   // 03/11 (Bruno): antes dos 7 dias nao mostra nada
-  return `cobrar o extrato · há ${txtHoras(h)}`
+  return `ligar no INSS (data e valor) · há ${txtHoras(h)}`
 }
 // dias depois da data do pagamento (negativo = ainda vai cair)
 const diasApos = (iso) => (iso ? Math.round((new Date(hojeISO() + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000) : null)
@@ -91,6 +94,9 @@ const primeiroNome = (n) => { const p = String(n || '').trim().split(/\s+/)[0] |
 const bancoCurto = (b) => { const s = String(b || ''); if (/mercantil/i.test(s)) return 'Mercantil'; if (/caixa/i.test(s)) return 'Caixa'; if (/banco do brasil/i.test(s)) return 'Banco do Brasil'; return s.replace(/^Banco\s+/i, '').slice(0, 18) }
 const telWa = (t) => { let d = soDig(t); if (d.startsWith('55') && d.length > 11) d = d.slice(2); return d.length >= 10 ? '55' + d : null }
 
+// 07/11 (Bruno): Mercantil que ainda nao passou pela Orientacao PrevSempre aparece na etapa virtual
+const etapaVirtualPD = (c) => (c.etapa === 'prevsempre' && c.prev_orientacao_exigida && !c.prev_orientada_em) ? { ...c, etapa: 'orientacao_prev' } : c
+const lerBase64PD = (arq) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]+,/, '')); r.onerror = () => erro(r.error); r.readAsDataURL(arq) })
 const ehAutomatico = (c) => c.prevsempre && c.prevsempre_honorario_auto === true
 
 // ---------------------------------------------------------------- guia de mensagens (29/10, Bruno)
@@ -149,12 +155,21 @@ export const GUIAS = {
       ] },
     ],
   },
+  // 07/11/2026 (Bruno): ORIENTACAO PREVSEMPRE — avisar ANTES do link do Mercantil (abrir a conta + autorizar o debito automatico)
+  orientacao_prev: {
+    titulo: 'Orientação PrevSempre · link e débito automático', icone: '📣', cor: '#b45309',
+    passos: [
+      { k: 'orientar', rot: 'Orientar sobre o link do Mercantil e o débito automático', espera: true, dica: 'Espere ela responder COMBINADO e tire o print dessa conversa no WhatsApp.', var: [
+        x => `${x.n}, agora presta muita atenção, porque esse é o passo mais importante pra você receber 🙏\n\nO seu salário-maternidade vai ser pago pelo *Banco Mercantil*, através da *PrevSempre*.\n\n📲 *Nos próximos dias você vai receber um LINK do Banco Mercantil* pelo WhatsApp oficial deles. *Não é golpe!* É por esse link que você abre a conta onde o seu benefício vai cair — tudo pelo celular, sem precisar ir em agência.\n\n💳 *Na abertura da conta vai aparecer a autorização do DÉBITO AUTOMÁTICO dos honorários.* É o pagamento do nosso trabalho, que você já combinou e assinou no contrato. Ele é descontado automaticamente dessa conta quando o benefício cair, então você não precisa fazer pagamento nenhum depois.\n\n✅ Quando aparecer essa pergunta, aperte *AUTORIZAR*.\n❌ *Se apertar "não autorizar", o processo TRAVA* e a gente vai ter que refazer tudo, o que pode atrasar o seu recebimento.\n\nFica tranquila: quando o link chegar, a gente te ajuda em cada tela.\n\nMe responde *COMBINADO* pra eu saber que você entendeu? 😊`,
+      ] },
+    ],
+  },
   carta_prev: {
     titulo: 'Carta chegou · Mercantil (PrevSempre)', icone: '📜', cor: AZUL_PREV,
     passos: [
       { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
       { k: 'carta', rot: 'Explicar a PrevSempre e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
-        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago pelo *Banco Mercantil* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias sai o *extrato de pagamento*, que mostra a data certinha — assim que sair eu te mando aqui, tá bom?\n\nE o melhor: você vai receber pela *PrevSempre*, a conta do Mercantil. Você abre a conta pelo celular, *não precisa ir em agência nenhuma*, e o dinheiro cai direto na sua conta.\n\nFunciona assim: o link para abrir a conta chega no seu WhatsApp, pelo *número oficial do Mercantil/PrevSempre*. Na abertura também aparece o *aceite dos nossos honorários*, que são descontados automaticamente — assim você não precisa se preocupar em fazer pagamento nenhum depois.\n\nFica tranquila: *no dia eu te aviso e te ligo* pra te ajudar em cada etapa, do começo ao fim. Combinado? 😊`,
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago pelo *Banco Mercantil* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias eu confirmo com o INSS a data certinha do pagamento e te mando aqui, tá bom?\n\nE o melhor: você vai receber pela *PrevSempre*, a conta do Mercantil. Você abre a conta pelo celular, *não precisa ir em agência nenhuma*, e o dinheiro cai direto na sua conta.\n\nFunciona assim: o link para abrir a conta chega no seu WhatsApp, pelo *número oficial do Mercantil/PrevSempre*. Na abertura também aparece o *aceite dos nossos honorários*, que são descontados automaticamente — assim você não precisa se preocupar em fazer pagamento nenhum depois.\n\nFica tranquila: *no dia eu te aviso e te ligo* pra te ajudar em cada etapa, do começo ao fim. Combinado? 😊`,
       ] },
       { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
     ],
@@ -164,18 +179,18 @@ export const GUIAS = {
     passos: [
       { k: 'chamar', rot: 'Chamar a cliente', espera: true, var: CHAMAR_CARTA },
       { k: 'carta', rot: 'Explicar o pagamento e combinar', espera: true, dica: 'Espere ela responder "combinado" antes da novidade.', var: [
-        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago no *${x.banco}* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias sai o *extrato de pagamento*, que mostra a data certinha — assim que sair eu te mando aqui.\n\nNa véspera eu te chamo aqui pra te explicar direitinho como vai funcionar o pagamento, e no dia *eu te aviso e te ligo* pra te acompanhar em cada etapa, pra você ficar tranquila. Combinado? 😊`,
+        x => `Então, ${x.n}: o seu salário-maternidade vai ser pago no *${x.banco}* 💰\n\n⚠️ A data de pagamento que aparece na carta é só uma *previsão do INSS* e costuma mudar. Em poucos dias eu confirmo com o INSS a data certinha do pagamento e te mando aqui.\n\nNa véspera eu te chamo aqui pra te explicar direitinho como vai funcionar o pagamento, e no dia *eu te aviso e te ligo* pra te acompanhar em cada etapa, pra você ficar tranquila. Combinado? 😊`,
       ] },
       { k: 'novidade', rot: 'A novidade (depois do "combinado")', dica: DICA_REVISAO, var: [NOVIDADE] },
     ],
   },
   // 02/11 (Bruno): EXTRATO DE PAGAMENTO chegou = a data REAL. Manda a data certa para a cliente.
   extrato: {
-    titulo: 'Extrato de pagamento · data certa', icone: '🧾', cor: '#0d9488',
+    titulo: 'Data do pagamento confirmada no INSS', icone: '📞', cor: '#0d9488',
     passos: [
       { k: 'data', rot: 'Mandar a data certa do pagamento', var: [
-        x => `${x.n}, ${x.s}! Saiu o seu *extrato de pagamento* 🙌\n\nAgora é oficial: o seu salário-maternidade cai no dia *${x.data}*, no *${x.banco}* 💰\n\nPode ficar tranquila que perto do dia eu te chamo aqui de novo pra te acompanhar, combinado?`,
-        x => `Oi, ${x.n}! ${x.aqui}. Como te falei, saiu o *extrato de pagamento* com a data certinha: o seu maternidade cai dia *${x.data}* no *${x.banco}* 🎉\n\nPerto do dia eu te aviso e te ajudo em tudo, tá bom?`,
+        x => `${x.n}, ${x.s}! Confirmei com o INSS 🙌\n\nAgora é oficial: o seu salário-maternidade cai no dia *${x.data}*, no *${x.banco}* 💰\n\nPode ficar tranquila que perto do dia eu te chamo aqui de novo pra te acompanhar, combinado?`,
+        x => `Oi, ${x.n}! ${x.aqui}. Como te falei, confirmei com o INSS a data certinha: o seu maternidade cai dia *${x.data}* no *${x.banco}* 🎉\n\nPerto do dia eu te aviso e te ajudo em tudo, tá bom?`,
       ] },
     ],
   },
@@ -224,7 +239,7 @@ export const GUIAS = {
       { k: 'caiu', rot: 'Se já caiu: cobrar com leveza', var: [
         x => `Que bom, ${x.n}! 🎉 Agora só falta a nossa parte pra gente fechar o seu processo com chave de ouro: ${x.comoPagar}.\n\nE assim que fechar o maternidade, a gente já parte pra *revisão do INSS* que estamos analisando pra você 🤩`,
       ] },
-      { k: 'nao_caiu', rot: 'Se ainda não caiu', depois: 'chamar', dica: 'Confira a data no extrato/carta e, se mudou, use "Mudar data do pagamento".', var: [
+      { k: 'nao_caiu', rot: 'Se ainda não caiu', depois: 'chamar', dica: 'Confira a data no INSS (135) e, se mudou, use "Mudar data do pagamento".', var: [
         x => `Entendi, ${x.n}! Fica tranquila que eu vou verificar aqui o que aconteceu e já te dou um retorno, tá bom? 🙏`,
       ] },
     ],
@@ -248,6 +263,7 @@ function guiasDoCaso(c) {
   const ext = c.extrato_em ? ['extrato'] : []   // 02/11: so quem passou pela etapa do extrato
   if (e === 'deferido' || e === 'carta') return ['deferido']
   if (e === 'extrato') return [c.prevsempre ? 'carta_prev' : 'carta_outro']
+  if (e === 'orientacao_prev') return ['orientacao_prev']
   if (e === 'prevsempre') return ['carta_prev', ...ext, 'abrir_conta']
   if (ESPERANDO.includes(e)) {
     const g = c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera']
@@ -271,6 +287,7 @@ const guiasDaAcao = (acao, c) => {
   const ext = c.extrato_em ? ['extrato'] : []
   return acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
     : acao === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro']
+    : acao === 'orientar_prev' ? ['orientacao_prev']
     : acao === 'prevsempre' ? ['carta_prev', ...ext, 'abrir_conta']
     : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera'])
     : []
@@ -321,7 +338,7 @@ const ACOES_PD = {
   avisar_cliente: {
     titulo: 'Cliente avisada + carta de concessão', icone: '📣', cor: '#16a34a',
     anexo: 'Carta de concessão', anexoObrig: true,
-    nota: 'Mande as mensagens do checklist (uma de cada vez, esperando a cliente responder), anexe a CARTA DE CONCESSÃO e informe o banco. A data de pagamento da carta é só previsão. Banco Mercantil vai DIRETO para a PrevSempre; os outros bancos vão para "Extrato de pagamento", que só sobe para cobrar 7 dias após o deferimento (é quando o extrato sai).',
+    nota: 'Mande as mensagens do checklist (uma de cada vez, esperando a cliente responder), anexe a CARTA DE CONCESSÃO e informe o banco. A data de pagamento da carta é só previsão. Banco Mercantil vai para a Orientação PrevSempre; os outros bancos vão para "Data do pagamento (INSS)", que só sobe 7 dias após o deferimento (aí é só ligar no INSS e pegar a data e o valor).',
     campos: [
       { k: 'banco', l: 'Banco que vai pagar (está na carta)', obrig: true, tipo: 'select', opcoes: BANCOS.map(b => ({ v: b, l: b })) },
       { k: 'banco_outro', l: 'Qual banco?', tipo: 'text', obrigSe: (v) => v.banco === 'Outro', so: (v) => v.banco === 'Outro' },
@@ -333,7 +350,7 @@ const ACOES_PD = {
   carta: {
     titulo: 'Carta de concessão', icone: '📜', cor: '#0891b2',
     anexo: 'Carta de concessão', anexoObrig: true,
-    nota: 'A data de pagamento da carta é só PREVISÃO do INSS e não é usada aqui. Banco Mercantil vai direto para a PrevSempre; os outros vão para "Extrato de pagamento", que sai 7 dias após o deferimento — aí você lança a data real. Avise a cliente que a data certa vai depois.',
+    nota: 'A data de pagamento da carta é só PREVISÃO do INSS e não é usada aqui. Banco Mercantil vai direto para a PrevSempre; os outros vão para "Data do pagamento (INSS)": 7 dias após o deferimento você liga no INSS e lança a data e o valor. Avise a cliente que a data certa vai depois.',
     campos: [
       { k: 'banco', l: 'Banco que vai pagar', obrig: true, tipo: 'select', opcoes: BANCOS.map(b => ({ v: b, l: b })) },
       { k: 'banco_outro', l: 'Qual banco?', tipo: 'text', obrigSe: (v) => v.banco === 'Outro', so: (v) => v.banco === 'Outro' },
@@ -342,19 +359,29 @@ const ACOES_PD = {
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
   },
+  // 08/11/2026 (Bruno): NAO precisa mais do extrato. 7 dias apos o deferimento liga no INSS (135) e pega a data e o valor.
   extrato: {
-    titulo: 'Extrato de pagamento', icone: '🧾', cor: '#0d9488',
-    anexo: 'Extrato de pagamento', anexoObrig: true,
-    nota: 'O extrato de pagamento é o documento que traz a data REAL em que a cliente recebe (a da carta é previsão). Ele sai 7 dias após o deferimento. Depois de lançado, o caso vai para "Aguardando pagamento" (a Mercantil já passou pela PrevSempre antes).',
+    titulo: 'Data e valor do pagamento (INSS)', icone: '📞', cor: '#0d9488',
+    anexo: 'Print ou anotação (opcional)',
+    nota: '7 dias após o deferimento, ligue no INSS (135) e pegue a data REAL do pagamento e o valor (a data da carta é só previsão). Não precisa mais do extrato. Depois de lançado, o caso vai para "Aguardando pagamento" (a Mercantil já passou pela PrevSempre antes).',
     campos: [
-      { k: 'data_pagamento', l: 'Data do pagamento (a do extrato)', obrig: true, tipo: 'date' },
-      { k: 'valor', l: 'Valor do benefício (opcional)', tipo: 'money' },
+      { k: 'data_pagamento', l: 'Data do pagamento (informada pelo INSS)', obrig: true, tipo: 'date' },
+      { k: 'valor', l: 'Valor do benefício (informado pelo INSS)', obrig: true, tipo: 'money' },
+      { k: 'fonte', l: 'Onde confirmou', obrig: true, tipo: 'select', opcoes: ['Ligação no INSS (135)', 'Meu INSS', 'Extrato de pagamento'].map(o => ({ v: o, l: o })) },
       { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
     ],
   },
+  // 07/11/2026 (Bruno): etapa obrigatoria antes da PrevSempre (Maithe). Print do WhatsApp conferido pela I.A.
+  orientar_prev: {
+    titulo: 'Cliente orientada · PrevSempre', icone: '📣', cor: '#b45309',
+    anexo: 'Print da conversa no WhatsApp (com a orientação)', anexoObrig: true, soImagem: true,
+    porque: true,
+    nota: 'Mande a mensagem do checklist, espere a cliente responder COMBINADO e anexe o PRINT dessa conversa no WhatsApp. A I.A confere se é print de WhatsApp e se a conversa fala da PrevSempre/Mercantil e do débito automático. Só depois disso o caso vai para a PrevSempre (Maithe).',
+    campos: [{ k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' }],
+  },
   prevsempre: {
     titulo: 'PrevSempre (Mercantil)', icone: '🏦', cor: AZUL_PREV,
-    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário. Se o extrato de pagamento ainda não foi lançado, o caso segue para "Extrato de pagamento" (sai 7 dias após o deferimento).',
+    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário. Se a data do pagamento ainda não foi lançada, o caso segue para "Data do pagamento (INSS)" (7 dias após o deferimento, ligar no INSS).',
     campos: [
       { k: 'conta_aberta', l: 'Abriu a conta PrevSempre?', obrig: true, tipo: 'simnao' },
       { k: 'honorario_auto', l: 'Aceitou o honorário descontado automático?', obrig: true, tipo: 'simnao' },
@@ -424,6 +451,7 @@ const ACOES_POR_ETAPA_PD = {
   deferido: ['avisar_cliente', 'atividade', 'observacao', 'cancelar'],
   carta: ['carta', 'atividade', 'observacao', 'cancelar'],
   extrato: ['extrato', 'atividade', 'trocar_carta', 'observacao', 'cancelar'],
+  orientacao_prev: ['orientar_prev', 'atividade', 'trocar_carta', 'observacao'],
   prevsempre: ['prevsempre', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
   aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
   pago: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
@@ -437,6 +465,8 @@ function acaoDoDropPD(c, col) {
   if (col === 'atrasado') return ['__auto']
   if (col === 'carta') return e === 'deferido' ? ['avisar_cliente'] : ['voltar', { etapa: 'carta' }]
   if (col === 'extrato') return e === 'deferido' ? ['avisar_cliente'] : e === 'carta' ? ['carta'] : ['voltar', { etapa: 'extrato' }]
+  if (col === 'orientacao_prev') return e === 'deferido' ? ['avisar_cliente'] : e === 'carta' ? ['carta'] : [null]
+  if (e === 'orientacao_prev') return col === 'prevsempre' ? ['orientar_prev'] : col === 'baixado' ? [null] : ['voltar', { etapa: col }]
   if (col === 'prevsempre' || col === 'aguardando_pagamento') {
     if (e === 'deferido') return ['avisar_cliente']
     if (e === 'carta') return ['carta']
@@ -622,6 +652,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
   const pegarArquivo = useCallback((f) => {
     if (!f) return
     if (!/^image\//.test(f.type) && f.type !== 'application/pdf') { setErro('Envie imagem ou PDF.'); return }
+    if (cfg?.soImagem && !/^image\//.test(f.type)) { setErro('Envie o PRINT (imagem) da conversa no WhatsApp.'); return }
     if (f.size > 15 * 1024 * 1024) { setErro('Arquivo maior que 15 MB.'); return }
     setErro(''); setArquivo(f)
     setPrevia(/^image\/(png|jpe?g|webp|gif)$/.test(f.type) ? URL.createObjectURL(f) : null)
@@ -662,6 +693,22 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
       Object.entries(v).forEach(([k, val]) => { if (!k.startsWith('_') && val !== '' && val != null) p[k] = String(val) })
       if ((acao === 'carta' || acao === 'avisar_cliente') && p.banco === 'Outro') { p.banco = p.banco_outro; delete p.banco_outro }
       delete p.banco_outro
+      // 07/11 (Bruno): ORIENTACAO PREVSEMPRE — a I.A confere o print ANTES de gravar (sem rigidez)
+      if (acao === 'orientar_prev') {
+        const tarefa = `TAREFA (não é parecer): confira o PRINT anexado. Responda na PRIMEIRA linha apenas SIM ou NÃO e, na segunda linha, o motivo em uma frase curta.
+SIM se as DUAS coisas aparecerem: (1) a imagem é um print de conversa do WhatsApp (conversa direta ou grupo); (2) na conversa aparece a orientação sobre a PrevSempre ou o Banco Mercantil E sobre o débito automático / desconto automático dos honorários.
+Não seja rígida: a mensagem pode ter sido enviada por alguém da equipe da KR; NÃO exija nome, telefone, nem resposta da cliente.
+NÃO somente se: não for print de WhatsApp, não aparecer nada sobre PrevSempre/Mercantil, não aparecer nada sobre débito ou desconto automático dos honorários, ou a imagem estiver claramente montada/editada.`
+        let veredito = ''
+        try {
+          veredito = await perguntarIA({ caso, historico: [], texto: tarefa, anexos: [{ nome: arquivo.name || 'print.png', media_type: arquivo.type, data: await lerBase64PD(arquivo) }] })
+        } catch (e) { throw new Error('A I.A não conseguiu conferir o print agora: ' + String(e.message || e)) }
+        const limpo = String(veredito || '').replace(/[*_#>`]/g, '').trim()
+        if (!limpo.split('\n')[0].trim().toUpperCase().startsWith('SIM')) {
+          throw new Error('A I.A NÃO confirmou o print. Mande o print da conversa no WhatsApp em que aparece a orientação da PrevSempre e do débito automático.\n\n' + limpo)
+        }
+        p.ia = limpo.slice(0, 1000)
+      }
       if (arquivo) p.anexo = await enviarArquivo(arquivo, caso.cpf)
       if (conversa) {
         p.conversa = await enviarConversa(conversa, caso.cpf)
@@ -740,6 +787,12 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
           <button onClick={onClose} aria-label="Fechar" style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: cores.suave }}>✕</button>
         </div>
         <div style={{ padding: 20, display: 'grid', gap: 14 }}>
+          {cfg.porque && (
+            <div style={{ borderRadius: 12, padding: '12px 14px', background: hexA('#b45309', 0.07), border: `1.5px solid ${hexA('#b45309', 0.3)}`, display: 'grid', gap: 8, fontSize: 13.5, color: cores.texto, lineHeight: 1.5 }}>
+              <div><b style={{ color: '#b45309' }}>Por que esta etapa existe:</b> a cliente vai receber do Banco Mercantil um link para abrir a conta onde o benefício dela vai cair. Nessa abertura aparece a autorização do <b>débito automático dos honorários</b>. Se ela não for avisada antes, estranha o link, acha que é golpe ou aperta <b>“não autorizar”</b> — o processo trava, a Maithe tem que refazer tudo e o honorário fica sem desconto automático.</div>
+              <div><b style={{ color: '#b45309' }}>O seu papel:</b> mandar a mensagem abaixo, garantir que ela entendeu (ela tem que responder <b>COMBINADO</b>) e anexar o <b>print dessa conversa</b> no WhatsApp.</div>
+            </div>
+          )}
           {cfg.nota && <div style={{ fontSize: 12.5, color: cores.suave, background: cores.chipBg, borderRadius: 10, padding: '8px 12px' }}>{cfg.nota}</div>}
           {guiasReq.length > 0 && (
             <div style={{ border: `1.5px solid ${faltaMsg.length ? hexA('#d97706', 0.5) : hexA(cores.ok, 0.45)}`, background: faltaMsg.length ? hexA('#f59e0b', 0.05) : hexA(cores.ok, 0.05), borderRadius: 14, padding: 12, display: 'grid', gap: 10 }}>
@@ -791,7 +844,7 @@ function ModalPD({ caso, acao, inicial, onClose, onFeito }) {
             </div>
           )}
           {visiveis.map(campo)}
-          {ehMercantil && <div style={{ fontSize: 13, fontWeight: 700, color: AZUL_PREV, background: hexA(AZUL_PREV, 0.08), borderRadius: 10, padding: '9px 12px' }}>🏦 Mercantil: o caso vai para a etapa <b>PrevSempre</b>.</div>}
+          {ehMercantil && <div style={{ fontSize: 13, fontWeight: 700, color: AZUL_PREV, background: hexA(AZUL_PREV, 0.08), borderRadius: 10, padding: '9px 12px' }}>🏦 Mercantil: o caso vai para a etapa <b>Orientação PrevSempre</b> (avisar a cliente do link e do débito automático) e só depois para a <b>PrevSempre</b>.</div>}
           {erro && <div style={{ color: cores.perigo, background: hexA(cores.perigo, 0.08), borderRadius: 10, padding: '9px 12px', fontSize: 13, fontWeight: 600 }}>{erro}</div>}
           {!pode && !salvando && faltando.length > 0 && <div style={{ fontSize: 12, color: cores.suave }}>Falta: {faltando.join(' · ')}</div>}
         </div>
@@ -1305,7 +1358,7 @@ export default function PosDeferimento() {
     // 03/11 (Bruno): antes do EXTRATO DE PAGAMENTO nao existe data de pagamento — a que veio do Protocolo/carta
     // e previsao. Sem o extrato o caso nao entra em "recebe hoje/amanha", atrasado nem inadimplente.
     setLista((Array.isArray(l.data) ? l.data : []).map(c => (!c.extrato_em && ['deferido', 'carta', 'extrato', 'prevsempre'].includes(c.etapa) && c.data_pagamento)
-      ? { ...c, data_pagamento_previsao: c.data_pagamento, data_pagamento: null } : c))
+      ? { ...c, data_pagamento_previsao: c.data_pagamento, data_pagamento: null } : c).map(etapaVirtualPD))
     if (i) setInss(Array.isArray(i.data) ? i.data : [])
     if (p) setPends(Array.isArray(p.data) ? p.data : [])
     if (r) setResultados(Array.isArray(r.data) ? r.data : [])
@@ -1460,7 +1513,7 @@ export default function PosDeferimento() {
           <span style={{ whiteSpace: 'nowrap' }}>{bancoCurto(c.banco)}</span>
         </div>
         {c.proxima_atividade && <div style={{ marginTop: 7, fontSize: 11.5, color: '#0f766e', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📅 {fmtData(c.proxima_atividade_em)} · {c.proxima_atividade}</div>}
-        {vermelho48(c) && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 800, color: cores.perigo }}>⏰ passou de 48h{c.etapa === 'extrato' || c.etapa === 'carta' ? ' — cobrar o extrato' : ` · há ${txtHoras(horasDesde(c.etapa_desde))}`}</div>}
+        {vermelho48(c) && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 800, color: cores.perigo }}>⏰ passou de 48h{c.etapa === 'extrato' || c.etapa === 'carta' ? ' — ligar no INSS' : ` · há ${txtHoras(horasDesde(c.etapa_desde))}`}</div>}
         {['extrato', 'carta'].includes(c.etapa) && extratoLiberado(c) && !vermelho48(c) && txtExtrato(c) && <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 700, color: '#0d9488' }}>🧾 {txtExtrato(c)}</div>}
         {gv && prog && prog.feitos < prog.total && (
           <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, color: GUIAS[gv].cor }}>
@@ -1513,7 +1566,7 @@ export default function PosDeferimento() {
     const t = TIPO_AGENDA[it.tipo]
     const wa = telWa(c.telefone)
     const ehPend = it.tipo === 'pendencia'
-    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : it.tipo === 'conversa' ? 'conversa_inadimplente' : 'atividade_feita'
+    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : it.tipo === 'conversa' ? 'conversa_inadimplente' : 'atividade_feita'
     const cfg = acaoRapida ? ACOES_PD[acaoRapida] : null
     const podeAgir = !soLeitura && !ehPend && c.pode_agir !== false
     return (
@@ -1968,6 +2021,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     ))
     const prazoTxt = (p) => { const pz = p.exigencia_prazo || p.prazo; if (!pz) return ''; const d = -diasApos(pz); return <b style={{ color: d <= 3 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(pz)}{d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`}</b> }
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
+    const orientPend = filtrada.filter(c => c.etapa === 'orientacao_prev').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 07/11
     const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 03/11: mais antigo primeiro (48h)
     // 03/11 (Bruno): o extrato so sobe para cobrar 7 dias apos o deferimento
     const extratoTodos = filtrada.filter(c => c.etapa === 'extrato' || c.etapa === 'carta')
@@ -2011,13 +2065,19 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)} · <b style={{ color: vermelho48(c) ? cores.perigo : cores.ok }}>há {txtHoras(horasDesde(c.etapa_desde))}</b>{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
           acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
             c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei + carta de concessão</button>] }) },
-      { k: 'extrato', icone: '🧾', tit: 'Cobrar o extrato de pagamento (7 dias após o deferimento)', cor: '#0d9488', itens: aguardExtrato,
+      { k: 'extrato', icone: '🧾', tit: 'Ligar no INSS: data e valor do pagamento (7 dias após o deferimento)', cor: '#0d9488', itens: aguardExtrato,
         extra: [nVerm(aguardExtrato) ? `${nVerm(aguardExtrato)} passou de 48h` : 'a data real do pagamento', nExtratoEspera ? `${nExtratoEspera} esperando os 7 dias` : null].filter(Boolean).join(' · '),
         linha: (c, i) => { const h = horasExtratoLiberado(c)
           return linhaSimples(c, i, { alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
             sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'}{c.prevsempre ? ' · PrevSempre ok' : ''} · deferido {c.data_deferimento ? fmtData(c.data_deferimento) : '—'}<b style={{ color: vermelho48(c) ? cores.perigo : '#0d9488' }}> · subiu {fmtDataHora(new Date(inicioCobrancaExtrato(c)).toISOString())}, há {txtHoras(h)}{vermelho48(c) ? ' — cobrar o extrato' : ''}</b></>,
             acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>,
-              c.pode_agir !== false && <button key="e" onClick={() => abrirAcao(c, 'extrato')} style={{ ...btn('#0d9488'), padding: '6px 10px', fontSize: 12 }}>🧾 Lançar extrato</button>] }) } },
+              c.pode_agir !== false && <button key="e" onClick={() => abrirAcao(c, 'extrato')} style={{ ...btn('#0d9488'), padding: '6px 10px', fontSize: 12 }}>📞 Lançar data e valor</button>] }) } },
+      { k: 'orient', icone: '📣', tit: 'Orientação PrevSempre: avisar a cliente do link e do débito automático', cor: '#b45309', itens: orientPend,
+        extra: nVerm(orientPend) ? `${nVerm(orientPend)} passou de 48h` : 'obrigatório antes da PrevSempre (Maithe) · print do WhatsApp',
+        linha: (c, i) => linhaSimples(c, i, { alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
+          sub: <>{fmtCpf(c.cpf)} · Mercantil{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · <b style={{ color: vermelho48(c) ? cores.perigo : '#b45309' }}>esperando orientação há {txtHoras(horasDesde(c.etapa_desde))}</b>{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+          acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
+            c.pode_agir !== false && <button key="o" onClick={() => abrirAcao(c, 'orientar_prev')} style={{ ...btn('#b45309'), padding: '6px 10px', fontSize: 12 }}>📣 Cliente orientada</button>] }) },
       { k: 'prev', icone: '🏦', tit: 'PrevSempre: abrir a conta e aceitar o débito automático', cor: AZUL_PREV, itens: prevPend,
         extra: nVerm(prevPend) ? `${nVerm(prevPend)} passou de 48h` : 'o responsável confirma conta aberta e débito',
         linha: (c, i) => { const d = c.data_pagamento ? -diasApos(c.data_pagamento) : null
@@ -2216,7 +2276,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
   // cobranca. Dois jeitos de acompanhar:
   //  - DESCONTO AUTOMATICO (PrevSempre + aceitou): avisar a cliente e conferir na PrevSempre;
   //  - COBRAR A CLIENTE (qualquer outro): lembrar antes e cobrar o honorario quando cair.
-  const tipoCobranca = (c) => (ehAutomatico(c) ? 'auto' : c.etapa === 'prevsempre' ? 'prev_pendente' : 'cobrar')
+  const tipoCobranca = (c) => (ehAutomatico(c) ? 'auto' : (c.etapa === 'prevsempre' || c.etapa === 'orientacao_prev') ? 'prev_pendente' : 'cobrar')
   const TIPO_COBRANCA = {
     auto: { rot: 'Desconto automático', icone: '🏦', cor: AZUL_PREV, faz: 'Avisar a cliente e conferir na PrevSempre se o honorário foi descontado' },
     prev_pendente: { rot: 'PrevSempre a confirmar', icone: '❓', cor: '#d97706', faz: 'Confirmar conta e honorário automático antes do pagamento' },
@@ -2252,7 +2312,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const t = TIPO_COBRANCA[tipoCobranca(c)]
     const wa = telWa(c.telefone)
     const podeAgir = !soLeitura && c.pode_agir !== false
-    const acao = c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou'
+    const acao = c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou'
     return (
       <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: inadimplente(c) ? cores.perigo : t.cor, flexShrink: 0 }} />
@@ -2461,7 +2521,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(6, minmax(0,1fr))', gap: 12 }}>
-        {kpi({ rot: 'Aguardando extrato', n: conta.semCarta, cor: '#0d9488', icone: '🧾', sub: conta.extratoEspera ? `+ ${conta.extratoEspera} esperando os 7 dias` : 'data real do pagamento', onClick: () => setAba('funil') })}
+        {kpi({ rot: 'Ligar no INSS (data)', n: conta.semCarta, cor: '#0d9488', icone: '🧾', sub: conta.extratoEspera ? `+ ${conta.extratoEspera} esperando os 7 dias` : 'data real do pagamento', onClick: () => setAba('funil') })}
         {kpi({ rot: 'Recebem amanhã', n: conta.amanha, cor: '#7c3aed', icone: '⏳', sub: fmtData(amanha), onClick: () => { setPgPeriodo('amanha'); setAba('pagamentos') } })}
         {kpi({ rot: 'Recebem na semana', n: conta.semana, cor: '#2563eb', icone: '🗓️', sub: `até ${fmtData(fimSemana)}`, onClick: () => { setPgPeriodo('semana'); setAba('pagamentos') } })}
         {kpi({ rot: 'Pagamento atrasado', n: conta.atrasados, cor: '#ea580c', icone: '⏰', sub: 'passou da data e não pagou', onClick: () => { setPgPeriodo('atrasados'); setAba('pagamentos') } })}
