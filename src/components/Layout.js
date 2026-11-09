@@ -278,7 +278,7 @@ const GRUPO_DE = {
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
   revisao_crefaz: 'Operação IA',
-  mesa_advogada: 'Operação IA', protocolo: 'Operação IA', posdef: 'Operação IA', prevsempre_maithe: 'Operação IA',
+  mesa_advogada: 'Operação IA', protocolo: 'Operação IA', posdef: 'Operação IA', vend_acomp: 'Operação IA', prevsempre_maithe: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -574,6 +574,10 @@ export default function Layout({ children, page, setPage }) {
   // corte e acompanha as proprias vendas. Mesma regra do App.js (paginaPermitida).
   if (profile?.posdef_papel && !nav.some(n => n.key === 'posdef')) {
     nav = [...nav, { key: 'posdef', label: '📋 Acompanhamento de clientes' }]
+  }
+  // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): tarefas de contato + acompanhamento das vendas. Mesma regra do App.js.
+  if ((profile?.posdef_papel || profile?.role === 'admin') && !nav.some(n => n.key === 'vend_acomp')) {
+    nav = [...nav, { key: 'vend_acomp', label: '🤝 Minhas clientes (contato)' }]
   }
   // 04/11 (Bruno) — ABA PREVSEMPRE: Maithe + admin. Mesma lista do App.js (IDS_PREVSEMPRE).
   if ((profile?.role === 'admin' || ['f53681cf-1467-41a9-b679-211ca4225865'].includes(profile?.id)) && !nav.some(n => n.key === 'prevsempre_maithe')) {
