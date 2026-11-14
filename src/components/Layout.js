@@ -72,7 +72,7 @@ const IDS_FILA_ENTREGAS = [
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
-  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  // 14/11/2026 (Bruno): Maryana Kodos saiu — agora e so vendedora
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
@@ -168,10 +168,8 @@ const NAV_SUPERVISOR_PRODUCAO = [
 const NAV_SUPERVISOR_VIEW = [
   { key: 'supervisor_producao', label: '👁️ Supervisão Produção' },
 ]
+// 14/11/2026 (Bruno): analista perde Dashboard, Painel Financeiro e Metas & Saude (financeiro so admin e Fabio)
 const NAV_ANALISTA = [
-  { key: 'dashboard', label: '📊 Dashboard' },
-  { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
-  { key: 'metas_financeiras', label: '🥅 Metas & Saúde' },
   { key: 'advogados', label: '⚖️ Advogados' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
   { key: 'fila', label: '📦 Fila de entregas' },
@@ -211,6 +209,7 @@ const NAV_RESGATE = [
   { key: 'resgate', label: '🛟 Ala de resgate' },
 ]
 const NAV_FINANCEIRO = [
+  { key: 'dash_retro', label: '📊 Dashboard Retroativo' }, // 14/11/2026 (Bruno)
   { key: 'despesas', label: '📋 Despesas & Custos' },
 ]
 const NAV_RH = [
@@ -234,11 +233,11 @@ const NAV_COORDENADOR_B2C = [
   { key: 'revisao_ia', label: '🤖 Revisão IA', soCaptacao: true },
   { key: 'performance_ia', label: '📈 Performance IA', soCaptacao: true },
 ]
+// 14/11/2026 (Bruno): Dashboard, Painel Financeiro e Metas & Saude eram do modelo antigo (lote para advogado)
+// e sairam do menu (as telas continuam no codigo). Entrou o Dashboard do Mae Retroativo.
 const NAV_ADMIN = [
-  { key: 'dashboard', label: '📊 Dashboard' },
+  { key: 'dash_retro', label: '📊 Dashboard Retroativo' },
   { key: 'novo_cliente', label: '➕ Novo cliente (digitar)' },
-  { key: 'painel_financeiro', label: '💰 Painel Financeiro' },
-  { key: 'metas_financeiras', label: '🥅 Metas & Saúde' },
   { key: 'despesas', label: '📋 Despesas & Custos' },
   { key: 'advogados', label: 'Advogados' },
   { key: 'funil', label: 'Funil' },
@@ -270,7 +269,7 @@ const NAV_ADMIN = [
 
 // ===== agrupamento visual do menu (só organização — não muda acesso) =====
 const GRUPO_DE = {
-  dashboard: 'Gestão', painel_financeiro: 'Gestão', metas_financeiras: 'Gestão',
+  dashboard: 'Gestão', dash_retro: 'Gestão', painel_financeiro: 'Gestão', metas_financeiras: 'Gestão',
   despesas: 'Gestão', recebimentos: 'Gestão', financeiro: 'Gestão', metas: 'Gestão',
   bi: 'Gestão', equipe: 'Gestão', advogados: 'Gestão', funil: 'Gestão',
   compras: 'Gestão', reposicoes: 'Gestão', meulink: 'Gestão',
