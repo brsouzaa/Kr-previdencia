@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { supabase } from './lib/supabase'
 import Login from './pages/Login'
@@ -61,6 +61,9 @@ import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 import PosDeferimento from './pages/PosDeferimento'
 import VendAcompanhamento from './pages/VendAcompanhamento'
 import PrevSempreMaithe from './pages/PrevSempreMaithe'
+// 14/11/2026 (Bruno): Dashboard novo do Mae Retroativo + 2FA dos admins
+import DashboardRetroativo from './pages/DashboardRetroativo'
+import MfaAdmin from './components/MfaAdmin'
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -171,7 +174,7 @@ const IDS_FILA_ENTREGAS = [
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
-  'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+  // 14/11/2026 (Bruno): Maryana Kodos saiu — agora e so vendedora
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
   '6cc8ec02-4aac-4fc7-98f4-d2060f5a6732', // Leandro Enrico — 04/09: supervisiona o gestante
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
@@ -293,6 +296,8 @@ function paginaInicial(role) {
   if (role === 'simulador_emprestimo') return 'simulacao_emprestimo'
   if (role === 'agente_bf') return 'revisao_ia_bf'
   if (role === 'advogada') return 'mesa_advogada'
+  // 14/11/2026 (Bruno): admin abre no Dashboard novo do Mae Retroativo
+  if (role === 'admin') return 'dash_retro'
   return 'dashboard'
 }
 
@@ -401,13 +406,16 @@ function paginaPermitida(profile, page) {
   if (role === 'admin') return true
   if (role === 'vendedor') return ['dashboard','advogados','funil','compras','meulink','fila','lotes_entregues','devolucoes','resgate_vendedor'].includes(page)
   if (role === 'produtor') return ['contratos'].includes(page)
-  if (role === 'financeiro') return ['financeiro','despesas','recebimentos'].includes(page)
+  // 14/11/2026 (Bruno): financeiro (Fabio) tambem ve o Dashboard novo do Mae Retroativo
+  if (role === 'financeiro') return ['financeiro','despesas','recebimentos','dash_retro'].includes(page)
   if (role === 'rh') return ['financeiro'].includes(page)
   if (role === 'supervisor_producao') return ['fila_digitacao','ranking','supervisor_producao','contratos','devolucoes','novo_cliente'].includes(page)
   if (role === 'supervisor_visualizacao') return ['supervisor_producao'].includes(page)
-  if (role === 'analista') return ['dashboard','painel_financeiro','metas_financeiras','advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
+  // 14/11/2026 (Bruno): analista perde Dashboard, Painel Financeiro e Metas & Saude (financeiro so admin e Fabio)
+  if (role === 'analista') return ['advogados','entregas','fila','ranking','supervisor_producao','devolucoes','resgate','resgate_vendedor'].includes(page)
   if (role === 'analista_ia') return ['revisao_ia','performance_ia'].includes(page)
-  if (role === 'coordenador_b2c') return ['painel_coordenador','dashboard','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
+  // 14/11/2026 (Bruno): coordenadora sem o Dashboard antigo (valores de lote = financeiro)
+  if (role === 'coordenador_b2c') return ['painel_coordenador','meus_clientes','supervisor_producao','fila_digitacao','ranking','dashboard_producao','pos_venda','pos_venda_historico','revisao_ia','performance_ia','devolucoes'].includes(page)
   if (role === 'vendedor_operador') return ['meus_clientes','novo_cliente','meu_desempenho','devolucoes'].includes(page)
   if (role === 'pos_venda') return ['pos_venda','pos_venda_historico'].includes(page)
   if (role === 'simulador_emprestimo') return ['simulacao_emprestimo'].includes(page)
@@ -417,6 +425,9 @@ function paginaPermitida(profile, page) {
 function AppInner() {
   const { user, profile, loading } = useAuth()
   const [page, setPage] = useState(null)
+  // 14/11/2026 (Bruno) — 2FA do admin (MfaAdmin). useCallback: o MfaAdmin roda o efeito de novo se a funcao mudar.
+  const [mfaOk, setMfaOk] = useState(false)
+  const liberarMfa = useCallback(() => setMfaOk(true), [])
 
   useEffect(() => {
     if (profile?.role && page === null) {
@@ -447,6 +458,9 @@ function AppInner() {
   // Primeiro acesso: força troca de senha + nome
   if (profile.senha_temporaria === true) return <PrimeiroAcesso />
 
+  // 14/11/2026 (Bruno) — 2FA: admin so entra depois do codigo do app autenticador
+  if (profile.role === 'admin' && !mfaOk) return <MfaAdmin onOk={liberarMfa} />
+
   // 08/10 (Bruno) — FICHA CNIS: documento do pre-aprovado que a validacao imprime
   // em PDF e anexa no Drive do advogado. Rota com URL propria (/ficha/<cpf>) igual
   // ao Portal e a ParceriaPensao, porque precisa abrir em aba nova e ser colada no
@@ -470,6 +484,7 @@ function AppInner() {
 
   const pages = {
     dashboard: <Dashboard />,
+    dash_retro: <DashboardRetroativo />,
     painel_financeiro: <PainelFinanceiro />,
     advogados: <Advogados />,
     funil: <Funil />,
