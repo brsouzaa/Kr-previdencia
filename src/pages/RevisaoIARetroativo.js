@@ -106,6 +106,16 @@ const SUPERVISORAS_TIME = {
     '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
     '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // a própria Dani
   ],
+  // 16/11/2026 (Bruno): Ronaldo para de receber lead (leads RT vao em rodizio para as 5 vendedoras RT)
+  // e acompanha a mesa delas
+  '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5': [ // RT CRÉDITOS — Ronaldo
+    '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // o próprio Ronaldo (leads antigos)
+    '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+    'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+    '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+    '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+    '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+  ],
 }
 
 // ===== ABAS (mesma lógica da mesa antiga) =====
