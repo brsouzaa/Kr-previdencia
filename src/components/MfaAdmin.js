@@ -67,7 +67,7 @@ export default function MfaAdmin({ onOk }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f6', padding: 16 }}>
       <div style={caixa}>
         <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>🔐 Verificação em duas etapas</div>
-        <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 18 }}>Acesso de administrador</div>
+        <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 18 }}>Acesso protegido</div>
 
         {modo === 'carregando' && <div style={{ fontSize: 14, color: '#888' }}>Carregando...</div>}
 
