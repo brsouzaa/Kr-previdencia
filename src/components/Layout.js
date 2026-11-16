@@ -508,6 +508,7 @@ export default function Layout({ children, page, setPage }) {
     // 17/10 e o menu ficou de fora, entao ele recebeu 2 leads em 19/10 sem ter
     // como abrir a tela. MESMA lista do App.js.
     '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
+    '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani (RT) — 16/11/2026: mesmo acesso do Ronaldo (RT CREDITOS)
   ]
   if (IDS_VENDAS_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
