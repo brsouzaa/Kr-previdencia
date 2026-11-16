@@ -66,6 +66,19 @@ function tempoRestante24h(devolvidoEm) {
   return { texto: `⏰ Restam ${horas}h pra resolver`, urgente: false, vencido: false }
 }
 
+// 16/11/2026 (Bruno): quem acompanha os clientes de um time inteiro em "Meus clientes"
+const IDS_DANI_RT = {
+  '71a5b26a-28c3-421a-bc25-d9dee6e577a2': [ // Dani (RT)
+    '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani
+    '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo
+    '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+    'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+    '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+    '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+    '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+  ],
+}
+
 export default function MeusClientes() {
   const { profile } = useAuth()
   const [clientes, setClientes] = useState([])
@@ -80,11 +93,15 @@ export default function MeusClientes() {
     setLoading(true)
     // Coordenadora B2C: RLS já filtra pelo setor_responsavel; busca JOIN com vendedor pra ver quem cadastrou
     const isCoord = profile?.role === 'coordenador_b2c'
+    // 16/11/2026 (Bruno): Dani (RT) acompanha os clientes do RT CREDITOS e das vendedoras RT (RLS dani_rt_le_clientes)
+    const timeRt = IDS_DANI_RT[profile?.id] || null
     let q = supabase
       .from('clientes')
-      .select(isCoord ? '*, profiles!clientes_vendedor_operador_id_fkey(nome)' : '*')
+      .select(isCoord || timeRt ? '*, profiles!clientes_vendedor_operador_id_fkey(nome)' : '*')
       .order('created_at', { ascending: false })
-    if (profile?.role === 'vendedor_operador') {
+    if (timeRt) {
+      q = q.in('vendedor_operador_id', timeRt)
+    } else if (profile?.role === 'vendedor_operador') {
       q = q.eq('vendedor_operador_id', profile.id)
     }
     const { data } = await q
@@ -281,7 +298,7 @@ export default function MeusClientes() {
               {c.cidade}/{c.uf} · {c.produto === 'Auxilio Acidente' ? 'Auxílio Acidente' : c.produto} · {tempoRelativo(c.created_at)}
               {' · '}
               <span style={{ color: docsAnexados >= 4 ? '#059669' : '#dc2626' }}>📎 {docsAnexados}/5 documentos</span>
-              {profile?.role === 'coordenador_b2c' && c.profiles?.nome && (
+              {(profile?.role === 'coordenador_b2c' || IDS_DANI_RT[profile?.id]) && c.profiles?.nome && (
                 <> · 👤 <span style={{ color: '#5b6b84' }}>{c.profiles.nome}</span></>
               )}
             </div>
