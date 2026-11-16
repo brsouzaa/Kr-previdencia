@@ -66,6 +66,10 @@ function tempoRestante24h(devolvidoEm) {
   return { texto: `⏰ Restam ${horas}h pra resolver`, urgente: false, vencido: false }
 }
 
+// 16/11/2026 (Bruno): papel le todos os clientes no banco (analista), mas em "Meus clientes" so ve os proprios
+const IDS_SO_PROPRIOS = [
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes
+]
 // 16/11/2026 (Bruno): quem acompanha os clientes de um time inteiro em "Meus clientes"
 const IDS_DANI_RT = {
   '71a5b26a-28c3-421a-bc25-d9dee6e577a2': [ // Dani (RT)
@@ -101,7 +105,8 @@ export default function MeusClientes() {
       .order('created_at', { ascending: false })
     if (timeRt) {
       q = q.in('vendedor_operador_id', timeRt)
-    } else if (profile?.role === 'vendedor_operador') {
+    } else if (profile?.role === 'vendedor_operador' || IDS_SO_PROPRIOS.includes(profile?.id)) {
+      // 16/11/2026 (Bruno): Sthefany (analista) digita propostas — aqui so os clientes que ELA cadastrou
       q = q.eq('vendedor_operador_id', profile.id)
     }
     const { data } = await q
