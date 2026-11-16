@@ -80,6 +80,7 @@ const IDS_FILA_ENTREGAS = [
 // Clientes (consulta geral de clientes e documentos): item por ID
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
+  'ac29daff-3ade-47e0-9f23-23df0ac10480', // Fábio — 16/11/2026 (Bruno): aba Clientes
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   // 14/11/2026 (Bruno): Maryana Kodos saiu — agora e so vendedora
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
@@ -158,6 +159,7 @@ const IDS_SIMULACAO_EMPRESTIMO = [
 const IDS_DIGITACAO_RETROATIVO = [
   '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Supervisora Joana
   '64ced61d-fdae-4399-97c9-900c59120fff', // Supervisora Pamela
+  '88929e81-7223-4754-a17b-1cd08f46195d', // Sthefany Mendes — 16/11/2026 (Bruno): digita propostas e pega link de contrato
 ]
 const TELAS_DIGITACAO_RETROATIVO = ['novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes']
 
