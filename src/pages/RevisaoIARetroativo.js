@@ -879,8 +879,6 @@ export default function RevisaoIARetroativo({ setPage }) {
         para o Painel de vendas.
       </div>
 
-      <BuscaTelefone onPegou={id => { setAbrirLeadId(id); avisar('Lead na sua mesa'); carregar() }} />
-
       <div style={s.buscaWrap}>
         <input style={s.buscaInput} value={busca} placeholder="🔎 Achar cliente: CPF, telefone ou nome"
           onChange={e => setBusca(e.target.value)}
@@ -888,6 +886,8 @@ export default function RevisaoIARetroativo({ setPage }) {
         <button style={s.btn} onClick={() => setBuscaAtiva(busca)}>Buscar</button>
         {buscaAtiva && <button style={s.btnGhost} onClick={() => { setBusca(''); setBuscaAtiva('') }}>Limpar</button>}
       </div>
+      {/* 16/11/2026 (Bruno): telefone digitado aqui tambem procura na base inteira ("esta com voce?") */}
+      <BuscaTelefone termo={buscaAtiva} onPegou={id => { setAbrirLeadId(id); avisar('Lead na sua mesa'); carregar() }} />
 
       {/* ===== PAINEL DO DIA ===== */}
       <div style={s.painel}>
