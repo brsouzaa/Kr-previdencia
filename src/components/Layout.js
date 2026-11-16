@@ -34,6 +34,15 @@ const IDS_SUPERVISOR_BOARD = [
 // fora de proposito (Maryana, Agatha, Duda, Sthefany e o time de 24).
 // RT CRÉDITOS (Ronaldo) NAO entra aqui: e parceiro externo e este pacote tem o
 // Painel de vendas. Ele entra em IDS_VENDAS_RETROATIVO, mais abaixo.
+// 16/11/2026 (Bruno): vendedoras da RT so com a tela do Retroativo (busca por telefone).
+// Nao recebem lead da mesa. MESMA lista do App.js (IDS_RT_BUSCA).
+const IDS_RT_BUSCA = [
+  '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+  'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+  '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+  '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+  '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+]
 const IDS_SO_RETROATIVO = [
   'a1d7dbfb-bc0d-46a3-b523-bfdc15aac0c9', // Leticia
   'bb85a0f3-2d79-499e-8b19-6219bd0cef56', // Gislaine
@@ -581,6 +590,10 @@ export default function Layout({ children, page, setPage }) {
   // 04/11 (Bruno) — ABA PREVSEMPRE: Maithe + admin. Mesma lista do App.js (IDS_PREVSEMPRE).
   if ((profile?.role === 'admin' || ['f53681cf-1467-41a9-b679-211ca4225865'].includes(profile?.id)) && !nav.some(n => n.key === 'prevsempre_maithe')) {
     nav = [...nav, { key: 'prevsempre_maithe', label: '🏦 PrevSempre' }]
+  }
+  // 16/11/2026 (Bruno): RT so de busca — menu EXCLUSIVO, fica por ultimo pra vencer tudo acima
+  if (IDS_RT_BUSCA.includes(profile?.id)) {
+    nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }]
   }
 
   // Conta novos lotes liberados (badge no menu) — só pra vendedor de advogado e admin
