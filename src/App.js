@@ -64,6 +64,10 @@ import PrevSempreMaithe from './pages/PrevSempreMaithe'
 // 14/11/2026 (Bruno): Dashboard novo do Mae Retroativo + 2FA dos admins
 import DashboardRetroativo from './pages/DashboardRetroativo'
 import MfaAdmin from './components/MfaAdmin'
+// 16/11/2026 (Bruno): alem dos admins, estes logins tambem precisam do 2FA
+const IDS_2FA = [
+  'e2f0ee1a-e6f2-474c-9485-64e96f94a569', // Gustavo Morandi (investidor)
+]
 
 // Vendedoras do Retroativo: Revisao IA Retroativo ja e a tela delas (so ve pre-aprovado real)
 const IDS_VENDAS_RETROATIVO = [
@@ -459,7 +463,10 @@ function AppInner() {
   if (profile.senha_temporaria === true) return <PrimeiroAcesso />
 
   // 14/11/2026 (Bruno) — 2FA: admin so entra depois do codigo do app autenticador
-  if (profile.role === 'admin' && !mfaOk) return <MfaAdmin onOk={liberarMfa} />
+  // 16/11/2026 (Bruno): o investidor (Gustavo Morandi) tambem entra com 2FA
+  // 16/11/2026 (Bruno): TODOS os usuarios (atuais e os que forem criados depois) entram com 2FA.
+  //   So a conta de robo (profiles.eh_robo, ex.: IA Atendimento) fica fora. IDS_2FA ficou redundante (mantido).
+  if (!profile.eh_robo && !mfaOk) return <MfaAdmin onOk={liberarMfa} />
 
   // 08/10 (Bruno) — FICHA CNIS: documento do pre-aprovado que a validacao imprime
   // em PDF e anexa no Drive do advogado. Rota com URL propria (/ficha/<cpf>) igual
