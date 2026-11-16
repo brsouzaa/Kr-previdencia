@@ -621,11 +621,21 @@ export default function FilaDigitacao() {
                   <div style={{ fontSize: 12, color: '#5b6b84' }}>{modalAberto.cpf}</div>
                 </div>
 
+                {/* 16/11/2026 (Bruno): se o vendedor escolheu o advogado no Novo cliente, a emissao vai pra ele (nao pro da vez) */}
+                {modalAberto.advogado_escolhido_id ? (
+                  <div style={{ background: 'rgba(52,211,153,.14)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, color: '#059669', marginBottom: 4 }}>ADVOGADO ESCOLHIDO PELO VENDEDOR</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a' }}>
+                      {(lotesFila.find(l => l.advogado_id === modalAberto.advogado_escolhido_id)?.advogados?.nome_completo) || 'advogado escolhido (sem lote aberto na lista)'}
+                    </div>
+                  </div>
+                ) : (
                 <div style={{ background: 'rgba(96,165,250,.12)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 4 }}>ADVOGADO DA VEZ</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a' }}>{proximoLoteFiltrado?.advogados?.nome_completo}</div>
                   <div style={{ fontSize: 12, color: '#5b6b84' }}>OAB/{proximoLoteFiltrado?.advogados?.estado} {proximoLoteFiltrado?.advogados?.oab}</div>
                 </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={fecharModal} style={{ flex: 1, padding: '10px', background: '#ffffff', color: '#5b6b84', border: '0.5px solid rgba(15,23,42,0.11)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{erroEmissao ? 'Fechar' : 'Cancelar'}</button>
