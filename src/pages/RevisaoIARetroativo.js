@@ -91,6 +91,11 @@ const SUPERVISORAS_TIME = {
     '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
     '6db43f01-71e6-4972-b84e-eb49375e8e70', // a própria Egle
   ],
+  // 16/11/2026 (Bruno): José Carlos Galvão vê os leads da Maryana Kodos
+  'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85': [ // José Carlos Galvão
+    'be98f268-314f-4114-acc3-7bb9ce7635fd', // Maryana Kodos
+    'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // o próprio José
+  ],
   // 16/11/2026 (Bruno): Dani (RT) acompanha tudo do RT CREDITOS e das vendedoras RT
   '71a5b26a-28c3-421a-bc25-d9dee6e577a2': [ // Dani (RT)
     '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo
