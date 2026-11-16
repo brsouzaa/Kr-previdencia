@@ -192,6 +192,10 @@ export default function NovoCliente({ onSucesso }) {
   const { profile } = useAuth()
   const [enviando, setEnviando] = useState(false)
   const [salvo, setSalvo] = useState(null)
+  // 16/11/2026 (Bruno): o vendedor escolhe o advogado (lista so com nomes) e o contrato sai sozinho ao salvar.
+  const [advogados, setAdvogados] = useState([])
+  const [advogadoSel, setAdvogadoSel] = useState('')
+  const [emissao, setEmissao] = useState(null)
   // 20/10 — resultado da validacao da venda pela I.A. So vale no Maternidade Mae.
   // Sem { resultado: 'aprovado' } aqui, o botao de cadastrar nao libera.
   const [validacao, setValidacao] = useState(null)
@@ -553,7 +557,18 @@ export default function NovoCliente({ onSucesso }) {
   })
   const refsOk = refsInfo.every(x => x.nomeOk && x.telOk && !x.telIgualCliente && !x.telRepetido && x.parentescoOk)
 
-  const tudoOk = c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && refsOk && docsOk && validacaoIaOk
+  // 16/11/2026 (Bruno): advogados com vaga no produto escolhido (so nome)
+  useEffect(() => {
+    setAdvogadoSel('')
+    if (!c.produto) { setAdvogados([]); return }
+    let vivo = true
+    supabase.rpc('advogados_com_vaga', { p_produto: c.produto })
+      .then(({ data }) => { if (vivo) setAdvogados(Array.isArray(data) ? data : []) })
+    return () => { vivo = false }
+  }, [c.produto])
+  // 16/11/2026 (Bruno): advogado obrigatorio quando ha advogado com vaga pro produto
+  const advogadoOk = advogados.length === 0 || !!advogadoSel
+  const tudoOk = advogadoOk && c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && refsOk && docsOk && validacaoIaOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
@@ -567,6 +582,7 @@ export default function NovoCliente({ onSucesso }) {
         cidade: c.cidade, uf: c.uf,
         produto: c.produto, observacao: c.observacao || null,
         documentos: docs,
+        advogado_escolhido_id: advogadoSel || null,
         status: 'aguardando_emissao',
         // 28/10 — 2 contatos de referencia (obrigatorios na tela)
         contatos_referencia: refs.map(r => ({
@@ -624,6 +640,17 @@ export default function NovoCliente({ onSucesso }) {
         } else { throw error }
         setEnviando(false); return
       }
+      // 16/11/2026 (Bruno): contrato sai sozinho. Se travar (lote sem vaga, ZapSign fora), o cliente
+      // continua aguardando emissao e cai na Fila de digitacao como antes.
+      let em = null
+      try {
+        const r = await supabase.functions.invoke('gerar-contratos-zapsign/emitir-cliente', {
+          body: { cliente_id: data.id, supervisor_id: profile.id },
+        })
+        if (r?.data?.ok) em = { ok: true, link: r.data.link_assinatura, advogado: r.data.advogado_nome }
+        else em = { ok: false, erro: r?.data?.error || null }
+      } catch (_) { em = { ok: false, erro: null } }
+      setEmissao(em)
       setSalvo(data)
     } catch (err) {
       // 30/10 (Bruno): explicar o motivo em vez de "TypeError: Failed to fetch".
@@ -646,6 +673,7 @@ export default function NovoCliente({ onSucesso }) {
     setC({ produto: '', nome:'', cpf:'', rg:'', telefone:'', email:'', cep:'', rua:'', numero:'', bairro:'', cidade:'', uf:'', observacao: '', nis:'', data_prevista_parto:'', meses_gravidez:'', data_nascimento_bebe:'', ja_trabalhou_clt:'', trabalhava_no_nascimento:'', recebeu_seguro_desemprego:'', saida_emprego_mes_ano:'', motivo_aprovacao:'' })
     setDocs({ rg_frente: null, rg_verso: null, comprovante_1: null, comprovante_2: null, comprovante_endereco: null, extrato_fgts: null })
     setCepStatus(null); setEndLockado(false); setCidadeStatus(null); setSalvo(null); setDuplicado(null)
+    setAdvogadoSel(''); setEmissao(null)
     setCepSemRua(false); setCepSemBairro(false); setValidacao(null)
     setRefs([{ ...REF_VAZIA }, { ...REF_VAZIA }])
     setPrefill(null); setRevalidar(false); setReuso(null); prefillCpfRef.current = ''
@@ -661,7 +689,17 @@ export default function NovoCliente({ onSucesso }) {
         <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
         <div style={{ fontSize: 16, fontWeight: 500, color: '#059669', marginBottom: 6 }}>Cliente cadastrado!</div>
         <div style={{ fontSize: 14, color: '#5b6b84', marginBottom: 4 }}>{salvo.nome}</div>
-        <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 20 }}>Aguardando emissão pela supervisão. O link aparece em "Meus clientes" assim que estiver pronto.</div>
+        {emissao?.ok ? (
+          <div style={{ fontSize: 13, color: '#0f172a', marginBottom: 20, lineHeight: 1.5 }}>
+            📄 Contrato emitido{emissao.advogado ? <> · {String(emissao.advogado).split(',')[0]}</> : null}.<br />
+            Link de assinatura: <b style={{ userSelect: 'all', wordBreak: 'break-all' }}>{emissao.link}</b><br />
+            <span style={{ color: '#5b6b84' }}>O link também aparece em "Meus clientes".</span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 20 }}>
+            O contrato não saiu automático{emissao?.erro ? ` (${emissao.erro})` : ''}. Ficou aguardando emissão na Fila de digitação. O link aparece em "Meus clientes" assim que estiver pronto.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={novoCadastro} style={{ flex: 1, padding: '10px', background: '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             ➕ Novo cliente
@@ -1200,6 +1238,18 @@ export default function NovoCliente({ onSucesso }) {
             valorInicial={docs.extrato_fgts} onChange={url => setDoc('extrato_fgts', url)} />
         </>)}
       </div>
+
+      {/* === ADVOGADO === 16/11/2026 (Bruno): o vendedor escolhe; so nomes, sem quantidade */}
+      {advogados.length > 0 && (
+        <div style={s.card}>
+          <div style={s.sectionTitle}>Advogado *</div>
+          <select style={s.select} value={advogadoSel} onChange={e => setAdvogadoSel(e.target.value)}>
+            <option value="">Escolha o advogado…</option>
+            {advogados.map(a => <option key={a.advogado_id} value={a.advogado_id}>{a.nome}</option>)}
+          </select>
+          <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 6 }}>O contrato sai no nome deste advogado assim que você salvar.</div>
+        </div>
+      )}
 
       {/* === OBSERVAÇÃO === */}
       <div style={s.card}>
