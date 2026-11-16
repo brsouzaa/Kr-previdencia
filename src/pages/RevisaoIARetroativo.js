@@ -91,6 +91,16 @@ const SUPERVISORAS_TIME = {
     '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
     '6db43f01-71e6-4972-b84e-eb49375e8e70', // a própria Egle
   ],
+  // 16/11/2026 (Bruno): Dani (RT) acompanha tudo do RT CREDITOS e das vendedoras RT
+  '71a5b26a-28c3-421a-bc25-d9dee6e577a2': [ // Dani (RT)
+    '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo
+    '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+    'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+    '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+    '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+    '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+    '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // a própria Dani
+  ],
 }
 
 // ===== ABAS (mesma lógica da mesa antiga) =====
