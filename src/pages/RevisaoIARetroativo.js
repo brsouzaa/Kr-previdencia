@@ -617,9 +617,11 @@ export default function RevisaoIARetroativo({ setPage }) {
   // null = toda a operação. Tudo abaixo (abas, KPIs, alerta de 48h) já sai
   // recortado, então o topo fala sempre da mesa que está sendo exibida.
   const mesa = useMemo(() => board
-    .filter(l => !vendedorSel || l.bf_agente_id === vendedorSel)
+    // 16/11/2026: o seletor gravado no navegador (kr_mesa_vendedor) so vale pra quem VE MAIS DE UM.
+    // Vendedora que abre num navegador onde uma supervisora escolheu outra pessoa ficava com a mesa zerada (Duda).
+    .filter(l => !vejoMaisDeUm || !vendedorSel || l.bf_agente_id === vendedorSel)
     .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
-    .filter(l => l._aba), [board, vendedorSel])
+    .filter(l => l._aba), [board, vendedorSel, vejoMaisDeUm])
 
   // 22/10 (Bruno) — O FILTRO DE PERÍODO MANDA EM TUDO: cards do topo, abas,
   // alerta de 48h e lista. A versão antiga fazia o contrário de propósito (o
