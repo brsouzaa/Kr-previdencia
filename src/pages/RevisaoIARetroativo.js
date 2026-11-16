@@ -85,6 +85,12 @@ const SUPERVISORAS_TIME = {
     '84461a51-1aff-4c54-839b-e10a12f5ae5b', // Leandro Souza — 27/10
     '0a5958b9-d43b-4bac-a01d-af60247dd721', // a própria Agatha
   ],
+  // 16/11/2026 (Bruno): Egle ve os leads da Duda e da Joana (seletor: cada uma ou as duas)
+  '6db43f01-71e6-4972-b84e-eb49375e8e70': [ // Egle Marcela
+    '9fbda3fe-22aa-4179-b1a7-005e99660c8d', // Duda
+    '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
+    '6db43f01-71e6-4972-b84e-eb49375e8e70', // a própria Egle
+  ],
 }
 
 // ===== ABAS (mesma lógica da mesa antiga) =====
@@ -861,6 +867,8 @@ export default function RevisaoIARetroativo({ setPage }) {
         para o Painel de vendas.
       </div>
 
+      <BuscaTelefone onPegou={id => { setAbrirLeadId(id); avisar('Lead na sua mesa'); carregar() }} />
+
       <div style={s.buscaWrap}>
         <input style={s.buscaInput} value={busca} placeholder="🔎 Achar cliente: CPF, telefone ou nome"
           onChange={e => setBusca(e.target.value)}
@@ -868,8 +876,6 @@ export default function RevisaoIARetroativo({ setPage }) {
         <button style={s.btn} onClick={() => setBuscaAtiva(busca)}>Buscar</button>
         {buscaAtiva && <button style={s.btnGhost} onClick={() => { setBusca(''); setBuscaAtiva('') }}>Limpar</button>}
       </div>
-      {/* 16/11/2026 (Bruno): telefone digitado aqui tambem procura na base inteira ("esta com voce?") */}
-      <BuscaTelefone termo={buscaAtiva} onPegou={id => { setAbrirLeadId(id); avisar('Lead na sua mesa'); carregar() }} />
 
       {/* ===== PAINEL DO DIA ===== */}
       <div style={s.painel}>
