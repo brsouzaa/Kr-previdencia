@@ -31,6 +31,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { cores, sombras, raio, fonte, ui } from '../lib/tema'
+// 16/11/2026 (Bruno): busca de cliente por telefone (pergunta "esta com voce?" antes da ficha)
+import BuscaTelefone from '../components/BuscaTelefone'
 
 // ===== BOARD =====
 // 21/10 — mae_board6 = a mae_board4 por dentro, com DOIS cortes: só
@@ -413,6 +415,8 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [confReemitir, setConfReemitir] = useState(null)   // 03/11: lead com a confirmacao de reemissao aberta
   const [reemitindo, setReemitindo] = useState(null)
   const [ficha, setFicha] = useState(null)
+  // 16/11/2026 (Bruno): lead pego pela busca por telefone -> abre a ficha assim que chegar na mesa
+  const [abrirLeadId, setAbrirLeadId] = useState(null)
   // 30/10: quem ve a operacao inteira recebe o board sem o "Resumo do GERID" (custava 5s); a ficha busca na hora
   const [fichaGerid, setFichaGerid] = useState('')
   useEffect(() => {
@@ -463,6 +467,11 @@ export default function RevisaoIARetroativo({ setPage }) {
   const reqAtual = useRef(0)
 
   function avisar(t) { setToast(t); setTimeout(() => setToast(null), 2600) }
+  useEffect(() => {
+    if (!abrirLeadId) return
+    const l = board.find(x => x.id === abrirLeadId)
+    if (l) { setFicha(l); setAbrirLeadId(null) }
+  }, [board, abrirLeadId])
 
   // ===== CARREGAR =====
   const carregar = useCallback(async () => {
@@ -859,6 +868,8 @@ export default function RevisaoIARetroativo({ setPage }) {
         <button style={s.btn} onClick={() => setBuscaAtiva(busca)}>Buscar</button>
         {buscaAtiva && <button style={s.btnGhost} onClick={() => { setBusca(''); setBuscaAtiva('') }}>Limpar</button>}
       </div>
+      {/* 16/11/2026 (Bruno): telefone digitado aqui tambem procura na base inteira ("esta com voce?") */}
+      <BuscaTelefone termo={buscaAtiva} onPegou={id => { setAbrirLeadId(id); avisar('Lead na sua mesa'); carregar() }} />
 
       {/* ===== PAINEL DO DIA ===== */}
       <div style={s.painel}>
