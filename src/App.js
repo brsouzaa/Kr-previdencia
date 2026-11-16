@@ -129,6 +129,17 @@ const TELAS_SO_RETROATIVO = [
   'novo_cliente', 'meus_clientes', 'meu_desempenho', 'devolucoes',
 ]
 
+// 16/11/2026 (Bruno): vendedoras da RT (time RT CREDITOS). Ainda NAO recebem lead da mesa
+// (bf_agentes setor retroativo_busca, fora da distribuicao). So a tela do Retroativo, pra
+// achar a cliente pela busca por telefone. MESMA lista do Layout.js.
+const IDS_RT_BUSCA = [
+  '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+  'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+  '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+  '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+  '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+]
+
 // Agentes BF (Joana, Pamela, Juliana/Ju, Nadia): acesso por ID, sem perder os roles atuais
 const IDS_AGENTES_BF = [
   '758a33f7-e5a2-4ef7-943a-dfe0ac72a387', // Joana
@@ -310,6 +321,7 @@ function paginaInicial(role) {
 // exigia lembrar dos dois. Quem e so do retroativo abre na mesa dele.
 function paginaDeAbertura(profile) {
   if (IDS_OPERACAO_LICENCIADA.includes(profile?.id)) return 'revisao_ia_bf'
+  if (IDS_RT_BUSCA.includes(profile?.id)) return 'revisao_ia_retroativo'
   if (IDS_SO_RETROATIVO.includes(profile?.id)) return 'revisao_ia_retroativo'
   return paginaInicial(profile?.role)
 }
@@ -352,6 +364,7 @@ function paginaPermitida(profile, page) {
   // painel_vendas (que libera por role) e as injecoes por ID mais abaixo.
   // Leticia e Gislaine estao em IDS_TIME_MARYANA logo acima: sem este corte vir
   // primeiro, elas continuariam enxergando BF, Gestante e CLT.
+  if (IDS_RT_BUSCA.includes(profile.id)) return page === 'revisao_ia_retroativo'
   if (IDS_SO_RETROATIVO.includes(profile.id)) return TELAS_SO_RETROATIVO.includes(page)
   // Painel de vendas e validacao do advogado (31/08). Aditivo: nao tira acesso de ninguem.
   // Validar quem o advogado aceitou e do vendedor que atende o advogado (role vendedor).
