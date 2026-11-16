@@ -84,6 +84,7 @@ const IDS_VENDAS_RETROATIVO = [
   // BANCO em 17/10 (bf_agentes faixa 'rt') e o front ficou de fora: ele recebeu
   // 2 leads em 19/10 e nao conseguia abrir a tela pra ver nenhum dos dois.
   '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
+  '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani (RT) — 16/11/2026: mesmo acesso do Ronaldo (RT CREDITOS)
 ]
 
 // 19/10 (Bruno) — SO RETROATIVO. Quem esta aqui perde TODAS as outras telas do
