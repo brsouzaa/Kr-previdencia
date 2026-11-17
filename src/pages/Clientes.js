@@ -608,15 +608,24 @@ export default function Clientes() {
         }
         if (soDocumentos && !temDoc(c)) return false
         if (busca.trim()) {
-          const b = busca.trim().toLowerCase()
+          // 17/11/2026 (Bruno): nome, CPF ou telefone em QUALQUER formato. Antes, CPF com ponto/traco
+          // caia na busca por nome e nao achava. Sem letra = compara so os digitos (CPF e telefone;
+          // telefone com/sem 55 e com/sem o 9). Com letra = nome, sem acento, todas as palavras.
+          const b = busca.trim()
           const bDig = b.replace(/\D/g, '')
-          const cpfDig = (c.cpf || '').replace(/\D/g, '')
-          const telDig = (c.telefone || '').replace(/\D/g, '')
-          if (b === bDig && bDig) {
-            // busca por dígitos -> casa CPF ou telefone
-            return cpfDig.includes(bDig) || telDig.includes(bDig)
+          if (!/[a-zA-ZÀ-ÿ]/.test(b) && bDig.length >= 3) {
+            const tira55 = d => d.replace(/^55(?=\d{10,11}$)/, '')
+            const q = tira55(bDig)
+            const cpfDig = (c.cpf || '').replace(/\D/g, '')
+            const telDig = tira55((c.telefone || '').replace(/\D/g, ''))
+            if (cpfDig.includes(bDig) || telDig.includes(q)) return true
+            // telefone sem o 9 (ou com o 9 a mais): DDD + 8 ultimos digitos
+            return q.length >= 8 && telDig.slice(-8) === q.slice(-8)
+              && (q.length < 10 || telDig.slice(0, 2) === q.slice(0, 2))
           }
-          return (c.nome || '').toLowerCase().includes(b)
+          const semAcento = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+          const nome = semAcento(c.nome || '')
+          return semAcento(b).split(/\s+/).filter(Boolean).every(p => nome.includes(p))
         }
         return true
       })
