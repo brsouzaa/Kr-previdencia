@@ -289,7 +289,7 @@ export default function CoordenadorB2C() {
 
       <div style={s.sectionTitle}>⚡ Ações rápidas</div>
       <div style={s.acoesGrid}>
-        <AcaoBtn icone="❌" titulo="Cancelar cliente" desc="Busca por nome ou CPF, motivo obrigatório" onClick={() => setModalAberto('cancelar')} />
+        <AcaoBtn icone="❌" titulo="Cancelar cliente" desc="Busca por nome, CPF ou telefone, motivo obrigatório" onClick={() => setModalAberto('cancelar')} />
         <AcaoBtn icone="🎯" titulo="Fila do Retroativo" desc="Quem do seu time recebe lead novo" onClick={() => setModalAberto('fila_retroativo')} />
         <AcaoBtn icone="↔️" titulo="Transferir cliente" desc="Move cliente entre vendedoras do setor" onClick={() => setModalAberto('transferir')} />
         <AcaoBtn icone="⏸️" titulo="Pausar vendedor" desc="Desativa cadastro de cliente novo" onClick={() => setModalAberto('pausar')} />
@@ -401,12 +401,12 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
   useEffect(() => {
     if (!valor || valor.length < 3) { setResultados([]); return }
     setBuscando(true)
-    const cpfNum = valor.replace(/\D/g, '')
-    const isCpf = cpfNum.length >= 3
-    const query = isCpf
-      ? supabase.from('clientes').select('id, nome, cpf, status, vendedor_operador_id, setor').or(`cpf.ilike.%${cpfNum}%,nome.ilike.%${valor}%`).limit(8)
-      : supabase.from('clientes').select('id, nome, cpf, status, vendedor_operador_id, setor').ilike('nome', `%${valor}%`).limit(8)
-    query.then(({ data }) => {
+    // 17/11/2026 (Bruno): busca por nome, CPF ou telefone em QUALQUER formato (com/sem ponto,
+    // traco, parenteses, +55, com/sem o 9). O banco compara so os digitos; nome sem acento.
+    // O RLS continua valendo (rpc clientes_buscar e security invoker).
+    let vivo = true
+    supabase.rpc('clientes_buscar', { p_termo: valor, p_limite: 8 }).then(({ data }) => {
+      if (!vivo) return
       // RLS já filtra por setor; segurança extra:
       // 23/09 (Bruno) — setor_responsavel 'todos' = coordenadora de todos os
       // setores. Sem este primeiro ramo, nenhum dos dois de baixo bate e a
@@ -419,13 +419,14 @@ function BuscaCliente({ valor, setValor, setSelecionado, setorResp }) {
       setResultados(filtrado)
       setBuscando(false)
     })
+    return () => { vivo = false }
   }, [valor, setorResp])
 
   return (
     <>
       <input
         style={s.input}
-        placeholder="Buscar por nome ou CPF (mínimo 3 caracteres)"
+        placeholder="Buscar por nome, CPF ou telefone (mínimo 3 caracteres)"
         value={valor}
         onChange={e => { setValor(e.target.value); setSelecionado(null) }}
         autoFocus
