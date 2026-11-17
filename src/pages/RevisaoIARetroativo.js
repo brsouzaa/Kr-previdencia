@@ -411,7 +411,9 @@ const s = {
 // ============================================================================
 export default function RevisaoIARetroativo({ setPage }) {
   const { profile } = useAuth()
+  // 17/11/2026 (Bruno): Guilherme Haru (dev) ve a mesa inteira como admin
   const ehAdmin = profile?.role === 'admin' || profile?.role === 'supervisor_producao'
+    || profile?.id === '7190e7cc-01e2-4f05-95a3-b6e119d9537f'
 
   const minhaOp = OPERACAO_USUARIOS[profile?.id] || null
   const souSupOperacao = SUPERVISORAS_OPERACAO.includes(profile?.id)
