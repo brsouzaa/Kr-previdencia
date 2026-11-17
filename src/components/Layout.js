@@ -81,6 +81,7 @@ const IDS_FILA_ENTREGAS = [
 const IDS_ACESSO_CLIENTES = [
   '906f9a57-bd4a-4b0e-9973-0968ef4f1e15', // Bruno Souza
   'ac29daff-3ade-47e0-9f23-23df0ac10480', // Fábio — 16/11/2026 (Bruno): aba Clientes
+  '7190e7cc-01e2-4f05-95a3-b6e119d9537f', // Guilherme Haru (dev) — 17/11/2026 (Bruno): aba Clientes
   '0a5958b9-d43b-4bac-a01d-af60247dd721', // Agatha Barreto
   // 14/11/2026 (Bruno): Maryana Kodos saiu — agora e so vendedora
   'ca0d5035-7275-43f6-b4f2-3c3b4569facb', // Bianca — 02/09
@@ -511,6 +512,7 @@ export default function Layout({ children, page, setPage }) {
     // como abrir a tela. MESMA lista do App.js.
     '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
     '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani (RT) — 16/11/2026: mesmo acesso do Ronaldo (RT CREDITOS)
+    '7190e7cc-01e2-4f05-95a3-b6e119d9537f', // Guilherme Haru (dev) — 17/11/2026 (Bruno): tela do Retroativo (ve como admin)
   ]
   if (IDS_VENDAS_RETROATIVO.includes(profile?.id) && !nav.some(n => n.key === 'revisao_ia_retroativo')) {
     nav = [{ key: 'revisao_ia_retroativo', label: '🤱 Revisão IA Retroativo' }, ...nav]
