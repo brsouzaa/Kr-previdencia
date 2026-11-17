@@ -85,6 +85,7 @@ const IDS_VENDAS_RETROATIVO = [
   // 2 leads em 19/10 e nao conseguia abrir a tela pra ver nenhum dos dois.
   '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo Arcari
   '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani (RT) — 16/11/2026: mesmo acesso do Ronaldo (RT CREDITOS)
+  '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT) — 17/11/2026: mesmo acesso do Ronaldo (RT CREDITOS)
   '7190e7cc-01e2-4f05-95a3-b6e119d9537f', // Guilherme Haru (dev) — 17/11/2026 (Bruno): tela do Retroativo (ve como admin)
 ]
 
@@ -135,7 +136,7 @@ const TELAS_SO_RETROATIVO = [
 // (bf_agentes setor retroativo_busca, fora da distribuicao). So a tela do Retroativo, pra
 // achar a cliente pela busca por telefone. MESMA lista do Layout.js.
 const IDS_RT_BUSCA = [
-  '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+  // 17/11/2026 (Bruno): Kayllaine saiu daqui — agora tem o acesso do Ronaldo (IDS_VENDAS_RETROATIVO)
   'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
   '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
   '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
