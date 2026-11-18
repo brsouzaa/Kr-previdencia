@@ -29,6 +29,8 @@ export const ETAPAS = [
   { key: 'indeferido', label: 'Indeferido', curto: 'Indeferido', cor: '#dc2626', icone: '⛔' },
   { key: 'recurso_indeferido', label: 'Recurso indeferido', curto: 'Rec. indeferido', cor: '#b91c1c', icone: '✖️' },
   { key: 'cancelado', label: 'Cancelado', curto: 'Cancelado', cor: '#64748b', icone: '🚫' },
+  // 18/11/2026 (Bruno): o INSS cancelou o pedido -> reprotocolar depois de 30 dias (so avisa na data)
+  { key: 'cancelado_inss', label: 'Cancelado pelo INSS', curto: 'Canc. INSS', cor: '#db2777', icone: '🔁' },
 ]
 export const etapaInfo = (k) => ETAPAS.find(e => e.key === k) || { key: k, label: k || '—', curto: k || '—', cor: '#64748b', icone: '•' }
 
@@ -417,6 +419,25 @@ export const ACOES = {
     titulo: 'Voltar para a fila de protocolo', icone: '↩️', cor: '#3b82f6',
     campos: [{ k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' }],
   },
+  // 18/11/2026 (Bruno): o INSS cancelou o pedido. A extensao move sozinha quando le "Cancelada";
+  // aqui e o caminho manual. Na data de reprotocolar so aparece aviso — reprotocolar = "Marcar como protocolado".
+  cancelado_inss: {
+    titulo: 'Cancelado pelo INSS', icone: '🔁', cor: '#db2777', anexo: 'Print do INSS (opcional)',
+    nota: 'O caso vai para "Cancelado pelo INSS". Na data de reprotocolar aparece um aviso nos alertas do Protocolo. Para reprotocolar use "Marcar como protocolado" com o número novo.',
+    campos: [
+      { k: 'data', l: 'Data do cancelamento', obrig: true, tipo: 'date', hoje: true },
+      { k: 'reprotocolar_em', l: 'Reprotocolar em', obrig: true, tipo: 'date', mais30: true },
+      { k: 'texto', l: 'Observações (opcional)', tipo: 'textarea' },
+    ],
+  },
+  cancelado_inss_dados: {
+    titulo: 'Editar cancelamento do INSS', icone: '📝', cor: '#db2777',
+    campos: [
+      { k: 'cancel_data', l: 'Data do cancelamento', tipo: 'date' },
+      { k: 'reprotocolar_em', l: 'Reprotocolar em', tipo: 'date' },
+      { k: 'obs', l: 'Observações', tipo: 'textarea' },
+    ],
+  },
   cancelar: {
     titulo: 'Cancelar caso', icone: '🚫', cor: '#64748b',
     campos: [{ k: 'texto', l: 'Motivo do cancelamento', obrig: true, tipo: 'textarea' }],
@@ -427,14 +448,15 @@ export const ACOES = {
 export const ACOES_POR_ETAPA = {
   aguardando_protocolo: ['protocolado', 'falta_documento', 'observacao', 'pendencia', 'cancelar'],
   pendencia_docs: ['voltar_fila', 'protocolado', 'falta_documento', 'observacao'],
-  protocolado: ['deferido', 'indeferido', 'exigencia', 'observacao'],
-  exigencia: ['exigencia_cumprida', 'deferido', 'indeferido', 'exigencia', 'observacao'],
+  protocolado: ['deferido', 'indeferido', 'exigencia', 'observacao', 'cancelado_inss'],
+  exigencia: ['exigencia_cumprida', 'deferido', 'indeferido', 'exigencia', 'observacao', 'cancelado_inss'],
   indeferido: ['recurso', 'definir_motivo', 'observacao'],
-  recurso: ['recurso_resultado', 'observacao'],
+  recurso: ['recurso_resultado', 'observacao', 'cancelado_inss'],
   deferido: ['observacao'],
   recurso_deferido: ['observacao'],
   recurso_indeferido: ['definir_motivo', 'observacao'],
   cancelado: ['voltar_fila', 'observacao'],
+  cancelado_inss: ['protocolado', 'cancelado_inss_dados', 'observacao', 'voltar_fila'],   // 18/11/2026 (Bruno)
 }
 
 export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
@@ -445,6 +467,7 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
     ;(cfg?.campos || []).forEach(c => {
       if (c.hoje) o[c.k] = hojeISO()
       if (c.mais7) o[c.k] = somaDias(hojeISO(), 7)   // 04/11 (Bruno): prazo padrao da exigencia = 7 dias
+      if (c.mais30) o[c.k] = somaDias(hojeISO(), 30)   // 18/11 (Bruno): reprotocolar 30 dias depois do cancelamento do INSS
       if (c.padrao) o[c.k] = c.padrao
     })
     return { ...o, ...(inicial || {}) }
@@ -478,6 +501,7 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
   // mudou o dia da exigencia: o prazo acompanha (+7)
   useEffect(() => {
     if (acao === 'exigencia' && v.data) setV(o => (o._prazoMexido ? o : { ...o, prazo: somaDias(o.data, 7) }))
+    if (acao === 'cancelado_inss' && v.data) setV(o => (o._prazoMexido ? o : { ...o, reprotocolar_em: somaDias(o.data, 30) }))
   }, [v.data, acao])
 
   if (!cfg) return null
@@ -518,7 +542,7 @@ export function ModalAcao({ caso, acao, inicial, onClose, onFeito }) {
           </select>
         ) : (
           <input type={c.tipo === 'date' ? 'date' : 'text'} value={v[c.k] || ''} placeholder={c.ph}
-            onChange={e => setV({ ...v, [c.k]: e.target.value, ...(c.k === 'prazo' ? { _prazoMexido: true } : {}) })} style={st} />
+            onChange={e => setV({ ...v, [c.k]: e.target.value, ...(c.k === 'prazo' || c.k === 'reprotocolar_em' ? { _prazoMexido: true } : {}) })} style={st} />
         )}
         {c.sugestoes && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
