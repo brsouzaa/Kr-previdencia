@@ -81,6 +81,16 @@ const IDS_DANI_RT = {
     '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
     '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
   ],
+  // 18/11/2026 (Bruno): Ronaldo (RT CREDITOS) ve os clientes do time RT (RLS ronaldo_rt_le_clientes)
+  '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5': [ // RT CRÉDITOS — Ronaldo
+    '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // o próprio Ronaldo
+    '71a5b26a-28c3-421a-bc25-d9dee6e577a2', // Dani (RT)
+    '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine (RT)
+    'c22ed96c-b2e2-4e1b-b3ad-6d71f83e2882', // Thamires (RT)
+    '68fda177-b412-4014-b72b-646afbd65b07', // Tamires (RT)
+    '3c2d5397-4956-49af-97e4-56f865b8a2ce', // Brenda (RT)
+    '9ea8edb6-2398-444f-aa28-1b1caece671c', // Kisse (RT)
+  ],
   // 17/11/2026 (Bruno): Kayllaine (RT) com o mesmo acesso do Ronaldo
   '1d62560e-49f8-41b1-90ef-7c045d92034e': [ // Kayllaine (RT)
     '1d62560e-49f8-41b1-90ef-7c045d92034e', // Kayllaine
