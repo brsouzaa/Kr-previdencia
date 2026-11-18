@@ -513,7 +513,7 @@ export default function RevisaoIARetroativo({ setPage }) {
   const podeTransferir = vendsTransf.length > 0
   const reqAtual = useRef(0)
 
-  function avisar(t) { setToast(t); setTimeout(() => setToast(null), 2600) }
+  function avisar(t, ms = 2600) { setToast(t); setTimeout(() => setToast(null), ms) }
   useEffect(() => {
     if (!abrirLeadId) return
     const l = board.find(x => x.id === abrirLeadId)
@@ -808,8 +808,16 @@ export default function RevisaoIARetroativo({ setPage }) {
     setTelNovo(m => ({ ...m, [l.id]: data.tel }))
     setBoard(b => b.map(x => x.id === l.id ? { ...x, vend_status: 'contato', vend_contato_em: x.vend_contato_em || new Date().toISOString() } : x))
     setBusTel(null)
-    avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, ela continua com você`)
+    if (!avisoCadastroTel(data)) avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, ela continua com você`)
     carregar()
+  }
+
+  // 18/11 (Bruno): o banco ja atualiza o telefone do cadastro que esta aguardando emissao.
+  // Se o contrato ja foi emitido, ele saiu com o numero antigo: avisa pra pedir nova emissao.
+  function avisoCadastroTel(data) {
+    if (data?.cadastro === 'emitido') { avisar('Número novo salvo. Atenção: o contrato desta cliente já foi emitido com o número antigo — peça nova emissão', 8000); return true }
+    if (data?.cadastro === 'atualizado') { avisar('Número novo salvo e atualizado também no cadastro (aguardando emissão)', 4000); return true }
+    return false
   }
 
   // 29/10 (Bruno) — "Achei por outro meio": o numero veio por fora da Assertiva (referencia,
@@ -828,7 +836,7 @@ export default function RevisaoIARetroativo({ setPage }) {
     setTelNovo(m => ({ ...m, [l.id]: data.tel }))
     setBoard(b => b.map(x => x.id === l.id ? { ...x, vend_status: 'contato', vend_obs: nota ? `Telefone novo ${fmtTel(d)} — ${nota}` : x.vend_obs } : x))
     setObsAberta(null); setObs(''); setTelManual('')
-    avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, voltou pra sua mesa`)
+    if (!avisoCadastroTel(data)) avisar(`${primeiroNome(l.nome) || 'Cliente'} · número novo salvo, voltou pra sua mesa`)
     carregar()
   }
 
