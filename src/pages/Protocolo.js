@@ -25,11 +25,12 @@ const COLUNAS = [
   { key: 'recurso', etapas: ['recurso'] },
   { key: 'deferido', etapas: ['deferido', 'recurso_deferido'] },
   { key: 'indeferido', etapas: ['indeferido', 'recurso_indeferido'] },
+  { key: 'cancelado_inss', etapas: ['cancelado_inss'] },   // 18/11/2026 (Bruno): cancelado pelo INSS -> reprotocolar
 ]
 
 const ABAS = [
   ['inicio', '🏠 Início'], ['quadro', '▦ Quadro'], ['conferir', '🔴 Conferir resultado'],   // 05/11 (Bruno): Quadro logo depois do Inicio ['hoje', 'Chegou hoje'], ['fila', 'Fila de protocolo'], ['protocolados', 'Protocolados'],
-  ['pendencias', 'Pendências e exigências'], ['guia', '🧾 Complementação de guia'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
+  ['pendencias', 'Pendências e exigências'], ['guia', '🧾 Complementação de guia'], ['refazer', '✅ Resolvidas · refazer'], ['deferidos', 'Deferidos'], ['indeferidos', 'Indeferidos'], ['cancelados_inss', '🔁 Cancelados INSS'], ['acompanhamento', 'Acompanhamento'], ['painel', 'Painel'],
 ]
 
 const ROTULO_EVENTO = {
@@ -53,10 +54,18 @@ function acaoDoDrop(caso, col) {
   if (col === 'recurso') return ['recurso']
   if (col === 'deferido') return caso.etapa === 'recurso' ? ['recurso_resultado', { resultado: 'recurso_deferido' }] : ['deferido']
   if (col === 'indeferido') return caso.etapa === 'recurso' ? ['recurso_resultado', { resultado: 'recurso_indeferido' }] : ['indeferido']
+  if (col === 'cancelado_inss') return ['cancelado_inss']
   return [null]
 }
 
 const LIMITE_AGUARDANDO = 3
+// 18/11/2026 (Bruno): dias ate a data (negativo = ja passou)
+const diasAte = (iso) => (iso ? Math.round((new Date(String(iso).slice(0, 10) + 'T12:00:00') - new Date(hojeISO() + 'T12:00:00')) / 86400000) : null)
+const txtReprotocolar = (c) => {
+  const d = diasAte(c.reprotocolar_em)
+  if (d == null) return 'sem data para reprotocolar'
+  return d > 0 ? `reprotocolar em ${fmtData(c.reprotocolar_em)} (faltam ${d} dia${d === 1 ? '' : 's'})` : `já pode reprotocolar (desde ${fmtData(c.reprotocolar_em)})`
+}
 const reais = (v) => (v == null || v === '' ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const hojeExtensoBR = () => { const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }); return t.charAt(0).toUpperCase() + t.slice(1) }
 
@@ -283,6 +292,7 @@ export default function Protocolo() {
       deferidos: L.filter(ehDef).length,
       indeferidos: L.filter(ehIndef).length,
       conferir: L.filter(aConferir).length,
+      canceladosInss: L.filter(c => c.etapa === 'cancelado_inss').length,
       indefSemMotivo: L.filter(c => ehIndef(c) && !c.motivo).length,
       atrasados: L.filter(c => c.etapa === 'aguardando_protocolo' && diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length,
     }
@@ -301,6 +311,7 @@ export default function Protocolo() {
       deferidos: L.filter(ehDef).length,
       indeferidos: L.filter(ehIndef).length,
       conferir: L.filter(aConferir).length,
+      canceladosInss: L.filter(c => c.etapa === 'cancelado_inss').length,
     }
   }, [fAnot, filtrada, conta, gruposDoCaso])
 
@@ -370,6 +381,7 @@ export default function Protocolo() {
     const dias = diasDesde(c.etapa_desde)
     const conferir = aConferir(c)
     const atrasado = (c.etapa === 'aguardando_protocolo' && dias > LIMITE_AGUARDANDO) || (c.etapa === 'exigencia' && !!c.exigencia_prazo && c.exigencia_prazo <= somaHoje(5))
+      || (c.etapa === 'cancelado_inss' && !!c.reprotocolar_em && diasAte(c.reprotocolar_em) <= 0)
     return (
       <div
         key={c.id}
@@ -406,6 +418,7 @@ export default function Protocolo() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 9, fontSize: 11.5, color: cores.suave, gap: 6 }}>
           <span style={{ color: atrasado ? cores.perigo : cores.suave, fontWeight: atrasado ? 800 : 500 }}>
             {c.etapa === 'exigencia' && c.exigencia_prazo ? `prazo ${fmtData(c.exigencia_prazo)}`
+              : c.etapa === 'cancelado_inss' ? txtReprotocolar(c)
               : c.numero_protocolo && c.etapa === 'protocolado' ? `nº ${c.numero_protocolo}`
               : `há ${dias} dia${dias === 1 ? '' : 's'}`}
           </span>
@@ -450,7 +463,7 @@ export default function Protocolo() {
   // ------------------------------------------------------------ quadro
   const quadro = (
     <div style={{ overflowX: 'auto', paddingBottom: 8, margin: '0 -4px' }}>
-      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(250px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : 7 * 250 }}>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: isMobile ? '82vw' : 'minmax(250px, 1fr)', gap: 12, padding: '0 4px', minWidth: isMobile ? 'auto' : COLUNAS.length * 250 }}>
         {COLUNAS.map(col => {
           const et = etapaInfo(col.key)
           const itens = filtrada.filter(c => col.etapas.includes(c.etapa))
@@ -509,6 +522,7 @@ export default function Protocolo() {
     if (aba === 'protocolados') return L.filter(c => c.etapa === 'protocolado' || c.etapa === 'recurso').sort((a, b) => String(a.data_protocolo || '').localeCompare(String(b.data_protocolo || '')))
     if (aba === 'pendencias') return L.filter(c => temPend(c) && (pendGrupo === 'todas' || gruposDoCaso[c.id][pendGrupo])).sort((a, b) => String(a.exigencia_prazo || '9999').localeCompare(String(b.exigencia_prazo || '9999')))
     if (aba === 'deferidos' || aba === 'indeferidos') return L.filter(aba === 'deferidos' ? ehDef : ehIndef).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
+    if (aba === 'cancelados_inss') return L.filter(c => c.etapa === 'cancelado_inss').sort((a, b) => String(a.reprotocolar_em || '9999').localeCompare(String(b.reprotocolar_em || '9999')))
     return L
   }, [filtrada, aba, pendGrupo, gruposDoCaso])
 
@@ -518,6 +532,10 @@ export default function Protocolo() {
     if (aba === 'protocolados') { const d = diasDesde(c.data_protocolo || c.etapa_desde); return <span><b>{c.numero_protocolo || '—'}</b> · {d} dia{d === 1 ? '' : 's'} sem resposta</span> }
     if (aba === 'pendencias') { const g = gruposDoCaso[c.id] || {}; return <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GRUPOS_PEND.filter(x => g[x.k]).map(x => <Chip key={x.k} cor={x.cor}>{x.rot}{g[x.k] > 1 ? ` · ${g[x.k]}` : ''}</Chip>)}{c.etapa === 'exigencia' && c.exigencia_prazo ? <span style={{ color: cores.perigo, fontWeight: 800, fontSize: 12 }}>prazo {fmtData(c.exigencia_prazo)}</span> : null}</span> }
     if (aba === 'deferidos' || aba === 'indeferidos') return <span title={`Resultado: ${fmtData(c.data_resultado)}${c.ultima_movimentacao_em ? ' · INSS anotou ' + fmtDataHora(c.ultima_movimentacao_em) : ''}`}>subiu {fmtDataHora(dataAnotacao(c))}{c.motivo ? ` · ${c.motivo}` : ''}{c.nb ? ` · NB ${c.nb}` : ''}</span>
+    if (aba === 'cancelados_inss') {
+      const d = diasAte(c.reprotocolar_em)
+      return <span>cancelado {fmtData(c.cancel_inss_data)} · <b style={{ color: d != null && d <= 0 ? cores.perigo : cores.texto }}>{txtReprotocolar(c)}</b>{c.numero_protocolo ? ` · nº antigo ${c.numero_protocolo}` : ''}{c.cancel_inss_obs ? <span style={{ display: 'block', color: cores.suave, marginTop: 2 }}>💬 {c.cancel_inss_obs}</span> : null}</span>
+    }
     return <span>entrou {fmtDataHora(c.entrou_setor_em)}</span>
   }
 
@@ -547,7 +565,12 @@ export default function Protocolo() {
               {c.sem_validacao_ia && <Chip cor={cores.perigo} forte>SEM I.A</Chip>}
               {c.tem_ressalva && <Chip cor="#b45309">ressalva</Chip>}
             </div>
-            {aba === 'conferir' ? <div style={{ marginTop: 10 }}>{botoesConferir(c, true)}</div> : prox && prox !== 'observacao' && (
+            {aba === 'cancelados_inss' ? (
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, 'cancelado_inss_dados', { cancel_data: c.cancel_inss_data || '', reprotocolar_em: c.reprotocolar_em || '', obs: c.cancel_inss_obs || '' }) }} style={{ ...btn(ACOES.cancelado_inss_dados.cor, false), flex: 1, justifyContent: 'center' }}>📝 Editar</button>
+                <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, 'protocolado') }} style={{ ...btn(ACOES.protocolado.cor), flex: 1, justifyContent: 'center' }}>📨 Reprotocolar</button>
+              </div>
+            ) : aba === 'conferir' ? <div style={{ marginTop: 10 }}>{botoesConferir(c, true)}</div> : prox && prox !== 'observacao' && (
               <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, prox) }} style={{ ...btn(ACOES[prox].cor), marginTop: 10, width: '100%', justifyContent: 'center' }}>{ACOES[prox].icone} {ACOES[prox].titulo}</button>
             )}
           </div>
@@ -567,7 +590,12 @@ export default function Protocolo() {
             <div style={{ fontSize: 12.5, minWidth: 0 }}><Chip cor={et.cor} forte>{et.curto}</Chip> <span style={{ marginLeft: 4 }}>{infoDaLinha(c)}</span></div>
             <div style={{ fontSize: 12.5, color: cores.suave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.vendedora_nome || '—'}</div>
             <div style={{ textAlign: 'right' }}>
-              {aba === 'conferir' ? botoesConferir(c) : prox && prox !== 'observacao' ? (
+              {aba === 'cancelados_inss' ? (
+                <span style={{ display: 'inline-flex', gap: 6 }}>
+                  <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, 'cancelado_inss_dados', { cancel_data: c.cancel_inss_data || '', reprotocolar_em: c.reprotocolar_em || '', obs: c.cancel_inss_obs || '' }) }} style={{ ...btn(ACOES.cancelado_inss_dados.cor, false), padding: '7px 10px', fontSize: 12 }}>📝 Editar</button>
+                  <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, 'protocolado') }} style={{ ...btn(ACOES.protocolado.cor), padding: '7px 10px', fontSize: 12 }}>📨 Reprotocolar</button>
+                </span>
+              ) : aba === 'conferir' ? botoesConferir(c) : prox && prox !== 'observacao' ? (
                 <button onClick={(e) => { e.stopPropagation(); abrirAcao(c, prox) }} style={{ ...btn(ACOES[prox].cor), padding: '7px 11px', fontSize: 12 }}>{ACOES[prox].icone} {ACOES[prox].titulo.replace('Marcar como ', '')}</button>
               ) : <span style={{ fontSize: 12, color: cores.azul, fontWeight: 700 }}>Abrir ficha →</span>}
             </div>
@@ -1147,7 +1175,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
         {abasLado.includes('e') && abasSeta('e')}
         <div ref={abasRef} {...abasArrasto} className="kr-aba" style={{ userSelect: 'none', scrollbarWidth: 'none', display: 'flex', gap: 6, overflowX: 'auto', background: '#fff', border: `1px solid ${cores.cardBorda}`, borderRadius: 14, padding: 5, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
           {ABAS.map(([k, r]) => {
-            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'conferir' ? contaAba.conferir : k === 'guia' ? guias.filter(g => g.status !== 'resolvida').length : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
+            const n = k === 'hoje' ? contaAba.hoje : k === 'fila' ? contaAba.fila : k === 'protocolados' ? contaAba.protocolados : k === 'pendencias' ? contaAba.pendencias : k === 'deferidos' ? contaAba.deferidos : k === 'indeferidos' ? contaAba.indeferidos : k === 'conferir' ? contaAba.conferir : k === 'cancelados_inss' ? contaAba.canceladosInss : k === 'guia' ? guias.filter(g => g.status !== 'resolvida').length : k === 'refazer' ? refazer.length : k === 'acompanhamento' ? alertas.length + pend.length : null
             const on = aba === k
             return (
               <button key={k} data-on={on ? '1' : '0'} onClick={() => setAba(k)} style={{
