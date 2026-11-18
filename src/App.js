@@ -453,11 +453,19 @@ function AppInner() {
   const [mfaOk, setMfaOk] = useState(false)
   const liberarMfa = useCallback(() => setMfaOk(true), [])
 
+  // 18/11/2026 (Bruno): recarregou a pagina -> volta para a tela onde a pessoa estava (por login, neste
+  // navegador). So se ela ainda tiver acesso a essa tela; senao abre a tela inicial de sempre.
   useEffect(() => {
     if (profile?.role && page === null) {
-      setPage(paginaDeAbertura(profile))
+      let salva = null
+      try { salva = window.localStorage.getItem('kr_pagina_' + profile.id) } catch (_) { salva = null }
+      setPage(salva && paginaPermitida(profile, salva) ? salva : paginaDeAbertura(profile))
     }
   }, [profile, page])
+  useEffect(() => {
+    if (!profile?.id || !page) return
+    try { window.localStorage.setItem('kr_pagina_' + profile.id, page) } catch (_) { /* sem armazenamento: segue normal */ }
+  }, [profile?.id, page])
 
   const isPortal = window.location.pathname.startsWith('/cadastro/')
   if (isPortal) return <PortalRoute />
