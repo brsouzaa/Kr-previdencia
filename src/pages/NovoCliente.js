@@ -159,6 +159,29 @@ function lerRecadoDaMesa() {
   } catch (_) { return null }
 }
 
+// 18/11/2026 (Bruno) — RASCUNHO. O que a vendedora digita fica guardado NESTE navegador (por login) e volta
+// se a pagina recarregar/fechar. Some ao salvar, em "Novo cliente", em "Descartar" ou depois de 24h.
+const RASCUNHO_VALIDADE_MS = 24 * 60 * 60 * 1000
+const chaveRascunho = (uid) => (uid ? `kr_novo_cliente_rascunho_${uid}` : null)
+function lerRascunho(uid) {
+  const k = chaveRascunho(uid)
+  if (!k) return null
+  try {
+    const raw = window.localStorage.getItem(k)
+    if (!raw) return null
+    const j = JSON.parse(raw)
+    if (!j || j.v !== 1 || !j.c || !(Date.now() - Number(j.em || 0) < RASCUNHO_VALIDADE_MS)) {
+      window.localStorage.removeItem(k); return null
+    }
+    return j
+  } catch (_) { return null }
+}
+function apagarRascunhoDe(uid) {
+  const k = chaveRascunho(uid)
+  if (!k) return
+  try { window.localStorage.removeItem(k) } catch (_) {}
+}
+
 // 30/10 (Bruno) — PRE-PREENCHIMENTO. Helpers de formato.
 // "29/08/2022" -> "2022-08-29" (campo date); ISO passa direto.
 function dataISO(v) {
@@ -209,6 +232,9 @@ export default function NovoCliente({ onSucesso }) {
   // se a vendedora trocar CPF, filho ou motivo, deixa de valer na hora (igual a regra de 20/10).
   const [reuso, setReuso] = useState(null)
   const prefillCpfRef = useRef('')
+  // 18/11/2026 (Bruno): rascunho recuperado (aviso no topo) e advogado do rascunho esperando a lista carregar
+  const [rascunho, setRascunho] = useState(null)
+  const advPendenteRef = useRef('')
 
   const [c, setC] = useState({
     produto: '', // vazio inicialmente — vendedor escolhe primeiro
@@ -301,6 +327,10 @@ export default function NovoCliente({ onSucesso }) {
   // (abriu a tela pelo menu), nada muda.
   useEffect(() => {
     const r = lerRecadoDaMesa()
+    // 18/11/2026 (Bruno): rascunho guardado. Vale se abriu pelo menu, ou se o "Fechou!" trouxe a MESMA cliente.
+    // Se o "Fechou!" trouxe OUTRA cliente, abre a cliente nova (o rascunho antigo e substituido).
+    const d = lerRascunho(profile?.id)
+    if (d && (!r || String(d.c.cpf || '').replace(/\D/g, '') === r.cpf)) { restaurarRascunho(d); return }
     if (!r) return
     const cpf = maskCPF(r.cpf)
     setC(prev => ({ ...prev, produto: prev.produto || 'Maternidade Mãe', cpf }))
@@ -308,6 +338,42 @@ export default function NovoCliente({ onSucesso }) {
     preencherDoHistorico(cpf, r.lead, 'Maternidade Mãe')
     // eslint-disable-next-line
   }, [])
+
+  // 18/11/2026 (Bruno) — volta o que estava digitado. Documentos voltam pelo link ja enviado (valorInicial).
+  function restaurarRascunho(d) {
+    setC(prev => ({ ...prev, ...d.c }))
+    if (d.docs) setDocs(d.docs)
+    if (Array.isArray(d.refs) && d.refs.length) setRefs(d.refs)
+    if (d.tempId) tempIdRef.current = d.tempId
+    setEndLockado(!!d.endLockado); setCepSemRua(!!d.cepSemRua); setCepSemBairro(!!d.cepSemBairro)
+    setCepStatus(d.cepStatus || null); setCidadeStatus(d.cidadeStatus || null)
+    advPendenteRef.current = d.advogadoSel || ''
+    setDocsVersao(x => x + 1)
+    setRascunho({ cpf: d.c.cpf || '', nome: d.c.nome || '', em: d.em })
+    const cpf = d.c.cpf || ''
+    if (String(cpf).replace(/\D/g, '').length === 11) {
+      verificarCpfDuplicado(cpf)
+      preencherDoHistorico(cpf, null, d.c.produto)   // so completa campo vazio; reaproveita a validacao aprovada
+    }
+  }
+  function apagarRascunho() { apagarRascunhoDe(profile?.id) }
+  function descartarRascunho() { apagarRascunho(); setRascunho(null); novoCadastro() }
+
+  // grava o rascunho (meio segundo depois da ultima mudanca). Tela vazia nao grava; tela de "salvo" nao grava.
+  useEffect(() => {
+    if (!profile?.id || salvo) return
+    const temAlgo = !!(c.cpf || c.nome || c.telefone || Object.values(docs).some(Boolean))
+    if (!temAlgo) return
+    const t = setTimeout(() => {
+      try {
+        window.localStorage.setItem(chaveRascunho(profile.id), JSON.stringify({
+          v: 1, em: Date.now(), c, docs, refs, advogadoSel, tempId: tempIdRef.current,
+          endLockado, cepSemRua, cepSemBairro, cepStatus, cidadeStatus,
+        }))
+      } catch (_) { /* navegador sem espaco/bloqueado: segue sem rascunho */ }
+    }, 500)
+    return () => clearTimeout(t)
+  }, [profile?.id, salvo, c, docs, refs, advogadoSel, endLockado, cepSemRua, cepSemBairro, cepStatus, cidadeStatus])
 
   // 30/10 (Bruno) — PRE-PREENCHIMENTO. Fontes, nesta ordem de prioridade:
   //   1) lead da Mesa do Retroativo (so quando veio pelo botao "Fechou!"): nome, telefone, filho, vinculo do Gerid
@@ -565,17 +631,44 @@ export default function NovoCliente({ onSucesso }) {
     setAdvogadoSel('')
     if (!c.produto) { setAdvogados([]); return }
     let vivo = true
-    supabase.rpc('advogados_com_vaga', { p_produto: c.produto })
-      .then(({ data }) => { if (vivo) setAdvogados(Array.isArray(data) ? data : []) })
+    // 18/11/2026 (Bruno): no Maternidade Mae aparecem SEMPRE os advogados definidos (com ou sem lote);
+    // a vaga e conferida na hora da emissao. Outros produtos: igual antes (so com vaga).
+    supabase.rpc('advogados_novo_cliente', { p_produto: c.produto })
+      .then(({ data }) => {
+        if (!vivo) return
+        const lista = Array.isArray(data) ? data : []
+        setAdvogados(lista)
+        const pend = advPendenteRef.current
+        if (pend && lista.some(a => a.advogado_id === pend)) setAdvogadoSel(pend)
+        advPendenteRef.current = ''
+      })
     return () => { vivo = false }
   }, [c.produto])
   // 16/11/2026 (Bruno): advogado obrigatorio quando ha advogado com vaga pro produto
-  const advogadoOk = advogados.length === 0 || !!advogadoSel
+  // 18/11/2026 (Bruno): advogado sem lote nao deixa salvar — tem que escolher outro
+  const advogadoOk = advogados.length === 0 || (!!advogadoSel && advogados.find(a => a.advogado_id === advogadoSel)?.tem_vaga !== false)
   const tudoOk = advogadoOk && c.produto && camposBasicosOk && cpfOk && emailOk && telOk && cepOk && ufOk && cidadeOk && !duplicadoBloqueia && camposMatOk && camposMaeOk && refsOk && docsOk && validacaoIaOk
 
   async function salvar() {
     if (!tudoOk || enviando) return
     setEnviando(true)
+    // 18/11/2026 (Bruno): advogado sem vaga NAO prende o contrato na Fila — confere a vaga na hora de salvar
+    // e, se acabou, o vendedor tem que escolher outro advogado. Nada e salvo; o que foi digitado continua na tela.
+    if (advogadoSel && ehMae) {
+      try {
+        const { data: lista } = await supabase.rpc('advogados_novo_cliente', { p_produto: c.produto })
+        if (Array.isArray(lista)) {
+          setAdvogados(lista)
+          const adv = lista.find(a => a.advogado_id === advogadoSel)
+          if (adv && adv.tem_vaga === false) {
+            setAdvogadoSel('')
+            alert(`⚠️ ${String(adv.nome || 'Esse advogado').split(',')[0]} está SEM LOTE DISPONÍVEL agora.\n\nEscolha outro advogado para o contrato sair na hora. Nada foi salvo — os dados e documentos continuam preenchidos.`)
+            setEnviando(false)
+            return
+          }
+        }
+      } catch (_) { /* se a conferencia falhar, segue: a emissao confere de novo */ }
+    }
     try {
       const payload = {
         vendedor_operador_id: profile.id,
@@ -655,6 +748,7 @@ export default function NovoCliente({ onSucesso }) {
       } catch (_) { em = { ok: false, erro: null } }
       setEmissao(em)
       setSalvo(data)
+      apagarRascunho(); setRascunho(null)   // 18/11/2026: salvou, o rascunho acabou
     } catch (err) {
       // 30/10 (Bruno): explicar o motivo em vez de "TypeError: Failed to fetch".
       // Os dados e documentos continuam no formulario: e so corrigir e salvar de novo.
@@ -681,6 +775,7 @@ export default function NovoCliente({ onSucesso }) {
     setRefs([{ ...REF_VAZIA }, { ...REF_VAZIA }])
     setPrefill(null); setRevalidar(false); setReuso(null); prefillCpfRef.current = ''
     tempIdRef.current = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
+    apagarRascunho(); setRascunho(null); advPendenteRef.current = ''   // 18/11/2026
   }
 
   if (salvo) return (
@@ -700,7 +795,9 @@ export default function NovoCliente({ onSucesso }) {
           </div>
         ) : (
           <div style={{ fontSize: 12, color: '#5b6b84', marginBottom: 20 }}>
-            O contrato não saiu automático{emissao?.erro ? ` (${emissao.erro})` : ''}. Ficou aguardando emissão na Fila de digitação. O link aparece em "Meus clientes" assim que estiver pronto.
+            {/sem vaga/i.test(String(emissao?.erro || ''))
+              ? <>⚠️ <b>O advogado escolhido está sem lote disponível agora.</b> O cadastro foi salvo e ficou aguardando na Fila de digitação — o contrato sai assim que entrar lote novo (o Bruno foi avisado). O link aparece em "Meus clientes".</>
+              : <>O contrato não saiu automático{emissao?.erro ? ` (${emissao.erro})` : ''}. Ficou aguardando emissão na Fila de digitação. O link aparece em "Meus clientes" assim que estiver pronto.</>}
           </div>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
@@ -821,6 +918,7 @@ export default function NovoCliente({ onSucesso }) {
     if (fgtsObrigatorio && !docs.extrato_fgts) f.push('anexar Extrato FGTS em PDF')
     if (enderecoObrigatorio && !docs.comprovante_endereco) f.push('anexar Comprovante de endereço (obrigatório no Maternidade Mãe)')
     if (!validacaoIaOk) f.push('validar a venda com a I.A')
+    if (!advogadoOk) f.push(advogadoSel ? 'trocar o advogado (o escolhido está sem lote disponível)' : 'escolher o advogado')   // 18/11/2026
     return f
   }
   const faltando = tudoOk ? [] : listaFaltando()
@@ -834,6 +932,12 @@ export default function NovoCliente({ onSucesso }) {
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>➕ Novo cliente</div>
           <div style={{ fontSize: 13, color: '#5b6b84' }}>Preencha os dados e anexe os documentos do cliente</div>
+          {rascunho && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(52,211,153,.12)', border: '1px solid rgba(5,150,105,.3)', borderRadius: 8, fontSize: 12.5, color: '#065f46', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>♻️ Recuperamos o cadastro que você estava digitando{rascunho.nome ? ` (${rascunho.nome})` : rascunho.cpf ? ` (CPF ${rascunho.cpf})` : ''}{rascunho.em ? ` — guardado às ${new Date(rascunho.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}. Confira os dados e siga.</span>
+              <button type="button" onClick={descartarRascunho} style={{ padding: '4px 10px', background: '#ffffff', color: '#b91c1c', border: '1px solid rgba(185,28,28,.35)', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Descartar e começar do zero</button>
+            </div>
+          )}
         </div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -1214,14 +1318,14 @@ export default function NovoCliente({ onSucesso }) {
         </div>
 
         <div style={s.grid2}>
-          <UploadDocumento label="Comprovante 1" obrigatorio={true} clienteId={tempIdRef.current} chave="comprovante_1"
+          <UploadDocumento label="Comprovante 1" obrigatorio={true} key={'c1' + docsVersao} clienteId={tempIdRef.current} chave="comprovante_1"
             valorInicial={docs.comprovante_1} onChange={url => setDoc('comprovante_1', url)} />
-          <UploadDocumento label="Comprovante 2" obrigatorio={true} clienteId={tempIdRef.current} chave="comprovante_2"
+          <UploadDocumento label="Comprovante 2" obrigatorio={true} key={'c2' + docsVersao} clienteId={tempIdRef.current} chave="comprovante_2"
             valorInicial={docs.comprovante_2} onChange={url => setDoc('comprovante_2', url)} />
         </div>
 
         <UploadDocumento label={enderecoObrigatorio ? 'Comprovante de endereço — OBRIGATÓRIO (Maternidade Mãe)' : 'Comprovante de endereço (opcional)'}
-          obrigatorio={enderecoObrigatorio} clienteId={tempIdRef.current} chave="comprovante_endereco"
+          obrigatorio={enderecoObrigatorio} key={'ce' + docsVersao} clienteId={tempIdRef.current} chave="comprovante_endereco"
           valorInicial={docs.comprovante_endereco} onChange={url => setDoc('comprovante_endereco', url)} />
 
         {/* CTPS digital e extrato FGTS: obrigatórios no Maternidade Mãe desde 31/08 */}
@@ -1233,11 +1337,11 @@ export default function NovoCliente({ onSucesso }) {
           </div>
           <UploadDocumento
             label="CTPS digital (PDF) — OBRIGATÓRIO"
-            obrigatorio somentePdf clienteId={tempIdRef.current} chave="ctps_digital"
+            obrigatorio somentePdf key={'ct' + docsVersao} clienteId={tempIdRef.current} chave="ctps_digital"
             valorInicial={docs.ctps_digital} onChange={url => setDoc('ctps_digital', url)} />
           <UploadDocumento
             label="Extrato FGTS (PDF) — OBRIGATÓRIO"
-            obrigatorio somentePdf clienteId={tempIdRef.current} chave="extrato_fgts"
+            obrigatorio somentePdf key={'ef' + docsVersao} clienteId={tempIdRef.current} chave="extrato_fgts"
             valorInicial={docs.extrato_fgts} onChange={url => setDoc('extrato_fgts', url)} />
         </>)}
       </div>
@@ -1248,9 +1352,13 @@ export default function NovoCliente({ onSucesso }) {
           <div style={s.sectionTitle}>Advogado *</div>
           <select style={s.select} value={advogadoSel} onChange={e => setAdvogadoSel(e.target.value)}>
             <option value="">Escolha o advogado…</option>
-            {advogados.map(a => <option key={a.advogado_id} value={a.advogado_id}>{a.nome}</option>)}
+            {advogados.map(a => <option key={a.advogado_id} value={a.advogado_id}>{a.nome}{a.tem_vaga === false ? ' — sem lote no momento' : ''}</option>)}
           </select>
-          <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 6 }}>O contrato sai no nome deste advogado assim que você salvar.</div>
+          {advogados.find(a => a.advogado_id === advogadoSel)?.tem_vaga === false ? (
+            <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6, fontWeight: 600 }}>⚠️ Este advogado está sem lote disponível agora. Escolha outro para conseguir salvar.</div>
+          ) : (
+            <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 6 }}>O contrato sai no nome deste advogado assim que você salvar.</div>
+          )}
         </div>
       )}
 
