@@ -460,6 +460,8 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [obs, setObs] = useState('')
   const [marcando, setMarcando] = useState(null)
   const [confReemitir, setConfReemitir] = useState(null)   // 03/11: lead com a confirmacao de reemissao aberta
+  // 18/11/2026 (Bruno): advogado da reemissao — mesmo ou um dos disponiveis. { leadId, carregando, anterior, opcoes, escolha, erro }
+  const [advReemitir, setAdvReemitir] = useState(null)
   const [reemitindo, setReemitindo] = useState(null)
   const [ficha, setFicha] = useState(null)
   // 16/11/2026 (Bruno): lead pego pela busca por telefone -> abre a ficha assim que chegar na mesa
@@ -477,14 +479,34 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [toast, setToast] = useState(null)
   // 03/11 (Bruno): reemitir contrato que EXPIROU sem assinar. O banco confere tudo (status expirado, contrato
   // nao assinado, quem pode) e devolve a cliente para "aguardando emissao" com o mesmo cadastro.
+  // 18/11/2026 (Bruno): ao abrir a confirmacao, carrega o advogado anterior e os disponiveis (mesma lista do Novo cliente)
+  async function abrirReemitir(l) {
+    if (confReemitir === l.id) { setConfReemitir(null); setAdvReemitir(null); return }
+    setConfReemitir(l.id)
+    setAdvReemitir({ leadId: l.id, carregando: true, anterior: null, opcoes: [], escolha: '', erro: null })
+    let r = null, erro = null
+    try {
+      const { data, error } = await supabase.rpc('reemitir_advogado_opcoes', { p_cpf: soDigitos(l.cpf) })
+      if (error || !data?.ok) erro = error?.message || data?.erro || 'não consegui carregar os advogados'
+      else r = data
+    } catch (e) { erro = String(e.message || e) }
+    const anterior = r?.anterior || null
+    const opcoes = Array.isArray(r?.opcoes) ? r.opcoes : []
+    setAdvReemitir(a => (a && a.leadId === l.id
+      ? { leadId: l.id, carregando: false, anterior, opcoes, escolha: anterior?.id || opcoes[0]?.id || '', erro } : a))
+  }
   async function reemitirContrato(l) {
+    const adv = advReemitir && advReemitir.leadId === l.id ? advReemitir : null
+    if (adv?.carregando) return
     setReemitindo(l.id)
     try {
-      const { data, error } = await supabase.rpc('retroativo_reemitir_contrato', { p_cpf: soDigitos(l.cpf) })
+      // 18/11/2026 (Bruno): _adv = mesma reemissao + o advogado escolhido; o contrato sai sozinho
+      const { data, error } = await supabase.rpc('retroativo_reemitir_contrato_adv', { p_cpf: soDigitos(l.cpf), p_advogado_id: adv?.escolha || null })
       if (error || !data?.ok) { setToast('Não reemitiu: ' + (error?.message || data?.erro || 'erro')); setTimeout(() => setToast(null), 4000); return }
-      setConfReemitir(null)
-      setToast(`✅ Contrato de ${primeiroNome(l.nome)} reemitido — o link novo chega em Meus Clientes em ~1 min`)
-      setTimeout(() => setToast(null), 5000)
+      const nomeAdv = adv?.escolha ? ((adv.anterior?.id === adv.escolha ? adv.anterior?.nome : adv.opcoes.find(o => o.id === adv.escolha)?.nome) || '') : ''
+      setConfReemitir(null); setAdvReemitir(null)
+      setToast(`✅ Contrato de ${primeiroNome(l.nome)} reemitido${nomeAdv ? ` (${nomeAdv})` : ''} — o link novo chega em Meus Clientes em ~1 min`)
+      setTimeout(() => setToast(null), 6000)
       carregar()
     } finally { setReemitindo(null) }
   }
@@ -1293,7 +1315,7 @@ export default function RevisaoIARetroativo({ setPage }) {
                   <>
                     <button style={s.btnAcao(cores.suave)} onClick={() => vender(l)}>Cadastrar de novo</button>
                     <button style={{ ...ui.btnPrimario, padding: '11px 16px' }} disabled={reemitindo === l.id}
-                      onClick={() => setConfReemitir(confReemitir === l.id ? null : l.id)}>
+                      onClick={() => abrirReemitir(l)}>
                       🔄 Reemitir contrato
                     </button>
                   </>
@@ -1306,10 +1328,41 @@ export default function RevisaoIARetroativo({ setPage }) {
                 <div style={s.dir2}>Sai um contrato <b>novo</b> com o mesmo cadastro e os mesmos documentos — não precisa digitar de novo.
                   O link novo chega em <b>Meus Clientes</b> em cerca de 1 minuto e vale <b>2 horas</b>: combine com a cliente antes e mande assim que chegar.
                   {l.cliente_status !== 'expirado' && <> Se algum dado precisar mudar, use <b>Cadastrar de novo</b>.</>}</div>
+                {/* 18/11/2026 (Bruno): mesmo advogado ou trocar por um dos disponiveis */}
+                {advReemitir && advReemitir.leadId === l.id && (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ ...s.dir2, fontWeight: 700 }}>Vai continuar com o mesmo advogado ou trocar?</div>
+                    {advReemitir.carregando ? <div style={s.dir2}>Carregando advogados...</div> : (
+                      <>
+                        {advReemitir.anterior && (
+                          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', fontSize: 13 }}>
+                            <input type="radio" checked={advReemitir.escolha === advReemitir.anterior.id}
+                              onChange={() => setAdvReemitir(a => ({ ...a, escolha: a.anterior.id }))} />
+                            <span><b>Manter o mesmo:</b> {advReemitir.anterior.nome}
+                              {!advReemitir.anterior.tem_vaga && <span style={{ display: 'block', fontSize: 11, color: '#b45309' }}>Sem vaga agora — o contrato fica na Fila de digitação até abrir vaga.</span>}
+                            </span>
+                          </label>
+                        )}
+                        {advReemitir.opcoes.map(o => (
+                          <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 13 }}>
+                            <input type="radio" checked={advReemitir.escolha === o.id}
+                              onChange={() => setAdvReemitir(a => ({ ...a, escolha: o.id }))} />
+                            <span>{advReemitir.anterior ? 'Trocar para: ' : ''}{o.nome}</span>
+                          </label>
+                        ))}
+                        {!advReemitir.anterior && advReemitir.opcoes.length === 0 && (
+                          <div style={s.dir2}>Nenhum advogado com vaga na sua lista agora — o sistema escolhe pela fila.</div>
+                        )}
+                        {advReemitir.erro && <div style={{ fontSize: 11, color: '#dc2626' }}>{advReemitir.erro}</div>}
+                      </>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button style={{ ...ui.btnPrimario, padding: '10px 16px', opacity: reemitindo === l.id ? .6 : 1 }} disabled={reemitindo === l.id}
+                  <button style={{ ...ui.btnPrimario, padding: '10px 16px', opacity: reemitindo === l.id ? .6 : 1 }}
+                    disabled={reemitindo === l.id || !!(advReemitir && advReemitir.leadId === l.id && advReemitir.carregando)}
                     onClick={() => reemitirContrato(l)}>{reemitindo === l.id ? '⏳ Reemitindo...' : 'Confirmar reemissão'}</button>
-                  <button style={s.btnAcao(cores.suave)} onClick={() => setConfReemitir(null)}>cancelar</button>
+                  <button style={s.btnAcao(cores.suave)} onClick={() => { setConfReemitir(null); setAdvReemitir(null) }}>cancelar</button>
                 </div>
               </div>
             )}
