@@ -340,6 +340,9 @@ export default function NovoCliente({ onSucesso }) {
     const simNao = (b) => (b === true ? 'sim' : b === false ? 'nao' : '')
     const origem = []
     if (lead) origem.push('Mesa do Retroativo')
+    // 18/11 (Bruno): telefone que o vendedor trocou no lead (Assertiva / achei por fora) vale mais que o do lead e o do cadastro antigo
+    const telLead = telDoBanco(hist?.tel_lead)
+    if (telLead && !lead) origem.push('telefone novo do lead')
     if (cli) origem.push(`cadastro ${cli.status === 'cancelado' ? 'cancelado' : cli.status === 'barrado_pos_venda' ? 'barrado no pós-venda' : 'expirado'} de ${dataBR(String(cli.criado_em || '').slice(0, 10))}`)
     if (!origem.length && !val) { return }
 
@@ -356,7 +359,7 @@ export default function NovoCliente({ onSucesso }) {
       const n = { ...prev }
       const pega = (campo, valor) => { if (!v(n[campo]) && v(valor)) { n[campo] = valor; novo[campo] = true } }
       pega('nome', v(lead?.nome).toUpperCase() || v(cli?.nome))
-      pega('telefone', telDoBanco(lead?.tel) || telDoBanco(cli?.telefone))
+      pega('telefone', telLead || telDoBanco(lead?.tel) || telDoBanco(cli?.telefone))
       pega('rg', cli?.rg ? maskRG(cli.rg) : '')
       pega('email', cli?.email)
       pega('numero', cli?.numero)
