@@ -89,6 +89,7 @@ const IDS_ACESSO_CLIENTES = [
   'bfbbea6d-bd7b-4f31-b896-74d92f0594f8', // Rita (ritarh) — 08/09
   'a3b8aea4-1b5f-45cb-ba06-192a99bdbf85', // José Carlos Galvão — 09/09: supervisiona o gestante e segue vendendo
   '6db43f01-71e6-4972-b84e-eb49375e8e70', // Egle Marcela — 02/10: mesmo pacote de telas da Agatha
+  '7dcd2bef-c0c5-41ac-b104-ff8eed300ca5', // RT CRÉDITOS — Ronaldo — 18/11/2026 (Bruno): so os clientes da RT (RLS ronaldo_rt_le_clientes)
 ]
 
 // Supervisao Producao por ID (mesma lista do App.js — se as duas nao baterem,
