@@ -1097,7 +1097,8 @@ export default function PainelVendas() {
 
         <TabelaVendas
           lista={meu.lista || []}
-          titulo={'Minhas vendas · ' + rotPer}
+          comVendedor={!!meu.time}
+          titulo={(meu.time ? 'Vendas do time RT · ' : 'Minhas vendas · ') + rotPer}
           filtro={filtroTab} setFiltro={setFiltroTab}
           busca={busca} setBusca={(v) => { setBusca(v); if (achados) setAchados(null) }}
           achados={achados} buscando={buscando}
