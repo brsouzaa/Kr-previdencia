@@ -101,6 +101,8 @@ export default function MeusClientes() {
   const [busca, setBusca] = useState('')
   const [copiadoId, setCopiadoId] = useState(null)
   const [reemitindoId, setReemitindoId] = useState(null)
+  // 18/11/2026 (Bruno): pop-up da reemissao — mesmo advogado ou um dos disponiveis. { c, carregando, anterior, opcoes, escolha, erro }
+  const [popReemitir, setPopReemitir] = useState(null)
   const [editandoDocsId, setEditandoDocsId] = useState(null)
 
   const fetchClientes = useCallback(async () => {
@@ -215,6 +217,52 @@ export default function MeusClientes() {
       }
       await fetchClientes()
       alert('✅ Cliente de volta na fila da supervisão.')
+    } catch (err) {
+      alert('Erro: ' + (err.message || err.toString()))
+    }
+    setReemitindoId(null)
+  }
+
+  // 18/11/2026 (Bruno): "Solicitar nova emissao" (expirado) abre um pop-up: fica com o mesmo advogado ou troca
+  // por um dos disponiveis (mesma lista do Novo cliente). O contrato novo sai SOZINHO (trg_emissao_automatica_time),
+  // igual ao cadastro normal; se o advogado estiver sem vaga, fica na Fila de digitacao como antes.
+  async function abrirReemitir(c) {
+    setPopReemitir({ c, carregando: true, anterior: null, opcoes: [], escolha: '', erro: null })
+    let r = null, erro = null
+    try {
+      const { data, error } = await supabase.rpc('reemitir_advogado_opcoes', { p_cliente_id: c.id })
+      if (error || !data?.ok) erro = error?.message || data?.erro || 'não consegui carregar os advogados'
+      else r = data
+    } catch (e) { erro = String(e.message || e) }
+    const anterior = r?.anterior || null
+    const opcoes = Array.isArray(r?.opcoes) ? r.opcoes : []
+    setPopReemitir({ c, carregando: false, anterior, opcoes, escolha: anterior?.id || opcoes[0]?.id || '', erro })
+  }
+
+  async function confirmarReemitir() {
+    const p = popReemitir
+    if (!p || p.carregando) return
+    const c = p.c
+    setReemitindoId(c.id)
+    try {
+      const { error } = await supabase.from('clientes').update({
+        status: 'aguardando_emissao',
+        advogado_escolhido_id: p.escolha || c.advogado_escolhido_id || null,
+        contrato_producao_id: null, lote_id: null, advogado_id: null,
+        zapsign_token: null, link_assinatura: null,
+        emitido_por: null, emitido_em: null,
+        bloqueado_por: null, bloqueado_em: null,
+        motivo_devolucao: null, devolvido_por: null, devolvido_em: null,
+      }).eq('id', c.id)
+      if (error) {
+        if (error.code === '23505') {
+          alert('Já existe um cadastro ativo (aguardando ou emitido) com este CPF.')
+        } else { throw error }
+        setReemitindoId(null); return
+      }
+      setPopReemitir(null)
+      await fetchClientes()
+      alert('✅ Novo contrato pedido. O link aparece aqui em cerca de 1 minuto (a tela atualiza sozinha).\nSe o advogado estiver sem vaga, o contrato fica na Fila de digitação e a supervisão emite.')
     } catch (err) {
       alert('Erro: ' + (err.message || err.toString()))
     }
@@ -453,7 +501,7 @@ export default function MeusClientes() {
             {c.status === 'expirado' && (
               <div style={{ marginTop: 10, padding: 10, background: 'rgba(248,113,113,.14)', borderRadius: 8 }}>
                 <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
-                <button onClick={() => refazer(c)} disabled={reemitindoId === c.id}
+                <button onClick={() => abrirReemitir(c)} disabled={reemitindoId === c.id}
                   style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
                   {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Solicitar nova emissão'}
                 </button>
@@ -461,7 +509,7 @@ export default function MeusClientes() {
             )}
 
             {c.status === 'aguardando_emissao' && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#b45309' }}>Aguardando supervisão emitir o contrato...</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: '#b45309' }}>⏳ Emitindo o contrato — o link aparece aqui em instantes. Se demorar, a supervisão emite pela Fila de digitação.</div>
             )}
             {c.status === 'em_validacao' && (
               <div style={{ marginTop: 8, padding: 8, background: 'rgba(52,211,153,.14)', borderRadius: 6, fontSize: 11, color: '#059669', textAlign: 'center', fontWeight: 500 }}>
@@ -486,6 +534,55 @@ export default function MeusClientes() {
           </div>
         )
       })}
+
+      {/* 18/11/2026 (Bruno): pop-up da reemissao — mesmo advogado ou um dos disponiveis */}
+      {popReemitir && (
+        <div onClick={() => reemitindoId ? null : setPopReemitir(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#ffffff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(15,23,42,.25)' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>🔄 Nova emissão — {popReemitir.c.nome}</div>
+            <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 14 }}>Vai continuar com o mesmo advogado ou trocar?</div>
+            {popReemitir.carregando ? (
+              <div style={{ fontSize: 13, color: '#5b6b84', padding: '12px 0' }}>Carregando advogados...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                {popReemitir.anterior && (
+                  <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 10, borderRadius: 8, cursor: 'pointer', border: popReemitir.escolha === popReemitir.anterior.id ? '1.5px solid #34d399' : '1px solid rgba(15,23,42,.12)', background: popReemitir.escolha === popReemitir.anterior.id ? 'rgba(52,211,153,.10)' : '#ffffff' }}>
+                    <input type="radio" checked={popReemitir.escolha === popReemitir.anterior.id} onChange={() => setPopReemitir(p => ({ ...p, escolha: p.anterior.id }))} />
+                    <span style={{ fontSize: 13, color: '#0f172a' }}>
+                      <b>Manter o mesmo advogado</b><br />{popReemitir.anterior.nome}
+                      {!popReemitir.anterior.tem_vaga && <span style={{ display: 'block', fontSize: 11, color: '#b45309', marginTop: 2 }}>Sem vaga agora — o contrato fica na Fila de digitação até abrir vaga.</span>}
+                    </span>
+                  </label>
+                )}
+                {popReemitir.opcoes.length > 0 && (
+                  <div style={{ fontSize: 11, color: '#5b6b84', marginTop: 4 }}>{popReemitir.anterior ? 'OU TROCAR PARA' : 'ESCOLHA O ADVOGADO'}</div>
+                )}
+                {popReemitir.opcoes.map(o => (
+                  <label key={o.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 10, borderRadius: 8, cursor: 'pointer', border: popReemitir.escolha === o.id ? '1.5px solid #60a5fa' : '1px solid rgba(15,23,42,.12)', background: popReemitir.escolha === o.id ? 'rgba(96,165,250,.10)' : '#ffffff' }}>
+                    <input type="radio" checked={popReemitir.escolha === o.id} onChange={() => setPopReemitir(p => ({ ...p, escolha: o.id }))} />
+                    <span style={{ fontSize: 13, color: '#0f172a' }}>{o.nome}</span>
+                  </label>
+                ))}
+                {!popReemitir.anterior && popReemitir.opcoes.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#5b6b84' }}>Nenhum advogado com vaga na sua lista agora — o sistema escolhe pela fila.</div>
+                )}
+                {popReemitir.erro && <div style={{ fontSize: 11, color: '#dc2626' }}>{popReemitir.erro}</div>}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: '#5b6b84', marginBottom: 12 }}>O contrato novo sai sozinho e o link aparece aqui em cerca de 1 minuto.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setPopReemitir(null)} disabled={!!reemitindoId}
+                style={{ flex: 1, padding: '10px', background: '#ffffff', color: '#5b6b84', border: '1px solid rgba(15,23,42,.12)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={confirmarReemitir} disabled={popReemitir.carregando || !!reemitindoId}
+                style={{ flex: 2, padding: '10px', background: (popReemitir.carregando || reemitindoId) ? '#64748b' : '#60a5fa', color: '#232a37', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: (popReemitir.carregando || reemitindoId) ? 'not-allowed' : 'pointer' }}>
+                {reemitindoId ? '⏳ Pedindo...' : '🔄 Confirmar nova emissão'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
