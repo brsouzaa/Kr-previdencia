@@ -123,6 +123,8 @@ export default function FilaDigitacao() {
   const [copiadoWhatsId, setCopiadoWhatsId] = useState(null)
   const [verDocsId, setVerDocsId] = useState(null)
   const [lotesFila, setLotesFila] = useState([])
+  // 18/11/2026 (Bruno): nome do advogado escolhido pelo vendedor (id -> nome curto)
+  const [advEscolhidos, setAdvEscolhidos] = useState({})
   const [salvandoOrdem, setSalvandoOrdem] = useState(false)
   const [addAberto, setAddAberto] = useState(false)
   const [barrarCliente, setBarrarCliente] = useState(null)  // cliente a barrar
@@ -155,6 +157,14 @@ export default function FilaDigitacao() {
     const disponivel = (lotes || []).find(l => loteTemVaga(l))
     setProximoLote(disponivel || null)
     setLotesFila(lotes || [])
+    // 18/11/2026 (Bruno): nome do advogado escolhido pelo vendedor (pode nao ter lote aberto na lista)
+    const idsEsc = [...new Set((cs || []).map(c => c.advogado_escolhido_id).filter(Boolean))]
+    if (idsEsc.length) {
+      const { data: advs } = await supabase.from('advogados').select('id, nome_completo').in('id', idsEsc)
+      const m = {}
+      ;(advs || []).forEach(a => { m[a.id] = String(a.nome_completo || '').split(',')[0].trim() })
+      setAdvEscolhidos(m)
+    } else setAdvEscolhidos({})
     setClientes(cs || [])
     setLoading(false)
   }, [])
@@ -510,6 +520,12 @@ export default function FilaDigitacao() {
               <div style={s.field}>
                 <span style={s.fieldLabel}>Vendedor:</span><span style={s.fieldValue}>{c.profiles?.nome || '—'}</span>
               </div>
+              {c.advogado_escolhido_id && (
+                <div style={s.field}>
+                  <span style={s.fieldLabel}>⚖️ Advogado escolhido pelo vendedor:</span>
+                  <span style={{ ...s.fieldValue, fontWeight: 600, color: '#059669' }}>{advEscolhidos[c.advogado_escolhido_id] || 'carregando...'}</span>
+                </div>
+              )}
               {c.produto === 'Maternidade' && (
                 <div style={s.field}>
                   {c.nis && <><span style={s.fieldLabel}>NIS:</span><span style={s.fieldValue}>{c.nis}</span></>}
@@ -600,7 +616,9 @@ export default function FilaDigitacao() {
               <>
                 <div style={{ fontSize: 16, fontWeight: 500, color: '#0f172a', marginBottom: 8 }}>Confirmar emissão</div>
                 <div style={{ fontSize: 13, color: '#5b6b84', marginBottom: 16 }}>
-                  Será gerado um contrato no ZapSign vinculando este cliente ao advogado da vez.
+                  {modalAberto.advogado_escolhido_id
+                    ? 'Será gerado um contrato no ZapSign vinculando este cliente ao advogado escolhido pelo vendedor.'
+                    : 'Será gerado um contrato no ZapSign vinculando este cliente ao advogado da vez.'}
                 </div>
 
                 {/* 19/10 — motivo real da recusa, direto do corpo da resposta da edge function */}
@@ -626,8 +644,9 @@ export default function FilaDigitacao() {
                   <div style={{ background: 'rgba(52,211,153,.14)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
                     <div style={{ fontSize: 11, color: '#059669', marginBottom: 4 }}>ADVOGADO ESCOLHIDO PELO VENDEDOR</div>
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a' }}>
-                      {(lotesFila.find(l => l.advogado_id === modalAberto.advogado_escolhido_id)?.advogados?.nome_completo) || 'advogado escolhido (sem lote aberto na lista)'}
+                      {advEscolhidos[modalAberto.advogado_escolhido_id] || (lotesFila.find(l => l.advogado_id === modalAberto.advogado_escolhido_id)?.advogados?.nome_completo) || 'advogado escolhido (sem lote aberto na lista)'}
                     </div>
+                    <div style={{ fontSize: 12, color: '#5b6b84', marginTop: 4 }}>O contrato vai para este advogado, não para o da vez da fila. Se o lote dele estiver sem vaga, a emissão é recusada e o cliente continua aqui.</div>
                   </div>
                 ) : (
                 <div style={{ background: 'rgba(96,165,250,.12)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
