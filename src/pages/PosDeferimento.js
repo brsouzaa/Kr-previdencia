@@ -28,6 +28,9 @@ import {
 export const ETAPAS_PD = [
   { key: 'deferido', label: 'Deferido · avisar cliente', curto: 'Deferido', cor: '#16a34a', icone: '✅' },
   { key: 'carta', label: 'Carta de concessão', curto: 'Carta', cor: '#0891b2', icone: '📜' },
+  // 19/11/2026 (Bruno): ABRIR CONTA NO BANCO (nao PrevSempre). Etapa VIRTUAL: no banco o caso segue em extrato/aguardando
+  // com conta_exigida e sem conta_status. Sai com print da conta aberta (+ beneficio vinculado) ou o motivo da recusa.
+  { key: 'conta_banco', label: 'Abrir conta no banco', curto: 'Conta banco', cor: '#ea580c', icone: '💳' },
   { key: 'extrato', label: 'Data do pagamento (INSS)', curto: 'Data INSS', cor: '#0d9488', icone: '📞' },   // 08/11 (Bruno): nao precisa mais do extrato — liga no INSS apos 7 dias   // 02/11: a data REAL do pagamento
   // 07/11/2026 (Bruno): ORIENTACAO PREVSEMPRE (so Mercantil). Etapa VIRTUAL: no banco o caso esta em 'prevsempre'
   // com prev_orientacao_exigida e sem prev_orientada_em. So vai para a Maithe depois do print conferido pela I.A.
@@ -40,9 +43,9 @@ export const ETAPAS_PD = [
   { key: 'cancelado', label: 'Cancelado', curto: 'Cancelado', cor: '#94a3b8', icone: '🚫' },
 ]
 const etapaPD = (k) => ETAPAS_PD.find(e => e.key === k) || { key: k, label: k, curto: k, cor: '#64748b', icone: '•' }
-const COLUNAS_PD = ['deferido', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']   // 02/11: a coluna "Carta" virou "Extrato de pagamento"
-const ATIVAS = ['deferido', 'carta', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'pago']
-const ESPERANDO = ['aguardando_pagamento', 'orientacao_prev', 'prevsempre', 'pago']   // ainda nao pagou
+const COLUNAS_PD = ['deferido', 'conta_banco', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'atrasado', 'baixado']   // 02/11: a coluna "Carta" virou "Extrato de pagamento"
+const ATIVAS = ['deferido', 'carta', 'conta_banco', 'extrato', 'orientacao_prev', 'prevsempre', 'aguardando_pagamento', 'pago']
+const ESPERANDO = ['aguardando_pagamento', 'orientacao_prev', 'prevsempre', 'pago', 'conta_banco']   // ainda nao pagou
 const DIAS_INADIMPLENTE = 4
 // 03/11 (Bruno): parado ha mais de 48h na etapa = VERMELHO (Deferido e PrevSempre).
 // Extrato de pagamento: so da para pegar 7 dias apos o deferimento — o caso so SOBE para cobrar nesse dia
@@ -63,10 +66,10 @@ const extratoLiberado = (c) => (horasExtratoLiberado(c) ?? 0) >= 0
 // 10/11/2026 (Bruno): PEGAR A DATA DO PAGAMENTO e a etapa mais importante. Passou 7 dias do deferimento e a data
 // ainda nao foi lancada -> aparece em "Data do pagamento (INSS)" em QUALQUER etapa antes do pagamento
 // (o card pode aparecer em duas colunas do funil: na etapa dele e na da data).
-const ETAPAS_DATA = ['deferido', 'carta', 'extrato', 'orientacao_prev', 'prevsempre']
+const ETAPAS_DATA = ['deferido', 'carta', 'extrato', 'orientacao_prev', 'prevsempre', 'conta_banco']
 const precisaData = (c) => ETAPAS_DATA.includes(c.etapa) && !c.extrato_em && extratoLiberado(c)
 const vermData = (c) => precisaData(c) && (horasExtratoLiberado(c) ?? 0) > HORAS_LIMITE
-const vermelho48 = (c) => (c.etapa === 'deferido' || c.etapa === 'orientacao_prev' || c.etapa === 'prevsempre') ? (horasDesde(c.etapa_desde) ?? 0) > HORAS_LIMITE
+const vermelho48 = (c) => (c.etapa === 'deferido' || c.etapa === 'orientacao_prev' || c.etapa === 'prevsempre' || c.etapa === 'conta_banco') ? (horasDesde(c.etapa_desde) ?? 0) > HORAS_LIMITE
   : (c.etapa === 'extrato' || c.etapa === 'carta') ? (horasExtratoLiberado(c) ?? 0) > HORAS_LIMITE : false
 const txtHoras = (h) => (h == null ? '' : h < 24 ? `${Math.max(0, Math.floor(h))}h` : `${Math.floor(h / 24)}d ${Math.floor(h % 24)}h`)
 // contador do extrato (aparece enquanto o extrato nao foi lancado)
@@ -101,7 +104,10 @@ const bancoCurto = (b) => { const s = String(b || ''); if (/mercantil/i.test(s))
 const telWa = (t) => { let d = soDig(t); if (d.startsWith('55') && d.length > 11) d = d.slice(2); return d.length >= 10 ? '55' + d : null }
 
 // 07/11 (Bruno): Mercantil que ainda nao passou pela Orientacao PrevSempre aparece na etapa virtual
-const etapaVirtualPD = (c) => (c.etapa === 'prevsempre' && c.prev_orientacao_exigida && !c.prev_orientada_em) ? { ...c, etapa: 'orientacao_prev' } : c
+const etapaVirtualPD = (c) => (c.etapa === 'prevsempre' && c.prev_orientacao_exigida && !c.prev_orientada_em) ? { ...c, etapa: 'orientacao_prev' }
+  // 19/11/2026 (Bruno): nao PrevSempre com a carta lancada e a conta no banco recebedor ainda nao resolvida
+  : (c.conta_exigida && !c.conta_status && !c.prevsempre && ['carta', 'extrato', 'aguardando_pagamento', 'pago'].includes(c.etapa)) ? { ...c, etapa: 'conta_banco', etapa_real: c.etapa }
+  : c
 const lerBase64PD = (arq) => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]+,/, '')); r.onerror = () => erro(r.error); r.readAsDataURL(arq) })
 // 09/11/2026 (Bruno): UM SO jeito de contar pendencia, igual ao Protocolo: so as abertas de clientes ativos no setor,
 // em 4 grupos. "Sinalizada" = o acompanhamento conseguiu e espera a Jessica/Sthefany darem a baixa.
@@ -173,6 +179,20 @@ export const GUIAS = {
         x => `${x.n}, o seu salário-maternidade foi *APROVADO* pelo INSS!!! 🎉🎉🎉\n\n${x.rapido
           ? `E olha que notícia boa: saiu *rapidinho*, em só *${x.dias} dia${x.dias === 1 ? '' : 's'}* desde que demos entrada! A gente preparou o seu processo com muito cuidado pra ele andar sem travar, e o resultado veio rápido 🙌`
           : 'Foi um processo que exigiu bastante da nossa equipe: acompanhamos cada passo lá no INSS, de perto, até sair essa aprovação. E valeu cada minuto! 🙌'}\n\nA equipe toda vibrou aqui com o seu resultado, de verdade 💛\n\nJá saiu também a sua *carta de concessão*, que mostra o banco do pagamento. Já já te chamo aqui e te explico como vai funcionar, tá bom?`,
+      ] },
+    ],
+  },
+  // 19/11/2026 (Bruno): ABRIR CONTA NO BANCO (nao PrevSempre) — a cliente abre a conta corrente no banco que vai pagar
+  // e VINCULA o beneficio a ela (Itau: WhatsApp do banco; outros: chat do app ou WhatsApp do banco). Duas mensagens.
+  conta_banco: {
+    titulo: 'Abrir conta no banco e vincular o benefício', icone: '💳', cor: '#ea580c',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente (espere ela responder)', espera: true, var: [
+        x => `Oi, ${x.n}! ${x.aqui}. Tudo bem? Tenho um passo importante pra você conseguir receber o seu salário-maternidade, pode falar agora? 😊`,
+        x => `${x.n}, ${x.s}! ${x.aqui}. Tá podendo falar? Preciso combinar com você um passo pra o seu dinheiro cair certinho 🙏`,
+      ] },
+      { k: 'explicar', rot: 'Explicar: abrir a conta e vincular o benefício', espera: true, dica: 'Espere o print da conta aberta e confirme com ela que o benefício foi vinculado. Se o banco recusar, registre o motivo.', var: [
+        x => `Então, ${x.n}: o INSS vai pagar o seu salário-maternidade no *${x.banco}* 💰\n\nPra você receber o dinheiro direto numa conta sua, são 2 passos:\n\n1️⃣ *Abrir uma conta corrente no ${x.banco}* (pelo aplicativo do banco)\n2️⃣ *Vincular o seu benefício a essa conta* — ${/ita[uú]/i.test(String(x.banco || '')) ? 'depois de abrir, é só chamar o *WhatsApp do Itaú* e pedir pra vincular o seu benefício do INSS à sua conta corrente' : 'depois de abrir, é só falar com o *chat do aplicativo do banco* (ou o WhatsApp do banco, se tiver) e pedir pra vincular o seu benefício do INSS à sua conta corrente'}\n\nQuando terminar, me manda aqui o *print da conta aberta*, combinado? Qualquer dúvida eu te ajudo 😊`,
       ] },
     ],
   },
@@ -305,6 +325,7 @@ function guiasDoCaso(c) {
   if (e === 'deferido' || e === 'carta') return ['deferido']
   if (e === 'extrato') return [c.prevsempre ? 'carta_prev' : 'carta_outro']
   if (e === 'orientacao_prev') return ['orientacao_prev']
+  if (e === 'conta_banco') return ['conta_banco']   // 19/11
   if (e === 'prevsempre') return ['carta_prev', ...ext, 'abrir_conta']
   if (ESPERANDO.includes(e)) {
     const g = c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera']
@@ -331,6 +352,7 @@ const guiasDaAcao = (acao, c) => {
   return acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
     : acao === 'extrato' ? (c.etapa === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro'] : [])   // 10/11: fora da etapa, so registra a data
     : acao === 'orientar_prev' ? ['orientacao_prev']
+    : acao === 'conta_aberta' || acao === 'conta_recusada' ? ['conta_banco']   // 19/11/2026
     : acao === 'prevsempre' ? ['carta_prev', ...ext, 'abrir_conta']
     : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera', 'acao_inss'] : ['carta_outro', ...ext, 'vespera', 'acao_inss'])
     : acao === 'baixa' ? ['acao_inss']   // 19/11/2026 (Bruno): nova acao no INSS antes da baixa
@@ -433,6 +455,24 @@ const ACOES_PD = {
     ],
   },
   // 04/11 (Bruno): trocar a carta de concessao depois do deferimento (antes so dava nas etapas Deferido/Carta)
+  // 19/11/2026 (Bruno): etapa "Abrir conta no banco" (nao PrevSempre)
+  conta_aberta: {
+    titulo: 'Conta aberta e benefício vinculado', icone: '💳', cor: '#ea580c',
+    anexo: 'Print da conta aberta', anexoObrig: true,
+    nota: 'A cliente abriu a conta corrente no banco que vai pagar e VINCULOU o benefício a ela (Itaú: pelo WhatsApp do banco; outros bancos: pelo chat do aplicativo ou WhatsApp do banco). Anexe o print da conta aberta.',
+    campos: [
+      { k: 'vinculo', l: 'O benefício já foi vinculado à conta corrente?', obrig: true, tipo: 'simnao' },
+      { k: 'texto', l: 'Observação (opcional)', tipo: 'textarea' },
+    ],
+  },
+  conta_recusada: {
+    titulo: 'Banco recusou a conta', icone: '⛔', cor: '#dc2626',
+    anexo: 'Print da recusa (opcional)',
+    nota: 'Use quando o banco não deixou a cliente abrir a conta. O motivo fica registrado e o caso segue.',
+    campos: [
+      { k: 'texto', l: 'Por que o banco recusou?', obrig: true, tipo: 'textarea', sugestoes: ['Nome negativado / restrição no CPF', 'Documento recusado', 'Banco exigiu ir à agência', 'Cliente já tem conta e não consegue vincular', 'Aplicativo não aprovou o cadastro'] },
+    ],
+  },
   trocar_carta: {
     titulo: 'Trocar carta de concessão', icone: '🔁', cor: '#0891b2',
     anexo: 'Carta de concessão correta', anexoObrig: true,
@@ -496,6 +536,7 @@ const ACOES_POR_ETAPA_PD = {
   carta: ['carta', 'atividade', 'observacao', 'cancelar'],
   extrato: ['extrato', 'atividade', 'trocar_carta', 'observacao', 'cancelar'],
   orientacao_prev: ['orientar_prev', 'atividade', 'trocar_carta', 'observacao'],
+  conta_banco: ['conta_aberta', 'conta_recusada', 'extrato', 'atividade', 'trocar_carta', 'observacao'],   // 19/11
   prevsempre: ['prevsempre', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
   aguardando_pagamento: ['cliente_pagou', 'reagendar', 'atividade', 'trocar_carta', 'observacao'],
   pago: ['cliente_pagou', 'reagendar', 'atividade', 'observacao'],
@@ -511,6 +552,8 @@ function acaoDoDropPD(c, col) {
   if (col === 'extrato') return e === 'deferido' ? ['avisar_cliente'] : e === 'carta' ? ['carta'] : ['voltar', { etapa: 'extrato' }]
   if (col === 'orientacao_prev') return e === 'deferido' ? ['avisar_cliente'] : e === 'carta' ? ['carta'] : [null]
   if (e === 'orientacao_prev') return col === 'prevsempre' ? ['orientar_prev'] : col === 'baixado' ? [null] : ['voltar', { etapa: col }]
+  if (col === 'conta_banco') return e === 'deferido' ? ['avisar_cliente'] : e === 'carta' ? ['carta'] : [null]   // 19/11
+  if (e === 'conta_banco') return col === 'baixado' ? [null] : ['conta_aberta']   // 19/11: so sai resolvendo a conta
   if (col === 'prevsempre' || col === 'aguardando_pagamento') {
     if (e === 'deferido') return ['avisar_cliente']
     if (e === 'carta') return ['carta']
@@ -1625,7 +1668,7 @@ export default function PosDeferimento() {
     const t = TIPO_AGENDA[it.tipo]
     const wa = telWa(c.telefone)
     const ehPend = it.tipo === 'pendencia'
-    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : it.tipo === 'conversa' ? 'conversa_inadimplente' : 'atividade_feita'
+    const acaoRapida = ehPend ? null : it.tipo === 'pagamento' ? (c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : c.etapa === 'conta_banco' ? 'conta_aberta' : 'cliente_pagou') : it.tipo === 'avisar' ? 'avisar_cliente' : it.tipo === 'sem_carta' ? 'carta' : it.tipo === 'conversa' ? 'conversa_inadimplente' : 'atividade_feita'
     const cfg = acaoRapida ? ACOES_PD[acaoRapida] : null
     const podeAgir = !soLeitura && !ehPend && c.pode_agir !== false
     return (
@@ -2086,6 +2129,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
     // 19/11/2026 (Bruno): nova acao no INSS — 4 dias antes do pagamento, obrigatoria para todas
     const acaoInssPend = filtrada.filter(c => ESPERANDO.includes(c.etapa) && naJanelaAcaoInss(c) && !acaoInssFeita(c)).sort(ordPg)
+    const contaPend = filtrada.filter(c => c.etapa === 'conta_banco').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 19/11
     const orientPend = filtrada.filter(c => c.etapa === 'orientacao_prev').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 07/11
     const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 03/11: mais antigo primeiro (48h)
     // 03/11 (Bruno): o extrato so sobe para cobrar 7 dias apos o deferimento
@@ -2130,6 +2174,13 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
           sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · deferido {fmtDataHora(c.etapa_desde)} · <b style={{ color: vermelho48(c) ? cores.perigo : cores.ok }}>há {txtHoras(horasDesde(c.etapa_desde))}</b>{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
           acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
             c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'avisar_cliente')} style={{ ...btn('#16a34a'), padding: '6px 10px', fontSize: 12 }}>📣 Avisei + carta de concessão</button>] }) },
+      { k: 'contabanco', icone: '💳', tit: 'Abrir conta no banco e vincular o benefício (não PrevSempre)', cor: '#ea580c', itens: contaPend,
+        extra: nVerm(contaPend) ? `${nVerm(contaPend)} passou de 48h` : 'obrigatório antes do pagamento · print da conta aberta ou motivo da recusa',
+        linha: (c, i) => linhaSimples(c, i, { alerta: vermelho48(c), onAbrir: () => setAberto(c.id),
+          sub: <>{fmtCpf(c.cpf)} · {c.banco || 'banco?'} · <b style={{ color: vermelho48(c) ? cores.perigo : '#ea580c' }}>esperando a conta há {txtHoras(horasDesde(c.etapa_desde))}</b>{c.data_pagamento ? ` · cai ${fmtData(c.data_pagamento)}` : ''}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+          acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
+            c.pode_agir !== false && <button key="r" onClick={() => abrirAcao(c, 'conta_recusada')} style={{ ...btn(cores.perigo, false), padding: '6px 10px', fontSize: 12 }}>⛔ Banco recusou</button>,
+            c.pode_agir !== false && <button key="a" onClick={() => abrirAcao(c, 'conta_aberta')} style={{ ...btn('#ea580c'), padding: '6px 10px', fontSize: 12 }}>💳 Conta aberta</button>] }) },
       { k: 'extrato', icone: '🧾', tit: 'Ligar no INSS: data e valor do pagamento (7 dias após o deferimento)', cor: '#0d9488', itens: aguardExtrato,
         extra: [aguardExtrato.filter(vermData).length ? `${aguardExtrato.filter(vermData).length} passou de 48h` : 'a data real do pagamento', nExtratoEspera ? `${nExtratoEspera} esperando os 7 dias` : null].filter(Boolean).join(' · '),
         linha: (c, i) => { const h = horasExtratoLiberado(c)
@@ -2385,7 +2436,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     const t = TIPO_COBRANCA[tipoCobranca(c)]
     const wa = telWa(c.telefone)
     const podeAgir = !soLeitura && c.pode_agir !== false
-    const acao = c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : 'cliente_pagou'
+    const acao = c.etapa === 'orientacao_prev' ? 'orientar_prev' : c.etapa === 'prevsempre' ? 'prevsempre' : c.etapa === 'conta_banco' ? 'conta_aberta' : 'cliente_pagou'
     return (
       <div key={c.id} className="kr-linha" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: inadimplente(c) ? cores.perigo : t.cor, flexShrink: 0 }} />
