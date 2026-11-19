@@ -249,6 +249,22 @@ export const GUIAS = {
       ] },
     ],
   },
+  // 19/11/2026 (Bruno): NOVA ACAO NO INSS — obrigatoria para TODAS, 4 dias antes do pagamento. So por mensagem
+  // (sem ligacao), em DUAS mensagens: chamar e esperar ela responder; depois contar curto. Sem textao.
+  acao_inss: {
+    titulo: 'Novidade: nova ação no INSS', icone: '🤩', cor: '#c026d3',
+    passos: [
+      { k: 'chamar', rot: 'Chamar a cliente (espere ela responder)', espera: true, dica: 'Só por mensagem, sem ligação. Mande e espere ela responder antes da próxima.', var: [
+        x => `Oi, ${x.n}! Tudo bem? ${x.aqui}. Você tá por aí? Tenho uma novidade pra você que a nossa advogada analisou 😊`,
+        x => `${x.n}, ${x.s}! ${x.aqui}. Tá podendo falar? Tenho uma novidade boa pra você que a nossa advogada analisou 👀`,
+      ] },
+      { k: 'contar', rot: 'Contar a novidade (depois que ela responder)', dica: 'Mensagem curta. Se ela perguntar detalhes, diga que a advogada explica tudo quando der entrada.', var: [
+        x => `${x.n}, a advogada viu que as suas *contribuições no INSS foram calculadas errado* 🤩 Isso te dá direito provável a uma *nova ação*, que pode render *até uns R$ 10 mil* a mais pra você!
+
+E a gente já dá entrada assim que o seu maternidade for finalizado: você recebe, acerta os honorários com a gente e já começamos 🚀 Combinado?`,
+      ] },
+    ],
+  },
   atrasado: {
     titulo: 'Pagamento atrasado', icone: '⏰', cor: '#dc2626',
     passos: [
@@ -278,6 +294,10 @@ export const GUIAS = {
   },
 }
 
+// 19/11/2026 (Bruno): a nova acao no INSS entra 4 dias antes da data do pagamento (e segue ate a baixa)
+const naJanelaAcaoInss = (c) => !!c.data_pagamento && diasApos(c.data_pagamento) >= -4
+const acaoInssFeita = (c) => GUIAS.acao_inss.passos.every(p => !!(c.msgs_enviadas || {})[`acao_inss:${p.k}`])
+
 // quais roteiros valem para o caso, e qual e o da vez
 function guiasDoCaso(c) {
   const e = c.etapa
@@ -288,6 +308,7 @@ function guiasDoCaso(c) {
   if (e === 'prevsempre') return ['carta_prev', ...ext, 'abrir_conta']
   if (ESPERANDO.includes(e)) {
     const g = c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera']
+    if (naJanelaAcaoInss(c) || acaoInssFeita(c)) g.splice(g.indexOf('vespera'), 0, 'acao_inss')   // 19/11
     if (atrasado(c)) g.push('atrasado')
     return g
   }
@@ -298,6 +319,7 @@ const enviadoEm = (c, g, k) => (c.msgs_enviadas || {})[`${g}:${k}`] || null
 function guiaDaVez(c) {
   const gs = guiasDoCaso(c)
   if (gs.includes('atrasado')) return 'atrasado'
+  if (gs.includes('acao_inss') && !acaoInssFeita(c)) return 'acao_inss'   // 19/11: obrigatoria, 4 dias antes
   if (gs.includes('vespera') && c.data_pagamento && diasApos(c.data_pagamento) >= -1) return 'vespera'
   return gs.find(g => !GUIAS[g].passos.every(p => enviadoEm(c, g, p.k)) && g !== 'vespera') || gs[gs.length - 1] || null
 }
@@ -310,7 +332,8 @@ const guiasDaAcao = (acao, c) => {
     : acao === 'extrato' ? (c.etapa === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro'] : [])   // 10/11: fora da etapa, so registra a data
     : acao === 'orientar_prev' ? ['orientacao_prev']
     : acao === 'prevsempre' ? ['carta_prev', ...ext, 'abrir_conta']
-    : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera'] : ['carta_outro', ...ext, 'vespera'])
+    : acao === 'cliente_pagou' ? (c.prevsempre ? ['carta_prev', ...ext, 'abrir_conta', 'vespera', 'acao_inss'] : ['carta_outro', ...ext, 'vespera', 'acao_inss'])
+    : acao === 'baixa' ? ['acao_inss']   // 19/11/2026 (Bruno): nova acao no INSS antes da baixa
     : []
 }
 const faltaChecklist = (acao, c, extra) => guiasDaAcao(acao, c).flatMap(g => GUIAS[g].passos.map(p => `${g}:${p.k}`))
@@ -2061,6 +2084,8 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     ))
     const prazoTxt = (p) => { const pz = p.exigencia_prazo || p.prazo; if (!pz) return ''; const d = -diasApos(pz); return <b style={{ color: d <= 3 ? cores.perigo : '#ea580c' }}> · prazo {fmtData(pz)}{d < 0 ? ` (venceu há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`}</b> }
     const pgHoje = base.filter(c => c.data_pagamento === hoje).sort(ordPg)
+    // 19/11/2026 (Bruno): nova acao no INSS — 4 dias antes do pagamento, obrigatoria para todas
+    const acaoInssPend = filtrada.filter(c => ESPERANDO.includes(c.etapa) && naJanelaAcaoInss(c) && !acaoInssFeita(c)).sort(ordPg)
     const orientPend = filtrada.filter(c => c.etapa === 'orientacao_prev').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 07/11
     const prevPend = filtrada.filter(c => c.etapa === 'prevsempre').sort((a, b) => new Date(a.etapa_desde || 0) - new Date(b.etapa_desde || 0))   // 03/11: mais antigo primeiro (48h)
     // 03/11 (Bruno): o extrato so sobe para cobrar 7 dias apos o deferimento
@@ -2125,6 +2150,11 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
             sub: <>{fmtCpf(c.cpf)} · Mercantil{c.valor_beneficio ? ` · ${reais(c.valor_beneficio)}` : ''} · <b style={{ color: vermelho48(c) ? cores.perigo : AZUL_PREV }}>na PrevSempre há {txtHoras(horasDesde(c.etapa_desde))}</b>{c.data_pagamento ? <> · cai {fmtData(c.data_pagamento)}{d != null ? (d < 0 ? ` (passou há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''}</> : ''}{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
             acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#16a34a', false), padding: '6px 9px', fontSize: 12 }}>💬 Mensagens</button>, waBtn(c),
               c.pode_agir !== false && <button key="p" onClick={() => abrirAcao(c, 'prevsempre')} style={{ ...btn(AZUL_PREV), padding: '6px 10px', fontSize: 12 }}>🏦 Confirmar PrevSempre</button>] }) } },
+      { k: 'acaoinss', icone: '🤩', tit: 'Novidade: nova ação no INSS (4 dias antes do pagamento)', cor: '#c026d3', itens: acaoInssPend, extra: 'obrigatório antes da baixa · só por mensagem, em 2 mensagens',
+        linha: (c, i) => { const d = c.data_pagamento ? -diasApos(c.data_pagamento) : null
+          return linhaSimples(c, i, { alerta: d != null && d <= 1, onAbrir: () => setAberto(c.id),
+            sub: <>{fmtCpf(c.cpf)} · {bancoCurto(c.banco) || 'banco?'} · cai {fmtData(c.data_pagamento)}{d != null ? (d < 0 ? ` (passou há ${-d}d)` : d === 0 ? ' (HOJE)' : ` (faltam ${d}d)`) : ''} · {progressoGuia(c, 'acao_inss').feitos}/2 mensagens{(c.responsaveis || []).length ? ` · ${c.responsaveis.join(', ')}` : ''}</>,
+            acoes: [<button key="m" onClick={() => setGuiaDe(c)} style={{ ...btn('#c026d3'), padding: '6px 10px', fontSize: 12 }}>🤩 Mensagens da novidade</button>, waBtn(c)] }) } },
       { k: 'pghoje', icone: '💰', tit: 'Pagamentos de hoje', cor: '#d97706', itens: pgHoje, linha: linhaPagamento },
       { k: 'pgamanha', icone: '⏳', tit: 'Recebem amanhã', cor: '#7c3aed', itens: pgAmanha, extra: 'lembrar a cliente', linha: linhaPagamento },
       { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
