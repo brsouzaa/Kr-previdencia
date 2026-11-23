@@ -95,6 +95,10 @@ const AZUL_PREV = '#1d4ed8'
 // 02/11 (Bruno) — abas Deferidos / Indeferidos e o Mural: o periodo (Hoje/Ontem/Semana/Mes) e pelo dia em que o
 // caso SUBIU nessa situacao aqui no CRM (etapa_desde no Protocolo). Mesmo criterio do filtro "Subiu" do Protocolo.
 const dataAnotacao = (c) => c.etapa_desde || c.ultima_movimentacao_em || null
+// 22/11/2026 (Bruno): Deferidos/Indeferidos filtram pela DATA DO RESULTADO que a advogada lanca (a data real do INSS),
+// nao pelo dia em que o caso mudou de etapa no CRM. Sem data lancada, vale a data em que subiu.
+// Meio-dia local para a data pura nao virar o dia anterior no fuso de Sao Paulo.
+const dataResultadoTs = (c) => (c && /^\d{4}-\d{2}-\d{2}/.test(String(c.data_resultado || ''))) ? String(c.data_resultado).slice(0, 10) + 'T12:00:00' : dataAnotacao(c)
 const hojeExtensoBR = () => { const t = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }); return t.charAt(0).toUpperCase() + t.slice(1) }
 const somaDias = (iso, n) => { const d = new Date((iso || hojeISO()) + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 const diaSemana = (iso) => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') } catch (_) { return '' } }
@@ -1441,6 +1445,8 @@ export default function PosDeferimento() {
   const [verFechados, setVerFechados] = useState(false)
   const [verResolvidas, setVerResolvidas] = useState(false)
   const [pendGrupo, setPendGrupo] = useState('')   // 09/11 (Bruno): uma aba so de Pendencias, com 4 grupos
+  const [pendPer, setPendPer] = useState('todos')   // 22/11 (Bruno): filtro de data das pendencias (data em que a advogada registrou)
+  const [pendDatas, setPendDatas] = useState({ de: '', ate: '' })
 
   const carregar = useCallback(async () => {
     const reqs = [supabase.rpc('posdef_lista')]
@@ -1493,15 +1499,16 @@ export default function PosDeferimento() {
   const amanha = somaDias(hoje, 1)
   const depois = somaDias(hoje, 2)
   const fimSemana = somaDias(hoje, 6)
-  const noPeriodoAnot = (c, per) => {
+  // 22/11 (Bruno): por padrao usa a data do resultado no INSS (dataResultadoTs); as pendencias passam a data delas
+  const noPeriodoAnot = (c, per, fData = dataResultadoTs, datas = rsDatas) => {
     if (per === 'todos') return true
-    const d = diaBR(dataAnotacao(c))
+    const d = diaBR(fData(c))
     if (!d) return false
     if (per === 'hoje') return d === hoje
     if (per === 'ontem') return d === somaDias(hoje, -1)
     if (per === 'semana') { const dow = new Date(hoje + 'T12:00:00').getDay(); return d >= somaDias(hoje, -((dow + 6) % 7)) && d <= hoje }
     if (per === 'mes') return d.slice(0, 7) === hoje.slice(0, 7) && d <= hoje
-    if (per === 'datas') return (!rsDatas.de || d >= rsDatas.de) && (!rsDatas.ate || d <= rsDatas.ate)
+    if (per === 'datas') return (!datas.de || d >= datas.de) && (!datas.ate || d <= datas.ate)
     return true
   }
   // 09/11: campos "de / ate" que aparecem quando escolhe "Escolher datas"
@@ -1937,7 +1944,7 @@ export default function PosDeferimento() {
       <div style={{ display: 'grid', gap: 14 }}>
         <div style={{ ...card, padding: 14, display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Subiu</span>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>{tipo === 'def' ? 'Deferido em' : 'Indeferido em'}</span>
             {chip('hoje', setRsPer, rsPer, 'Hoje', nPer('hoje'), '#d97706')}
             {chip('ontem', setRsPer, rsPer, 'Ontem', nPer('ontem'), '#7c3aed')}
             {chip('semana', setRsPer, rsPer, 'Esta semana', nPer('semana'), '#2563eb')}
@@ -1946,7 +1953,7 @@ export default function PosDeferimento() {
             {chip('datas', setRsPer, rsPer, '📅 Escolher datas', rsPer === 'datas' ? nPer('datas') : null, '#be185d')}
           </div>
           {rsPer === 'datas' && camposDatas(rsDatas, setRsDatas)}
-          <div style={{ fontSize: 12, color: cores.suave }}>A data é o dia em que o caso <b style={{ color: cores.texto }}>subiu como {tipo === 'def' ? 'deferido' : 'indeferido'}</b> aqui no CRM — o que subiu hoje aparece em <b style={{ color: cores.texto }}>Hoje</b>.</div>
+          <div style={{ fontSize: 12, color: cores.suave }}>A data é a do <b style={{ color: cores.texto }}>resultado no INSS</b> (a que a advogada lança ao registrar o {tipo === 'def' ? 'deferimento' : 'indeferimento'}) — não o dia em que subiu aqui no CRM.</div>
         </div>
         {grupos.map(([g, tit, cor]) => {
           const lst = itens.filter(c => (g === 'def') === ehDeferido(c))
@@ -1975,7 +1982,8 @@ export default function PosDeferimento() {
                   </div>
                   {c.resposta_inss_url && <button onClick={(ev) => { ev.stopPropagation(); abrirArquivo(c.resposta_inss_url) }} style={{ ...btn('#15803d', false), padding: '6px 10px', fontSize: 12 }}>📄 Carta do INSS</button>}
                   <div style={{ textAlign: 'right', fontSize: 12.5, color: cores.suave, minWidth: 150 }}>
-                    <div style={{ fontWeight: 700, color: cores.texto }}>subiu {fmtDataHora(dataAnotacao(c))}</div>
+                    <div style={{ fontWeight: 700, color: cores.texto }}>{ehDeferido(c) ? 'deferido' : 'indeferido'} {c.data_resultado ? fmtData(String(c.data_resultado).slice(0, 10)) : fmtDataHora(dataAnotacao(c))}</div>
+                    <div style={{ fontSize: 11.5 }}>subiu no CRM {fmtDataHora(dataAnotacao(c))}</div>
                     {c.nb ? <div>NB {c.nb}</div> : c.numero_protocolo ? <div>prot. {c.numero_protocolo}</div> : null}
                   </div>
                 </div>
@@ -2211,7 +2219,7 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
       { k: 'pgatras', icone: '⏰', tit: 'Pagamentos atrasados', cor: cores.perigo, itens: pgAtras, extra: 'passou a data e não pagou', linha: linhaPagamento },
       { k: 'indef', icone: '⛔', tit: 'Indeferimentos para avisar a cliente', cor: cores.perigo, itens: indefAvisar, extra: nIndefHoje ? `${nIndefHoje} subiu hoje` : null,
         linha: (c, i) => linhaSimples(c, i, { novo: diaBR(dataAnotacao(c)) === hoje, onAbrir: () => setInssDe(c),
-          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
+          sub: <>{fmtCpf(c.cpf)} · venda: {c.vendedora_nome || '—'} · indeferido {c.data_resultado ? fmtData(String(c.data_resultado).slice(0, 10)) : fmtDataHora(dataAnotacao(c))} · subiu {fmtDataHora(dataAnotacao(c))}{c.motivo ? <b style={{ color: cores.perigo }}> · {c.motivo}</b> : null}</>,
           acoes: [c.resposta_inss_url && <button key="c" onClick={() => abrirArquivo(c.resposta_inss_url)} style={{ ...btn('#475569', false), padding: '6px 9px', fontSize: 12 }}>📄 Carta</button>, waBtn(c),
             <button key="a" onClick={() => indeferidoAvisado(c)} style={{ ...btn(cores.perigo, confIndef === c.id), padding: '6px 10px', fontSize: 12 }}>{confIndef === c.id ? 'Confirmar: avisei' : '📣 Avisei a cliente'}</button>] }) },
       { k: 'exig', icone: '⚠️', tit: 'Exigências a resolver', cor: '#ea580c', itens: exig, extra: 'a advogada registrou o motivo — resolvendo, volta para ela refazer',
@@ -2348,14 +2356,25 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
   // 09/11/2026 (Bruno): UMA aba de Pendencias (antes eram Pendencias e Exigencias, cada uma contando de um jeito).
   // 4 grupos com o MESMO criterio do Protocolo: abertas, de clientes ativos no setor.
   const pendView = (() => {
-    const abertasTodas = pendsF.filter(pendAbertaAtiva)
+    // 22/11 (Bruno): filtro de data = dia em que a advogada registrou a pendencia/exigencia (aberta_em)
+    const noPerPend = (p) => noPeriodoAnot(p, pendPer, (x) => x.aberta_em, pendDatas)
+    const abertasTodas = pendsF.filter(pendAbertaAtiva).filter(noPerPend)
     const doGrupo = (p) => !pendGrupo || grupoPend(p) === pendGrupo
+    const nPerPend = (per) => nClientes(pendsF.filter(pendAbertaAtiva).filter(p => noPeriodoAnot(p, per, (x) => x.aberta_em, pendDatas)))
+    const chipPer = (val, rot, n, cor) => {
+      const on = pendPer === val
+      return (
+        <button key={val} onClick={() => setPendPer(val)} style={{ padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: on ? 800 : 600, border: `1.5px solid ${on ? cor : hexA('#0f172a', 0.12)}`, background: on ? hexA(cor, 0.1) : '#fff', color: on ? cor : cores.texto, whiteSpace: 'nowrap' }}>
+          {rot}{n != null ? <span style={{ marginLeft: 6, fontWeight: 800, color: cor }}>{n}</span> : null}
+        </button>
+      )
+    }
     const ordem = (a, b) => String(a.exigencia_prazo || a.prazo || '9999').localeCompare(String(b.exigencia_prazo || b.prazo || '9999'))
     const base = abertasTodas.filter(doGrupo).sort(ordem)
     const paraResolver = base.filter(p => p.status === 'aberta' && !p.sinalizada_em)
     const sinalizadas = base.filter(p => p.sinalizada_em)
     const andamento = base.filter(p => p.status === 'avisado' && !p.sinalizada_em)
-    const resolvidas = pendsF.filter(p => p.status === 'resolvida' && doGrupo(p)).sort((a, b) => String(b.resolvida_em || '').localeCompare(String(a.resolvida_em || '')))
+    const resolvidas = pendsF.filter(p => p.status === 'resolvida' && doGrupo(p) && noPerPend(p)).sort((a, b) => String(b.resolvida_em || '').localeCompare(String(a.resolvida_em || '')))
     const titulo = (t, n, cor, sub) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 2px' }}>
         <span style={{ width: 9, height: 9, borderRadius: 999, background: cor, boxShadow: `0 0 0 4px ${hexA(cor, 0.15)}` }} />
@@ -2371,6 +2390,19 @@ NÃO somente se: a imagem estiver claramente montada/editada, não for uma conve
     )
     return (
       <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ ...card, padding: 12, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: cores.suave, marginRight: 4 }}>Registrada em</span>
+            {chipPer('hoje', 'Hoje', nPerPend('hoje'), '#d97706')}
+            {chipPer('ontem', 'Ontem', nPerPend('ontem'), '#7c3aed')}
+            {chipPer('semana', 'Esta semana', nPerPend('semana'), '#2563eb')}
+            {chipPer('mes', 'Este mês', nPerPend('mes'), '#0891b2')}
+            {chipPer('todos', 'Todos', nPerPend('todos'), '#475569')}
+            {chipPer('datas', '📅 Escolher datas', pendPer === 'datas' ? nPerPend('datas') : null, '#be185d')}
+          </div>
+          {pendPer === 'datas' && camposDatas(pendDatas, setPendDatas)}
+          <div style={{ fontSize: 12, color: cores.suave }}>A data é o dia em que a advogada <b style={{ color: cores.texto }}>registrou a pendência ou a exigência do INSS</b>.</div>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {chip('', '📌 Todas', nClientes(abertasTodas), '#475569')}
           {GRUPOS_PEND.map(g => chip(g.k, g.rot, nClientes(abertasTodas.filter(p => grupoPend(p) === g.k)), g.cor))}
