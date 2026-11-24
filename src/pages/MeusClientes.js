@@ -233,7 +233,7 @@ export default function MeusClientes() {
     setReemitindoId(null)
   }
 
-  // 18/11/2026 (Bruno): "Solicitar nova emissao" (expirado) abre um pop-up: fica com o mesmo advogado ou troca
+  // 18/11/2026 (Bruno): "Solicitar nova emissao" (expirado; desde 24/11 tambem cancelado) abre um pop-up: fica com o mesmo advogado ou troca
   // por um dos disponiveis (mesma lista do Novo cliente). O contrato novo sai SOZINHO (trg_emissao_automatica_time),
   // igual ao cadastro normal; se o advogado estiver sem vaga, fica na Fila de digitacao como antes.
   async function abrirReemitir(c) {
@@ -508,9 +508,13 @@ export default function MeusClientes() {
               </div>
             )}
 
-            {c.status === 'expirado' && (
+            {/* 24/11/2026 (Bruno): cancelado tambem pode pedir nova emissao (mesmo pop-up do expirado,
+                igual a Reemissao da Mesa do Retroativo). O contrato novo sai sozinho (trg_emissao_automatica_time). */}
+            {(c.status === 'expirado' || c.status === 'cancelado') && (
               <div style={{ marginTop: 10, padding: 10, background: 'rgba(248,113,113,.14)', borderRadius: 8 }}>
-                <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>⌛ Cliente não assinou em 15h.</div>
+                <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>
+                  {c.status === 'cancelado' ? '❌ Contrato cancelado. Se a cliente vai seguir, peça uma nova emissão.' : '⌛ Cliente não assinou em 15h.'}
+                </div>
                 <button onClick={() => abrirReemitir(c)} disabled={reemitindoId === c.id}
                   style={{ width: '100%', padding: '8px', background: reemitindoId === c.id ? '#64748b' : '#f87171', color: '#232a37', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: reemitindoId === c.id ? 'not-allowed' : 'pointer' }}>
                   {reemitindoId === c.id ? '⏳ Processando...' : '🔄 Solicitar nova emissão'}
