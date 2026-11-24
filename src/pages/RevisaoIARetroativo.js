@@ -920,7 +920,9 @@ export default function RevisaoIARetroativo({ setPage }) {
       // 30/10 (Bruno): leva tambem os dados do lead para o Novo Cliente ja abrir preenchido
       // (telefone novo da Assertiva, se a vendedora usou; filho; vinculo do Gerid)
       const vinc = lerVinculo(l.vinculo_direito)
-      const lead = { nome: l.nome || '', tel: telNovo[l.id] || l.tel || '', dn: l.data_nascimento_filho || '',
+      // 24/11/2026 (Bruno): filho = o APROVADO pelo GERID (o mesmo que o card mostra), nao a data guardada no lead
+      // (que pode ser de outro filho, sem direito — a I.A validava o filho errado).
+      const lead = { nome: l.nome || '', tel: telNovo[l.id] || l.tel || '', dn: vinc?.filhoDn || l.data_nascimento_filho || '',
         vinculo: vinc ? { tipo: vinc.tipo, fim: vinc.fim, ehBeneficio: vinc.ehBeneficio } : null }
       try { window.localStorage.setItem('kr_venda_cpf', JSON.stringify({ cpf: soDigitos(l.cpf), em: Date.now(), lead })) } catch (_) {}
       try { navigator.clipboard?.writeText(cpf)?.catch?.(() => {}) } catch (_) {}
