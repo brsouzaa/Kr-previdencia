@@ -346,7 +346,9 @@ export default function NovoCliente({ onSucesso }) {
     if (Array.isArray(d.refs) && d.refs.length) setRefs(d.refs)
     if (d.tempId) tempIdRef.current = d.tempId
     setEndLockado(!!d.endLockado); setCepSemRua(!!d.cepSemRua); setCepSemBairro(!!d.cepSemBairro)
-    setCepStatus(d.cepStatus || null); setCidadeStatus(d.cidadeStatus || null)
+    setCepStatus(d.cepStatus || null)
+    // 24/11/2026 (Bruno): endereco travado pelo CEP volta com a cidade ja conferida
+    setCidadeStatus(d.endLockado ? 'ok' : (d.cidadeStatus || null))
     advPendenteRef.current = d.advogadoSel || ''
     setDocsVersao(x => x + 1)
     setRascunho({ cpf: d.c.cpf || '', nome: d.c.nome || '', em: d.em })
@@ -566,7 +568,10 @@ export default function NovoCliente({ onSucesso }) {
   const telOk = telValido(c.telefone)
   const cepOk = c.cep.replace(/\D/g, '').length === 8
   const ufOk = UFS.includes(c.uf)
-  const cidadeOk = cidadeStatus === 'ok'
+  // 24/11/2026 (Bruno): cidade/UF que vieram do CEP (travadas, cinza) ja sao a cidade certa.
+  // Antes dependia so do cidadeStatus, que podia se perder (ex.: rascunho restaurado) e travava
+  // em "Cidade (nao confere com a UF)" mesmo com a cidade correta.
+  const cidadeOk = cidadeStatus === 'ok' || (endLockado && cepOk && !!c.cidade.trim() && ufOk)
 
   // Campos extras Maternidade (e Gestante até 5 meses — ambas são grávidas, mesmos campos)
   const camposMatOk = (c.produto !== 'Maternidade' && c.produto !== 'Gestante até 5 meses') || (
