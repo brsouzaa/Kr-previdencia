@@ -60,6 +60,7 @@ import Protocolo from './pages/Protocolo'
 import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 import PosDeferimento from './pages/PosDeferimento'
 import VendAcompanhamento from './pages/VendAcompanhamento'
+import PainelInadimplencia from './pages/PainelInadimplencia'
 import PrevSempreMaithe from './pages/PrevSempreMaithe'
 // 14/11/2026 (Bruno): Dashboard novo do Mae Retroativo + 2FA dos admins
 import DashboardRetroativo from './pages/DashboardRetroativo'
@@ -358,6 +359,8 @@ function paginaPermitida(profile, page) {
   // carta de concessao, PrevSempre e pagamento) e o admin. No TOPO pelo mesmo motivo do
   // protocolo: vence o corte do SO RETROATIVO (o Leandro Souza acompanha as vendas dele).
   if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
+  // 25/11/2026 (Bruno) — PAINEL DE INADIMPLENCIA: pagina propria, mesma turma do Acompanhamento. Mesma regra do Layout.js.
+  if (page === 'inadimplencia') return role === 'admin' || !!profile.posdef_papel
   // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): mesma turma do Acompanhamento (posdef_papel) + admin.
   // O banco (vend_painel) so devolve as clientes da propria vendedora. Mesma regra do Layout.js.
   if (page === 'vend_acomp') return role === 'admin' || !!profile.posdef_papel
@@ -569,6 +572,7 @@ function AppInner() {
     mesa_advogada: <MesaAdvogada />,
     protocolo: <Protocolo />,
     posdef: <PosDeferimento />,
+    inadimplencia: <PainelInadimplencia />,
     vend_acomp: <VendAcompanhamento />,
     prevsempre_maithe: <PrevSempreMaithe />,
     revisao_crefaz: <RevisaoCrefaz />,
