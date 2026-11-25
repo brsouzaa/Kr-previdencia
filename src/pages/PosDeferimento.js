@@ -354,7 +354,9 @@ function guiaDaVez(c) {
 const guiasDaAcao = (acao, c) => {
   const ext = c.extrato_em ? ['extrato'] : []
   return acao === 'avisar_cliente' || acao === 'carta' ? ['deferido']
-    : acao === 'extrato' ? (c.etapa === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro'] : [])   // 10/11: fora da etapa, so registra a data
+    // 25/11/2026 (Bruno): usa a etapa REAL do banco (etapa_real). Caso em "Abrir conta no banco" (etapa virtual)
+    // esta em extrato no banco, que cobra o checklist da carta — antes a tela escondia o checklist e o Salvar falhava.
+    : acao === 'extrato' ? ((c.etapa_real || c.etapa) === 'extrato' ? [c.prevsempre ? 'carta_prev' : 'carta_outro'] : [])   // 10/11: fora da etapa, so registra a data
     : acao === 'orientar_prev' ? ['orientacao_prev']
     : acao === 'conta_aberta' || acao === 'conta_recusada' ? ['conta_banco']   // 19/11/2026
     : acao === 'prevsempre' ? ['carta_prev', ...ext, 'abrir_conta']
