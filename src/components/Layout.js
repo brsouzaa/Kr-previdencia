@@ -268,6 +268,7 @@ const NAV_ADMIN = [
   { key: 'painel_digitador', label: '🖨️ Painel Digitador BF' },
   { key: 'protocolo', label: '📑 Protocolo INSS' },
   { key: 'posdef', label: '📋 Acompanhamento de clientes' },
+  { key: 'inadimplencia', label: '📉 Inadimplência' },
   { key: 'fila', label: '📦 Fila de entregas' },
   { key: 'fila_digitacao', label: '📥 Fila de digitação' },
   { key: 'devolucoes', label: '⚠️ Devoluções' },
@@ -290,7 +291,7 @@ const GRUPO_DE = {
   revisao_ia_bf: 'Operação IA', revisao_ia_retroativo: 'Operação IA', revisao_ia_gestante: 'Operação IA',
   revisao_ia_clt: 'Operação IA', confere_cnis: 'Operação IA', central_retorno: 'Operação IA',
   revisao_crefaz: 'Operação IA',
-  mesa_advogada: 'Operação IA', protocolo: 'Operação IA', posdef: 'Operação IA', vend_acomp: 'Operação IA', prevsempre_maithe: 'Operação IA',
+  mesa_advogada: 'Operação IA', protocolo: 'Operação IA', posdef: 'Operação IA', inadimplencia: 'Operação IA', vend_acomp: 'Operação IA', prevsempre_maithe: 'Operação IA',
   painel_digitador: 'Operação IA', revisao_ia: 'Operação IA',
   performance_ia: 'Operação IA', distribuicao_gabriela: 'Operação IA',
   simulacao_emprestimo: 'Operação IA',
@@ -589,6 +590,12 @@ export default function Layout({ children, page, setPage }) {
   // corte e acompanha as proprias vendas. Mesma regra do App.js (paginaPermitida).
   if (profile?.posdef_papel && !nav.some(n => n.key === 'posdef')) {
     nav = [...nav, { key: 'posdef', label: '📋 Acompanhamento de clientes' }]
+  }
+  // 25/11/2026 (Bruno) — PAINEL DE INADIMPLENCIA: mesma turma do Acompanhamento + admin. Mesma regra do App.js.
+  if ((profile?.posdef_papel || profile?.role === 'admin') && !nav.some(n => n.key === 'inadimplencia')) {
+    const i = nav.findIndex(n => n.key === 'posdef')
+    const item = { key: 'inadimplencia', label: '📉 Inadimplência' }
+    nav = i >= 0 ? [...nav.slice(0, i + 1), item, ...nav.slice(i + 1)] : [...nav, item]
   }
   // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): tarefas de contato + acompanhamento das vendas. Mesma regra do App.js.
   if ((profile?.posdef_papel || profile?.role === 'admin') && !nav.some(n => n.key === 'vend_acomp')) {
