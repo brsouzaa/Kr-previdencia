@@ -451,7 +451,9 @@ const ACOES_PD = {
   },
   prevsempre: {
     titulo: 'PrevSempre (Mercantil)', icone: '🏦', cor: AZUL_PREV,
-    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário. Se a data do pagamento ainda não foi lançada, o caso segue para "Data do pagamento (INSS)" (7 dias após o deferimento, ligar no INSS).',
+    // 25/11/2026 (Bruno): print obrigatorio da conversa com o WhatsApp do Mercantil (sem conferencia da I.A)
+    anexo: 'Print do WhatsApp do Banco Mercantil com a resposta da cliente (Autorizar desconto)', anexoObrig: true, soImagem: true,
+    nota: 'Recebe no Mercantil: confirme a abertura da conta PrevSempre e se a cliente aceitou o desconto automático do honorário. Anexe o PRINT da conversa da cliente com o WhatsApp oficial do Banco Mercantil mostrando o valor e a resposta dela ("Autorizar desconto"). Sem o print o caso não avança. Se a data do pagamento ainda não foi lançada, o caso segue para "Data do pagamento (INSS)" (7 dias após o deferimento, ligar no INSS).',
     campos: [
       { k: 'conta_aberta', l: 'Abriu a conta PrevSempre?', obrig: true, tipo: 'simnao' },
       { k: 'honorario_auto', l: 'Aceitou o honorário descontado automático?', obrig: true, tipo: 'simnao' },
