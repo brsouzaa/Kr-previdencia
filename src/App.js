@@ -61,6 +61,7 @@ import ProtocoloFichaPagina from './pages/ProtocoloFicha'
 import PosDeferimento from './pages/PosDeferimento'
 import VendAcompanhamento from './pages/VendAcompanhamento'
 import PainelInadimplencia from './pages/PainelInadimplencia'
+import PainelLeads from './pages/PainelLeads'
 import PrevSempreMaithe from './pages/PrevSempreMaithe'
 // 14/11/2026 (Bruno): Dashboard novo do Mae Retroativo + 2FA dos admins
 import DashboardRetroativo from './pages/DashboardRetroativo'
@@ -345,6 +346,7 @@ const IDS_TIME_MARYANA = [
 
 // 04/11 (Bruno): quem tem a aba PrevSempre (abertura de conta Mercantil + desconto dos honorarios)
 const IDS_PREVSEMPRE = ['f53681cf-1467-41a9-b679-211ca4225865'] // Maithe (Advogada)
+const IDS_PAINEL_LEADS = ['7190e7cc-01e2-4f05-95a3-b6e119d9537f'] // Guilherme Haru (Supervisão)
 
 function paginaPermitida(profile, page) {
   const role = profile.role
@@ -361,6 +363,8 @@ function paginaPermitida(profile, page) {
   if (page === 'posdef') return role === 'admin' || !!profile.posdef_papel
   // 25/11/2026 (Bruno) — PAINEL DE INADIMPLENCIA: pagina propria, mesma turma do Acompanhamento. Mesma regra do Layout.js.
   if (page === 'inadimplencia') return role === 'admin' || !!profile.posdef_papel
+  // 26/11/2026 (Bruno) — PAINEL DE LEADS (tabulacao obrigatoria): admin + Haru. Mesma lista do Layout.js; o banco confere de novo (app_config painel_leads_ids).
+  if (page === 'painel_leads') return role === 'admin' || IDS_PAINEL_LEADS.includes(profile.id)
   // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): mesma turma do Acompanhamento (posdef_papel) + admin.
   // O banco (vend_painel) so devolve as clientes da propria vendedora. Mesma regra do Layout.js.
   if (page === 'vend_acomp') return role === 'admin' || !!profile.posdef_papel
@@ -573,6 +577,7 @@ function AppInner() {
     protocolo: <Protocolo />,
     posdef: <PosDeferimento />,
     inadimplencia: <PainelInadimplencia />,
+    painel_leads: <PainelLeads />,
     vend_acomp: <VendAcompanhamento />,
     prevsempre_maithe: <PrevSempreMaithe />,
     revisao_crefaz: <RevisaoCrefaz />,
