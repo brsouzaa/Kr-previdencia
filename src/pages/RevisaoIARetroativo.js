@@ -138,6 +138,7 @@ const ABAS = [
   ['represado', '📦 Atrasados'],
   ['contato', '📞 Em contato'],
   ['retomar', '🔁 Não respondeu'],
+  ['nao_quis', '🙅 Não quis fechar'],   // 26/11/2026: tabulação
   ['tel', '📵 Telefone errado'],
   ['sem_direito', '🚫 Sem direito'],
   ['fechou', '✅ Venda fechada'],
@@ -334,6 +335,43 @@ const ACOES_SECUNDARIAS = [
   { id: 'sem_direito', rotulo: 'Não tem direito', cor: cores.suave, exigeObs: true },
 ]
 
+// 26/11/2026 (Bruno) — TABULACAO OBRIGATORIA. Os codigos TEM que ser os mesmos da funcao do banco
+// (retroativo_tabular). Lead de dia anterior sem tabulacao trava os leads novos da vendedora (o banco decide).
+const MOTIVOS_NAO_QUIS = [
+  ['tem_advogado', 'Já tem advogado ou já deu entrada no INSS'],
+  ['ja_recebeu', 'Já recebeu o benefício'],
+  ['desconfiou', 'Desconfiou / achou que era golpe'],
+  ['honorario_caro', 'Achou o honorário caro'],
+  ['nao_aceita_honorario', 'Não aceita pagar honorário'],
+  ['sozinha_inss', 'Quer fazer sozinha no INSS'],
+  ['familia', 'Marido ou família não deixou'],
+  ['vai_pensar', 'Vai pensar e pediu para chamar depois'],
+  ['parou_responder', 'Parou de responder depois do 1º contato'],
+  ['sem_documentos', 'Não quis mandar os documentos'],
+  ['problema_documento', 'Problema com documento (certidão, CPF etc.)'],
+  ['nao_assina_digital', 'Não quis assinar o contrato digital'],
+  ['presencial', 'Queria atendimento presencial'],
+  ['outro', 'Outro (escrever)'],
+]
+const ROT_TAB = { negociacao: '🤝 Em negociação', nao_quis: '🙅 Não quis fechar', homem: '👤 É homem (reposição pedida)' }
+const rotMotivoNaoQuis = (c) => (MOTIVOS_NAO_QUIS.find(m => m[0] === c) || [null, 'Não quis fechar'])[1]
+const TAB_HORAS_AVISO = 3   // aviso com som quando um lead passa disso sem tabulação
+function bip() {
+  try {
+    const C = window.AudioContext || window.webkitAudioContext
+    if (!C) return
+    const ctx = new C()
+    ;[0, 0.28].forEach(t => {
+      const o = ctx.createOscillator(); const g = ctx.createGain()
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination)
+      g.gain.setValueAtTime(0.15, ctx.currentTime + t)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.22)
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.24)
+    })
+    setTimeout(() => { try { ctx.close() } catch (_) {} }, 900)
+  } catch (_) { /* sem som: o aviso escrito aparece igual */ }
+}
+
 // 23/10 (Bruno) — PASSAR O LEAD PARA OUTRA VENDEDORA. Existia na mesa antiga
 // (01/10) e ficou de fora no redesenho de 22/10. A gravação é a mesma RPC de
 // sempre, retroativo_transferir_lead (troca os DOIS campos de dono, limpa o
@@ -459,6 +497,13 @@ export default function RevisaoIARetroativo({ setPage }) {
   const [obsAberta, setObsAberta] = useState(null)       // `${leadId}:${acao}`
   const [obs, setObs] = useState('')
   const [marcando, setMarcando] = useState(null)
+  // 26/11/2026 (Bruno): tabulação obrigatória
+  const [tabMap, setTabMap] = useState({})          // lead_id -> { resultado, motivo, obs, tab_em, atual, situacao, dia }
+  const [tabResumo, setTabResumo] = useState(null)  // aviso do topo (so com a trava ligada)
+  const [popTab, setPopTab] = useState(null)        // { l, tipo: 'nao_quis' | 'homem' | 'neg_vencida', motivo, obs }
+  const [soPendentes, setSoPendentes] = useState(false)
+  const avisoTab = useRef({})
+  const perguntouNeg = useRef({})
   const [confReemitir, setConfReemitir] = useState(null)   // 03/11: lead com a confirmacao de reemissao aberta
   // 18/11/2026 (Bruno): advogado da reemissao — mesmo ou um dos disponiveis. { leadId, carregando, anterior, opcoes, escolha, erro }
   const [advReemitir, setAdvReemitir] = useState(null)
@@ -618,11 +663,78 @@ export default function RevisaoIARetroativo({ setPage }) {
         setTelNovo(mapa)
       }
     } catch (_) { /* segue com o telefone original */ }
+    // 26/11/2026 — tabulação de cada lead (o board não traz os campos tab_*). Se falhar, a mesa segue igual.
+    try {
+      const ids = visiveis.map(l => l.id).filter(Boolean)
+      if (ids.length) {
+        const { data: tb } = await supabase.rpc('retroativo_tabulacao_dos_leads', { p_ids: ids })
+        if (meuReq !== reqAtual.current) return
+        const mapa = {}
+        for (const r of (tb || [])) mapa[r.lead_id] = r
+        setTabMap(mapa)
+      }
+    } catch (_) { /* sem tabulação na tela */ }
     // vendedorSel NÃO entra aqui: trocar de vendedor é filtro de tela, não
     // recarregamento. Se entrar, cada troca vira uma ida ao servidor de novo.
   }, [profile?.id, vejoMaisDeUm, minhaOp, meuTime])
 
   useEffect(() => { carregar() }, [carregar])
+
+  // ===== 26/11/2026 (Bruno) — TABULAÇÃO OBRIGATÓRIA =====
+  // De quem é a mesa que está na tela: a vendedora vê a dela; supervisão vê a da vendedora escolhida.
+  const mesaDe = vejoMaisDeUm ? (vendedorSel || null) : (profile?.id || null)
+  const carregarResumo = useCallback(async () => {
+    if (!mesaDe) { setTabResumo(null); return }
+    const { data, error } = await supabase.rpc('retroativo_tabulacao_resumo', { p_vend: mesaDe })
+    setTabResumo(!error && data && data.ligada ? data : null)
+  }, [mesaDe])
+  useEffect(() => { carregarResumo() }, [carregarResumo, board])
+  useEffect(() => { if (!tabResumo) setSoPendentes(false) }, [tabResumo])
+
+  // "Em negociação" há mais de 3 dias sem virar venda: pergunta (uma vez por lead nesta tela)
+  useEffect(() => {
+    if (vejoMaisDeUm || popTab || !tabResumo || !tabResumo.negociacao_vencida) return
+    const l = board.find(x => x.bf_agente_id === profile?.id && tabMap[x.id]?.situacao === 'negociacao_vencida' && !perguntouNeg.current[x.id])
+    if (!l) return
+    perguntouNeg.current[l.id] = true
+    setPopTab({ l, tipo: 'neg_vencida', motivo: '', obs: '' })
+  }, [board, tabMap, tabResumo, popTab, vejoMaisDeUm, profile?.id])
+
+  // Aviso com som: lead recebido há mais de 3h e ainda sem tabulação (de novo a cada 3h enquanto continuar)
+  useEffect(() => {
+    if (vejoMaisDeUm || !tabResumo) return
+    const checar = () => {
+      const agora = Date.now(), janela = TAB_HORAS_AVISO * 3600000
+      const atrasados = board.filter(l => l.bf_agente_id === profile?.id
+        && tabMap[l.id]?.situacao === 'pendente' && l.entregue_vendedora_em
+        && agora - new Date(l.entregue_vendedora_em).getTime() >= janela
+        && (!avisoTab.current[l.id] || agora - avisoTab.current[l.id] >= janela))
+      if (!atrasados.length) return
+      atrasados.forEach(l => { avisoTab.current[l.id] = agora })
+      bip()
+      setToast(`⏰ ${atrasados.length === 1 ? `${primeiroNome(atrasados[0].nome) || 'Uma cliente'} está` : `${atrasados.length} clientes estão`} há mais de ${TAB_HORAS_AVISO}h sem tabulação`)
+      setTimeout(() => setToast(null), 7000)
+    }
+    checar()
+    const t = setInterval(checar, 5 * 60000)
+    return () => clearInterval(t)
+  }, [board, tabMap, tabResumo, vejoMaisDeUm, profile?.id])
+
+  async function tabular(l, resultado, motivo, texto) {
+    if (marcando) return false
+    setMarcando(l.id)
+    const { data, error } = await supabase.rpc('retroativo_tabular', {
+      p_lead_id: l.id, p_resultado: resultado, p_motivo: motivo || null, p_obs: texto || null,
+    })
+    setMarcando(null)
+    if (error || !data?.ok) { avisar('Não gravou: ' + (error?.message || data?.erro || 'erro')); return false }
+    setTabMap(m => ({ ...m, [l.id]: { ...(m[l.id] || {}), lead_id: l.id, resultado, motivo: motivo || null, obs: texto || null,
+      tab_em: new Date().toISOString(), atual: resultado, situacao: 'tabulado' } }))
+    avisar(`${primeiroNome(l.nome) || 'Cliente'} · ${ROT_TAB[resultado]}`)
+    setPopTab(null)
+    carregarResumo()
+    return true
+  }
 
   // 28/10 — busca fora da janela de dias. Roda de novo quando o board recarrega,
   // pra o lead achado refletir o que a vendedora acabou de marcar nele.
@@ -659,6 +771,11 @@ export default function RevisaoIARetroativo({ setPage }) {
     if (CLIENTE_PERDIDO.includes(l.cliente_status)) return 'recuperar'
     if (COLUNAS_MESA_FECHOU.includes(l.coluna)) return 'fechou'
     if (!COLUNAS_MESA_ATIVA.includes(l.coluna)) return null
+    // 26/11/2026: tabulação nova (vale a última marcação: a do banco já compara com os botões antigos)
+    const tAtual = tabMap[l.id]?.atual
+    if (tAtual === 'nao_quis') return 'nao_quis'
+    if (tAtual === 'homem') return 'sem_direito'
+    if (tAtual === 'negociacao') return 'contato'
     if (l.vend_status === 'sem_direito') return 'sem_direito'
     if (l.vend_status === 'tel_errado') return 'tel'
     if (l.vend_status === 'sem_resposta') return 'retomar'
@@ -674,7 +791,7 @@ export default function RevisaoIARetroativo({ setPage }) {
     // Vendedora que abre num navegador onde uma supervisora escolheu outra pessoa ficava com a mesa zerada (Duda).
     .filter(l => !vejoMaisDeUm || !vendedorSel || l.bf_agente_id === vendedorSel)
     .map(l => ({ ...l, _aba: abaDoLead(l), _h: horasDe(l.entregue_vendedora_em) }))
-    .filter(l => l._aba), [board, vendedorSel, vejoMaisDeUm])
+    .filter(l => l._aba), [board, vendedorSel, vejoMaisDeUm, tabMap])
 
   // 22/10 (Bruno) — O FILTRO DE PERÍODO MANDA EM TUDO: cards do topo, abas,
   // alerta de 48h e lista. A versão antiga fazia o contrário de propósito (o
@@ -710,8 +827,13 @@ export default function RevisaoIARetroativo({ setPage }) {
         .map(l => ({ ...l, _aba: abaDoLead(l) || 'outro', _h: horasDe(l.entregue_vendedora_em) }))
       return achados.concat(fora).sort(maisRecenteEmCima)
     }
+    // 26/11/2026: "Mostrar só os pendentes" (aviso de tabulação) — ignora aba e período
+    if (soPendentes && tabResumo) {
+      const ps = new Set(tabResumo.ids_pendentes || [])
+      return mesa.filter(l => ps.has(l.id)).sort(maisRecenteEmCima)
+    }
     return mesaFiltrada.filter(l => l._aba === aba).sort(maisRecenteEmCima)
-  }, [board, mesaFiltrada, aba, buscaAtiva, extrasBusca])
+  }, [board, mesa, mesaFiltrada, aba, buscaAtiva, extrasBusca, soPendentes, tabResumo, tabMap])
 
   // ===== NÚMEROS DO TOPO — todos sobre mesaFiltrada (ver nota acima) =====
   const caiuHoje = mesaFiltrada.filter(l => l._aba !== 'fechou' && l._aba !== 'recuperar'
@@ -1033,6 +1155,31 @@ export default function RevisaoIARetroativo({ setPage }) {
         </div>
       </div>
 
+      {/* 26/11/2026 (Bruno): TABULAÇÃO OBRIGATÓRIA — aviso de quantos faltam (só com a trava ligada) */}
+      {tabResumo && (() => {
+        const atras = (tabResumo.pend_atrasados || 0) + (tabResumo.negociacao_vencida || 0)
+        const hoje = tabResumo.pend_hoje || 0
+        if (!atras && !hoje) return null
+        const quem = vejoMaisDeUm ? `${primeiroNome(nomeDaMesa) || 'Esta vendedora'} tem` : 'Você tem'
+        const vermelho = atras > 0
+        const cor = vermelho ? cores.perigo : cores.alerta
+        return (
+          <div style={{ ...s.alerta, background: `${cor}0f`, border: `1px solid ${cor}44`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ flex: '1 1 320px' }}>
+              ⏰ {quem} <b style={{ color: cor }}>{vermelho ? atras : hoje} {(vermelho ? atras : hoje) === 1 ? 'lead' : 'leads'} sem tabulação</b>
+              {vermelho
+                ? <>{' '}de dias anteriores{tabResumo.negociacao_vencida ? ` (${tabResumo.negociacao_vencida} em negociação há mais de 3 dias)` : ''}. {tabResumo.travada
+                    ? <b>Os leads de hoje estão guardados e começam a chegar assim que todos forem tabulados.</b>
+                    : 'Tabule para continuar recebendo leads.'}{hoje ? ` Mais ${hoje} de hoje.` : ''}</>
+                : <>. Tabule até as 8h de amanhã para continuar recebendo leads.</>}
+            </span>
+            <button style={s.btnAcao(cor)} onClick={() => setSoPendentes(v => !v)}>
+              {soPendentes ? 'Mostrar a mesa toda' : 'Mostrar só os pendentes'}
+            </button>
+          </div>
+        )
+      })()}
+
       {parados48 > 0 && (
         <div style={s.alerta}>
           <b style={{ color: cores.perigo }}>{parados48} {parados48 === 1 ? 'cliente está' : 'clientes estão'} há mais de 48h sem ninguém falar
@@ -1102,6 +1249,19 @@ export default function RevisaoIARetroativo({ setPage }) {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {direitos && <span style={ui.pill(cores.azul)}>{direitos.length} filhos com direito</span>}
                 {l.vend_tentativas > 0 && <span style={ui.pill(cores.alerta)}>{l.vend_tentativas}ª tentativa</span>}
+                {/* 26/11/2026 (Bruno): tabulação */}
+                {(() => {
+                  const t = tabMap[l.id]
+                  if (!t) return null
+                  if (t.situacao === 'pendente' && tabResumo?.inicio && t.dia >= tabResumo.inicio
+                      && ['hoje', 'represado', 'contato', 'retomar'].includes(l._aba)) {
+                    return <span style={ui.pill(cores.perigo)}>⏰ sem tabulação</span>
+                  }
+                  if (t.atual === 'negociacao') return <span style={ui.pill(cores.azul)}>🤝 em negociação{t.tab_em ? ` desde ${new Date(t.tab_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}` : ''}</span>
+                  if (t.atual === 'nao_quis') return <span style={ui.pill('#b45309')}>🙅 {rotMotivoNaoQuis(t.motivo)}</span>
+                  if (t.atual === 'homem') return <span style={ui.pill(cores.suave)}>👤 é homem · reposição pedida</span>
+                  return null
+                })()}
                 {vejoMaisDeUm && l.agente_nome && <span style={ui.pill(cores.roxo)}>{primeiroNome(l.agente_nome)}</span>}
                 {podeTransferir && (
                   <button style={{ ...s.btnCopiar, color: cores.roxo, borderColor: `${cores.roxo}44` }}
@@ -1211,18 +1371,20 @@ export default function RevisaoIARetroativo({ setPage }) {
                 </div>
 
                 <div style={s.acoes}>
-                  {linkWhats(telNovo[l.id] || l.tel, msg) && (
-                    <a style={s.btnPegar} href={linkWhats(telNovo[l.id] || l.tel, msg)} target="_blank" rel="noreferrer"
-                      onClick={() => { if (l.vend_status !== 'contato') marcar(l, 'pegar') }}>
-                      💬 Abrir o WhatsApp já com a mensagem
-                    </a>
-                  )}
                   {l.vend_status !== 'contato' && (
                     <button style={{ ...s.btnAcao(cores.ok), fontSize: 12.5 }} disabled={marcando === l.id}
                       onClick={() => marcar(l, 'pegar')}>
                       {marcando === l.id ? '⏳' : '✋ Peguei esta cliente'}
                     </button>
                   )}
+                  {/* 26/11/2026 (Bruno): tabulação — Em negociação / Não quis fechar (pop-up com o motivo) */}
+                  <button style={s.btnAcao(cores.azul)} disabled={marcando === l.id} onClick={() => tabular(l, 'negociacao')}>
+                    Em negociação
+                  </button>
+                  <button style={s.btnAcao('#b45309')} disabled={marcando === l.id}
+                    onClick={() => setPopTab({ l, tipo: 'nao_quis', motivo: '', obs: '' })}>
+                    Não quis fechar
+                  </button>
                   {ACOES_SECUNDARIAS.map(a => (
                     <button key={a.id} style={s.btnAcao(a.cor)} disabled={marcando === l.id}
                       onClick={() => {
@@ -1234,6 +1396,10 @@ export default function RevisaoIARetroativo({ setPage }) {
                       {a.rotulo}
                     </button>
                   ))}
+                  <button style={s.btnAcao(cores.suave)} disabled={marcando === l.id}
+                    onClick={() => setPopTab({ l, tipo: 'homem', motivo: '', obs: '' })}>
+                    É homem
+                  </button>
                   {/* 30/10 (Bruno): "Ficha CNIS" saiu do card — fica só dentro da ficha */}
                   <button style={s.btnAcao(cores.suave)} onClick={() => setFicha(l)}>abrir ficha</button>
                 </div>
@@ -1255,10 +1421,19 @@ export default function RevisaoIARetroativo({ setPage }) {
                   </div>
                 )}
 
-                <button style={{ ...ui.btnPrimario, width: '100%', marginTop: 10, padding: '12px' }}
-                  onClick={() => vender(l)}>
-                  Fechou! Cadastrar a venda
-                </button>
+                {/* 26/11/2026 (Bruno): WhatsApp ao lado do "Fechou!" — libera espaço na linha de cima */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  {linkWhats(telNovo[l.id] || l.tel, msg) && (
+                    <a style={{ ...s.btnPegar, flex: '0 1 240px', padding: '12px 16px' }} href={linkWhats(telNovo[l.id] || l.tel, msg)} target="_blank" rel="noreferrer"
+                      onClick={() => { if (l.vend_status !== 'contato') marcar(l, 'pegar') }}>
+                      💬 WhatsApp
+                    </a>
+                  )}
+                  <button style={{ ...ui.btnPrimario, flex: '1 1 260px', padding: '12px' }}
+                    onClick={() => vender(l)}>
+                    Fechou! Cadastrar a venda
+                  </button>
+                </div>
               </>
             )}
 
@@ -1298,7 +1473,13 @@ export default function RevisaoIARetroativo({ setPage }) {
                 {/* 30/10 (Bruno) — VOLTOU A TER DIREITO: a propria vendedora (dona do lead) reabre
                     um lead que ela marcou "Sem direito" ou que esta "Negado". Motivo obrigatorio.
                     O banco (retroativo_voltou_direito) confere tudo e mantem a data original de entrada. */}
-                {(l._aba === 'sem_direito' || (l._aba === 'outro' && l.coluna === 'NEGADO')) &&
+                {l._aba === 'nao_quis' && (l.bf_agente_id === profile?.id || ehAdmin) && (
+                  <button style={{ ...s.btnAcao(cores.azul), fontWeight: 800 }} disabled={marcando === l.id}
+                    onClick={() => tabular(l, 'negociacao')}>
+                    🤝 Voltou a negociar
+                  </button>
+                )}
+                {(l._aba === 'sem_direito' || (l._aba === 'outro' && l.coluna === 'NEGADO')) && tabMap[l.id]?.atual !== 'homem' &&
                   (l.bf_agente_id === profile?.id || ehAdmin) && (
                   <button style={{ ...s.btnAcao(cores.ok), fontWeight: 800 }} disabled={marcando === l.id}
                     onClick={() => {
@@ -1601,6 +1782,85 @@ export default function RevisaoIARetroativo({ setPage }) {
                 {transferindo ? '⏳ Passando…' : 'Confirmar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 26/11/2026 (Bruno): POP-UP DA TABULAÇÃO — Não quis fechar (menu com rolagem), É homem, negociação vencida */}
+      {popTab && (
+        <div style={{ ...s.overlay, zIndex: 970 }} onClick={() => !marcando && setPopTab(null)}>
+          <div style={{ ...s.modal, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: cores.texto }}>
+                  {popTab.tipo === 'nao_quis' ? 'Não quis fechar' : popTab.tipo === 'homem' ? 'Lead errado: é homem' : 'Ainda está em negociação?'}
+                </div>
+                <div style={{ fontSize: 13, color: cores.suave, marginTop: 2 }}>
+                  {nomeBonito(popTab.l.nome)}
+                  {popTab.tipo === 'nao_quis' && <> · por que a venda não foi fechada? <b style={{ color: cores.texto }}>{MOTIVOS_NAO_QUIS.length} motivos</b></>}
+                </div>
+              </div>
+              <button style={s.btnGhost} onClick={() => setPopTab(null)} disabled={!!marcando}>✕</button>
+            </div>
+
+            {popTab.tipo === 'nao_quis' && (
+              <>
+                <div style={{ position: 'relative', marginTop: 12 }}>
+                  <select size={6} value={popTab.motivo} onChange={e => setPopTab(p => ({ ...p, motivo: e.target.value }))}
+                    style={{ width: '100%', border: `1px solid ${cores.cardBorda}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', padding: 4, color: cores.texto, overflowY: 'scroll', outline: 'none' }}>
+                    {MOTIVOS_NAO_QUIS.map(([c, t]) => <option key={c} value={c} style={{ padding: '7px 8px' }}>{t}</option>)}
+                  </select>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: cores.azul, marginTop: 4, textAlign: 'center' }}>↓ role a lista para ver todos os motivos</div>
+                {popTab.motivo === 'outro' && (
+                  <textarea style={{ ...s.obsArea, marginTop: 8 }} value={popTab.obs} placeholder="Escreva o motivo (obrigatório)"
+                    onChange={e => setPopTab(p => ({ ...p, obs: e.target.value }))} />
+                )}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+                  <button style={s.btnGhost} onClick={() => setPopTab(null)} disabled={!!marcando}>Cancelar</button>
+                  <button style={{ ...ui.btnPrimario, background: '#b45309', opacity: (!popTab.motivo || marcando) ? .6 : 1 }}
+                    disabled={!popTab.motivo || !!marcando || (popTab.motivo === 'outro' && popTab.obs.trim().length < 3)}
+                    onClick={() => tabular(popTab.l, 'nao_quis', popTab.motivo, popTab.obs.trim())}>
+                    {marcando ? 'Gravando…' : 'Salvar'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {popTab.tipo === 'homem' && (
+              <>
+                <div style={{ fontSize: 13.5, color: cores.texto, marginTop: 12, lineHeight: 1.5 }}>
+                  O lead vai para o responsável pelas reposições. Se for aprovado, você recebe outro lead no lugar.
+                </div>
+                <textarea style={{ ...s.obsArea, marginTop: 8 }} value={popTab.obs} placeholder="Observação (opcional)"
+                  onChange={e => setPopTab(p => ({ ...p, obs: e.target.value }))} />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+                  <button style={s.btnGhost} onClick={() => setPopTab(null)} disabled={!!marcando}>Cancelar</button>
+                  <button style={{ ...ui.btnPrimario, opacity: marcando ? .6 : 1 }} disabled={!!marcando}
+                    onClick={() => tabular(popTab.l, 'homem', null, popTab.obs.trim())}>
+                    {marcando ? 'Gravando…' : 'Pedir reposição'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {popTab.tipo === 'neg_vencida' && (
+              <>
+                <div style={{ fontSize: 13.5, color: cores.texto, marginTop: 12, lineHeight: 1.5 }}>
+                  Essa cliente está em negociação há mais de 3 dias e ainda não virou venda.
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14, flexWrap: 'wrap' }}>
+                  <button style={s.btnAcao('#b45309')} disabled={!!marcando}
+                    onClick={() => setPopTab(p => ({ ...p, tipo: 'nao_quis', motivo: '', obs: '' }))}>
+                    Não quis fechar
+                  </button>
+                  <button style={{ ...ui.btnPrimario, opacity: marcando ? .6 : 1 }} disabled={!!marcando}
+                    onClick={() => tabular(popTab.l, 'negociacao')}>
+                    {marcando ? 'Gravando…' : 'Sim, ainda negociando'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
