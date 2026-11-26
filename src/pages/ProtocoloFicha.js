@@ -836,7 +836,14 @@ function CepMercantil({ cpf, copiar, mostrar }) {
   )
 }
 
-export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
+// 26/11/2026 (Bruno): cliente com dois filhos com direito tem UM CASO POR FILHO. A ficha abre o caso pedido (casoId) ou,
+// so com o CPF, o caso em andamento mais recente. As abas no topo trocam de filho (remonta a ficha inteira, sem misturar estado).
+export function FichaProtocolo({ cpf, casoId = null, ...resto }) {
+  const [sel, setSel] = useState(casoId)
+  return <FichaProtocoloCaso key={sel || 'cpf'} cpf={cpf} casoId={sel} onTrocarCaso={setSel} {...resto} />
+}
+
+function FichaProtocoloCaso({ cpf, casoId, onTrocarCaso, modo = 'gaveta', onFechar, onMudou }) {
   const { profile } = useAuth()
   const isMobile = useIsMobile()
   const [dados, setDados] = useState(null)
@@ -863,7 +870,9 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
   const fimChat = useRef(null)
 
   const carregar = useCallback(async () => {
-    const { data, error } = await supabase.rpc('protocolo_caso', { p_cpf: soDig(cpf) })
+    const { data, error } = casoId
+      ? await supabase.rpc('protocolo_caso_por_id', { p_caso: casoId })
+      : await supabase.rpc('protocolo_caso', { p_cpf: soDig(cpf) })
     if (error || !data?.ok) { setErro(error?.message || data?.erro || 'não encontrei o caso'); return }
     setErro('')
     setDados(data)
@@ -876,7 +885,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
       if (m.resposta) hist.push({ role: 'assistant', texto: m.resposta, em: m.em })
     })
     setChat(hist)
-  }, [cpf])
+  }, [cpf, casoId])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -1028,8 +1037,30 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
 
   const copiar = async (rot, val) => { if (await copiarTexto(String(val))) mostrar(`${rot} copiado`) }
 
+  // 26/11/2026: um caso por filho -> abas para trocar de filho (so aparece quando a cliente tem mais de um caso)
+  const irmaos = Array.isArray(dados.irmaos) ? dados.irmaos : []
+  const abasFilhos = irmaos.length > 0 && (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: cores.suave, textTransform: 'uppercase', marginRight: 4 }}>{irmaos.length + 1} filhos no protocolo</span>
+      {[{ id: caso.id, filho_nome: caso.filho_nome, filho_dn: caso.filho_dn, etapa: caso.etapa }, ...irmaos]
+        .sort((a, b) => String(a.filho_dn || '9').localeCompare(String(b.filho_dn || '9')))
+        .map(x => {
+          const atual = x.id === caso.id
+          const e = etapaInfo(x.etapa)
+          return (
+            <button key={x.id} onClick={() => { if (!atual && onTrocarCaso) onTrocarCaso(x.id) }} aria-pressed={atual}
+              style={{ fontFamily: 'inherit', fontSize: 12.5, fontWeight: atual ? 800 : 600, padding: '6px 12px', borderRadius: 999, cursor: atual ? 'default' : 'pointer',
+                border: `1.5px solid ${atual ? cores.roxo : cores.cardBorda}`, background: atual ? hexA(cores.roxo, 0.1) : '#fff', color: cores.texto }}>
+              👶 {String(x.filho_nome || 'Filho(a)').split(' ')[0]} · {fmtData(x.filho_dn)} · <span style={{ color: e.cor, fontWeight: 800 }}>{e.curto}</span>
+            </button>
+          )
+        })}
+    </div>
+  )
+
   const cab = (
     <div style={{ ...card, padding: isMobile ? 16 : 20, background: `linear-gradient(135deg, #ffffff 40%, ${hexA(et.cor, 0.08)})`, position: 'relative', overflow: 'hidden' }}>
+      {abasFilhos}
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${cores.azul}, ${cores.roxo})`, color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, flexShrink: 0, boxShadow: sombras.glowAzul }}>{iniciais(caso.nome)}</div>
         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
