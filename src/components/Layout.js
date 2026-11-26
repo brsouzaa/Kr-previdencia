@@ -597,6 +597,12 @@ export default function Layout({ children, page, setPage }) {
     const item = { key: 'inadimplencia', label: '📉 Inadimplência' }
     nav = i >= 0 ? [...nav.slice(0, i + 1), item, ...nav.slice(i + 1)] : [...nav, item]
   }
+  // 26/11/2026 (Bruno) — PAINEL DE LEADS (tabulacao obrigatoria): admin + Haru. Mesma lista do App.js (IDS_PAINEL_LEADS).
+  if ((profile?.role === 'admin' || ['7190e7cc-01e2-4f05-95a3-b6e119d9537f'].includes(profile?.id)) && !nav.some(n => n.key === 'painel_leads')) {
+    const i = nav.findIndex(n => n.key === 'revisao_ia_retroativo')
+    const item = { key: 'painel_leads', label: '📨 Painel de leads' }
+    nav = i >= 0 ? [...nav.slice(0, i + 1), item, ...nav.slice(i + 1)] : [...nav, item]
+  }
   // 09/11 (Bruno) — PAINEL DO VENDEDOR (relacionamento): tarefas de contato + acompanhamento das vendas. Mesma regra do App.js.
   if ((profile?.posdef_papel || profile?.role === 'admin') && !nav.some(n => n.key === 'vend_acomp')) {
     nav = [...nav, { key: 'vend_acomp', label: '🤝 Minhas clientes (contato)' }]
