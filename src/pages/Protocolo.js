@@ -190,6 +190,9 @@ export default function Protocolo() {
   const [fAnot, setFAnot] = useState('')   // 02/11: Hoje / Ontem / Semana / Mes pela ultima anotacao
   const [verCancelados, setVerCancelados] = useState(false)
   const [cpfAberto, setCpfAberto] = useState(null)
+  // 26/11/2026 (Bruno): cliente com dois filhos tem um caso por filho -> abre o caso certo pelo id (quando a lista traz)
+  const [casoAberto, setCasoAberto] = useState(null)
+  const abrir = (cpf, casoId) => { setCasoAberto(casoId || null); setCpfAberto(cpf) }
   const [modal, setModal] = useState(null)
   const [arrastando, setArrastando] = useState(null)
   const [colHover, setColHover] = useState(null)
@@ -251,6 +254,9 @@ export default function Protocolo() {
     if (aba === 'painel') carregarPainel()
   }, [carregar, carregarFeed, carregarPainel, aba])
 
+  useEffect(() => { if (!cpfAberto) setCasoAberto(null) }, [cpfAberto])
+  // CPFs com mais de um caso (um por filho) -> chip no card
+  const cpfMultiFilho = useMemo(() => { const n = {}; (lista || []).forEach(c => { n[c.cpf] = (n[c.cpf] || 0) + 1 }); return new Set(Object.keys(n).filter(k => n[k] > 1)) }, [lista])
   const perfis = useMemo(() => [...new Set((lista || []).map(c => c.perfil_label).filter(Boolean))].sort(), [lista])
   const vendedoras = useMemo(() => [...new Set((lista || []).map(c => c.vendedora_nome).filter(Boolean))].sort(), [lista])
 
@@ -388,7 +394,7 @@ export default function Protocolo() {
         draggable={!isMobile}
         onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setArrastando(c.id) }}
         onDragEnd={() => { setArrastando(null); setColHover(null) }}
-        onClick={() => setCpfAberto(c.cpf)}
+        onClick={() => abrir(c.cpf, c.id)}
         className="kr-cartao"
         style={{
           background: conferir ? '#fff5f5' : '#fff', borderRadius: 14,
@@ -411,6 +417,7 @@ export default function Protocolo() {
               style={{ ...btn(cores.perigo, false), padding: '2px 9px', fontSize: 11.5, fontWeight: 800 }}>✔ Conferido</button>
           )}
           <Chip cor="#475569">{c.perfil_label}</Chip>
+          {cpfMultiFilho.has(c.cpf) && <Chip cor="#7c3aed" forte>👶 2 filhos</Chip>}
           {c.sem_validacao_ia && <Chip cor={cores.perigo} forte>SEM I.A</Chip>}
           {c.tem_ressalva && <Chip cor="#b45309">ressalva</Chip>}
           {c.pend_abertas > 0 && <Chip cor={cores.alerta}>📌 {c.pend_abertas}</Chip>}
@@ -551,7 +558,7 @@ export default function Protocolo() {
         const et = etapaInfo(c.etapa)
         const prox = (ACOES_POR_ETAPA[c.etapa] || [])[0]
         return isMobile ? (
-          <div key={c.id} onClick={() => setCpfAberto(c.cpf)} style={{ padding: 14, borderBottom: `1px solid ${cores.cardBorda}`, cursor: 'pointer' }}>
+          <div key={c.id} onClick={() => abrir(c.cpf, c.id)} style={{ padding: 14, borderBottom: `1px solid ${cores.cardBorda}`, cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 14.5, color: cores.texto }}>{c.nome}</div>
@@ -575,7 +582,7 @@ export default function Protocolo() {
             )}
           </div>
         ) : (
-          <div key={c.id} onClick={() => setCpfAberto(c.cpf)} className="kr-linha" style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.2fr 1.6fr 1fr 210px', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${cores.cardBorda}`, alignItems: 'center', cursor: 'pointer' }}>
+          <div key={c.id} onClick={() => abrir(c.cpf, c.id)} className="kr-linha" style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.2fr 1.6fr 1fr 210px', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${cores.cardBorda}`, alignItems: 'center', cursor: 'pointer' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
               <div style={{ width: 34, height: 34, borderRadius: 11, background: hexA(et.cor, 0.12), color: et.cor, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 12.5, flexShrink: 0 }}>{iniciais(c.nome)}</div>
               <div style={{ minWidth: 0 }}>
@@ -585,7 +592,7 @@ export default function Protocolo() {
                 </div>
               </div>
             </div>
-            <div style={{ fontSize: 12.5, color: cores.texto }}>{fmtData(c.filho_dn)}</div>
+            <div style={{ fontSize: 12.5, color: cores.texto }}>{fmtData(c.filho_dn)}{cpfMultiFilho.has(c.cpf) && <> <Chip cor="#7c3aed" forte>2 filhos</Chip></>}</div>
             <div><Chip cor="#475569">{c.perfil_label}</Chip></div>
             <div style={{ fontSize: 12.5, minWidth: 0 }}><Chip cor={et.cor} forte>{et.curto}</Chip> <span style={{ marginLeft: 4 }}>{infoDaLinha(c)}</span></div>
             <div style={{ fontSize: 12.5, color: cores.suave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.vendedora_nome || '—'}</div>
@@ -611,7 +618,7 @@ export default function Protocolo() {
       <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.08em', color: '#9f1239', textTransform: 'uppercase', marginBottom: 10 }}>🔴 {alertas.length} alerta{alertas.length === 1 ? '' : 's'}</div>
       <div style={{ display: 'grid', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
         {alertas.map((a, i) => (
-          <div key={i} onClick={() => setCpfAberto(a.cpf)} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', border: '1px solid #fecdd3' }}>
+          <div key={i} onClick={() => abrir(a.cpf)} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', border: '1px solid #fecdd3' }}>
             <span style={{ fontWeight: 800, color: '#9f1239', fontSize: 13, flex: '0 0 auto', maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nome}</span>
             <span style={{ fontSize: 13, color: '#4c0519', minWidth: 0 }}>{a.texto}</span>
           </div>
@@ -631,7 +638,7 @@ export default function Protocolo() {
         const cor = p.status === 'avisado' ? cores.azul : cores.alerta
         return (
           <div key={p.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${cores.cardBorda}`, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.4fr 2fr 1fr auto', gap: 10, alignItems: 'center' }}>
-            <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => setCpfAberto(p.cpf)}>
+            <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => abrir(p.cpf, p.caso_id)}>
               <div style={{ fontWeight: 800, fontSize: 13.5, color: cores.texto }}>{p.nome}</div>
               <div style={{ fontSize: 12, color: cores.suave }}>{fmtCpf(p.cpf)} · {etapaInfo(p.etapa).curto}</div>
             </div>
@@ -674,7 +681,7 @@ export default function Protocolo() {
             <div style={{ width: 32, height: 32, borderRadius: 10, background: hexA(etapaInfo(e.etapa_para).cor, 0.1), display: 'grid', placeItems: 'center', flexShrink: 0 }}>{ICONE_EVENTO[e.tipo] || '•'}</div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 13.5, color: cores.texto }}>
-                <b style={{ cursor: 'pointer' }} onClick={() => setCpfAberto(e.cpf)}>{e.nome}</b> — {e.texto || ROTULO_EVENTO[e.tipo] || e.tipo}
+                <b style={{ cursor: 'pointer' }} onClick={() => abrir(e.cpf)}>{e.nome}</b> — {e.texto || ROTULO_EVENTO[e.tipo] || e.tipo}
               </div>
               <div style={{ fontSize: 11.5, color: cores.suave, marginTop: 2 }}>
                 {e.feito_por_nome} · {fmtDataHora(e.feito_em)}
@@ -741,32 +748,32 @@ export default function Protocolo() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>{acoes}</div>
       </div>
     )
-    const fichaBtn = (cpf) => <button key="f" onClick={() => setCpfAberto(cpf)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>Abrir ficha</button>
+    const fichaBtn = (cpf, casoId) => <button key="f" onClick={() => abrir(cpf, casoId)} style={{ ...btn('#475569', false), padding: '6px 10px', fontSize: 12 }}>Abrir ficha</button>
     const grupos = [
       { k: 'conferir', icone: '🔴', tit: 'Conferir resultado no INSS', cor: cores.perigo, itens: conf, extra: 'o INSS concluiu — diga se é deferido ou indeferido',
-        linha: (c, i) => linha(c, i, { alerta: true, onAbrir: () => setCpfAberto(c.cpf),
+        linha: (c, i) => linha(c, i, { alerta: true, onAbrir: () => abrir(c.cpf, c.id),
           sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''} · <b style={{ color: cores.perigo }}>{c.conferir_resultado ? `${rotuloConferir(c)}` : 'CONCLUÍDO sem resultado lido'}</b>{c.ultima_movimentacao_em ? ` · INSS ${fmtDataHora(c.ultima_movimentacao_em)}` : ''}</>,
-          acoes: [fichaBtn(c.cpf), <span key="b">{botoesConferir(c)}</span>] }) },
+          acoes: [fichaBtn(c.cpf, c.id), <span key="b">{botoesConferir(c)}</span>] }) },
       { k: 'exigmot', icone: '⚠️', tit: 'Exigências: registrar o motivo', cor: '#ea580c', itens: exigMot, extra: 'sem motivo a exigência não vai para o Acompanhamento resolver',
-        linha: (c, i) => linha(c, i, { alerta: !!c.exigencia_prazo && c.exigencia_prazo <= somaHoje(3), onAbrir: () => setCpfAberto(c.cpf),
+        linha: (c, i) => linha(c, i, { alerta: !!c.exigencia_prazo && c.exigencia_prazo <= somaHoje(3), onAbrir: () => abrir(c.cpf, c.id),
           sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}{c.exigencia_prazo ? <b style={{ color: '#c2410c' }}> · prazo {fmtData(c.exigencia_prazo)}</b> : ''} · {c._semRegistro ? <b style={{ color: '#c2410c' }}>a extensão viu a exigência — registre o que o INSS pediu</b> : `${c._semMotivo.length} exigência(s) sem motivo`}</>,
-          acoes: [fichaBtn(c.cpf), ...(c._semRegistro
+          acoes: [fichaBtn(c.cpf, c.id), ...(c._semRegistro
             ? [<button key="r" onClick={() => abrirAcao(c, 'exigencia')} style={{ ...btn('#ea580c'), padding: '6px 10px', fontSize: 12 }}>⚠️ Registrar exigência</button>]
             : c._semMotivo.map(selMotivo))] }) },
       { k: 'fila', icone: '🗂️', tit: 'Fila de protocolo', cor: '#2563eb', itens: fila, extra: filaAtras ? `${filaAtras} há mais de ${LIMITE_AGUARDANDO} dias` : 'em dia',
         linha: (c, i) => { const d = diasDesde(c.etapa_desde); const atr = d > LIMITE_AGUARDANDO
-          return linha(c, i, { alerta: atr, onAbrir: () => setCpfAberto(c.cpf),
+          return linha(c, i, { alerta: atr, onAbrir: () => abrir(c.cpf, c.id),
             sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.sem_validacao_ia ? ' · SEM I.A' : ''}{c.tem_ressalva ? ' · ressalva' : ''} · <b style={{ color: atr ? cores.perigo : '#2563eb' }}>esperando há {d} dia{d === 1 ? '' : 's'}</b></>,
-            acoes: [fichaBtn(c.cpf), <button key="p" onClick={() => abrirAcao(c, 'protocolado')} style={{ ...btn(ACOES.protocolado.cor), padding: '6px 10px', fontSize: 12 }}>📨 Protocolado</button>] }) } },
+            acoes: [fichaBtn(c.cpf, c.id), <button key="p" onClick={() => abrirAcao(c, 'protocolado')} style={{ ...btn(ACOES.protocolado.cor), padding: '6px 10px', fontSize: 12 }}>📨 Protocolado</button>] }) } },
       { k: 'refazer', icone: '✅', tit: 'Pendências resolvidas para refazer', cor: cores.ok, itens: refazer, extra: 'o Acompanhamento resolveu — refaça o caso',
-        linha: (it, i) => linha({ ...it, id: it.id }, i, { alerta: RESOLUCOES_NEGATIVAS.includes(it.resolucao), onAbrir: () => setCpfAberto(it.cpf),
+        linha: (it, i) => linha({ ...it, id: it.id }, i, { alerta: RESOLUCOES_NEGATIVAS.includes(it.resolucao), onAbrir: () => abrir(it.cpf, it.caso_id),
           sub: <>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'} · faltava: {String(it.descricao || '').slice(0, 80)}{String(it.descricao || '').length > 80 ? '…' : ''} · <b style={{ color: RESOLUCOES_NEGATIVAS.includes(it.resolucao) ? cores.perigo : cores.ok }}>{rotResolucao(it.categoria, it.resolucao)}</b> · {fmtDataHora(it.resolvida_em)}</>,
-          acoes: [fichaBtn(it.cpf), <button key="d" onClick={() => setAba('refazer')} style={{ ...btn(cores.roxo, false), padding: '6px 10px', fontSize: 12 }}>✦ Ver defesa</button>,
+          acoes: [fichaBtn(it.cpf, it.caso_id), <button key="d" onClick={() => setAba('refazer')} style={{ ...btn(cores.roxo, false), padding: '6px 10px', fontSize: 12 }}>✦ Ver defesa</button>,
             <button key="r" onClick={() => marcarRefeito(it)} style={{ ...btn(cores.ok), padding: '6px 10px', fontSize: 12 }}>✔ Refeito</button>] }) },
       { k: 'indef', icone: '⛔', tit: 'Indeferidos sem motivo', cor: '#b91c1c', itens: indef, extra: 'coloque o motivo — é ele que mostra o que não protocolar',
-        linha: (c, i) => linha(c, i, { onAbrir: () => setCpfAberto(c.cpf),
+        linha: (c, i) => linha(c, i, { onAbrir: () => abrir(c.cpf, c.id),
           sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'} · indeferido {fmtDataHora(dataAnotacao(c))}</>,
-          acoes: [fichaBtn(c.cpf), <button key="m" onClick={() => abrirAcao(c, 'definir_motivo')} style={{ ...btn('#b91c1c'), padding: '6px 10px', fontSize: 12 }}>📝 Colocar motivo</button>] }) },
+          acoes: [fichaBtn(c.cpf, c.id), <button key="m" onClick={() => abrirAcao(c, 'definir_motivo')} style={{ ...btn('#b91c1c'), padding: '6px 10px', fontSize: 12 }}>📝 Colocar motivo</button>] }) },
     ]
     const total = grupos.reduce((n, g) => n + g.itens.length, 0)
     return (
@@ -815,7 +822,7 @@ export default function Protocolo() {
           {tit}<span style={{ fontSize: 12.5, fontWeight: 800, color: cor, background: hexA(cor, 0.12), borderRadius: 999, padding: '1px 10px' }}>{itens.length}</span>
         </div>
         {itens.map((g, i) => (
-          <div key={g.id} className="kr-linha" onClick={() => setCpfAberto(g.cpf)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
+          <div key={g.id} className="kr-linha" onClick={() => abrir(g.cpf, g.caso_id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i ? `1px solid ${cores.cardBorda}` : 'none', flexWrap: 'wrap', cursor: 'pointer' }}>
             <div style={{ flex: '1 1 260px', minWidth: 0 }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 14, fontWeight: 750, color: cores.texto }}>{g.nome}</span>
@@ -987,7 +994,7 @@ export default function Protocolo() {
                   <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, color: cores.perigo }}>{r.n} indeferido{r.n === 1 ? '' : 's'}</span>
                 </div>
                 {(r.casos || []).map((x, j) => (
-                  <div key={j} onClick={() => setCpfAberto(x.cpf)} style={{ fontSize: 12.5, color: cores.texto, marginTop: 6, cursor: 'pointer' }}>
+                  <div key={j} onClick={() => abrir(x.cpf)} style={{ fontSize: 12.5, color: cores.texto, marginTop: 6, cursor: 'pointer' }}>
                     <b>{x.nome}</b> <span style={{ color: cores.suave }}>· {x.vendedora || '—'}</span>{x.texto ? <span style={{ color: cores.suave }}> — {String(x.texto).slice(0, 220)}{String(x.texto).length > 220 ? '…' : ''}</span> : null}
                   </div>
                 ))}
@@ -1094,7 +1101,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
               <span style={{ fontSize: 15, fontWeight: 800, color: cores.texto }}>{it.nome}</span>
               <span style={{ fontSize: 12.5, color: cores.suave }}>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'}</span>
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button onClick={() => setCpfAberto(it.cpf)} style={btn('#475569', false)}>Abrir ficha</button>
+                <button onClick={() => abrir(it.cpf, it.caso_id)} style={btn('#475569', false)}>Abrir ficha</button>
                 <button onClick={() => marcarRefeito(it)} style={btn(cores.ok)}>{it.sinalizada ? '✔ Conferi e refiz' : '✔ Refeito'}</button>
               </span>
             </div>
@@ -1229,7 +1236,7 @@ O que o acompanhamento fez: ${rotResolucao(it.categoria, it.resolucao)}${it.reso
             animation: 'krGaveta .22s ease-out',
           }}>
             <style>{'@keyframes krGaveta{from{transform:translateX(40px);opacity:.4}to{transform:none;opacity:1}}'}</style>
-            <FichaProtocolo key={cpfAberto} cpf={cpfAberto} modo="gaveta" onFechar={() => setCpfAberto(null)} onMudou={tudoMudou} />
+            <FichaProtocolo key={cpfAberto + (casoAberto || '')} cpf={cpfAberto} casoId={casoAberto} modo="gaveta" onFechar={() => setCpfAberto(null)} onMudou={tudoMudou} />
           </div>
         </div>
       )}
