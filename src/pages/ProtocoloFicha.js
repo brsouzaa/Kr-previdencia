@@ -667,6 +667,18 @@ const ATALHOS = [
   { r: 'Risco do caso', t: 'Qual o maior risco deste caso e como eu me protejo antes de protocolar?' },
 ]
 
+// 26/11/2026 (Bruno): arquivo com extensao trocada (ex.: JPEG salvo como .png) fazia a I.A recusar (HTTP 400
+// "image appears to be a image/jpeg"). O tipo do anexo passa a vir do CONTEUDO do arquivo, nao do nome.
+function tipoReal(b64, tipo) {
+  const d = String(b64 || '')
+  if (d.startsWith('/9j/')) return 'image/jpeg'
+  if (d.startsWith('iVBORw0KGgo')) return 'image/png'
+  if (d.startsWith('R0lGOD')) return 'image/gif'
+  if (d.startsWith('UklGR')) return 'image/webp'
+  if (d.startsWith('JVBERi')) return 'application/pdf'
+  return tipo
+}
+
 export async function perguntarIA({ caso, historico, texto, anexos }) {
   // a API exige comecar pelo usuario e alternar os papeis: limpa o historico antes de mandar
   const msgs = []
@@ -679,7 +691,7 @@ export async function perguntarIA({ caso, historico, texto, anexos }) {
   if (msgs.length && msgs[msgs.length - 1].role === 'user') msgs.pop()
   msgs.push({ role: 'user', texto: montarContexto(caso) + texto })
   const { data, error } = await supabase.functions.invoke('ia-previdenciario', {
-    body: { mensagens: msgs, cpf: caso.cpf, anexos: anexos || [], conversa_id: 'protocolo-' + caso.cpf },
+    body: { mensagens: msgs, cpf: caso.cpf, anexos: (anexos || []).map(a => ({ ...a, media_type: tipoReal(a.data, a.media_type) })), conversa_id: 'protocolo-' + caso.cpf },
   })
   if (error) {
     let det = error.message
