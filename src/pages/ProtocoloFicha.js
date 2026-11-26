@@ -705,15 +705,42 @@ const ICONE_EVENTO = {
 // mesma regiao do INSS > cidade vizinha (SP capital, por zona do CEP) > outra regiao do Mercantil
 // na UF — fora da cidade dela, so cidade vizinha (raio em app_config cep_sugestao_raio_km).
 // O ENDERECO DA CLIENTE NAO MUDA: este CEP vai so no campo do banco de preferencia.
-function CepMercantil({ cpf, copiar }) {
+// 26/11/2026 (Bruno): na hora do protocolo a Jessica marca se o posto Mercantil apareceu no PASSO 5 do INSS
+// (lista de agencias do banco). "Tem PA" guarda o nome exato no INSS; "Nao tem PA" tira o posto das
+// sugestoes (protocolo_marcar_pa) e a lista recarrega com a proxima opcao. Nao trava o protocolo.
+function CepMercantil({ cpf, copiar, mostrar }) {
   const [r, setR] = useState(null)
   const [verTodos, setVerTodos] = useState(false)
+  const [recarga, setRecarga] = useState(0)
+  const [paForm, setPaForm] = useState(null)      // { cep, nome, aps } aberto pelo "Tem PA"
+  const [paEnviando, setPaEnviando] = useState('')  // cep sendo gravado
+  const [paMarcados, setPaMarcados] = useState({})  // cep -> nome exato no INSS (ou '') marcado nesta tela
+  const [paConfirma, setPaConfirma] = useState('')  // "Nao tem PA" pede 2o clique: tira o posto das sugestoes de TODAS as clientes
   useEffect(() => {
     let vivo = true
     supabase.rpc('protocolo_cep_mercantil', { p_cpf: soDig(cpf) })
       .then(({ data, error }) => { if (vivo) setR(error ? { ok: false, erro: error.message } : (data || { ok: false })) })
     return () => { vivo = false }
-  }, [cpf])
+  }, [cpf, recarga])
+  const avisar = (t, tipo) => { if (mostrar) mostrar(t, tipo) }
+  async function marcarPa(cep, temPa, nomeInss, apsNome) {
+    setPaEnviando(cep)
+    const { data, error } = await supabase.rpc('protocolo_marcar_pa', {
+      p_cep: soDig(cep), p_tem_pa: temPa,
+      p_nome_inss: (nomeInss || '').trim() || null, p_aps_nome: (apsNome || '').trim() || null, p_obs: null,
+    })
+    setPaEnviando('')
+    if (error || !data?.ok) { avisar('Não gravou: ' + (error?.message || data?.erro || 'erro'), 'erro'); return }
+    if (temPa) {
+      setPaMarcados(m => ({ ...m, [cep]: (nomeInss || '').trim().toUpperCase() }))
+      setPaForm(null)
+      avisar('Posto marcado: tem PA no INSS')
+    } else {
+      setPaForm(null)
+      avisar('Posto removido das sugestões')
+      setRecarga(n => n + 1)   // o posto some e aparece a proxima opcao
+    }
+  }
   if (!r || !r.ok) return null
   const pts = Array.isArray(r.pontos) ? r.pontos : []
   const AZ = '#1d4ed8'
@@ -729,6 +756,40 @@ function CepMercantil({ cpf, copiar }) {
         {p.alerta && <div style={{ color: '#b45309', fontWeight: 700, marginTop: 2 }}>⚠️ {p.alerta}</div>}
       </div>
       <button onClick={() => copiar('CEP', soDig(p.cep))} style={{ ...btn(AZ, destaque), padding: destaque ? '8px 12px' : '5px 9px', fontSize: destaque ? 13 : 12 }}>⧉ Copiar CEP</button>
+      {/* passo 5 do INSS: o posto apareceu na lista de agencias do banco? */}
+      <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12 }}>
+        <span style={{ color: cores.suave, fontWeight: 600 }}>Passo 5 do INSS:</span>
+        {p.cep in paMarcados ? (
+          <span style={{ color: cores.ok, fontWeight: 700 }}>✅ Tem PA{paMarcados[p.cep] ? ` · ${paMarcados[p.cep]}` : ''}</span>
+        ) : (
+          <>
+            <button disabled={!!paEnviando} onClick={() => { setPaConfirma(''); setPaForm(f => (f && f.cep === p.cep) ? null : { cep: p.cep, nome: '', aps: '' }) }}
+              style={{ ...btn(cores.ok, false), padding: '4px 9px', fontSize: 12 }}>✅ Tem PA</button>
+            {paConfirma === p.cep ? (
+              <>
+                <button disabled={!!paEnviando} onClick={() => { setPaConfirma(''); marcarPa(p.cep, false) }}
+                  style={{ ...btn('#b91c1c'), padding: '4px 9px', fontSize: 12 }}>{paEnviando === p.cep ? 'Gravando…' : 'Confirmar: não tem PA (sai das sugestões)'}</button>
+                <button disabled={!!paEnviando} onClick={() => setPaConfirma('')} style={{ ...btn('#475569', false), padding: '4px 9px', fontSize: 12 }}>Voltar</button>
+              </>
+            ) : (
+              <button disabled={!!paEnviando} onClick={() => { setPaForm(null); setPaConfirma(p.cep) }}
+                style={{ ...btn('#b91c1c', false), padding: '4px 9px', fontSize: 12 }}>{paEnviando === p.cep ? 'Gravando…' : '❌ Não tem PA'}</button>
+            )}
+          </>
+        )}
+      </div>
+      {paForm && paForm.cep === p.cep && !(p.cep in paMarcados) && (
+        <div style={{ flexBasis: '100%', display: 'grid', gap: 6, padding: 10, borderRadius: 10, background: hexA(cores.ok, 0.06), border: `1px solid ${hexA(cores.ok, 0.25)}` }}>
+          <input value={paForm.nome} onChange={e => setPaForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome exato no INSS (opcional) — ex.: PA CENTRO - JUIZ DE FORA - MG"
+            style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${cores.cardBorda}`, fontFamily: 'inherit', fontSize: 13, minWidth: 0 }} />
+          <input value={paForm.aps} onChange={e => setPaForm(f => ({ ...f, aps: e.target.value }))} placeholder="Agência do INSS que apareceu no passo 4 (opcional)"
+            style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${cores.cardBorda}`, fontFamily: 'inherit', fontSize: 13, minWidth: 0 }} />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button onClick={() => setPaForm(null)} disabled={!!paEnviando} style={{ ...btn('#475569', false), padding: '5px 10px', fontSize: 12 }}>Cancelar</button>
+            <button onClick={() => marcarPa(p.cep, true, paForm.nome, paForm.aps)} disabled={!!paEnviando} style={{ ...btn(cores.ok), padding: '5px 10px', fontSize: 12 }}>{paEnviando === p.cep ? 'Gravando…' : 'Salvar'}</button>
+          </div>
+        </div>
+      )}
     </div>
   )
   return (
@@ -1437,7 +1498,7 @@ export function FichaProtocolo({ cpf, modo = 'gaveta', onFechar, onMudou }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
           {caixaAntes}
-          <CepMercantil cpf={caso.cpf} copiar={copiar} />
+          <CepMercantil cpf={caso.cpf} copiar={copiar} mostrar={mostrar} />
           {blocoProtocolo}
           {meuINSS}
           {blocoContratos}
