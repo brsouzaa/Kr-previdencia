@@ -633,11 +633,40 @@ function AvisoNovaVersao() {
   )
 }
 
+// 27/11/2026 (Bruno): REGISTRO DE VERSAO — saber QUEM esta em qual versao do CRM (rpc front_versao_ping).
+// Manda o nome do JS principal (main.<hash>.js) ao abrir e a cada 30 min, so com a aba visivel e logado.
+// 1 linha por pessoa no banco (upsert). Quem nao aparece la esta numa versao anterior a esta.
+// Ver no banco: select * from front_versao_status()  (so admin).
+const PING_VERSAO_A_CADA_MS = 30 * 60 * 1000
+function RegistroVersao() {
+  const { user } = useAuth()
+  const uid = user?.id
+  useEffect(() => {
+    if (!uid) return undefined
+    const src = Array.from(document.scripts).map(s => s.getAttribute('src') || '').find(s => /main\.\w+\.js/.test(s))
+    if (!src) return undefined   // desenvolvimento (sem build): nao registra
+    const build = src.match(/main\.\w+\.js/)[0]
+    let ultima = 0
+    const ping = () => {
+      if (document.hidden) return
+      ultima = Date.now()
+      supabase.rpc('front_versao_ping', { p_build: build }).then(() => {}, () => {})
+    }
+    ping()
+    const t = setInterval(ping, PING_VERSAO_A_CADA_MS)
+    const aoVoltar = () => { if (!document.hidden && Date.now() - ultima >= PING_VERSAO_A_CADA_MS) ping() }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', aoVoltar) }
+  }, [uid])
+  return null
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <AppInner />
       <AvisoNovaVersao />
+      <RegistroVersao />
     </AuthProvider>
   )
 }
