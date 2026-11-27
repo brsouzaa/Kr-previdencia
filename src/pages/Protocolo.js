@@ -59,6 +59,36 @@ function acaoDoDrop(caso, col) {
 }
 
 const LIMITE_AGUARDANDO = 3
+// 27/11/2026 (Bruno): protocolado sem NENHUM movimento no INSS (visto pela extensao) ha mais disso = cobrar retorno
+const LIMITE_SEM_RETORNO = 20
+// 27/11/2026 (Bruno): periodos do "Resultado por vendedora" (data em que o caso entrou no setor = contrato assinado)
+const PERIODOS_VEND = [['tudo', 'Todo o período'], ['mes', 'Este mês'], ['mes_ant', 'Mês passado'], ['30d', 'Últimos 30 dias'], ['90d', 'Últimos 90 dias'], ['datas', 'Escolher datas']]
+const intervaloVend = (per, de, ate) => {
+  const h = hojeISO()
+  const menos = (n) => { const d = new Date(h + 'T12:00:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
+  const [a, m] = h.split('-').map(Number)
+  const ini = (y, mm) => `${y}-${String(mm).padStart(2, '0')}-01`
+  if (per === 'mes') return [ini(a, m), h]
+  if (per === 'mes_ant') { const y = m === 1 ? a - 1 : a; const mm = m === 1 ? 12 : m - 1; return [ini(y, mm), menos(Number(h.slice(8, 10)))] }
+  if (per === '30d') return [menos(29), h]
+  if (per === '90d') return [menos(89), h]
+  if (per === 'datas') return [de || null, ate || null]
+  return [null, null]
+}
+const COLS_VEND = [
+  ['total', 'Casos', 'Clientes da vendedora que entraram no Protocolo (contrato assinado), sem os cancelados pela KR. É a soma de Aguardando + No INSS + Conferir + Deferidos + Indeferidos + Canc. INSS.'],
+  ['aguardando', 'Aguardando', 'Ainda não protocolados: na fila de protocolo ou com pendência de documento.'],
+  ['no_inss', 'No INSS', 'Protocolados e em análise no INSS agora (inclui os em exigência e em recurso), ainda sem resultado.'],
+  ['em_exigencia', 'Em exigência', 'Parte do "No INSS" que está em exigência AGORA.'],
+  ['conferir', 'Conferir', 'O INSS já concluiu e a advogada ainda precisa conferir se foi deferido ou indeferido.'],
+  ['deferidos', 'Deferidos', 'Deferidos (inclui recurso deferido), já conferidos.'],
+  ['indeferidos', 'Indeferidos', 'Indeferidos (inclui recurso indeferido), já conferidos.'],
+  ['canc_inss', 'Canc. INSS', 'O INSS cancelou o pedido (vai reprotocolar).'],
+  ['taxa', '% def.', 'Deferidos ÷ (Deferidos + Indeferidos). Só conta quem já teve resultado.'],
+  ['protocolados', 'Protocolados', 'Quantos dos Casos já foram protocolados alguma vez (qualquer situação depois do protocolo).'],
+  ['ressalva', 'Ressalva', 'Venda liberada com ressalva/exceção (direito com ponto de atenção).'],
+  ['sem_ia', 'Sem I.A', 'Contrato assinado sem a validação aprovada da I.A.'],
+]
 // 18/11/2026 (Bruno): dias ate a data (negativo = ja passou)
 const diasAte = (iso) => (iso ? Math.round((new Date(String(iso).slice(0, 10) + 'T12:00:00') - new Date(hojeISO() + 'T12:00:00')) / 86400000) : null)
 const txtReprotocolar = (c) => {
@@ -126,6 +156,13 @@ export default function Protocolo() {
   const [pendGrupo, setPendGrupo] = useState('todas')   // 09/11: filtro da aba Pendencias
   const [feed, setFeed] = useState([])
   const [painel, setPainel] = useState(null)
+  // 27/11/2026 (Bruno): "Resultado por vendedora" com periodo (data de entrada no setor) e contas que fecham
+  const [perVend, setPerVend] = useState('tudo')
+  const [vendDe, setVendDe] = useState('')
+  const [vendAte, setVendAte] = useState('')
+  const [porVend, setPorVend] = useState(null)
+  const [verLegenda, setVerLegenda] = useState(false)
+  const pedidoVend = useRef(0)
   const [aba, setAba] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 860 ? 'inicio' : 'inicio'))   // 05/11 (Bruno): abre no Inicio
 
   // 04/11 (Bruno): abas que nao cabem na tela — alem das setas do teclado, agora da para ARRASTAR com o mouse
@@ -242,6 +279,16 @@ export default function Protocolo() {
   useEffect(() => { const t = setInterval(carregar, 60000); return () => clearInterval(t) }, [carregar])
   useEffect(() => { if (aba === 'acompanhamento') carregarFeed() }, [aba, carregarFeed])
   useEffect(() => { if (aba === 'painel') carregarPainel() }, [aba, carregarPainel])
+  useEffect(() => {
+    if (aba !== 'painel') return
+    const [de, ate] = intervaloVend(perVend, vendDe, vendAte)
+    if (perVend === 'datas' && (!de || !ate)) return
+    const n = ++pedidoVend.current
+    setPorVend(null)
+    supabase.rpc('protocolo_painel_vendedoras', { p_de: de, p_ate: ate }).then(({ data }) => {
+      if (n === pedidoVend.current) setPorVend(Array.isArray(data) ? data : [])
+    })
+  }, [aba, perVend, vendDe, vendAte, painel])
   useEffect(() => {
     const f = (e) => { if (e.key === 'Escape' && !modal) setCpfAberto(null) }
     window.addEventListener('keydown', f)
@@ -726,6 +773,12 @@ export default function Protocolo() {
     const fila = L.filter(c => c.etapa === 'aguardando_protocolo').sort((a, b) => new Date(a.etapa_desde) - new Date(b.etapa_desde))
     const indef = L.filter(c => ehIndef(c) && !c.motivo).sort((a, b) => new Date(dataAnotacao(b) || 0) - new Date(dataAnotacao(a) || 0))
     const filaAtras = fila.filter(c => diasDesde(c.etapa_desde) > LIMITE_AGUARDANDO).length
+    // 27/11/2026 (Bruno): em analise no INSS sem retorno. So protocolado (exigencia, resultado e "conferir" ficam fora).
+    // Conta pela ultima movimentacao VISTA NO INSS (ultima_mov_inss: acao da equipe nao zera); sem movimento = data do protocolo.
+    const semRetorno = L.filter(c => c.etapa === 'protocolado' && !aConferir(c))
+      .map(c => ({ ...c, _diasInss: diasDesde(c.ultima_mov_inss || c.data_protocolo || c.etapa_desde) }))
+      .filter(c => c._diasInss > LIMITE_SEM_RETORNO)
+      .sort((a, b) => b._diasInss - a._diasInss)
     // 05/11 (Bruno): exigencia sem motivo. Sem registro da advogada (so o robo viu) = registrar; registrada sem motivo = escolher o motivo.
     const exigMot = L.filter(c => c.etapa === 'exigencia').map(c => {
       const adv = (pend || []).filter(p => p.caso_id === c.id && p.tipo === 'exigencia_inss' && p.da_advogada)
@@ -765,6 +818,10 @@ export default function Protocolo() {
           return linha(c, i, { alerta: atr, onAbrir: () => abrir(c.cpf, c.id),
             sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.sem_validacao_ia ? ' · SEM I.A' : ''}{c.tem_ressalva ? ' · ressalva' : ''} · <b style={{ color: atr ? cores.perigo : '#2563eb' }}>esperando há {d} dia{d === 1 ? '' : 's'}</b></>,
             acoes: [fichaBtn(c.cpf, c.id), <button key="p" onClick={() => abrirAcao(c, 'protocolado')} style={{ ...btn(ACOES.protocolado.cor), padding: '6px 10px', fontSize: 12 }}>📨 Protocolado</button>] }) } },
+      { k: 'semretorno', icone: '⏳', tit: 'Em análise sem retorno do INSS', cor: '#7c3aed', itens: semRetorno, extra: `sem nenhum movimento no INSS há mais de ${LIMITE_SEM_RETORNO} dias — conferir no Meu INSS`,
+        linha: (c, i) => linha(c, i, { alerta: c._diasInss > 30, onAbrir: () => abrir(c.cpf, c.id),
+          sub: <>{fmtCpf(c.cpf)} · {c.perfil_label} · {c.vendedora_nome || '—'}{c.numero_protocolo ? ` · nº ${c.numero_protocolo}` : ''}{c.data_protocolo ? ` · protocolado em ${fmtData(c.data_protocolo)}` : ''}{c.setor_inss ? ` · ${c.setor_inss}` : ''} · <b style={{ color: c._diasInss > 30 ? cores.perigo : '#7c3aed' }}>{c._diasInss} dias sem movimento no INSS</b></>,
+          acoes: [fichaBtn(c.cpf, c.id)] }) },
       { k: 'refazer', icone: '✅', tit: 'Pendências resolvidas para refazer', cor: cores.ok, itens: refazer, extra: 'o Acompanhamento resolveu — refaça o caso',
         linha: (it, i) => linha({ ...it, id: it.id }, i, { alerta: RESOLUCOES_NEGATIVAS.includes(it.resolucao), onAbrir: () => abrir(it.cpf, it.caso_id),
           sub: <>{fmtCpf(it.cpf)} · {it.vendedora_nome || '—'} · faltava: {String(it.descricao || '').slice(0, 80)}{String(it.descricao || '').length > 80 ? '…' : ''} · <b style={{ color: RESOLUCOES_NEGATIVAS.includes(it.resolucao) ? cores.perigo : cores.ok }}>{rotResolucao(it.categoria, it.resolucao)}</b> · {fmtDataHora(it.resolvida_em)}</>,
@@ -1003,36 +1060,84 @@ export default function Protocolo() {
           </div>
         </div>
         <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px 4px' }}>
-            <div style={{ fontWeight: 800 }}>Resultado por vendedora</div>
-            <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>Casos no setor de cada vendedora (sem cancelados). % de deferimento = deferidos ÷ (deferidos + indeferidos).</div>
+          {/* 27/11/2026 (Bruno): periodo no canto superior direito + contas que fecham + o que e cada coluna */}
+          <div style={{ padding: '14px 18px 8px', display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+              <div style={{ fontWeight: 800 }}>Resultado por vendedora</div>
+              <div style={{ fontSize: 12, color: cores.suave, marginTop: 2 }}>
+                Casos que entraram no setor {perVend === 'tudo' ? 'desde o início' : 'no período escolhido'} e onde cada um está hoje (sem os cancelados pela KR).{' '}
+                <button onClick={() => setVerLegenda(v => !v)} style={{ border: 'none', background: 'none', padding: 0, color: cores.azul, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                  {verLegenda ? 'Esconder explicação' : 'ⓘ O que é cada coluna?'}
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <select value={perVend} onChange={e => setPerVend(e.target.value)} aria-label="Período"
+                style={{ padding: '7px 10px', borderRadius: 10, border: `1px solid ${cores.cardBorda}`, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, background: '#fff', color: cores.texto }}>
+                {PERIODOS_VEND.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              {perVend === 'datas' && (
+                <>
+                  <input type="date" value={vendDe} onChange={e => setVendDe(e.target.value)} aria-label="De"
+                    style={{ padding: '6px 8px', borderRadius: 10, border: `1px solid ${cores.cardBorda}`, fontFamily: 'inherit', fontSize: 13 }} />
+                  <span style={{ fontSize: 12, color: cores.suave }}>até</span>
+                  <input type="date" value={vendAte} onChange={e => setVendAte(e.target.value)} aria-label="Até"
+                    style={{ padding: '6px 8px', borderRadius: 10, border: `1px solid ${cores.cardBorda}`, fontFamily: 'inherit', fontSize: 13 }} />
+                </>
+              )}
+            </div>
           </div>
+          {verLegenda && (
+            <div style={{ margin: '0 18px 10px', padding: '10px 12px', background: '#f8fafc', border: `1px solid ${cores.cardBorda}`, borderRadius: 12, display: 'grid', gap: 5, fontSize: 12.5, color: cores.texto }}>
+              {COLS_VEND.map(([k, l, d]) => <div key={k}><b>{l}:</b> <span style={{ color: cores.suave }}>{d}</span></div>)}
+              <div style={{ color: cores.suave }}>O período olha a data em que o caso entrou no setor (contrato assinado). Ex.: "Este mês" = vendas do mês e como elas estão hoje.</div>
+            </div>
+          )}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 720 }}>
-              <thead>
-                <tr style={{ color: cores.suave, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                  {['Vendedora', 'Casos', 'Protocolados', 'No INSS', 'Exigência', 'Deferidos', 'Indeferidos', '% def.', 'Ressalva', 'Sem I.A'].map((h, i) => (
-                    <th key={h} style={{ textAlign: i ? 'right' : 'left', padding: '10px 14px', borderBottom: `1px solid ${cores.cardBorda}`, fontWeight: 800 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(painel.por_vendedora || []).map(v => (
-                  <tr key={v.vendedora} style={{ borderBottom: `1px solid ${cores.cardBorda}` }}>
-                    <td style={{ padding: '9px 14px', fontWeight: 700 }}>{v.vendedora}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.total}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.protocolados}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>{v.em_analise}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.exigencias ? '#ea580c' : cores.suave, fontWeight: v.exigencias ? 800 : 500 }}>{v.exigencias}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: cores.ok, fontWeight: 800 }}>{v.deferidos}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.indeferidos ? cores.perigo : cores.suave, fontWeight: v.indeferidos ? 800 : 500 }}>{v.indeferidos}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 800, color: v.taxa == null ? cores.suave : v.taxa >= 70 ? cores.ok : v.taxa >= 40 ? cores.alerta : cores.perigo }}>{v.taxa == null ? '—' : v.taxa + '%'}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.ressalva ? '#b45309' : cores.suave }}>{v.ressalva}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: v.sem_ia ? cores.perigo : cores.suave }}>{v.sem_ia}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {porVend === null ? <div style={{ padding: 24, textAlign: 'center', color: cores.suave, fontSize: 13 }}>Carregando…</div>
+              : porVend.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: cores.suave, fontSize: 13 }}>Nenhum caso entrou no setor neste período.</div>
+              : (() => {
+                const soma = (k) => porVend.reduce((n, v) => n + Number(v[k] || 0), 0)
+                const tot = { vendedora: 'Total' }
+                COLS_VEND.forEach(([k]) => { if (k !== 'taxa') tot[k] = soma(k) })
+                tot.taxa = tot.deferidos + tot.indeferidos > 0 ? Math.round((100 * tot.deferidos) / (tot.deferidos + tot.indeferidos)) : null
+                const cor = (k, v) => {
+                  if (k === 'taxa') return v.taxa == null ? cores.suave : v.taxa >= 70 ? cores.ok : v.taxa >= 40 ? cores.alerta : cores.perigo
+                  const n = Number(v[k] || 0)
+                  if (!n) return cores.suave
+                  return { em_exigencia: '#ea580c', conferir: cores.perigo, deferidos: cores.ok, indeferidos: cores.perigo, canc_inss: '#b45309', ressalva: '#b45309', sem_ia: cores.perigo }[k] || cores.texto
+                }
+                const forte = ['total', 'em_exigencia', 'conferir', 'deferidos', 'indeferidos', 'taxa']
+                const celula = (v, k, ehTotal) => (
+                  <td key={k} style={{ padding: '9px 12px', textAlign: 'right', color: cor(k, v), fontWeight: ehTotal || (forte.includes(k) && (k === 'taxa' ? v.taxa != null : Number(v[k] || 0) > 0)) ? 800 : 500, whiteSpace: 'nowrap' }}>
+                    {k === 'taxa' ? (v.taxa == null ? '—' : v.taxa + '%') : v[k]}
+                  </td>
+                )
+                return (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 980 }}>
+                    <thead>
+                      <tr style={{ color: cores.suave, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 14px', borderBottom: `1px solid ${cores.cardBorda}`, fontWeight: 800 }}>Vendedora</th>
+                        {COLS_VEND.map(([k, l, d]) => (
+                          <th key={k} title={d} style={{ textAlign: 'right', padding: '10px 12px', borderBottom: `1px solid ${cores.cardBorda}`, fontWeight: 800, whiteSpace: 'nowrap', cursor: 'help' }}>{l}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {porVend.map(v => (
+                        <tr key={v.vendedora} style={{ borderBottom: `1px solid ${cores.cardBorda}` }}>
+                          <td style={{ padding: '9px 14px', fontWeight: 700, whiteSpace: 'nowrap' }}>{v.vendedora}</td>
+                          {COLS_VEND.map(([k]) => celula(v, k, false))}
+                        </tr>
+                      ))}
+                      <tr style={{ background: '#f8fafc' }}>
+                        <td style={{ padding: '10px 14px', fontWeight: 800 }}>Total</td>
+                        {COLS_VEND.map(([k]) => celula(tot, k, true))}
+                      </tr>
+                    </tbody>
+                  </table>
+                )
+              })()}
           </div>
         </div>
       </div>
